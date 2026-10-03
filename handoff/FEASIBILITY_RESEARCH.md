@@ -51,7 +51,7 @@ Stack facts: Kotlin 74% / Java 26%, minSdk 28, target/compileSdk 36, Compose UI.
 - **Sizes/RAM:** int8 ≈ 396–449MB weights (fp32 ≈ 1.6–1.8GB); runtime RAM ~0.7–1GB @ seq 1024, ~1.2–1.5GB @ seq 2048. Comfortable on S25+ (12GB).
 - **Latency on 8 Elite CPU:** ~0.3–1.5s per forward pass @ seq ~1k; ~1–3s @ seq 2k. Handoff's "~100ms/call" only holds for short states. A 15-step task ≈ 30–45 Laya calls ≈ 15–70s of Laya compute total — still far better than PokeClaw's 2–3 min, and free.
 - **Execution provider:** CPU EP is the only sane default in 2026 — NNAPI deprecated (Android 15+); XNNPACK doesn't accelerate dynamically-quantized transformer matmuls; QNN/NPU needs source build + QNN SDK. llama.cpp has ModernBERT support as a future escape hatch.
-- **Tokenizer:** hand-written WordPiece in Kotlin (~couple hundred lines, fixed BERT-style vocab, 3.6MB tokenizer.json) — no official Android tokenizers artifact.
+- **Tokenizer:** hand-written WordPiece in Kotlin (~couple hundred lines, fixed BERT-style vocab, 3.6MB tokenizer.json) — no official Android tokenizers artifact. *(Correction 2026-10-03, from the pinned checkpoint: laya's tokenizer.json is actually GPT-2-style ByteLevel BPE, 50,280 vocab — not BERT WordPiece. The WordPiece estimate was wrong; the implemented port follows the real tokenizer.)*
 - **Packaging a ~400–500MB model:** bundle in APK assets (simple, 2× disk cost) or first-run download (ecosystem practice; on-device LLM apps all do this). Sideloading has no size cap; Play's 200MB limit is irrelevant here.
 
 ---

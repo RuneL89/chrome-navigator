@@ -14,7 +14,7 @@
 
 Turn an `Observation` into (a) the deterministic, bucketed candidate list (taxonomy law,
 doc 03 §3) and (b) the canonical state text v1 (≤480 tokens, doc 03 §4). Includes the
-Kotlin WordPiece tokenizer port (gates exact token counting AND the future shadow), with
+Kotlin checkpoint-tokenizer port (gates exact token counting AND the future shadow), with
 correctness proven against reference vectors. NOT in scope: any engine calls, gate logic.
 
 ## 2. What to Build
@@ -34,13 +34,17 @@ correctness proven against reference vectors. NOT in scope: any engine calls, ga
 - High-stakes fields are enumerated like any other (doc 03 §3 amendment note) — gating is
   Phase 4's job at execution time.
 
-### 2.2 Kotlin WordPiece tokenizer port (`:core`)
+### 2.2 Kotlin checkpoint-tokenizer port (`:core`)
+
+> **Amendment 2026-10-03:** the laya checkpoint's tokenizer is GPT-2-style **ByteLevel
+> BPE** (50,280 vocab), not WordPiece as originally written. The port implements the real
+> tokenizer from the pinned `tokenizer.json`. Everything else in this section stands.
 
 **Files:** `core/src/main/kotlin/navigator/core/laya/Tokenizer.kt`, `core/src/test/resources/tokenizer/vocab-sample.txt`
 
-- Greedy longest-match WordPiece over the laya vocab (BERT-style normalize + split rules),
-  reference: `receptron/laya` TypeScript port; port the vocab file (from
-  `convaiinnovations/laya`) into resources.
+- ByteLevel BPE per the pinned checkpoint (NFC normalize + GPT-2 regex pre-split + BPE
+  merges, `[UNK]`-free byte-level fallback), reference: `receptron/laya` TypeScript port;
+  the checkpoint's `tokenizer.json` ships in resources with provenance.
 - Exposes `count(text): Int` and `tokenize(text): List<String>`.
 
 ### 2.3 State-text builder v1 (`:core`)

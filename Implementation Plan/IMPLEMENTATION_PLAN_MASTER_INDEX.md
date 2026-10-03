@@ -30,7 +30,7 @@ human-verifiable steps), a hard sign-off checklist, and integration notes.
 |---|---|---|---|---|
 | 0 | [PHASE_00_infrastructure.md](PHASE_00_infrastructure.md) | Repo, two-module Gradle build, DecisionEngine types, fixture format + seed fixtures | $0 | 3-4h |
 | 1 | [PHASE_01_observation_a11y_reader.md](PHASE_01_observation_a11y_reader.md) | A11y reader, URL bar, `[nN]` serialization, capture mode → real golden fixtures | $0 | 4-6h |
-| 2 | [PHASE_02_enumeration_state_text.md](PHASE_02_enumeration_state_text.md) | Bucket taxonomy, deterministic enumeration, WordPiece tokenizer port, state text v1 (≤480 tok) | $0 | 4-6h |
+| 2 | [PHASE_02_enumeration_state_text.md](PHASE_02_enumeration_state_text.md) | Bucket taxonomy, deterministic enumeration, checkpoint-tokenizer port (ByteLevel BPE — amended 2026-10-03), state text v1 (≤480 tok) | $0 | 4-6h |
 | 3 | [PHASE_03_wire_client_jevengine.md](PHASE_03_wire_client_jevengine.md) | systemone wire client + JevEngine, tested on transcripts | $0.50 | 3-5h |
 | 4 | [PHASE_04_risk_gate.md](PHASE_04_risk_gate.md) | H1–H8 classifier, trust state machine, card payload | $0 | 3-4h |
 | 5 | [PHASE_05_decision_log.md](PHASE_05_decision_log.md) | DecisionLog schema + Room + RLCD export + agreement math | $0 | 3-4h |

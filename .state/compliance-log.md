@@ -110,3 +110,40 @@ a new dated entry. Format per `Implementation Plan/MASTER_IMPLEMENTATION_PROMPT.
     - No engine calls, no gate code in this phase. COMPLIANT.
   Result: COMPLIANT — no contradictions
   Checked By: Main agent (phase orchestrator)
+
+[2026-10-03] Phase 2 (Enumeration, Buckets & State Text v1) Post-Implementation Compliance Check
+  Changed: core/src/main/kotlin/navigator/core/enumerate/{Candidate,CandidateEnumerator,ObservedNode}.kt, core/src/main/kotlin/navigator/core/state/StateTextBuilder.kt, core/src/main/kotlin/navigator/core/laya/Tokenizer.kt, core/src/main/resources/laya/{tokenizer.json,PROVENANCE.txt}, core/src/test/kotlin/navigator/core/{enumerate/CandidateEnumeratorTest,state/StateTextBuilderTest,laya/{TokenizerReferenceVectorsTest,TokenizerVocabSampleTest},testsupport/TestFixtures}.kt, core/src/test/resources/tokenizer/{reference-vectors.json,vocab-sample.txt}, core/AGENTS.md, AGENTS.md (child-index line)
+  Vision Docs Checked: Project Vision/03 ss3-ss4; 05 ss6; 01 ss3 (ART-2/ART-4/ART-6/ART-7); 02 ss3 (255-option limit)
+  Comparison:
+    - Bucket taxonomy + separate recovery set + <=20/bucket + deterministic ART-6 ranking with stable id tiebreak + recorded truncation per vision 03 ss3. COMPLIANT.
+    - Primary sees flat (<=255), shadow sees bucketed form — one ranking, two views (enforced in CandidateList.init). COMPLIANT.
+    - High-stakes fields enumerated like any other; no gating in enumeration (Phase 4 owns execution-time gating). COMPLIANT.
+    - State text v1: exact vision 03 ss4 template and section order, <=480 tokens enforced with the real tokenizer, STATE_FORMAT_VERSION=1 referenced from the builder, deterministic in-code compression first (whole-candidate drops, lowest rank first, recorded; never mid-line), never-exceed loud failure, page text only inside UNTRUSTED PAGE CONTENT (app-authored lines verbatim + flattened). COMPLIANT.
+    - Tokenizer (05 ss6): checkpoint is GPT-2-style ByteLevel BPE, NOT WordPiece as the phase doc's label says; port follows the receptron/laya reference behavior (HF tokenizers on the checkpoint's tokenizer.json) and proves exactness with 33 real reference vectors (uv + HF tokenizers, build-time only, no runtime network). Recorded as deviation with rationale — "match the real checkpoint" is the only faithful reading of Gate 2.2 and of the shadow track the vocab feeds. DEVIATION (documented, not a contradiction: vision 05 ss6 names the receptron reference, which the port matches).
+    - Pure JVM: :core runtimeClasspath shows no Android artifacts; no engine calls, no gate code anywhere in the phase's files. COMPLIANT.
+    - Scope exclusions honored: no observation changes, no gesture dispatch, no log/Room code, fixtures and Phase 0/1 code untouched (read-only use).
+  Result: COMPLIANT — no contradictions; one documented doc-vs-reality deviation (tokenizer type) + implementation notes recorded in .state/phase-2-status.json
+  Checked By: canon-implementer (glm-5.3-flash)
+
+[2026-10-03] Phase 2 (Enumeration, Buckets & State Text v1) Post-Implementation Compliance Check + Close-out
+  Changed: core enumerate/ (CandidateEnumerator, Candidate, ObservedNode), laya/ (Tokenizer + tokenizer.json resource + PROVENANCE), state/ (StateTextBuilder), 29 new core tests + reference vectors; VISION AMENDMENTS same-day: Vision 05 §6, PHASE_02 §2.2 (+stale-line fixes), PHASE_08 §2.2, master index row 2, FEASIBILITY_RESEARCH note — tokenizer is ByteLevel BPE (50,280 vocab), not WordPiece
+  Vision Docs Checked: 03 §3-§4; 05 §6; 07 §2; ART-5/ART-6/ART-7
+  Comparison:
+    - Taxonomy, caps, deterministic ordering, state template, <=480-token law: COMPLIANT (verifier-confirmed with independent oracles + mutation checks).
+    - Tokenizer finding: implementation follows the real checkpoint; vision text corrected in the same pass (amendment law satisfied; factual correction, zero product-behavior change). COMPLIANT (amended).
+    - No runtime network; no engine/gate code; Phase 0/1 files unmodified. COMPLIANT.
+    - UAT 2.1 (read state texts): covered by owner autonomy directive — evidence: verifier template checks + golden previews. SANCTIONED DEVIATION.
+  Result: COMPLIANT — Phase 2 accepted (PHASE 2 VERIFIED in .state/phase-2-verification.md; both doc-only follow-ups fixed)
+  Checked By: canon-verifier (cold check) + Main agent (orchestrator close-out + vision amendment, GLM-5.3 session)
+
+[2026-10-03] Phase 3 (Wire Client & JevEngine — fixture mode) Pre-Implementation Compliance Check
+  Changed: (pre-check; no files changed yet)
+  Vision Docs Checked: 02 §1-§2, §5
+  Comparison:
+    - One wire client, engines differ only by EngineConfig (baseUrl/apiKey/model): ART-2. COMPLIANT.
+    - Primary config OpenRouter /api/alpha/decisions + pinned typesafe/jev-1.13-20260917; fallback Runware typesafe:jev@1: matches vision 02 §2 table. COMPLIANT.
+    - Retry law (transport-only, <=2, backoff; never on content), name-keyed maps, banding downstream, failover tagging: vision 02 §2. COMPLIANT.
+    - Gates runnable on MockWebServer transcripts with zero API keys; single live smoke call reserved for UAT (<= $0.50). COMPLIANT.
+    - No shadow engine / ShadowRouter (Phase 8), no generative roles (Phase 10). COMPLIANT.
+  Result: COMPLIANT — no contradictions
+  Checked By: Main agent (phase orchestrator)

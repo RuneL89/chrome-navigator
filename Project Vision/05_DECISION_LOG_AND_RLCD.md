@@ -70,7 +70,11 @@ A user-initiated export produces JSONL shaped for upstream `docs/finetune.md`:
 
 - Checkpoint: `laya` (English, 421M, ModernBERT-large; `convaiinnovations/laya`), ONNX int8
   (per-tensor — per-channel is broken upstream, issue #790).
-- The Kotlin port of WordPiece tokenizer + option-marker construction + calibration
+- The Kotlin port of the checkpoint tokenizer + option-marker construction + calibration
   post-processing is a first-class work item (reference: `receptron/laya` TypeScript port,
   which matches Python to 4 decimals); it gates the entire shadow track.
+  *(Amended 2026-10-03: the laya checkpoint ships a GPT-2-style ByteLevel BPE tokenizer —
+  50,280 vocab — not WordPiece as early research assumed; the law is "port the real
+  checkpoint tokenizer", proven by exact-match reference vectors against the pinned
+  revision.)*
 - Precision (int8 vs fp16) is chosen by eval-harness measurement, not preference.

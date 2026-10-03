@@ -34,7 +34,8 @@ sha256 recorded in the file. First-run-copy vs direct-asset-load decided by meas
 **Files:** `app/src/main/kotlin/navigator/app/laya/LayaEngine.kt`, `MarkerBuilder.kt`,
 `Calibration.kt`, `LayaOnnxSession.kt`
 
-- Reuses Phase 2's WordPiece tokenizer; implements the option-marker construction and
+- Reuses Phase 2's checkpoint tokenizer (ByteLevel BPE per the 2026-10-03 amendment; not
+  WordPiece); implements the option-marker construction and
   post-processing (probabilities, confidence) mirroring the receptron reference — verified
   against ≥10 reference vectors (state+question → distribution) recorded from the Python
   implementation.

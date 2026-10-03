@@ -1,0 +1,10 @@
+PROVENANCE — laya tokenizer resource
+
+File: tokenizer.json (verbatim)
+Source: https://huggingface.co/convaiinnovations/laya/resolve/55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851/tokenizer/tokenizer.json
+Revision: 55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851 (repo sha, lastModified 2026-09-24)
+Downloaded: 2026-10-03
+License: Apache-2.0 (model card cardData.license)
+Content: 50280-entry ByteLevel BPE vocab (GPT-2 regex pre-tokenizer, NFC normalizer),
+50009 merges, 116 added tokens (ids 0..50367). NOT WordPiece — the phase doc §2.2
+'WordPiece' label is a misnomer for this checkpoint; see .state/phase-2-status.json.
