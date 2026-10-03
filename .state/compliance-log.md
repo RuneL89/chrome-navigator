@@ -147,3 +147,37 @@ a new dated entry. Format per `Implementation Plan/MASTER_IMPLEMENTATION_PROMPT.
     - No shadow engine / ShadowRouter (Phase 8), no generative roles (Phase 10). COMPLIANT.
   Result: COMPLIANT — no contradictions
   Checked By: Main agent (phase orchestrator)
+
+[2026-10-03] Phase 3 (Wire Client & JevEngine — fixture mode) Post-Implementation Compliance Check
+  Changed: core wire/ (SystemOneClient, WireTransport+OkHttpWireTransport, EngineConfig+DefaultEngineConfigs), decision/JevEngine.kt (+EngineResult, scoreExpectedLevel), fixtures/ProviderWireTranscript.kt (+ProviderTranscriptLoaders, additive), 11 provider-shape transcript fixtures (transcripts/phase3/), 5 test classes (28 tests), :core build (okhttp runtime + kotlinx-coroutines-core runtime + mockwebserver TEST-only), libs.versions.toml, .gitignore (.env, keys.env); DOX: core/AGENTS.md, root child index
+  Vision Docs Checked: 02 §1-§2, §3, §5; ART-2, ART-5, ART-6
+  Comparison:
+    - One wire client (SystemOneClient), engines differ ONLY by EngineConfig; grep-check: HTTP + Bearer exist only in wire/; JevEngine is a pure config of the client. COMPLIANT (ART-2).
+    - Pinned IDs/typesafe:jev@1 appear only in DefaultEngineConfigs and are pinned by a test (EngineConfigTest). COMPLIANT (vision 02 §5; no bump attempted).
+    - Retry law: transport errors only, <=2 retries enforced at construction, exponential backoff (defaults 200ms base), never on content; 4xx/5xx and malformed-200 tests assert exactly 1 request, 0 failover requests. COMPLIANT (vision 02 §2).
+    - Failover: primary -> fallback-1 after retry exhaustion, usedFallback=true via WireDecision/EngineResult; exactly one hop. COMPLIANT (phase doc ss2.1-2.2).
+    - Name-keyed law: parse by question name; reorder-twin fixture + 5-seed deep-shuffle test resolve identically; band boundaries 0.30/0.70 inclusive-UNCERTAIN asserted via existing Bands; downstream code must branch on bands only. COMPLIANT (vision 02 §2).
+    - ART-5: score expected value computed by scoreExpectedLevel in :core; provider "score" echo ignored — fixture score-relevance-5.json deliberately records a WRONG echo (4.2 vs true 3.4) and the parser returns 3.4. COMPLIANT (vision 02 §3).
+    - $0.00 cloud spend: all gates run against MockWebServer; no live call attempted; UAT 3.1 live smoke deferred pending owner OpenRouter key. COMPLIANT.
+    - Scope exclusions honored: no shadow engine/ShadowRouter (Phase 8), no generative roles (Phase 10), Phase 0-2 files untouched (WireTranscript schema reconciled ADDITIVELY to preserve the immutable Phase-0 golden fixture — recorded as deviation).
+  Result: COMPLIANT — no contradictions; deviations recorded in .state/phase-3-status.json
+  Checked By: canon-implementer (glm-5.3-flash)
+
+[2026-10-03] Phase 3 (Wire Client & JevEngine — fixture mode) Post-Implementation Compliance Check + Close-out
+  Changed: core wire/ (SystemOneClient, WireTransport+OkHttpWireTransport, EngineConfig), decision/JevEngine, fixtures/ProviderWireTranscript (additive), 11 phase3 transcripts, 28 new tests; .gitignore + core build files (okhttp 4.12.0 runtime, mockwebserver+coroutines test/main per deviation log)
+  Vision Docs Checked: 02 §1-§2, §5
+  Comparison:
+    - ART-2 single gateway, pinned configs, retry/failover law, name-keyed parsing, secrets law, ART-5 score computation: COMPLIANT (9/9 verifier checks).
+    - UAT 3.1 live smoke: PENDING-OWNER-INPUT (OpenRouter key) — phase accepted on mechanical gates per owner autonomy directive; live reconciliation of wire shapes to the real provider deferred to the moment the key is provided (tracked in status + Phase 6 UAT prerequisites).
+  Result: COMPLIANT — Phase 3 accepted (PHASE 3 VERIFIED)
+  Checked By: canon-verifier (cold check, keyless re-runs) + Main agent (orchestrator close-out)
+
+[2026-10-03] Phase 4 (Risk Gate — Classifier & Trust State Machine) Pre-Implementation Compliance Check
+  Changed: (pre-check; no files changed yet)
+  Vision Docs Checked: 06_RISK_GATE_AND_SAFETY.md §1-§2 (amended law); 01 ART-1
+  Comparison:
+    - H1-H8 classifier table + fail-to-confirm + trust/per-task semantics + double-deny abort + 30s timeout-deny: phase doc matches vision 06. COMPLIANT.
+    - Trust never crosses tasks or sites; gate events logged (gateEvent lands Phase 5 schema). COMPLIANT.
+    - Pure :core logic, no UI, no execute. COMPLIANT.
+  Result: COMPLIANT — no contradictions
+  Checked By: Main agent (phase orchestrator)

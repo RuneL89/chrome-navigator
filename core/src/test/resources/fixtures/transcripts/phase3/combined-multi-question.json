@@ -1,0 +1,105 @@
+{
+  "engine": "jev",
+  "model": "typesafe/jev-1.13-20260917",
+  "state": "STATE_FORMAT_VERSION=1\nGOAL: find a recipe for apple pie\nPAGE: sallysbakingaddiction.com — full recipe page opened from the result list\nCANDIDATES:\n1. open-recipe — 'Easy Apple Pie Recipe - recipe card' (link)\n2. back-to-results — 'Back to results' (button)",
+  "questions": {
+    "next-action": {
+      "type": "choice",
+      "name": "next-action",
+      "options": [
+        { "id": "open-recipe", "label": "Open the recipe card", "description": "Open the full apple pie recipe card" },
+        { "id": "back-to-results", "label": "Back to results", "description": "Return to the search result list" }
+      ]
+    },
+    "goal-achieved": {
+      "type": "noul",
+      "name": "goal-achieved",
+      "proposition": "The page currently shows a complete apple pie recipe, so the goal 'find a recipe for apple pie' is achieved."
+    },
+    "result-relevance": {
+      "type": "score",
+      "name": "result-relevance",
+      "levels": [
+        { "id": "irrelevant", "description": "irrelevant — not an apple pie recipe" },
+        { "id": "related", "description": "related — an apple dessert but not a pie recipe" },
+        { "id": "exact-match", "description": "exact-match — the apple pie recipe itself" }
+      ]
+    }
+  },
+  "requestBody": {
+    "state": "STATE_FORMAT_VERSION=1\nGOAL: find a recipe for apple pie\nPAGE: sallysbakingaddiction.com — full recipe page opened from the result list\nCANDIDATES:\n1. open-recipe — 'Easy Apple Pie Recipe - recipe card' (link)\n2. back-to-results — 'Back to results' (button)",
+    "model": "typesafe/jev-1.13-20260917",
+    "questions": {
+      "next-action": {
+        "type": "choice",
+        "options": [
+          { "id": "open-recipe", "label": "Open the recipe card", "description": "Open the full apple pie recipe card" },
+          { "id": "back-to-results", "label": "Back to results", "description": "Return to the search result list" }
+        ]
+      },
+      "goal-achieved": {
+        "type": "noul",
+        "proposition": "The page currently shows a complete apple pie recipe, so the goal 'find a recipe for apple pie' is achieved."
+      },
+      "result-relevance": {
+        "type": "score",
+        "levels": [
+          { "id": 1, "description": "irrelevant — not an apple pie recipe" },
+          { "id": 2, "description": "related — an apple dessert but not a pie recipe" },
+          { "id": 3, "description": "exact-match — the apple pie recipe itself" }
+        ]
+      }
+    }
+  },
+  "responseBody": {
+    "id": "resp_or_0011",
+    "answers": {
+      "goal-achieved": {
+        "noul": 0.71,
+        "calibration": "medium"
+      },
+      "result-relevance": {
+        "level_probabilities": {
+          "3": 0.5,
+          "1": 0.2,
+          "2": 0.3
+        },
+        "score": 2.3
+      },
+      "next-action": {
+        "choice": "open-recipe",
+        "probabilities": {
+          "back-to-results": 0.13,
+          "open-recipe": 0.87
+        },
+        "confidence": 0.81,
+        "why": "the recipe card link is the goal itself"
+      }
+    },
+    "usage": { "input_tokens": 688, "output_tokens": 151 }
+  },
+  "expectedResults": {
+    "next-action": {
+      "type": "choice",
+      "chosenId": "open-recipe",
+      "probabilities": {
+        "open-recipe": 0.87,
+        "back-to-results": 0.13
+      },
+      "confidence": 0.81
+    },
+    "goal-achieved": {
+      "type": "noul",
+      "pTrue": 0.71
+    },
+    "result-relevance": {
+      "type": "score",
+      "expectedLevel": 2.3,
+      "levelProbabilities": {
+        "1": 0.2,
+        "2": 0.3,
+        "3": 0.5
+      }
+    }
+  }
+}

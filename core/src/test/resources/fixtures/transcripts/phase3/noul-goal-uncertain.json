@@ -1,0 +1,37 @@
+{
+  "engine": "jev",
+  "model": "typesafe/jev-1.13-20260917",
+  "state": "STATE_FORMAT_VERSION=1\nGOAL: find a recipe for apple pie\nPAGE: google.com — recipe result list (10 result titles, none opened)\nCANDIDATES:\n1. result-1 — 'Apple Pie Recipe - Allrecipes' (link)\n2. result-2 — 'Apple Pie - Preppy Kitchen' (link)",
+  "questions": {
+    "goal-achieved": {
+      "type": "noul",
+      "name": "goal-achieved",
+      "proposition": "The current page already shows a usable apple pie recipe, so the goal 'find a recipe for apple pie' is achieved."
+    }
+  },
+  "requestBody": {
+    "state": "STATE_FORMAT_VERSION=1\nGOAL: find a recipe for apple pie\nPAGE: google.com — recipe result list (10 result titles, none opened)\nCANDIDATES:\n1. result-1 — 'Apple Pie Recipe - Allrecipes' (link)\n2. result-2 — 'Apple Pie - Preppy Kitchen' (link)",
+    "model": "typesafe/jev-1.13-20260917",
+    "questions": {
+      "goal-achieved": {
+        "type": "noul",
+        "proposition": "The current page already shows a usable apple pie recipe, so the goal 'find a recipe for apple pie' is achieved."
+      }
+    }
+  },
+  "responseBody": {
+    "id": "resp_or_0006",
+    "answers": {
+      "goal-achieved": {
+        "sampled": true,
+        "noul": 0.52
+      }
+    }
+  },
+  "expectedResults": {
+    "goal-achieved": {
+      "type": "noul",
+      "pTrue": 0.52
+    }
+  }
+}

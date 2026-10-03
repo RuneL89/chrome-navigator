@@ -1,0 +1,62 @@
+{
+  "engine": "jev",
+  "model": "typesafe/jev-1.13-20260917",
+  "state": "STATE_FORMAT_VERSION=1\nGOAL: find a recipe for apple pie\nPAGE: google.com — search results for 'apple pie' (10 results, page 1)\nCANDIDATES:\n1. result-1 — 'Apple Pie Recipe (with Video) - Allrecipes' (link)\n2. result-2 — 'Easy Apple Pie Recipe - Sally's Baking Addiction' (link)\n3. result-3 — 'Grandma's Apple Pie - Food Network' (link)\n4. next-page-button — 'Next page' (button)\n5. search-box — 'apple pie' (editable)",
+  "questions": {
+    "next-action": {
+      "type": "choice",
+      "name": "next-action",
+      "options": [
+        { "id": "result-1", "label": "Open first result", "description": "Open 'Apple Pie Recipe (with Video) - Allrecipes'" },
+        { "id": "result-2", "label": "Open second result", "description": "Open 'Easy Apple Pie Recipe - Sally's Baking Addiction'" },
+        { "id": "result-3", "label": "Open third result", "description": "Open 'Grandma's Apple Pie - Food Network'" },
+        { "id": "next-page-button", "label": "Go to next results page", "description": "Load the next page of search results" }
+      ]
+    }
+  },
+  "requestBody": {
+    "state": "STATE_FORMAT_VERSION=1\nGOAL: find a recipe for apple pie\nPAGE: google.com — search results for 'apple pie' (10 results, page 1)\nCANDIDATES:\n1. result-1 — 'Apple Pie Recipe (with Video) - Allrecipes' (link)\n2. result-2 — 'Easy Apple Pie Recipe - Sally's Baking Addiction' (link)\n3. result-3 — 'Grandma's Apple Pie - Food Network' (link)\n4. next-page-button — 'Next page' (button)\n5. search-box — 'apple pie' (editable)",
+    "model": "typesafe/jev-1.13-20260917",
+    "questions": {
+      "next-action": {
+        "type": "choice",
+        "options": [
+          { "id": "result-1", "label": "Open first result", "description": "Open 'Apple Pie Recipe (with Video) - Allrecipes'" },
+          { "id": "result-2", "label": "Open second result", "description": "Open 'Easy Apple Pie Recipe - Sally's Baking Addiction'" },
+          { "id": "result-3", "label": "Open third result", "description": "Open 'Grandma's Apple Pie - Food Network'" },
+          { "id": "next-page-button", "label": "Go to next results page", "description": "Load the next page of search results" }
+        ]
+      }
+    }
+  },
+  "responseBody": {
+    "usage": { "input_tokens": 409, "output_tokens": 84 },
+    "id": "resp_or_0002",
+    "answers": {
+      "next-action": {
+        "confidence": 0.72,
+        "probabilities": {
+          "result-2": 0.22,
+          "next-page-button": 0.07,
+          "result-1": 0.61,
+          "result-3": 0.10
+        },
+        "choice": "result-1",
+        "reasoning": "The first result matches the query intent and hosts a video recipe."
+      }
+    }
+  },
+  "expectedResults": {
+    "next-action": {
+      "type": "choice",
+      "chosenId": "result-1",
+      "probabilities": {
+        "result-1": 0.61,
+        "result-2": 0.22,
+        "result-3": 0.10,
+        "next-page-button": 0.07
+      },
+      "confidence": 0.72
+    }
+  }
+}

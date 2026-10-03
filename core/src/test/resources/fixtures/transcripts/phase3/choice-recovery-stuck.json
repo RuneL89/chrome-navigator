@@ -1,0 +1,54 @@
+{
+  "engine": "jev",
+  "model": "typesafe:jev@1",
+  "state": "STATE_FORMAT_VERSION=1\nGOAL: play the saved workout video\nPAGE: youtube.com — watch page shows 'Video unavailable' after a reload attempt\nCANDIDATES:\n1. reload-page — 'Reload page' (button)\n2. go-back — 'Go back to playlist' (button)",
+  "questions": {
+    "recovery-strategy": {
+      "type": "choice",
+      "name": "recovery-strategy",
+      "options": [
+        { "id": "reload-page", "label": "Reload the page", "description": "Retry loading the same watch page once more" },
+        { "id": "go-back", "label": "Go back to the playlist", "description": "Return to the playlist and pick the video again" }
+      ]
+    }
+  },
+  "requestBody": {
+    "state": "STATE_FORMAT_VERSION=1\nGOAL: play the saved workout video\nPAGE: youtube.com — watch page shows 'Video unavailable' after a reload attempt\nCANDIDATES:\n1. reload-page — 'Reload page' (button)\n2. go-back — 'Go back to playlist' (button)",
+    "model": "typesafe:jev@1",
+    "questions": {
+      "recovery-strategy": {
+        "type": "choice",
+        "options": [
+          { "id": "reload-page", "label": "Reload the page", "description": "Retry loading the same watch page once more" },
+          { "id": "go-back", "label": "Go back to the playlist", "description": "Return to the playlist and pick the video again" }
+        ]
+      }
+    }
+  },
+  "responseBody": {
+    "region": "eu",
+    "answers": {
+      "recovery-strategy": {
+        "choice": "go-back",
+        "probabilities": {
+          "go-back": 0.88,
+          "reload-page": 0.12
+        },
+        "confidence": 0.9,
+        "generation_ms": 143
+      }
+    },
+    "id": "resp_rw_0004"
+  },
+  "expectedResults": {
+    "recovery-strategy": {
+      "type": "choice",
+      "chosenId": "go-back",
+      "probabilities": {
+        "reload-page": 0.12,
+        "go-back": 0.88
+      },
+      "confidence": 0.9
+    }
+  }
+}

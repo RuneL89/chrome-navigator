@@ -1,0 +1,51 @@
+{
+  "engine": "jev",
+  "model": "typesafe/jev-1.13-20260917",
+  "state": "STATE_FORMAT_VERSION=1\nGOAL: find a recipe for apple pie\nPAGE: foodnetwork.com — recipe page half-rendered (steps visible, images broken)\nCANDIDATES:\n1. recipe-card — 'Grandma's Apple Pie' (heading)",
+  "questions": {
+    "page-quality": {
+      "type": "score",
+      "name": "page-quality",
+      "levels": [
+        { "id": "low-quality", "description": "low-quality — the page is broken or its content is missing" },
+        { "id": "high-quality", "description": "high-quality — the page renders the recipe completely" }
+      ]
+    }
+  },
+  "requestBody": {
+    "state": "STATE_FORMAT_VERSION=1\nGOAL: find a recipe for apple pie\nPAGE: foodnetwork.com — recipe page half-rendered (steps visible, images broken)\nCANDIDATES:\n1. recipe-card — 'Grandma's Apple Pie' (heading)",
+    "model": "typesafe/jev-1.13-20260917",
+    "questions": {
+      "page-quality": {
+        "type": "score",
+        "levels": [
+          { "id": 1, "description": "low-quality — the page is broken or its content is missing" },
+          { "id": 2, "description": "high-quality — the page renders the recipe completely" }
+        ]
+      }
+    }
+  },
+  "responseBody": {
+    "id": "resp_or_0010",
+    "answers": {
+      "page-quality": {
+        "level_probabilities": {
+          "2": 0.75,
+          "1": 0.25
+        },
+        "score": 1.75,
+        "rubric_size": 2
+      }
+    }
+  },
+  "expectedResults": {
+    "page-quality": {
+      "type": "score",
+      "expectedLevel": 1.75,
+      "levelProbabilities": {
+        "1": 0.25,
+        "2": 0.75
+      }
+    }
+  }
+}

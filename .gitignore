@@ -8,6 +8,8 @@ build/
 
 # Local config
 local.properties
+.env
+keys.env
 
 # IDE
 .idea/

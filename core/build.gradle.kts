@@ -13,9 +13,16 @@ kotlin {
 
 dependencies {
     implementation(libs.kotlinx.serialization.json)
+    // Wire client (Phase 3): OkHttp is the default transport behind the injectable
+    // WireTransport interface; coroutines back the suspend API. Both are pure-JVM
+    // (ART-2 boundary holds: no Android artifacts on :core — verifier-checked).
+    implementation(libs.okhttp)
+    implementation(libs.kotlinx.coroutines.core)
 
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.kotlin.test.junit5)
+    // Wire gates (3.1-3.3) run against MockWebServer only — no live provider in tests.
+    testImplementation(libs.mockwebserver)
     testRuntimeOnly(libs.junit.platform.launcher)
 }
 

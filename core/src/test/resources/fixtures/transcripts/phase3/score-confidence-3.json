@@ -1,0 +1,55 @@
+{
+  "engine": "jev",
+  "model": "typesafe/jev-1.13-20260917",
+  "state": "STATE_FORMAT_VERSION=1\nGOAL: find a recipe for apple pie\nPAGE: google.com — result 3 'Grandma's Apple Pie - Food Network' snippet read\nCANDIDATES:\n1. result-3 — 'Grandma's Apple Pie - Food Network' (link)",
+  "questions": {
+    "source-confidence": {
+      "type": "score",
+      "name": "source-confidence",
+      "levels": [
+        { "id": "not-confident", "description": "not-confident — the snippet gives no signal about the source" },
+        { "id": "somewhat-confident", "description": "somewhat-confident — the snippet looks like a real recipe page" },
+        { "id": "confident", "description": "confident — the snippet names the dish and promises a full recipe" }
+      ]
+    }
+  },
+  "requestBody": {
+    "state": "STATE_FORMAT_VERSION=1\nGOAL: find a recipe for apple pie\nPAGE: google.com — result 3 'Grandma's Apple Pie - Food Network' snippet read\nCANDIDATES:\n1. result-3 — 'Grandma's Apple Pie - Food Network' (link)",
+    "model": "typesafe/jev-1.13-20260917",
+    "questions": {
+      "source-confidence": {
+        "type": "score",
+        "levels": [
+          { "id": 1, "description": "not-confident — the snippet gives no signal about the source" },
+          { "id": 2, "description": "somewhat-confident — the snippet looks like a real recipe page" },
+          { "id": 3, "description": "confident — the snippet names the dish and promises a full recipe" }
+        ]
+      }
+    }
+  },
+  "responseBody": {
+    "id": "resp_or_0009",
+    "model_version": "jev-1.13",
+    "answers": {
+      "source-confidence": {
+        "level_probabilities": {
+          "1": 0.60,
+          "2": 0.30,
+          "3": 0.10
+        },
+        "score": 1.5
+      }
+    }
+  },
+  "expectedResults": {
+    "source-confidence": {
+      "type": "score",
+      "expectedLevel": 1.5,
+      "levelProbabilities": {
+        "1": 0.6,
+        "2": 0.3,
+        "3": 0.1
+      }
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "engine": "jev",
+  "model": "typesafe/jev-1.13-20260917",
+  "state": "STATE_FORMAT_VERSION=1\nGOAL: find a recipe for apple pie\nPAGE: sallysbakingaddiction.com — full recipe page (ingredients, steps, and bake times all visible)\nCANDIDATES:\n1. print-recipe — 'Print recipe' (button)\n2. jump-to-recipe-card — 'Skip to recipe' (link)",
+  "questions": {
+    "goal-achieved": {
+      "type": "noul",
+      "name": "goal-achieved",
+      "proposition": "The page currently shows a complete apple pie recipe with ingredients and steps, so the goal 'find a recipe for apple pie' is achieved."
+    }
+  },
+  "requestBody": {
+    "state": "STATE_FORMAT_VERSION=1\nGOAL: find a recipe for apple pie\nPAGE: sallysbakingaddiction.com — full recipe page (ingredients, steps, and bake times all visible)\nCANDIDATES:\n1. print-recipe — 'Print recipe' (button)\n2. jump-to-recipe-card — 'Skip to recipe' (link)",
+    "model": "typesafe/jev-1.13-20260917",
+    "questions": {
+      "goal-achieved": {
+        "type": "noul",
+        "proposition": "The page currently shows a complete apple pie recipe with ingredients and steps, so the goal 'find a recipe for apple pie' is achieved."
+      }
+    }
+  },
+  "responseBody": {
+    "id": "resp_or_0005",
+    "answers": {
+      "goal-achieved": {
+        "noul": 0.93,
+        "calibration": "high"
+      }
+    }
+  },
+  "expectedResults": {
+    "goal-achieved": {
+      "type": "noul",
+      "pTrue": 0.93
+    }
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "engine": "jev",
+  "model": "typesafe/jev-1.13-20260917",
+  "state": "STATE_FORMAT_VERSION=1\nGOAL: find a recipe for apple pie\nPAGE: google.com — result 2 'Easy Apple Pie Recipe - Sally's Baking Addiction' hovered\nCANDIDATES:\n1. result-2 — 'Easy Apple Pie Recipe - Sally's Baking Addiction' (link)\n2. result-3 — 'Grandma's Apple Pie - Food Network' (link)",
+  "questions": {
+    "result-relevance": {
+      "type": "score",
+      "name": "result-relevance",
+      "levels": [
+        { "id": "irrelevant", "description": "irrelevant — nothing to do with apple pie" },
+        { "id": "tangential", "description": "tangential — mentions pies but not apple pie" },
+        { "id": "related", "description": "related — an apple dessert but not a pie recipe" },
+        { "id": "highly-relevant", "description": "highly-relevant — an apple pie recipe, but not a strong source" },
+        { "id": "exact-match", "description": "exact-match — a credible apple pie recipe matching the goal" }
+      ]
+    }
+  },
+  "requestBody": {
+    "state": "STATE_FORMAT_VERSION=1\nGOAL: find a recipe for apple pie\nPAGE: google.com — result 2 'Easy Apple Pie Recipe - Sally's Baking Addiction' hovered\nCANDIDATES:\n1. result-2 — 'Easy Apple Pie Recipe - Sally's Baking Addiction' (link)\n2. result-3 — 'Grandma's Apple Pie - Food Network' (link)",
+    "model": "typesafe/jev-1.13-20260917",
+    "questions": {
+      "result-relevance": {
+        "type": "score",
+        "levels": [
+          { "id": 1, "description": "irrelevant — nothing to do with apple pie" },
+          { "id": 2, "description": "tangential — mentions pies but not apple pie" },
+          { "id": 3, "description": "related — an apple dessert but not a pie recipe" },
+          { "id": 4, "description": "highly-relevant — an apple pie recipe, but not a strong source" },
+          { "id": 5, "description": "exact-match — a credible apple pie recipe matching the goal" }
+        ]
+      }
+    }
+  },
+  "responseBody": {
+    "id": "resp_or_0008",
+    "answers": {
+      "result-relevance": {
+        "score": 4.2,
+        "level_probabilities": {
+          "3": 0.30,
+          "1": 0.05,
+          "5": 0.15,
+          "4": 0.35,
+          "2": 0.15
+        },
+        "rubric_hash": "a1b2c3"
+      }
+    }
+  },
+  "expectedResults": {
+    "result-relevance": {
+      "type": "score",
+      "expectedLevel": 3.4,
+      "levelProbabilities": {
+        "1": 0.05,
+        "2": 0.15,
+        "3": 0.3,
+        "4": 0.35,
+        "5": 0.15
+      }
+    }
+  }
+}

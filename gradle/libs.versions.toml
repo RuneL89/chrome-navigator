@@ -12,6 +12,10 @@ junitPlatform = "1.14.4"
 # OkHttp: 5.x's okhttp-android AAR requires compileSdk 37 — incompatible with the
 # ratified compileSdk 36 law (vision 01 §3); 4.12.0 is the latest unconstrained line
 okhttp = "4.12.0"
+
+# Pure-JVM coroutines for :core (suspend transports; the JVM artifact resolves via
+# Gradle variant metadata — no Android artifact on :core)
+kotlinxCoroutinesCore = "1.9.0"
 room = "2.8.5"
 onnxruntimeAndroid = "1.30.0"
 composeBom = "2025.12.01"
@@ -25,6 +29,8 @@ junit-platform-launcher = { group = "org.junit.platform", name = "junit-platform
 kotlin-test-junit5 = { group = "org.jetbrains.kotlin", name = "kotlin-test-junit5", version.ref = "kotlin" }
 
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
+mockwebserver = { group = "com.squareup.okhttp3", name = "mockwebserver", version.ref = "okhttp" }
+kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "kotlinxCoroutinesCore" }
 room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 onnxruntime-android = { group = "com.microsoft.onnxruntime", name = "onnxruntime-android", version.ref = "onnxruntimeAndroid" }

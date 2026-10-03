@@ -1,0 +1,58 @@
+{
+  "engine": "jev",
+  "model": "typesafe/jev-1.13-20260917",
+  "state": "STATE_FORMAT_VERSION=1\nGOAL: find a recipe for apple pie\nPAGE: allrecipes.com — recipe page blocked by a cookie consent dialog\nCANDIDATES:\n1. accept-all — 'Accept all cookies' (button)\n2. essential-only — 'Only essential cookies' (button)\n3. open-settings — 'Cookie settings' (link)",
+  "questions": {
+    "consent-choice": {
+      "type": "choice",
+      "name": "consent-choice",
+      "options": [
+        { "id": "accept-all", "label": "Accept all cookies", "description": "Grant all cookie consents and dismiss the dialog" },
+        { "id": "essential-only", "label": "Only essential cookies", "description": "Reject optional cookies and dismiss the dialog" },
+        { "id": "open-settings", "label": "Open cookie settings", "description": "Open the per-category consent settings" }
+      ]
+    }
+  },
+  "requestBody": {
+    "state": "STATE_FORMAT_VERSION=1\nGOAL: find a recipe for apple pie\nPAGE: allrecipes.com — recipe page blocked by a cookie consent dialog\nCANDIDATES:\n1. accept-all — 'Accept all cookies' (button)\n2. essential-only — 'Only essential cookies' (button)\n3. open-settings — 'Cookie settings' (link)",
+    "model": "typesafe/jev-1.13-20260917",
+    "questions": {
+      "consent-choice": {
+        "type": "choice",
+        "options": [
+          { "id": "accept-all", "label": "Accept all cookies", "description": "Grant all cookie consents and dismiss the dialog" },
+          { "id": "essential-only", "label": "Only essential cookies", "description": "Reject optional cookies and dismiss the dialog" },
+          { "id": "open-settings", "label": "Open cookie settings", "description": "Open the per-category consent settings" }
+        ]
+      }
+    }
+  },
+  "responseBody": {
+    "id": "resp_or_0003",
+    "answers": {
+      "consent-choice": {
+        "choice": "essential-only",
+        "probabilities": {
+          "open-settings": 0.15,
+          "accept-all": 0.44,
+          "essential-only": 0.41
+        },
+        "confidence": 0.38,
+        "truncated_options": false
+      }
+    },
+    "rate_limit": { "remaining": 118, "reset_after_s": 60 }
+  },
+  "expectedResults": {
+    "consent-choice": {
+      "type": "choice",
+      "chosenId": "essential-only",
+      "probabilities": {
+        "accept-all": 0.44,
+        "essential-only": 0.41,
+        "open-settings": 0.15
+      },
+      "confidence": 0.38
+    }
+  }
+}
