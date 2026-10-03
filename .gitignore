@@ -1,0 +1,24 @@
+# Gradle
+.gradle/
+build/
+
+# Wrapper bootstrap: the one-time Gradle dist used to generate the wrapper
+# (the wrapper jar itself under gradle/wrapper/ IS committed)
+.tools/
+
+# Local config
+local.properties
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Android
+captures/
+.cxx/
+
+# OS noise
+.DS_Store
+Thumbs.db

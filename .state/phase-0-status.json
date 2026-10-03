@@ -1,14 +1,23 @@
 {
   "phase": "0",
-  "status": "in-progress",
+  "status": "accepted",
   "goal": "All 3 technical gates in PHASE_00_infrastructure.md pass (./gradlew test is green), UAT 0.1 documented, implementation matches Project Vision/01 + 02, total LLM cost $0.00.",
-  "lastAction": "Canon bootstrap complete (2026-10-03): vision ratified (7 docs, incl. risk-gate amendment), implementation plan written (phases 0-13). Phase 0 ready to start.",
-  "gatesPassed": [],
+  "lastAction": "Gate 0.1 PASS: './gradlew assembleDebug' exit 0 (app/build/outputs/apk/debug/app-debug.apk produced; ONNX 1.30.0 AAR packaged) and './gradlew test' exit 0. Gate 0.2 PASS: ':core:test --rerun' exit 0, 24 passed / 0 failed (BandsTest 4 incl. boundaries 0.299/0.30/0.70/0.701; TypesTest 11 serialization round-trips + constraint tests; zero TODO() in shipped types — grep-verified). Gate 0.3 PASS: FixtureLoaderTest 9/9 — both seed fixtures load; corrupted temp-file copies rejected with clear FixtureValidationException messages (unknown field, missing field, malformed bounds, chosenId outside option set, incomplete distribution, broken JSON). Boundary check: zero android/androidx imports in :core (grep-verified). Post-implementation compliance check logged COMPLIANT in .state/compliance-log.md. Not committed (orchestrator commits after verification).",
+  "gatesPassed": ["0.1", "0.2", "0.3"],
   "gatesFailed": [],
-  "gatesPending": ["0.1", "0.2", "0.3"],
+  "gatesPending": [],
   "llmCost": "$0.00",
-  "tokenBudgetRemaining": "$0.00 (deterministic phase)",
+  "tokenBudgetRemaining": "$0.00 (deterministic phase; no cloud API calls made)",
   "blocker": null,
-  "deviations": [],
-  "nextAction": "Run compliance pre-check, then invoke canon-implementer"
+  "deviations": [
+    "Build stack: Gradle 8.14.5 + AGP 8.13.2 + Kotlin 2.4.20 — verified to resolve from Maven and mutually compatible; AGP 8.13 is the newest line supporting compileSdk 36 without AGP 9's built-in-Kotlin migration (absolute-latest AGP 9.4.1/Gradle 9.8.0 not taken)",
+    "OkHttp pinned to 4.12.0 instead of latest 5.5.0: okhttp-android 5.5.0's AAR metadata requires compileSdk 37, contradicting the ratified compileSdk 36 law (vision 01 §3); 4.12.0 is the latest compileSdk-unconstrained line",
+    "ONNX Runtime Android pinned at exactly com.microsoft.onnxruntime:onnxruntime-android:1.30.0 (latest of the doc's 1.30.x line; verified on Maven Central)",
+    "Added gradle.properties (android.useAndroidX=true, nonTransitiveRClass, daemon jvmargs) — not listed in phase doc §2.1 but mandatory for AGP with AndroidX dependencies",
+    "WireTranscript.response (phase doc: '{…exact provider shape…}', elided) defined as the typed result primitives with a 'type' discriminator (choice/noul/score), cross-validated against the request question (chosenId ∈ option ids, probability keys == option ids, score keys == 1..N); Phase 3 must reconcile this with the live provider shape before schema freeze",
+    "ScoreLevel defined as (id, description) — phase doc names the type but not its fields; ScoreResult.expectedLevel typed Double (expected value over levels per vision 02 §3); ScoreResult.levelProbabilities keyed by 1-based level ordinal, ChoiceResult.probabilities keyed by Option.id (name-keyed, never positional, vision 02 §2)",
+    "JUnit 5 stack needs kotlin-test-junit5 (for kotlin.test assertions) + junit-platform-launcher test deps; wrapper bootstrapped via checksum-verified Gradle 8.14.5 dist in gitignored .tools/, only wrapper files committed",
+    "DOX pass: created core/AGENTS.md and app/AGENTS.md, updated root AGENTS.md child index (per root DOX 'Update After Editing')"
+  ],
+  "nextAction": "Accepted. Start Phase 1 (compliance pre-check then canon-implementer). Verifier: PHASE 0 VERIFIED (.state/phase-0-verification.md); UAT 0.1 covered by owner autonomy directive 2026-10-03 (sanctioned deviation, logged in compliance-log)."
 }

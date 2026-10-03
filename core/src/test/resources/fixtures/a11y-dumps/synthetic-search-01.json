@@ -1,0 +1,78 @@
+{
+  "capturedAt": "2026-10-03T10:15:30Z",
+  "site": "google.com",
+  "url": "https://www.google.com/search?q=apple+pie",
+  "title": "apple pie - Google Search",
+  "nodes": [
+    {
+      "id": "search-box",
+      "text": "apple pie",
+      "desc": "Search",
+      "clickable": true,
+      "editable": true,
+      "scrollable": false,
+      "bounds": "167,60,913,132",
+      "className": "android.widget.EditText"
+    },
+    {
+      "id": "results-container",
+      "text": "",
+      "desc": "",
+      "clickable": false,
+      "editable": false,
+      "scrollable": true,
+      "bounds": "0,160,1080,2280",
+      "className": "android.view.View"
+    },
+    {
+      "id": "result-1",
+      "text": "Apple Pie Recipe (with Video) - Allrecipes",
+      "desc": "This is the best apple pie in the world. Cinnamon and nutmeg add flavor to the syrup.",
+      "clickable": true,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,318,1025,470",
+      "className": "android.view.View"
+    },
+    {
+      "id": "result-2",
+      "text": "Easy Apple Pie Recipe - Sally's Baking Addiction",
+      "desc": "A homemade apple pie with a flaky butter crust, thickened cinnamon apple filling.",
+      "clickable": true,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,540,1025,692",
+      "className": "android.view.View"
+    },
+    {
+      "id": "result-3",
+      "text": "Grandma's Apple Pie - Food Network",
+      "desc": "Get Grandma's Apple Pie Recipe from Food Network.",
+      "clickable": true,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,762,1025,914",
+      "className": "android.view.View"
+    },
+    {
+      "id": "nav-recipes-tab",
+      "text": "Recipes",
+      "desc": "Recipes filter",
+      "clickable": true,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,240,240,300",
+      "className": "android.view.View"
+    },
+    {
+      "id": "next-page-button",
+      "text": "Next page",
+      "desc": "Go to next results page",
+      "clickable": true,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "440,2140,640,2200",
+      "className": "android.widget.Button"
+    }
+  ]
+}

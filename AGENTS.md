@@ -91,4 +91,5 @@ When the user requests a durable behavior change, record it here or in the relev
 * `Implementation Plan/` — phased implementation plan (Phases 0–13 to v1), master index, and agent prompts. See `Implementation Plan/AGENTS.md`
 * `.state/` — phase status files, compliance log, verification reports, eval reports; the project's durable memory. See `.state/AGENTS.md`
 * `handoff/` — source documents (handoff v1, handoff v2 Road L) and feasibility research; input material, not law
-* `core/`, `app/` — (created in Phase 0) pure-JVM decision core and Android application
+* `core/` — `:core`, the pure-JVM decision core (DecisionEngine, types, banding, golden-fixture schemas + loaders). See `core/AGENTS.md`
+* `app/` — `:app`, the Android application (Phase 0 skeleton; a11y, overlay, Room, ONNX arrive per phase). See `app/AGENTS.md`
