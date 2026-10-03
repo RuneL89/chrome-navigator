@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<head><title>Unreadable</title></head>
+<body>
+<!-- The vision 03 section 5 unreadable case: the page renders as ONE undifferentiated
+     node (a full-screen canvas). No text, no controls, nothing to enumerate. -->
+<canvas id="c" style="position:fixed;left:0;top:0;width:100%;height:100%;"></canvas>
+<script>
+  document.getElementById('c').width = 1080;
+  document.getElementById('c').height = 1920;
+</script>
+</body>
+</html>

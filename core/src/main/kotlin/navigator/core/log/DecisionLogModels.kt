@@ -231,6 +231,13 @@ enum class ActionDisposition {
 
     /** The same (class, site) was refused twice in one task — clean task abort. */
     @SerialName("task-aborted") TASK_ABORTED,
+
+    /**
+     * The loop refused the engine's self-reported finish because the code completion
+     * guard/noul verification did not confirm it (ART-4: never trust self-report,
+     * vision 04 §3). Additive Phase-6 vocabulary — earlier rows decode unchanged.
+     */
+    @SerialName("refused-by-guard") REFUSED_BY_GUARD,
 }
 
 /**

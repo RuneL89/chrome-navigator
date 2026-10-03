@@ -97,7 +97,10 @@ without a device.
   schema changes are vision-level events; every row is immutable history (the persistence
   layer in `:app` is insert-only); cross-field consistency fails loudly in `init`
   (teacher/shadow answers must live on their question's option space; agreement fields
-  are present iff both answers exist; `trustedFromTask` only on an approved gate decision)
+  are present iff both answers exist; `trustedFromTask` only on an approved gate decision).
+  Phase 6 added ONE additive `ActionDisposition` value — `refused-by-guard` (@SerialName
+  "refused-by-guard"), the loop's ART-4 refusal of an engine self-reported finish
+  (vision 04 §3); earlier rows decode unchanged
 * The KL convention (vision 05 §3, documented in `Agreement.kt`): natural log, union of
   distribution keys zero-filled, p→0 terms contribute 0 (limit), q→0 terms floored at
   1e-12 (epsilon — large but finite, JSON cannot carry Infinity); inputs asserted

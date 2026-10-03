@@ -3,6 +3,23 @@
      A11y service, overlay UI, Room, ONNX wiring arrive in their own phases (vision 01 §3). -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Phase 6: the LIVE harness mode speaks to the engine endpoint through :core's
+         wire client (ART-2: OkHttpWireTransport stays the only HTTP speaker). -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Phase 6 harness robustness: cold-starting the browser between flake retries
+         (HOME first, then kill its BACKGROUND process while the harness is foreground). -->
+    <uses-permission android:name="android.permission.KILL_BACKGROUND_PROCESSES" />
+    <!-- Phase 6 harness gate stand-in: the debug gate-card dialog floats over Chrome
+         (user-granted "display over other apps"); the product overlay is Phase 9. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <!-- Package visibility (Android 11+): the harness drives the observation-allowlisted
+         browsers (vision 03 §1); the loop observes exactly these packages. -->
+    <queries>
+        <package android:name="com.android.chrome" />
+        <package android:name="org.chromium.webview_shell" />
+    </queries>
+
     <application
         android:label="Chrome Navigator"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
@@ -15,6 +32,16 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Debug-only navigation harness (Phase 6). Exported for adb-driven headless
+             runs; it drives the loop, streams the step log, and exports run reports.
+             singleTop so headless re-launches deliver onNewIntent (verifier-recommended
+             2026-10-03: standard mode only brings the task to front and drops the intent). -->
+        <activity
+            android:name=".harness.HarnessActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:label="Navigator Harness" />
 
         <!-- Debug-only capture harness (fixture recording). Exported for adb intents;
              captures are refused unless the build is debuggable. -->

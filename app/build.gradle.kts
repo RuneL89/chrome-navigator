@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
 }
 
@@ -64,6 +65,10 @@ dependencies {
 
     // Runtime for encoding the :core fixture schemas (Phase-1 capture mode)
     implementation(libs.kotlinx.serialization.json)
+
+    // Phase 6: the loop is suspend-first (engine, observer, log sink); :core keeps
+    // coroutines internal, :app declares its own copy for the loop + harness.
+    implementation(libs.kotlinx.coroutines.core)
 
     implementation(project(":core"))
 

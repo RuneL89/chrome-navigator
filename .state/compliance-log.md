@@ -244,3 +244,31 @@ a new dated entry. Format per `Implementation Plan/MASTER_IMPLEMENTATION_PROMPT.
     - Gates 6.1/6.2 stub-driven ($0); Gate 6.3 LIVE requires owner OpenRouter key — PENDING-OWNER-INPUT anticipated; UAT 6.1/6.2 are genuine owner-judgment prototype steps (watch the agent work; M0 quality read-out). COMPLIANT (planned pause).
   Result: COMPLIANT — no contradictions
   Checked By: Main agent (phase orchestrator)
+
+[2026-10-03] Phase 6 (Navigation Loop — Headless Harness, M0) Post-Implementation Compliance Check
+  Changed: app/src/main/kotlin/navigator/app/loop/{NavigationLoop,Triage,StepExecutor,CompletionGuards,StuckDetector,TaskBudget,GatePresenter,JevSpendRecorder}.kt; app/src/main/kotlin/navigator/app/stub/StubEngine.kt; app/src/main/kotlin/navigator/app/harness/{HarnessActivity,GoalCatalog,HarnessPagesServer,HarnessRunners}.kt; app/src/main/assets/harness/{goals.json,pages/*.html}; app/src/main/kotlin/navigator/app/observe/NavigatorAccessibilityService.kt (additive observeForLoop/LoopObservation); app/src/main/kotlin/navigator/app/log/ (untouched); core/src/main/kotlin/navigator/core/log/DecisionLogModels.kt (additive ActionDisposition.refused-by-guard); app/src/main/AndroidManifest.xml; app/build.gradle.kts; app/src/test/kotlin/navigator/app/{loop,stub,harness}/* (Gate 6.1 suites); app/AGENTS.md; core/AGENTS.md; AGENTS.md (root app line)
+  Vision Docs Checked: 04 §1 (triage: one choose over 4 classes; impossible -> explain+abort pre-navigation), §2 (strict step order, GATE before EXECUTE, LOG every step, focus-first SET_TEXT + paste fallback), §3 (exits; goal-achieved = noul HIGH AND code guard, ART-4), §4 (StuckDetector 5 signals/8 window/3 levels; L1 hint into HISTORY; L2 recovery set engine-chooses-code-triggers; L3 kill, rescue coach absent -> straight kill), §5 (TaskBudget 40/60 steps, 5/10 min, $0.20/$0.25 integer micro-dollar arithmetic in code, clean stop + partial results + everything logged; Laya unbudgeted), §6 (log carries every step); 06 §1-§3 (classifier before execution, card contents verbatim via GateCard, timeout=deny, double-refusal abort, per-task trust never crossing tasks/sites/classes, every gate event logged); 03 §1 (text entry focus-first), §5 (unusable tree -> graceful refusal "I can't read this site"); 05 §2 (one row per decision, insert-only)
+  Comparison:
+    - Loop step order + exits + budgets + stuck + guards implemented and unit-tested against fakes (Gate 6.1): COMPLIANT.
+    - ART-4: engine finish self-report refused unless code guard passes (NavigationLoopTest adversarial case; on-device goals exit only via guard+noul): COMPLIANT.
+    - Gate path: RiskGate.classify -> TaskGate -> GatePresenter card (GateCard verbatim) -> APPROVE/DENY/TIMEOUT; double-refusal abort; trust logged trustedFromTask=true: COMPLIANT.
+    - Deviations recorded in phase-6-status.json (additive refused-by-guard disposition; rephrase stub = meta-decision without a row; REFUSED/TRIAGE_IMPOSSIBLE terminal states; WebView-subtree pageNodeCount for the unreadable rule; pinned placeholder spend prices; SUBMIT-kind mapping; loopback static server; harness warm-up/readiness/retry; serialization+coroutines plugins). None contradicts vision; all are additive or environment-robustness.
+  Result: COMPLIANT — no contradictions
+  Checked By: canon-implementer
+
+[2026-10-03] Phase 6 Repair Round (verifier Gate 6.2 re-run failures — harness/environment robustness)
+  Changed: app/src/main/kotlin/navigator/app/harness/HarnessActivity.kt (onNewIntent + handleLaunchIntent; SystemDialogAutoDismiss hooks; browser cold-start; starvation retry; attempts/flakeRetried report fields); app/src/main/kotlin/navigator/app/harness/HarnessRunners.kt (SystemDialogAutoDismiss); app/src/main/kotlin/navigator/app/loop/NavigationLoop.kt (logGaps = steps - rows - metaDecisions + doc); app/src/test/kotlin/navigator/app/loop/NavigationLoopTest.kt (rephrase logGaps assertion 0); app/src/main/AndroidManifest.xml (KILL_BACKGROUND_PROCESSES)
+  Vision Docs Checked: 04 §2 (step order unchanged), §3 (exits — REFUSED refusal semantics untouched; genuine refusals never retried), §5 (budget law untouched); 06 §1-§3 (gate path untouched); 05 §2 (one row per navigation decision — logGaps formula now states the meta-decision exclusion explicitly)
+  Comparison: repairs are harness/environment robustness only; the loop's law (order, gate, budgets, stuck, guards, logging) is unchanged; the rephrase meta-decision exclusion makes the zero-log-gaps invariant precise rather than weakening it. COMPLIANT.
+  Result: COMPLIANT — no contradictions
+  Checked By: canon-implementer
+
+[2026-10-03] Phase 6 (Navigation Loop — M0 harness) Post-Implementation Compliance Check + Close-out (PARTIAL)
+  Changed: app loop/ (NavigationLoop + Triage + CompletionGuards + StuckDetector + TaskBudget + StepExecutor + GatePresenter + JevSpendRecorder), stub/StubEngine, harness/ (HarnessActivity + HarnessRunners + HarnessPagesServer + GoalCatalog), goals.json + 13 test pages, additive core ActionDisposition.REFUSED_BY_GUARD; repair round: onNewIntent + ANR auto-dismiss + coldStartBrowser + starvation-retry + logGaps formula; close-out: HarnessActivity singleTop (verifier-recommended; assembleDebug green)
+  Vision Docs Checked: 04 §1-§6; 06 §2; 03 §5; ART-4/ART-5
+  Comparison:
+    - Step order, exit law (noul HIGH + guard), StuckDetector, TaskBudget, ART-4 adversarial refusal, one-row-per-decision: COMPLIANT (verifier code-first + on-device).
+    - Gate 6.2 journey: initial verifier re-run FAIL 3/6 (environment flakes: ANR, web-content a11y exposure; loop machinery itself proven live) -> repair round -> fresh verifier run allPassed=true 6/6 with starvation-retry proven live. All repair deviations EXTENSION.
+    - Gate 6.3 + UAT 6.1/6.2: PENDING-OWNER-INPUT (OpenRouter key + judgment) — phase accepted as PARTIAL per owner autonomy directive; Milestone-0 declaration deferred to owner.
+  Result: COMPLIANT — Phase 6 accepted-partial (PHASE 6 VERIFIED 6.1-6.2)
+  Checked By: canon-verifier (two cold rounds incl. fresh emulator suites) + Main agent (orchestrator close-out)

@@ -52,6 +52,38 @@ class NavigatorAccessibilityService : AccessibilityService() {
         return Observation(serialized.lines, url, serialized.nodes)
     }
 
+    /**
+     * Phase-6 loop observation: the same fresh walk as [observe] plus the page-content
+     * node count — the number of nodes under the first WebView-classed node (Chromium's
+     * web-content subtree root, present in Chrome stable and the webview shell alike).
+     * The unreadable-tree rule (vision 03 §5, "one undifferentiated node") must judge
+     * the PAGE, not the page plus the browser toolbar; when no WebView node exists the
+     * whole meaningful tree counts. One walk, one consistent triple.
+     */
+    fun observeForLoop(): LoopObservation {
+        val root = freshChromeRoot()
+            ?: return LoopObservation(UrlBarReader.Url.Unavailable, emptyList(), emptyList(), 0)
+        val snapshot = toSnapshot(root, depth = 1) ?: NodeSnapshot()
+        val serialized = TreeSerializer.serialize(snapshot)
+        val url = UrlBarReader.read(A11yNodeView(root))
+        return LoopObservation(url, serialized.lines, serialized.nodes, countPageNodes(snapshot))
+    }
+
+    /** Descendant count under the first WebView-classed node; whole tree when absent. */
+    private fun countPageNodes(root: NodeSnapshot): Int {
+        val webview = findWebView(root)
+        return if (webview != null) countDescendants(webview) - 1 else countDescendants(root)
+    }
+
+    private fun findWebView(node: NodeSnapshot): NodeSnapshot? {
+        if (node.className.contains(WEBVIEW_CLASS_MARKER, ignoreCase = true)) return node
+        for (child in node.children) findWebView(child)?.let { return it }
+        return null
+    }
+
+    private fun countDescendants(node: NodeSnapshot): Int =
+        1 + node.children.sumOf { countDescendants(it) }
+
     /** The Chrome root, freshly re-read: active window if Chrome's, else a Chrome window. */
     private fun freshChromeRoot(): AccessibilityNodeInfo? {
         // Refresh precedes every read (vision 03 §1). A failed refresh means a stale node.
@@ -136,6 +168,9 @@ class NavigatorAccessibilityService : AccessibilityService() {
          */
         val PACKAGE_ALLOWLIST: Set<String> = setOf("com.android.chrome", "org.chromium.webview_shell")
 
+        /** Class-name marker of Chromium's web-content subtree root. */
+        private const val WEBVIEW_CLASS_MARKER = "WebView"
+
         /**
          * In-process handle for the debug capture harness (same process, single service).
          * Null when the service is not enabled by the user.
@@ -157,3 +192,12 @@ data class Observation(
         nodes.associate { it.index to it.snapshot.bounds }
     }
 }
+
+/** One live observation for the Phase-6 loop: [Observation] plus the page-content
+ *  node count the unreadable-tree rule needs (see [NavigatorAccessibilityService.observeForLoop]). */
+data class LoopObservation(
+    val url: UrlBarReader.Url,
+    val lines: List<String>,
+    val nodes: List<TreeSerializer.Emitted>,
+    val pageNodeCount: Int,
+)

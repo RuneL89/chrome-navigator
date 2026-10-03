@@ -1,0 +1,96 @@
+{
+  "goals": [
+    {
+      "id": "search-and-read-1",
+      "family": "search-and-read",
+      "goal": "Find the apple pie recipe and read how long to bake it.",
+      "startUrl": "http://127.0.0.1:8099/home.html",
+      "expectedTerminal": "GOAL_ACHIEVED",
+      "script": [
+        { "question": "triage", "chosen": "lookup" },
+        { "question": "action", "labelContains": "Apple Pie Recipe" },
+        { "question": "action", "chosen": "finish" },
+        { "question": "goal-achieved", "pTrue": 0.95 },
+        { "question": "action", "chosen": "finish" },
+        { "question": "goal-achieved", "pTrue": 0.95 }
+      ]
+    },
+    {
+      "id": "search-and-read-2",
+      "family": "search-and-read",
+      "goal": "Open the tech news section and read today's headline.",
+      "startUrl": "http://127.0.0.1:8099/news.html",
+      "expectedTerminal": "GOAL_ACHIEVED",
+      "script": [
+        { "question": "triage", "chosen": "lookup" },
+        { "question": "action", "labelContains": "Tech News" },
+        { "question": "action", "chosen": "finish" },
+        { "question": "goal-achieved", "pTrue": 0.95 },
+        { "question": "action", "chosen": "finish" },
+        { "question": "goal-achieved", "pTrue": 0.95 }
+      ]
+    },
+    {
+      "id": "research-multi-step-1",
+      "family": "research-multi-step",
+      "goal": "Read part one and part two of the guide.",
+      "startUrl": "http://127.0.0.1:8099/hub.html",
+      "expectedTerminal": "GOAL_ACHIEVED",
+      "script": [
+        { "question": "triage", "chosen": "research-multi-step" },
+        { "question": "action", "labelContains": "Part One" },
+        { "question": "action", "labelContains": "Part Two" },
+        { "question": "action", "chosen": "finish" },
+        { "question": "goal-achieved", "pTrue": 0.95 },
+        { "question": "action", "chosen": "finish" },
+        { "question": "goal-achieved", "pTrue": 0.95 }
+      ]
+    },
+    {
+      "id": "form-fill-1",
+      "family": "form-fill",
+      "goal": "Fill the guestbook name field with \"Ada Lovelace\" and submit it.",
+      "startUrl": "http://127.0.0.1:8099/form.html",
+      "expectedTerminal": "GOAL_ACHIEVED",
+      "script": [
+        { "question": "triage", "chosen": "form-fill" },
+        { "question": "action", "labelContains": "full name", "fallbackBucketOrdinal": 1 },
+        { "question": "action", "labelContains": "Submit" },
+        { "question": "action", "chosen": "finish" },
+        { "question": "goal-achieved", "pTrue": 0.95 },
+        { "question": "action", "chosen": "finish" },
+        { "question": "goal-achieved", "pTrue": 0.95 }
+      ]
+    },
+    {
+      "id": "dead-end-1",
+      "family": "stuck-recovery",
+      "goal": "Find the secret code hidden on this site.",
+      "startUrl": "http://127.0.0.1:8099/deadend.html",
+      "expectedTerminal": "STUCK_KILL",
+      "script": [
+        { "question": "triage", "chosen": "lookup" },
+        { "question": "action", "labelContains": "Buy now" },
+        { "question": "action", "labelContains": "More info" },
+        { "question": "action", "labelContains": "More info" },
+        { "question": "action", "labelContains": "More info" },
+        { "question": "action", "labelContains": "More info" },
+        { "question": "action", "labelContains": "More info" },
+        { "question": "action", "labelContains": "More info" },
+        { "question": "action", "labelContains": "More info" },
+        { "question": "action", "labelContains": "More info" },
+        { "question": "recovery", "chosen": "scroll" }
+      ]
+    },
+    {
+      "id": "unreadable-1",
+      "family": "unreadable-tree",
+      "goal": "Read the contents of the canvas page.",
+      "startUrl": "http://127.0.0.1:8099/empty.html",
+      "expectedTerminal": "REFUSED",
+      "script": [
+        { "question": "triage", "chosen": "lookup" }
+      ]
+    }
+  ]
+}
