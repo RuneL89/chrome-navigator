@@ -15,6 +15,10 @@ remembers."
   `Implementation Plan/MASTER_IMPLEMENTATION_PROMPT.md` §3: timestamp, changed files, vision
   docs/sections checked, result, checker)
 * `phase-N-verification.md` — Verifier sub-agent's independent per-gate report
+* `eval/` — measurement-report artifacts, git-tracked: `tier-a-report.{md,json}` (Tier A
+  deterministic replay, Phase 7; regenerate with `./gradlew :core:generateTierAReport` —
+  the committed bytes are the drift detector a state/wire/taxonomy/gate change must keep
+  green); Tier B reports (Phase 12) extend the same schema prefix
 
 ## Local Contracts
 

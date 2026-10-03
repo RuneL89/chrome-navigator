@@ -43,6 +43,16 @@ without a device.
   tokenizer (GPT-2-style ByteLevel BPE over the checkpoint's real tokenizer.json), plus
   `src/main/resources/laya/` (the verbatim tokenizer resource + `PROVENANCE.txt`,
   revision-pinned); law: `Project Vision/05` §6
+* `src/main/kotlin/navigator/core/eval/` — the Tier A evaluation harness (Phase 7,
+  vision 07 §1 Tier A): `ReplayRunner` (deterministic replay of every golden dump through
+  state build → question forms → wire parse → gate classify, with the recorded response
+  synthesized from the pairing's gold decision — the phase-3 transcripts are provider
+  request/response pairs, not per-dump recordings), `PositionBias` (rotation matrix over
+  each fixture's candidate order, name-keyed resolution must be 100% stable),
+  `HarnessSelfCheck` (injected-regression probes proving the gate has no false green),
+  `EvalReport` (deterministic markdown+JSON writers; artifacts in `.state/eval/` via
+  `:core:generateTierAReport`), `TierAHarness` + entry point; law:
+  `Project Vision/07` §1–§2, §4–§5, `Implementation Plan/PHASE_07_eval_tier_a.md`
 * `src/main/kotlin/navigator/core/log/` — the DecisionLog in its day-one shape
   (Phase 5): `DecisionLogModels.kt` (the full vision 05 §2 row schema as serializable
   types + `DECISION_LOG_JSON` + enum-serial-name helpers), `Agreement.kt`
@@ -54,6 +64,11 @@ without a device.
   `transcripts/phase3/` holds provider-shape wire transcripts for Gates 3.1–3.3; the
   `a11y-dumps/adv-*.json` trees are the adversarial fixtures — injected instruction-like
   page text, vision 07 §2)
+* `src/test/resources/eval/` — Tier A replay inputs, reviewable data (NOT fixtures):
+  `replay-pairings.json` (each dump's gold decision: goal + chosen node + optional explicit
+  action kind + note) and `replay-expectations.json` (golden chosen node id + gate class
+  per fixture). Expectation fixes are NEW/edited entries with a note — the a11y-dump
+  fixtures themselves never mutate (vision 07 §2; UAT 7.1: the owner reviews these)
 * `src/test/resources/log/goldens/` — byte-stable JSON snapshots of the DecisionLog row
   schema (Gate 5.1); immutable once accepted — regenerate only with `UPDATE_GOLDENS=true`
   after a reviewed, vision-level schema change
@@ -69,6 +84,12 @@ without a device.
   plugin (ART-2 boundary; verifier checks this)
 * Golden fixtures are immutable once committed — never edit one; a schema change is a
   vision-level event requiring both phase docs to be updated (`PHASE_00` §6, vision 07 §2)
+* Tier A replay law (Phase 7, vision 07 §4): candidate-order rotation must be 100%
+  name-keyed stable, and any change to state format, wire parsing, taxonomy, gate classes,
+  or a pinned model ID must re-run Tier A green (`.state/eval/` artifacts byte-stable) —
+  the committed artifacts are the drift detector; regenerate with
+  `./gradlew :core:generateTierAReport` and commit the result when a reviewed change
+  moves them
 * Loaders validate strictly: unknown/missing fields and cross-field inconsistencies fail
   loudly (`FixtureValidationException`); malformed fixture = test failure, never silent default
 * Probability maps are name/id-keyed, never positional (vision 02 §2); callers branch on
@@ -127,6 +148,11 @@ without a device.
   strict finetune-row validator + mixed-teacher manifest, 5.3 agreement math with
   hand-computed KL values) must all pass
 * `./gradlew :core:dependencies --configuration runtimeClasspath` must show no Android artifacts
+* `./gradlew :core:test --tests "navigator.core.eval.*"` — the Tier A gates (7.1 golden
+  replay vs `eval/replay-expectations.json` + byte-identical consecutive runs + committed
+  `.state/eval/` artifact drift detection, 7.2 injected-regression self-check, 7.3 rotation
+  stability, report schema) must all pass; the standard regression command for any later
+  change to state format, wire parsing, taxonomy, or gate classes
 
 ## Child DOX Index
 

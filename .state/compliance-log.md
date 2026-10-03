@@ -272,3 +272,39 @@ a new dated entry. Format per `Implementation Plan/MASTER_IMPLEMENTATION_PROMPT.
     - Gate 6.3 + UAT 6.1/6.2: PENDING-OWNER-INPUT (OpenRouter key + judgment) — phase accepted as PARTIAL per owner autonomy directive; Milestone-0 declaration deferred to owner.
   Result: COMPLIANT — Phase 6 accepted-partial (PHASE 6 VERIFIED 6.1-6.2)
   Checked By: canon-verifier (two cold rounds incl. fresh emulator suites) + Main agent (orchestrator close-out)
+
+[2026-10-03] Phase 7 (Evaluation Harness — Tier A) Pre-Implementation Compliance Check
+  Changed: (pre-check; no files changed yet)
+  Vision Docs Checked: 07 §1-§2, §4 (position-bias); ART-7
+  Comparison:
+    - Tier A = deterministic :core replay of golden fixtures through state build -> question form -> wire parse -> gate classify; expectations per fixture. COMPLIANT.
+    - Rotation stability via name-keyed maps (100% at Tier A); report determinism (byte-identical); regression detection proven by mutation check. COMPLIANT.
+    - Note (verifier-flagged from Phase 4): Tier A replay uses recorded responses; a full rotation test of the ENGINE belongs to Tier B — phase doc §2.2 already scopes it as name-keyed resolution stability. COMPLIANT.
+    - Golden-rule exception note: Phase 6 remains open on Gate 6.3 (owner-input-blocked, not code-blocked); Phase 7 depends only on Phases 2-5 components — proceeding per owner standing autonomy directive, recorded here. SANCTIONED.
+  Result: COMPLIANT — no contradictions
+  Checked By: Main agent (phase orchestrator)
+
+[2026-10-03] Phase 7 (Evaluation Harness — Tier A) Post-Implementation Compliance Check
+  Changed: core/src/main/kotlin/navigator/core/eval/ (ReplayInputs.kt, ReplayRunner.kt, PositionBias.kt, HarnessSelfCheck.kt, EvalReport.kt, TierAHarness.kt), core/src/test/kotlin/navigator/core/eval/ (EvalHarness.kt, ReplayGoldenTest.kt, ReplayDeterminismTest.kt, PositionBiasTest.kt, HarnessSelfCheckTest.kt, EvalReportSchemaTest.kt), core/src/test/resources/eval/ (replay-pairings.json, replay-expectations.json — NEW files; fixtures untouched), core/build.gradle.kts (:core:generateTierAReport JavaExec + navigator.project.root test property), .state/eval/tier-a-report.{md,json} (generated artifacts), DOX: AGENTS.md, core/AGENTS.md, .state/AGENTS.md
+  Vision Docs Checked: 07 §1 (Tier A scope: deterministic :core replay, no network/device), §2 (fixture immutability — only NEW eval/ data files added; adversarial fixtures assert the gate fires), §4 (position-bias rotation, name-keyed stability), §5 (measurement reports; Tier B extension leaves schema prefix); 02 §2 (name-keyed distributions enforced via the real wire parser), 03 §3-§4 (taxonomy buckets, state text v1 + 480-token budget); PHASE_07 §2-§3
+  Comparison:
+    - Replay pipeline reuses CandidateEnumerator + StateTextBuilder + SystemOneClient.parseAnswers + RiskGate.classify verbatim — no new decision logic. COMPLIANT.
+    - Rotation check replays ALL offsets of each fixture's flat list against the SAME recorded name-keyed distribution; 100% stable (235 rotations, 10 fixtures). COMPLIANT (vision 07 §4 pass metric).
+    - Report writers are pure functions of the report; two consecutive full runs byte-identical (Gate 7.1, sha256 evidence); committed artifacts pinned as drift detector. COMPLIANT.
+    - Gate 7.2 mutation check: three injected regressions per fixture (bucket-membership perturbation -> loud wire-law failure naming the candidate; shifted recorded response -> expectation divergence; positional resolver -> rotation instability), 30/30 caught. COMPLIANT (no false green).
+  Deviations (recorded, EXTENSION):
+    1. Pairing law: phase-3 transcripts are provider request/response pairs, not per-dump recordings (their state text is the Phase-0 placeholder; their distributions do not cover a real dump's candidate set, which the wire law requires) — Tier A pairs each dump with a gold decision as DATA (replay-pairings.json) and synthesizes the recorded response deterministically (0.5 on gold, halving remainder), then re-parses it through the real wire parser. Phase doc §2 anticipated exactly this ("you may need crafted pairings ... or synthesize recorded responses deterministically from each dump's chosen candidate"). Documented in ReplayInputs.kt.
+    2. EvalReport carries additive Gate-evidence fields (rotationMatrix, rotationStable, selfCheckMutations, selfCheckAllCaught, stateFormatVersion) between the phase-doc's five named fields — required by Gate 7.2/7.3 reporting language ("report lists per-fixture rotation matrix size") and vision 07 §5's measurement-report role.
+    3. UAT 7.1 remains pending-owner (human-verifiable); owner may revise expectations as NEW entries with a note — expectations data is reviewable/appendable anytime per the owner autonomy directive.
+  Result: COMPLIANT — no contradictions
+  Checked By: canon-implementer
+
+[2026-10-03] Phase 7 (Eval Harness Tier A) Post-Implementation Compliance Check + Close-out
+  Changed: core eval/ (ReplayRunner, PositionBias, HarnessSelfCheck, EvalReport, TierAHarness, ReplayInputs), 19 tests, replay-pairings + replay-expectations data, .state/eval/ committed artifacts, :core:generateTierAReport task
+  Vision Docs Checked: 07 §1-§2, §4; ART-7
+  Comparison:
+    - Determinism (sha256-identical), genuine mutation probes, 100% rotation stability (floor was 80%), production-pipeline reuse: COMPLIANT.
+    - Pairing-law deviation (synthesized response distributions over real dump pairings): ruled EXTENSION by verifier with recorded caveat; UAT 7.1 owner review is the backstop (covered-pending per autonomy directive).
+    - Findings F1-F3 recorded as Tier A scope limitations (loop question-builders, SUBMIT_TRAP duplication mitigated by explicit actionKind in golds) — non-blocking, tracked for Tier B (Phase 12) to cover.
+  Result: COMPLIANT — Phase 7 accepted (PHASE 7 VERIFIED)
+  Checked By: canon-verifier (cold check) + Main agent (orchestrator close-out)
