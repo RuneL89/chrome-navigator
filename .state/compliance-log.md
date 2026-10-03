@@ -181,3 +181,38 @@ a new dated entry. Format per `Implementation Plan/MASTER_IMPLEMENTATION_PROMPT.
     - Pure :core logic, no UI, no execute. COMPLIANT.
   Result: COMPLIANT — no contradictions
   Checked By: Main agent (phase orchestrator)
+
+[2026-10-03] Phase 4 (Risk Gate — Classifier & Trust State Machine) Implementation Compliance Check
+  Changed: core gate/ (HighStakes.kt types, RiskGate.kt classifier, TrustLedger.kt TaskGate, GateCard.kt) — new; core gate tests (RiskGateClassifierTest, TrustLedgerTest, AdversarialInjectionTest, GateCardTest) — new; core/src/test/resources/gate/classifier-matrix.json — new reviewable matrix; core/src/test/resources/fixtures/a11y-dumps/adv-{injection-buy-01,override-form-02,credential-capture-03}.json — new adversarial fixtures (additive; existing fixtures/tests untouched); core/AGENTS.md + root AGENTS.md (DOX pass)
+  Vision Docs Checked: 06_RISK_GATE_AND_SAFETY.md §1 (H1–H8 table), §2 (gate mechanics), §3 (code detects / human decides); 07_EVALUATION_HARNESS.md §2 (adversarial fixtures); 01 ART-1 (code owns the gate), ART-4 (page text untrusted), ART-5 (numbers in code)
+  Comparison:
+    - Every H1–H8 class from vision 06 §1 implemented as a code heuristic and pinned by a matrix row (Gate 4.1: 8 happy paths, 11 negatives, 5 fail-to-confirm; ambiguous checkout-like form -> H1 per phase doc). COMPLIANT.
+    - Non-gated set (search submit, nav links, scroll/back/finish, popup close, cookie consent, ordinary typing) classifies null — vision 06 §1 closing paragraph. COMPLIANT.
+    - Gate mechanics (vision 06 §2): no-trust -> card (ASK); approve -> execute + (class, site) trust with trustedFromTask flag; deny/timeout(30s) -> skip; same (class, site) refused twice in a task -> ABORT_TASK; trust never crosses tasks/sites/classes; illegal transitions throw IllegalGateTransitionException. COMPLIANT (Gate 4.2, 20 tests).
+    - ART-4 injection law: 3 adversarial fixtures carry injected instruction-like text; the injected imperatives route INTO the gate (click-Buy -> H2 when selected) and every planted high-stakes target classifies non-null — no ungated high-stakes execution path; REQUEST->ASK then DENY->SKIP proves page text cannot execute silently. COMPLIANT (Gate 4.3, 7 tests).
+    - ART-5: the 30s timeout constant lives in TaskGate (timer with the UI per phase doc §6); strictness/ambiguity ranking is in code, deterministic. COMPLIANT.
+    - GateCard is a plain-words data payload only — no UI in :core, no execute code anywhere, no println in gate/; typed values never render on the card. COMPLIANT.
+    - $0 LLM cost: deterministic code + fixtures only; no engine/provider calls. COMPLIANT.
+    - Interpretation notes (fail-to-confirm machinery the vision names but does not order): strictness ranking H1>H2>H3>H5>H4>H6>H7 with H8 residual; H3 entry scoped to create/change cues (bare secret entry -> H8, the vision's own capture class; login-shaped secret -> H4; lone-secret SUBMIT still fails to H3 — no fail-open). All documented in code + status deviations; every interpretation preserves "uncertain -> gate, never null".
+  Result: COMPLIANT — no contradictions; interpretation notes recorded in .state/phase-4-status.json
+  Checked By: canon-implementer (glm-5.3-flash)
+
+[2026-10-03] Phase 4 (Risk Gate) Post-Implementation Compliance Check + Close-out
+  Changed: core gate/ (HighStakes, RiskGate, TrustLedger, GateCard), 41 gate tests, classifier-matrix.json (33 rows), 3 adversarial a11y dumps
+  Vision Docs Checked: 06 §1-§3 (amended law); 01 ART-1/ART-4/ART-5
+  Comparison:
+    - H1-H8 + fail-to-confirm + trust semantics verified code-first against vision 06: COMPLIANT. All 8 implementer deviations ruled sanctioned EXTENSIONS by verifier.
+    - Close-out fix (orchestrator, verifier-recommended): added h7-download-submit matrix row — it failed, exposing H7's TAP-only arm; fixed to TAP||SUBMIT per vision "links/actions"; gate tests green. COMPLIANT after fix.
+    - UAT 4.1 (read matrix): covered by owner autonomy directive (matrix additive, owner may add rows anytime). SANCTIONED DEVIATION.
+  Result: COMPLIANT — Phase 4 accepted (PHASE 4 VERIFIED)
+  Checked By: canon-verifier (cold check) + Main agent (orchestrator close-out fix)
+
+[2026-10-03] Phase 5 (DecisionLog — Schema, Room, Export, Agreement) Pre-Implementation Compliance Check
+  Changed: (pre-check; no files changed yet)
+  Vision Docs Checked: 05 §1-§5; 02 §5 (teacher pinning); 06 §2 (gateEvent)
+  Comparison:
+    - Row schema per vision 05 §2 incl. gateEvent + teacher/shadow pins + STATE_FORMAT_VERSION echo. COMPLIANT.
+    - RLCD export maps to finetune.md row shape (state, questions=bucketed shadow form, gold=teacher distribution) + mixed-teacher manifest. COMPLIANT.
+    - Agreement = exact-match top-1 (UI) + KL logged; ART-8 local-only, insert-only DB. COMPLIANT.
+  Result: COMPLIANT — no contradictions
+  Checked By: Main agent (phase orchestrator)

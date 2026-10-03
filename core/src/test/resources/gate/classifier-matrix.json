@@ -1,0 +1,472 @@
+{
+  "law": "NAVIGATOR-VISION-006 §1 (H1–H8 detection table) + PHASE_04 Gate 4.1. One row per matrix case: the classifier MUST return exactly `expect` for (action, context). `tag`: happy (one per H-class minimum), negative (NOT gated — must classify null), fail-to-confirm (ambiguous/uncertain resolves to the stricter matching class, never null). Field descriptors are given as RAW observed attributes (id/label/value/className) — the test derives isPassword/isCardLike through FieldDescriptor.fromObserved so the derivation itself is under test. This file is a reviewable table: UAT 4.1 has the owner read it and name missing site/form patterns (new rows are additive).",
+  "rows": [
+    {
+      "id": "h1-type-into-card-field",
+      "tag": "happy",
+      "expect": "H1_PAYMENT",
+      "note": "Typing a card number into a card-labelled field on a checkout URL is payment entry.",
+      "action": {
+        "kind": "TYPE",
+        "textToType": "4242 4242 4242 4242",
+        "target": { "id": "card-number", "label": "Card number", "bucket": "form-fields", "className": "android.widget.EditText" }
+      },
+      "context": {
+        "url": "https://shop.example/checkout",
+        "fields": [
+          { "id": "card-number", "label": "Card number", "className": "android.widget.EditText" },
+          { "id": "expiry", "label": "Expiry (MM/YY)", "className": "android.widget.EditText" }
+        ]
+      }
+    },
+    {
+      "id": "h1-submit-card-bearing-form",
+      "tag": "happy",
+      "expect": "H1_PAYMENT",
+      "note": "Submitting a form whose context carries card fields. Also matches H2 (Place order verb); the stricter H1 wins — the phase doc's ambiguous-checkout rule.",
+      "action": {
+        "kind": "SUBMIT",
+        "target": { "id": "place-order", "label": "Place order", "bucket": "buttons", "className": "android.widget.Button" }
+      },
+      "context": {
+        "url": "https://shop.example/cart",
+        "fields": [
+          { "id": "card-number", "label": "Card number", "className": "android.widget.EditText" },
+          { "id": "cvv", "label": "CVV", "className": "android.widget.EditText" },
+          { "id": "name-on-card", "label": "Name on card", "className": "android.widget.EditText" }
+        ]
+      }
+    },
+    {
+      "id": "h1-submit-checkout-worded-form",
+      "tag": "happy",
+      "expect": "H1_PAYMENT",
+      "note": "Checkout keywords in the form context gate the submission even before card fields are visible (they may load late).",
+      "action": {
+        "kind": "SUBMIT",
+        "target": { "id": "next-step", "label": "Next step", "bucket": "buttons", "className": "android.widget.Button" }
+      },
+      "context": {
+        "url": "https://payments.example.net/billing",
+        "fields": [
+          { "id": "payment-method", "label": "Payment method", "className": "android.widget.EditText" }
+        ]
+      }
+    },
+    {
+      "id": "h2-buy-button",
+      "tag": "happy",
+      "expect": "H2_PURCHASE_CONFIRM",
+      "note": "Buy/purchase verbs on an actual button gate anywhere — no site corroboration needed.",
+      "action": {
+        "kind": "TAP",
+        "target": { "id": "buy-now", "label": "Buy now", "bucket": "buttons", "className": "android.widget.Button" }
+      },
+      "context": { "url": "https://news.example.com/tech/reviews", "fields": [] }
+    },
+    {
+      "id": "h2-checkout-link-on-shop",
+      "tag": "happy",
+      "expect": "H2_PURCHASE_CONFIRM",
+      "note": "Checkout wording on a shop host/path is a purchase confirmation even for a link-styled control.",
+      "action": {
+        "kind": "TAP",
+        "target": { "id": "go-checkout", "label": "Proceed to checkout", "bucket": "buttons", "className": "android.widget.Button" }
+      },
+      "context": { "url": "https://store.example.org/cart/2", "fields": [] }
+    },
+    {
+      "id": "h3-type-new-password",
+      "tag": "happy",
+      "expect": "H3_PASSWORD_CHANGE",
+      "note": "Typing into a password field with create/change cues (new/confirm password fields, change-password URL).",
+      "action": {
+        "kind": "TYPE",
+        "textToType": "s3cret-phrase-42",
+        "target": { "id": "new-password", "label": "New password", "bucket": "form-fields", "className": "android.widget.EditText" }
+      },
+      "context": {
+        "url": "https://account.example.com/change-password",
+        "fields": [
+          { "id": "new-password", "label": "New password", "className": "android.widget.EditText" },
+          { "id": "confirm-password", "label": "Confirm password", "className": "android.widget.EditText" }
+        ]
+      }
+    },
+    {
+      "id": "h3-submit-change-form",
+      "tag": "happy",
+      "expect": "H3_PASSWORD_CHANGE",
+      "note": "Submitting a secret-bearing form with change cues (current/new password) even when the submit control is worded neutrally.",
+      "action": {
+        "kind": "SUBMIT",
+        "target": { "id": "save-changes", "label": "Save changes", "bucket": "buttons", "className": "android.widget.Button" }
+      },
+      "context": {
+        "url": "https://account.example.com/security/password",
+        "fields": [
+          { "id": "current-password", "label": "Current password", "className": "android.widget.EditText" },
+          { "id": "new-password", "label": "New password", "className": "android.widget.EditText" }
+        ]
+      }
+    },
+    {
+      "id": "h4-type-identifier-on-login",
+      "tag": "happy",
+      "expect": "H4_LOGIN",
+      "note": "Typing the identifier of an identifier+secret pair is credential entry on any site.",
+      "action": {
+        "kind": "TYPE",
+        "textToType": "owner@example.com",
+        "target": { "id": "email", "label": "Email", "bucket": "form-fields", "className": "android.widget.EditText" }
+      },
+      "context": {
+        "url": "https://login.example.net/signin",
+        "fields": [
+          { "id": "email", "label": "Email", "className": "android.widget.EditText" },
+          { "id": "password", "label": "Password", "className": "android.widget.EditText" }
+        ]
+      }
+    },
+    {
+      "id": "h4-type-secret-on-login",
+      "tag": "happy",
+      "expect": "H4_LOGIN",
+      "note": "Typing the secret member of a login pair routes to H4 (login shape), not H3 (no create/change cues).",
+      "action": {
+        "kind": "TYPE",
+        "textToType": "correct-horse-battery",
+        "target": { "id": "password", "label": "Password", "bucket": "form-fields", "className": "android.widget.EditText" }
+      },
+      "context": {
+        "url": "https://login.example.net/signin",
+        "fields": [
+          { "id": "email", "label": "Email", "className": "android.widget.EditText" },
+          { "id": "password", "label": "Password", "className": "android.widget.EditText" }
+        ]
+      }
+    },
+    {
+      "id": "h4-submit-login-form",
+      "tag": "happy",
+      "expect": "H4_LOGIN",
+      "note": "Account+credential submit: a submit over an identifier+secret pair with login wording.",
+      "action": {
+        "kind": "SUBMIT",
+        "target": { "id": "sign-in", "label": "Sign in", "bucket": "buttons", "className": "android.widget.Button" }
+      },
+      "context": {
+        "url": "https://login.example.net/signin",
+        "fields": [
+          { "id": "email", "label": "Email", "className": "android.widget.EditText" },
+          { "id": "password", "label": "Password", "className": "android.widget.EditText" }
+        ]
+      }
+    },
+    {
+      "id": "h5-create-account",
+      "tag": "happy",
+      "expect": "H5_ACCOUNT",
+      "note": "Signup keyword on the submit control gates even though the form holds a credential pair (pair-submit would be H4; lifecycle wording is stricter).",
+      "action": {
+        "kind": "SUBMIT",
+        "target": { "id": "create-account", "label": "Create account", "bucket": "buttons", "className": "android.widget.Button" }
+      },
+      "context": {
+        "url": "https://forum.example.com/join",
+        "fields": [
+          { "id": "email", "label": "Email", "className": "android.widget.EditText" },
+          { "id": "password", "label": "Password", "className": "android.widget.EditText" }
+        ]
+      }
+    },
+    {
+      "id": "h5-delete-account-confirm",
+      "tag": "happy",
+      "expect": "H5_ACCOUNT",
+      "note": "Delete-account confirmations are H5 — destructive account lifecycle on any control.",
+      "action": {
+        "kind": "TAP",
+        "target": { "id": "confirm-delete", "label": "Yes, delete my account", "bucket": "buttons", "className": "android.widget.Button" }
+      },
+      "context": { "url": "https://account.example.com/settings/danger-zone", "fields": [] }
+    },
+    {
+      "id": "h6-file-input",
+      "tag": "happy",
+      "expect": "H6_UPLOAD",
+      "note": "File-input activation / upload intent.",
+      "action": {
+        "kind": "TAP",
+        "target": { "id": "choose-file", "label": "Choose file", "bucket": "buttons", "className": "android.widget.Button" }
+      },
+      "context": { "url": "https://docs.example.com/submit", "fields": [] }
+    },
+    {
+      "id": "h6-upload-submit",
+      "tag": "happy",
+      "expect": "H6_UPLOAD",
+      "note": "An Upload submit is upload intent too.",
+      "action": {
+        "kind": "SUBMIT",
+        "target": { "id": "upload", "label": "Upload", "bucket": "buttons", "className": "android.widget.Button" }
+      },
+      "context": { "url": "https://docs.example.com/submit", "fields": [] }
+    },
+    {
+      "id": "h7-download-link",
+      "tag": "happy",
+      "expect": "H7_DOWNLOAD",
+      "note": "Download-triggering links gate regardless of bucket.",
+      "action": {
+        "kind": "TAP",
+        "target": { "id": "download-report", "label": "Download report (PDF)", "bucket": "nav-links", "className": "android.view.View" }
+      },
+      "context": { "url": "https://news.example.com/reports/annual", "fields": [] }
+    },
+    {
+      "id": "h7-download-submit",
+      "tag": "happy",
+      "expect": "H7_DOWNLOAD",
+      "note": "Verifier-recommended row (2026-10-03): a SUBMIT-kind action labeled Download gates too — H7 is not TAP-only.",
+      "action": {
+        "kind": "SUBMIT",
+        "target": { "id": "download-now", "label": "Download now", "bucket": "buttons", "className": "android.widget.Button" }
+      },
+      "context": { "url": "https://files.example.com/export", "fields": [] }
+    },
+    {
+      "id": "h8-bare-password-entry",
+      "tag": "happy",
+      "expect": "H8_CREDENTIAL_TYPING",
+      "note": "A secret field with NO create/change cues and no login shape — the vision's wrong-site/injected credential-capture case. H3's create/change detection does not claim it; the H8 catch-all does.",
+      "action": {
+        "kind": "TYPE",
+        "textToType": "hunter2",
+        "target": { "id": "pw", "label": "Password", "bucket": "form-fields", "className": "android.widget.EditText" }
+      },
+      "context": {
+        "url": "https://blog.example.com/posts/weekly-roundup",
+        "fields": [
+          { "id": "pw", "label": "Password", "className": "android.widget.EditText" }
+        ]
+      }
+    },
+    {
+      "id": "n-search-submit",
+      "tag": "negative",
+      "expect": null,
+      "note": "Search-box submit is explicitly NOT gated (H4 is 'distinct from search'; no secret/card fields present).",
+      "action": {
+        "kind": "SUBMIT",
+        "target": { "id": "search-button", "label": "Google Search", "bucket": "buttons", "className": "android.widget.Button" }
+      },
+      "context": {
+        "url": "https://www.google.com/search?q=apple+pie",
+        "fields": [
+          { "id": "search-box", "label": "Search", "className": "android.widget.EditText" }
+        ]
+      }
+    },
+    {
+      "id": "n-nav-link",
+      "tag": "negative",
+      "expect": null,
+      "note": "Ordinary navigation executes without pausing.",
+      "action": {
+        "kind": "TAP",
+        "target": { "id": "result-1", "label": "Apple Pie Recipe - Allrecipes", "bucket": "nav-links", "className": "android.view.View" }
+      },
+      "context": { "url": "https://www.google.com/search?q=apple+pie", "fields": [] }
+    },
+    {
+      "id": "n-scroll",
+      "tag": "negative",
+      "expect": null,
+      "note": "Scroll is never gated (vision 06 §1).",
+      "action": {
+        "kind": "SCROLL",
+        "target": { "id": "scroll-down@results", "label": "Scroll down", "bucket": "scroll", "className": "android.view.View" }
+      },
+      "context": { "url": "https://news.example.com/article", "fields": [] }
+    },
+    {
+      "id": "n-system-back",
+      "tag": "negative",
+      "expect": null,
+      "note": "System back is never gated.",
+      "action": {
+        "kind": "BACK",
+        "target": { "id": "back", "label": "Back", "bucket": "back", "className": "android.view.View" }
+      },
+      "context": { "url": "https://news.example.com/article", "fields": [] }
+    },
+    {
+      "id": "n-finish",
+      "tag": "negative",
+      "expect": null,
+      "note": "The finish pseudo-action is never gated.",
+      "action": {
+        "kind": "FINISH",
+        "target": { "id": "finish", "label": "Finish", "bucket": "finish", "className": "android.view.View" }
+      },
+      "context": { "url": "https://news.example.com/article", "fields": [] }
+    },
+    {
+      "id": "n-ordinary-text-typing",
+      "tag": "negative",
+      "expect": null,
+      "note": "Non-credential text entry (a search query) is never gated.",
+      "action": {
+        "kind": "TYPE",
+        "textToType": "apple pie",
+        "target": { "id": "search-box", "label": "Search", "bucket": "form-fields", "className": "android.widget.EditText" }
+      },
+      "context": {
+        "url": "https://www.google.com",
+        "fields": [
+          { "id": "search-box", "label": "Search", "className": "android.widget.EditText" }
+        ]
+      }
+    },
+    {
+      "id": "n-popup-close",
+      "tag": "negative",
+      "expect": null,
+      "note": "Popup dismissal (popup ladder, vision 06 §4) is not a gated class.",
+      "action": {
+        "kind": "TAP",
+        "target": { "id": "close-nag", "label": "No thanks", "bucket": "buttons", "className": "android.widget.Button" }
+      },
+      "context": { "url": "https://news.example.com/article", "fields": [] }
+    },
+    {
+      "id": "n-cookie-consent",
+      "tag": "negative",
+      "expect": null,
+      "note": "Cookie-consent accept is not a gated class (popup ladder).",
+      "action": {
+        "kind": "TAP",
+        "target": { "id": "consent-accept", "label": "Accept all cookies", "bucket": "buttons", "className": "android.widget.Button" }
+      },
+      "context": { "url": "https://recipe.example.com/pancakes", "fields": [] }
+    },
+    {
+      "id": "n-buy-worded-search-result-link",
+      "tag": "negative",
+      "expect": null,
+      "note": "ART-4 query guard: a search-results LINK titled 'Buy apple pie online' is navigation, not a purchase step — purchase verbs on nav-links need shop host/path corroboration, and query text never creates purchase context.",
+      "action": {
+        "kind": "TAP",
+        "target": { "id": "ad-link", "label": "Buy apple pie online - GreatRecipes", "bucket": "nav-links", "className": "android.view.View" }
+      },
+      "context": { "url": "https://www.google.com/search?q=buy+apple+pie", "fields": [] }
+    },
+    {
+      "id": "n-signin-navigation",
+      "tag": "negative",
+      "expect": null,
+      "note": "Navigating to a login page is not credential entry — no pair is being entered or submitted.",
+      "action": {
+        "kind": "TAP",
+        "target": { "id": "signin-link", "label": "Sign in", "bucket": "nav-links", "className": "android.view.View" }
+      },
+      "context": { "url": "https://news.example.com", "fields": [] }
+    },
+    {
+      "id": "n-comment-typing-on-shop",
+      "tag": "negative",
+      "expect": null,
+      "note": "Purchase context alone gates nothing — only the action shape does. Typing a comment on a shop site is ordinary text entry.",
+      "action": {
+        "kind": "TYPE",
+        "textToType": "great store, fast shipping",
+        "target": { "id": "comment", "label": "Comment", "bucket": "form-fields", "className": "android.widget.EditText" }
+      },
+      "context": {
+        "url": "https://shop.example/product/super-widget-99",
+        "fields": [
+          { "id": "comment", "label": "Comment", "className": "android.widget.EditText" }
+        ]
+      }
+    },
+    {
+      "id": "ftc-ambiguous-checkout-form",
+      "tag": "fail-to-confirm",
+      "expect": "H1_PAYMENT",
+      "note": "THE phase-doc case: ambiguous checkout-like form (payment-worded fields, neutral Continue button) fails to H1.",
+      "action": {
+        "kind": "SUBMIT",
+        "target": { "id": "continue", "label": "Continue", "bucket": "buttons", "className": "android.widget.Button" }
+      },
+      "context": {
+        "url": "https://shop.example/buy-now",
+        "fields": [
+          { "id": "pay-field", "label": "Payment method", "className": "android.widget.EditText" },
+          { "id": "note", "label": "Note", "className": "android.widget.EditText" }
+        ]
+      }
+    },
+    {
+      "id": "ftc-card-value-into-plain-field",
+      "tag": "fail-to-confirm",
+      "expect": "H1_PAYMENT",
+      "note": "Content-shape exfil guard: a card-number-shaped value typed into ANY field gates as H1.",
+      "action": {
+        "kind": "TYPE",
+        "textToType": "4242424242424242",
+        "target": { "id": "details", "label": "Details", "bucket": "form-fields", "className": "android.widget.EditText" }
+      },
+      "context": {
+        "url": "https://forum.example.com/thread/42",
+        "fields": [
+          { "id": "details", "label": "Details", "className": "android.widget.EditText" }
+        ]
+      }
+    },
+    {
+      "id": "ftc-purchase-button-neutral-site",
+      "tag": "fail-to-confirm",
+      "expect": "H2_PURCHASE_CONFIRM",
+      "note": "Purchase verbs on a real button gate even on a neutral site (no context corroboration needed — never fail-open on a Buy click).",
+      "action": {
+        "kind": "TAP",
+        "target": { "id": "proceed", "label": "Proceed to payment", "bucket": "buttons", "className": "android.widget.Button" }
+      },
+      "context": { "url": "https://news.example.com/daily-edition", "fields": [] }
+    },
+    {
+      "id": "ftc-focus-secret-field",
+      "tag": "fail-to-confirm",
+      "expect": "H8_CREDENTIAL_TYPING",
+      "note": "Tapping into a secret field is the first half of credential entry (typing follows) — gated via the H8 catch-all (no change/login cues).",
+      "action": {
+        "kind": "TAP",
+        "target": { "id": "pw", "label": "Password", "bucket": "form-fields", "className": "android.widget.EditText" }
+      },
+      "context": {
+        "url": "https://vault.example.net/open",
+        "fields": [
+          { "id": "pw", "label": "Password", "className": "android.widget.EditText" }
+        ]
+      }
+    },
+    {
+      "id": "ftc-ambiguous-secret-submit",
+      "tag": "fail-to-confirm",
+      "expect": "H3_PASSWORD_CHANGE",
+      "note": "Neutral-worded submit over a credential pair with no login/signup wording: ambiguous between H3/H4 — resolves to the stricter H3 (never null, never fail-open).",
+      "action": {
+        "kind": "SUBMIT",
+        "target": { "id": "ok", "label": "OK", "bucket": "buttons", "className": "android.widget.Button" }
+      },
+      "context": {
+        "url": "https://portal.example.org/settings",
+        "fields": [
+          { "id": "user", "label": "User name", "className": "android.widget.EditText" },
+          { "id": "pass", "label": "Password", "className": "android.widget.EditText" }
+        ]
+      }
+    }
+  ]
+}

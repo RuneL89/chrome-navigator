@@ -29,13 +29,28 @@ without a device.
 * `src/main/kotlin/navigator/core/state/` — `StateTextBuilder`: the canonical state text
   v1 (vision 03 §4 template, ≤480 tokens enforced with the laya tokenizer,
   deterministic in-code compression); law: `Project Vision/03` §4
+* `src/main/kotlin/navigator/core/gate/` — the risk gate (ART-1: code owns the gate,
+  no model judgment in the gate path): `RiskGate` (deterministic H1–H8 classifier over
+  (action, context); ambiguous classification fails to the stricter class — never
+  fail-open), `HighStakes.kt` types (`HClass`, `ActionKind`, `GateAction`,
+  `FieldDescriptor` with derived isPassword/isCardLike, `PageContext`), `TaskGate`
+  (per-task trust state machine: approve → execute + (class, site) trust;
+  timeout(30s) = deny; same (class, site) refused twice in a task → `ABORT_TASK`;
+  trust never crosses tasks, sites, or classes; illegal transitions throw
+  `IllegalGateTransitionException`), `GateCard` (plain-words card payload — data only,
+  no UI, typed values never rendered); law: `Project Vision/06` §1–§3
 * `src/main/kotlin/navigator/core/laya/` — `Tokenizer`, the Kotlin port of the laya
   tokenizer (GPT-2-style ByteLevel BPE over the checkpoint's real tokenizer.json), plus
   `src/main/resources/laya/` (the verbatim tokenizer resource + `PROVENANCE.txt`,
   revision-pinned); law: `Project Vision/05` §6
 * `src/main/kotlin/navigator/core/StateFormat.kt` — `STATE_FORMAT_VERSION`
 * `src/test/resources/fixtures/` — golden fixtures (recorded a11y dumps + wire transcripts;
-  `transcripts/phase3/` holds provider-shape wire transcripts for Gates 3.1–3.3)
+  `transcripts/phase3/` holds provider-shape wire transcripts for Gates 3.1–3.3; the
+  `a11y-dumps/adv-*.json` trees are the adversarial fixtures — injected instruction-like
+  page text, vision 07 §2)
+* `src/test/resources/gate/` — `classifier-matrix.json`, the reviewable H1–H8 classifier
+  matrix the Gate 4.1 test consumes (UAT 4.1: the owner reads this table; new rows are
+  additive only)
 * `src/test/resources/tokenizer/` — tokenizer correctness fixtures (real reference
   vectors, vocab sample)
 
@@ -79,8 +94,10 @@ without a device.
 
 * `./gradlew :core:test` — banding boundaries, type serialization round-trips, fixture
   accept/reject tests, enumeration determinism + taxonomy gates (2.1), tokenizer reference
-  vectors (2.2), state-text law (2.3), and the wire gates (3.1 transcript round-trips,
-  3.2 failover + retry law, 3.3 name-indexing + banding — all MockWebServer-only) must all pass
+  vectors (2.2), state-text law (2.3), the wire gates (3.1 transcript round-trips,
+  3.2 failover + retry law, 3.3 name-indexing + banding — all MockWebServer-only), and the
+  risk-gate gates (4.1 classifier matrix vs `gate/classifier-matrix.json`, 4.2 trust
+  state machine, 4.3 adversarial injection fixtures) must all pass
 * `./gradlew :core:dependencies --configuration runtimeClasspath` must show no Android artifacts
 
 ## Child DOX Index
