@@ -21,7 +21,13 @@ Phase 1 added the observation layer (`observe/`).
     non-debuggable builds)
 * `src/main/AndroidManifest.xml` — application manifest (service + debug capture
   activity/receiver declarations; service config XML in `src/main/res/xml/`)
-* `build.gradle.kts` — Android build config (minSdk 34, compile/targetSdk 36, Compose)
+* `src/main/kotlin/navigator/app/log/` — Room persistence for the DecisionLog
+  (Phase 5, vision 05 §2): `DecisionLogDb.kt` — `DecisionLogEntity` (nested log objects
+  as `DECISION_LOG_JSON` columns), `DecisionLogConverters` (row ↔ entity, loud decode),
+  `DecisionLogDao` + `DecisionLogger` (the Phase-6 insert/query API),
+  `DecisionLogDb`; law: `Project Vision/05` §2, §5
+* `build.gradle.kts` — Android build config (minSdk 34, compile/targetSdk 36, Compose;
+  Room compiler wired via KSP)
 
 ## Local Contracts
 
@@ -34,6 +40,15 @@ Phase 1 added the observation layer (`observe/`).
 * No Android types in the pure observation model (`A11ySnapshot`, `TreeSerializer`,
   `UrlBarReader` strategy) — they must stay JVM-unit-testable without Robolectric;
   Android `AccessibilityNodeInfo` adapters live only in the service
+* DecisionLog storage law (vision 05 §2/§5): the DAO is INSERT-ONLY — no @Update, no
+  @Delete, no DELETE/UPDATE queries may ever exist (rows are immutable history; a
+  duplicate rowId fails loudly via `OnConflictStrategy.ABORT`); retention is indefinite
+  with no auto-pruning; all access converts through the validated `:core`
+  `DecisionLogRow` so corrupt columns fail loudly on decode
+* The log path is local-only (ART-8): no network code may ever touch
+  `navigator.app.log` or `navigator.core.log`
+* Room DAO tests run on the JVM under Robolectric (test-only dependency, `@Config(sdk=[34])`);
+  the JUnit4 runner rides the JUnit platform via the vintage engine
 * `Observation.nodes` is Phase 2's bucketing input — the node list shape is frozen
   (PHASE_01 §6); changes to it are a cross-phase contract change
 
@@ -43,7 +58,10 @@ Phase 1 added the observation layer (`observe/`).
 
 * `./gradlew :app:assembleDebug` must produce an APK
 * `./gradlew :app:testDebugUnitTest` — Gate 1.1 serializer goldens +
-  Gate 1.2 URL-bar strategy paths (Robolectric-free JVM tests)
+  Gate 1.2 URL-bar strategy paths (Robolectric-free JVM tests) and the Gate 5.1 Room
+  half: `DecisionLogDbTest` (model → Room → model round-trip incl. gateEvent variants,
+  shadowMiss, all outcomes; insert-only law; by-task / time-window / agreement-aggregate
+  queries) under Robolectric
 * `./gradlew :core:test` — `RealA11yDumpFixturesTest` strictly re-validates every
   committed a11y-dump fixture (seed + Phase-1 real captures)
 

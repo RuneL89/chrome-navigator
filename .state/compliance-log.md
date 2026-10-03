@@ -216,3 +216,31 @@ a new dated entry. Format per `Implementation Plan/MASTER_IMPLEMENTATION_PROMPT.
     - Agreement = exact-match top-1 (UI) + KL logged; ART-8 local-only, insert-only DB. COMPLIANT.
   Result: COMPLIANT — no contradictions
   Checked By: Main agent (phase orchestrator)
+
+[2026-10-03 16:22] Phase 5 Compliance Check
+  Changed: core/src/main/kotlin/navigator/core/log/{DecisionLogModels,Agreement,RlcdExport}.kt; core/src/test/kotlin/navigator/core/log/{LogRowFixtures,DecisionLogSchemaRoundTripTest,RlcdExportTest,AgreementTest}.kt; core/src/test/resources/log/goldens/*.json (6 new goldens); app/src/main/kotlin/navigator/app/log/DecisionLogDb.kt; app/src/test/kotlin/navigator/app/log/DecisionLogDbTest.kt; gradle/libs.versions.toml (ksp/robolectric/androidx-test-junit/junit-vintage-engine entries — additive); build.gradle.kts (root: ksp apply false); app/build.gradle.kts (KSP plugin + room-compiler + test-only Robolectric wiring); core/AGENTS.md; app/AGENTS.md; AGENTS.md
+  Vision Docs Checked: Project Vision/05 (§1–§5), Project Vision/02 (§2, §4, §5), Project Vision/06 (§2 gate decisions), Project Vision/03 (§3 buckets, §4 compression)
+  Sections Checked: 05 §2 schema table — all fields as typed @Serializable models incl. GateEvent echo, engine identifiers, STATE_FORMAT_VERSION echo, shadowSampled, compressedBy, outcome; 05 §3 agreement law — top-1 exact match (UI metric) + KL(teacher ∥ shadow) logged metric over shared option space; 05 §4 RLCD export — state verbatim, bucketed shadow questions, gold = teacher distribution (not bare label), mixed-teacher manifest flag; 05 §5 retention/privacy — indefinite retention, insert-only, local-only (ART-8: no network code in the log, grep-verified); 02 §5 teacher pinning — pinned snapshot is teacher of record, mixed-teacher flagged; 02 §4 — shadowMiss semantics (shadow null when answer not ready; shadowSampled logged per row)
+  Result: COMPLIANT
+  Checked By: canon-implementer
+
+[2026-10-03] Phase 5 (DecisionLog) Post-Implementation Compliance Check + Close-out
+  Changed: core log/ (DecisionLogModels, RlcdExport, Agreement, 39 tests + 6 goldens), app log/ (Room entity/DAO/Db/Logger, 9 Robolectric tests), KSP + Robolectric build wiring
+  Vision Docs Checked: 05 §1-§5; 02 §5
+  Comparison:
+    - Schema completeness, insert-only law, ART-8 local-only, export law, agreement law: COMPLIANT (verifier, code-first with line evidence; KL expectations hand-verified independently).
+    - 11 deviations all ruled EXTENSION.
+    - UAT 5.1: covered-pending per owner autonomy directive (no acceptance recorded until owner reviews an export).
+  Result: COMPLIANT — Phase 5 accepted (PHASE 5 VERIFIED)
+  Checked By: canon-verifier (cold check) + Main agent (orchestrator close-out)
+
+[2026-10-03] Phase 6 (Navigation Loop — Headless Harness, M0) Pre-Implementation Compliance Check
+  Changed: (pre-check; no files changed yet)
+  Vision Docs Checked: 04 §1-§6; 06 §2 (gate step); 01 (M0 bar: pipeline works, quality measured)
+  Comparison:
+    - Step order OBSERVE->ENUMERATE->DECIDE->GATE->EXECUTE->LOG with gate BEFORE execute: vision 04 §2. COMPLIANT.
+    - Exit requires noul HIGH + code completion guard (ART-4); budgets 40/60 steps, 5/10 min, $0.20/$0.25 with clean stop: vision 04 §3-§5. COMPLIANT.
+    - StuckDetector 5 signals/8-window/3 levels; rescue-coach deferred to Phase 10 (absent here -> straight kill): vision 04 §4 + phase doc. COMPLIANT.
+    - Gates 6.1/6.2 stub-driven ($0); Gate 6.3 LIVE requires owner OpenRouter key — PENDING-OWNER-INPUT anticipated; UAT 6.1/6.2 are genuine owner-judgment prototype steps (watch the agent work; M0 quality read-out). COMPLIANT (planned pause).
+  Result: COMPLIANT — no contradictions
+  Checked By: Main agent (phase orchestrator)

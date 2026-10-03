@@ -43,11 +43,20 @@ without a device.
   tokenizer (GPT-2-style ByteLevel BPE over the checkpoint's real tokenizer.json), plus
   `src/main/resources/laya/` (the verbatim tokenizer resource + `PROVENANCE.txt`,
   revision-pinned); law: `Project Vision/05` §6
+* `src/main/kotlin/navigator/core/log/` — the DecisionLog in its day-one shape
+  (Phase 5): `DecisionLogModels.kt` (the full vision 05 §2 row schema as serializable
+  types + `DECISION_LOG_JSON` + enum-serial-name helpers), `Agreement.kt`
+  (top-1 exact match + KL(teacher ∥ shadow), vision 05 §3), `RlcdExport.kt` (the RLCD
+  JSONL export + manifest, vision 05 §4); pure data + math, zero I/O (ART-8);
+  law: `Project Vision/05` §1–§5, `Project Vision/02` §4–§5
 * `src/main/kotlin/navigator/core/StateFormat.kt` — `STATE_FORMAT_VERSION`
 * `src/test/resources/fixtures/` — golden fixtures (recorded a11y dumps + wire transcripts;
   `transcripts/phase3/` holds provider-shape wire transcripts for Gates 3.1–3.3; the
   `a11y-dumps/adv-*.json` trees are the adversarial fixtures — injected instruction-like
   page text, vision 07 §2)
+* `src/test/resources/log/goldens/` — byte-stable JSON snapshots of the DecisionLog row
+  schema (Gate 5.1); immutable once accepted — regenerate only with `UPDATE_GOLDENS=true`
+  after a reviewed, vision-level schema change
 * `src/test/resources/gate/` — `classifier-matrix.json`, the reviewable H1–H8 classifier
   matrix the Gate 4.1 test consumes (UAT 4.1: the owner reads this table; new rows are
   additive only)
@@ -84,6 +93,19 @@ without a device.
 * The laya tokenizer resource is provenance-pinned (revision hash in `laya/PROVENANCE.txt`);
   correctness = exact match on the committed reference vectors — never "improve" it without
   regenerating vectors from the checkpoint (vision 05 §6)
+* DecisionLog law (Phase 5): the row schema is final day-one shape (vision 05 §2) —
+  schema changes are vision-level events; every row is immutable history (the persistence
+  layer in `:app` is insert-only); cross-field consistency fails loudly in `init`
+  (teacher/shadow answers must live on their question's option space; agreement fields
+  are present iff both answers exist; `trustedFromTask` only on an approved gate decision)
+* The KL convention (vision 05 §3, documented in `Agreement.kt`): natural log, union of
+  distribution keys zero-filled, p→0 terms contribute 0 (limit), q→0 terms floored at
+  1e-12 (epsilon — large but finite, JSON cannot carry Infinity); inputs asserted
+  normalized (Σp = 1 within 1e-6), identical distributions give exactly 0.0
+* The RLCD export (vision 05 §4) copies state text verbatim, exports `questions` as the
+  bucketed shadow form and `gold` as the teacher's full distribution (never a bare
+  label), and flags mixed-teacher corpora when more than one pinned teacher model
+  appears in the window
 
 ## Work Guidance
 
@@ -95,9 +117,12 @@ without a device.
 * `./gradlew :core:test` — banding boundaries, type serialization round-trips, fixture
   accept/reject tests, enumeration determinism + taxonomy gates (2.1), tokenizer reference
   vectors (2.2), state-text law (2.3), the wire gates (3.1 transcript round-trips,
-  3.2 failover + retry law, 3.3 name-indexing + banding — all MockWebServer-only), and the
+  3.2 failover + retry law, 3.3 name-indexing + banding — all MockWebServer-only), the
   risk-gate gates (4.1 classifier matrix vs `gate/classifier-matrix.json`, 4.2 trust
-  state machine, 4.3 adversarial injection fixtures) must all pass
+  state machine, 4.3 adversarial injection fixtures), and the DecisionLog gates
+  (5.1 schema round-trip + byte-stable `log/goldens/` snapshots, 5.2 RLCD export vs a
+  strict finetune-row validator + mixed-teacher manifest, 5.3 agreement math with
+  hand-computed KL values) must all pass
 * `./gradlew :core:dependencies --configuration runtimeClasspath` must show no Android artifacts
 
 ## Child DOX Index

@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -32,6 +33,13 @@ android {
     buildFeatures {
         compose = true
     }
+
+    // Robolectric (Room DAO gate 5.1) needs merged test resources
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
+    }
 }
 
 kotlin {
@@ -47,10 +55,11 @@ dependencies {
     implementation(libs.compose.material3)
     implementation(libs.activity.compose)
 
-    // Declared per the ratified stack (vision 01 §3); wired up in later phases
+    // Declared per the ratified stack (vision 01 §3); the Room compiler (KSP) wired in Phase 5
     implementation(libs.okhttp)
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
+    ksp(libs.room.compiler)
     implementation(libs.onnxruntime.android)
 
     // Runtime for encoding the :core fixture schemas (Phase-1 capture mode)
@@ -62,6 +71,13 @@ dependencies {
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.kotlin.test.junit5)
     testRuntimeOnly(libs.junit.platform.launcher)
+    // Room DAO gate (5.1): the decision-log database runs on the JVM under Robolectric
+    // (test-only; the Android SQLite framework is stubbed in plain unit tests). The
+    // vintage engine lets the JUnit4-based Robolectric runner ride the JUnit platform.
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.junit)
+    testImplementation(libs.junit.vintage.engine)
+    testImplementation(libs.kotlinx.coroutines.core)
 }
 
 tasks.withType<Test>().configureEach {

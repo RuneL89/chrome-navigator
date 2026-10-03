@@ -9,6 +9,12 @@ kotlinxSerializationJson = "1.11.0"
 junitJupiter = "5.14.4"
 junitPlatform = "1.14.4"
 
+# KSP: decoupled versioning since 2.3.x (the old <kotlin>-<ksp> line ended at 2.2.21);
+# 2.3.12 is the current line serving Kotlin 2.4.x — required by the Room compiler (Phase 5)
+ksp = "2.3.12"
+robolectric = "4.16"
+androidxTestJunit = "1.3.0"
+
 # OkHttp: 5.x's okhttp-android AAR requires compileSdk 37 — incompatible with the
 # ratified compileSdk 36 law (vision 01 §3); 4.12.0 is the latest unconstrained line
 okhttp = "4.12.0"
@@ -33,7 +39,13 @@ mockwebserver = { group = "com.squareup.okhttp3", name = "mockwebserver", versio
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "kotlinxCoroutinesCore" }
 room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
+room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 onnxruntime-android = { group = "com.microsoft.onnxruntime", name = "onnxruntime-android", version.ref = "onnxruntimeAndroid" }
+
+# Room DAO gate (5.1) runs the database on the JVM under Robolectric (test-only)
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+androidx-test-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxTestJunit" }
+junit-vintage-engine = { group = "org.junit.vintage", name = "junit-vintage-engine", version.ref = "junitJupiter" }
 
 compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
 compose-ui = { group = "androidx.compose.ui", name = "ui" }
@@ -46,3 +58,4 @@ kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
