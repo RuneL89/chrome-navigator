@@ -1,0 +1,759 @@
+{
+    "capturedAt": "2026-10-03T12:25:22.969768+03:00",
+    "site": "google-search",
+    "url": "https://www.google.com/search?q=weather+in+helsinki",
+    "title": "weather in helsinki - Google Search",
+    "nodes": [
+        {
+            "id": "n0",
+            "text": "WebView Browser Tester 124.0.6367.219",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "11,137,1069,201",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n1",
+            "text": "https://www.google.com/search?q=weather+in+helsinki",
+            "desc": "",
+            "clickable": true,
+            "editable": true,
+            "scrollable": false,
+            "bounds": "0,205,760,337",
+            "className": "android.widget.EditText"
+        },
+        {
+            "id": "n2",
+            "text": "",
+            "desc": "Load URL",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "760,205,920,337",
+            "className": "android.widget.ImageButton"
+        },
+        {
+            "id": "n3",
+            "text": "",
+            "desc": "About WebView",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "920,205,1080,337",
+            "className": "android.widget.ImageButton"
+        },
+        {
+            "id": "n4",
+            "text": "weather in helsinki - Google-haku",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": true,
+            "bounds": "0,337,1083,2211",
+            "className": "android.webkit.WebView"
+        },
+        {
+            "id": "n5",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,337,1083,2211",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n6",
+            "text": "",
+            "desc": "Siirry Googlen kotisivulle",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "412,337,668,529",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n7",
+            "text": "",
+            "desc": "Kirjaudu",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "841,361,1053,477",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n8",
+            "text": "Kirjaudu",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "874,392,1020,441",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n9",
+            "text": "Hakuasetukset",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,337,165,513",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n10",
+            "text": "Päävalikko",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,337,165,513",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n11",
+            "text": "Google-haku",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,507,176,634",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n12",
+            "text": "weather in helsinki",
+            "desc": "",
+            "clickable": true,
+            "editable": true,
+            "scrollable": false,
+            "bounds": "176,535,891,606",
+            "className": "android.widget.EditText"
+        },
+        {
+            "id": "n13",
+            "text": "Tyhjennä haku",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "885,507,1023,634",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n14",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,628,1083,766",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n15",
+            "text": "Tekoälytila Kaikki Kuvahaku Videot Lyhyet videot Teokset Verkkohaku Talous Hakutyökalut Palaute",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": true,
+            "bounds": "0,628,1083,766",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n16",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "11,628,2334,766",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n17",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "11,628,264,766",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n18",
+            "text": "",
+            "desc": "Tekoälytila",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "11,628,264,766",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n19",
+            "text": "Tekoälytila",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,672,231,722",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n20",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "261,628,437,766",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n21",
+            "text": "",
+            "desc": "Kaikki",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "261,628,437,766",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n22",
+            "text": "Kaikki",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "261,628,437,766",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n23",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "431,628,671,766",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n24",
+            "text": "",
+            "desc": "Kuvahaku",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "431,628,671,766",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n25",
+            "text": "Kuvahaku",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "464,672,638,722",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n26",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "668,628,847,766",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n27",
+            "text": "",
+            "desc": "Videot",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "668,628,847,766",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n28",
+            "text": "Videot",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "701,672,814,722",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n29",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "844,628,1141,766",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n30",
+            "text": "",
+            "desc": "Lyhyet videot",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "844,628,1141,766",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n31",
+            "text": "Lyhyet videot",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "877,672,1108,722",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n32",
+            "text": "Hakutulokset",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,788,5,793",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n33",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,763,1083,867",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n34",
+            "text": "Helsinki",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,790,253,865",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n35",
+            "text": "Valitse alue",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "277,746,478,881",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n36",
+            "text": "Miten sijaintia käytetään",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "948,763,1083,898",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n37",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,887,1083,2211",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n38",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,887,1083,1043",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n39",
+            "text": "Sää",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,931,962,1021",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n40",
+            "text": "Lisää vaihtoehtoja: Sää",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "959,942,1039,1032",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n41",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,1041,1083,2211",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n42",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,1052,1039,1885",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n43",
+            "text": "Nyt, 14 °C, Enimmäkseen pilvistä, Tuntuu kuin 12 °C",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,1052,1039,1313",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n44",
+            "text": "",
+            "desc": "Keskitason tuulivaroitusSuomenlahden itäosa, Suomenlahden länsiosa, Pohjois-Itämeren itäosa",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,1310,1039,1445",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n45",
+            "text": "Keskitason tuulivaroitusSuomenlahden itäosa, Suomenlahden länsiosa, Pohjois-Itämeren itäosa",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "176,1332,929,1390",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n46",
+            "text": "Nyt,14 °C,Enimmäkseen pilvistä 13.00,14 °C,Enimmäkseen pilvistä 14.00,14 °C,Pilvistä 15.00,14 °C,Pilvistä 16.00,14 °C,Heikkoa sadetta,Sateen todennäköisyys: 20 % 17.00,14 °C,Osittain aurinkoista 18.00,14 °C,Aurinkoista 19.00,14 °C,Selkeää 20.00,13 °C,Selkeää 21.00,13 °C,Puolipilvistä 22.00,12 °C,Enimmäkseen pilvistä 23.00,12 °C,Puolipilvistä 0.00,12 °C,Puolipilvistä 1.00,12 °C,Selkeää, ajoittain pilvistä 2.00,12 °C,Selkeää 3.00,12 °C,Selkeää 4.00,11 °C,Puolipilvistä 5.00,12 °C,Enimmäkseen pilvistä 6.00,12 °C,Puolipilvistä 7.00,12 °C,Selkeää, ajoittain pilvistä 8.00,12 °C,Pilvistä 9.00,13 °C,Enimmäkseen pilvistä 10.00,14 °C,Pilvistä 11.00,14 °C,Pilvistä 12.00,15 °C,Pilvistä",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": true,
+            "bounds": "0,1442,1083,1698",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n47",
+            "text": "Nyt,14 °C,Enimmäkseen pilvistä",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "77,1442,231,1698",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n48",
+            "text": "13.00,14 °C,Enimmäkseen pilvistä",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "231,1442,385,1698",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n49",
+            "text": "14.00,14 °C,Pilvistä",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "385,1442,539,1698",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n50",
+            "text": "15.00,14 °C,Pilvistä",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "539,1442,693,1698",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n51",
+            "text": "16.00,14 °C,Heikkoa sadetta,Sateen todennäköisyys: 20 %",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "693,1442,847,1698",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n52",
+            "text": "17.00,14 °C,Osittain aurinkoista",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "847,1442,1001,1698",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n53",
+            "text": "18.00,14 °C,Aurinkoista",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "1001,1442,1155,1698",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n54",
+            "text": "la, Osittain aurinkoista, Ylin 14, Alin 11, valittu su, Heikkoa sadetta, Ylin 15, Alin 8 ma, Heikkoa sadetta, Ylin 14, Alin 11 ti, Aurinkoista, Ylin 16, Alin 9 ke, Heikkoa sadetta, Ylin 14, Alin 9 to, Sadekuuroja, Ylin 12, Alin 8 pe, Heikkoa sadetta, Ylin 11, Alin 6 la, Heikkoa sadetta, Ylin 11, Alin 6 su, Heikkoa sadetta, Ylin 11, Alin 9 ma, Heikkoa sadetta, Ylin 12, Alin 9",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": true,
+            "bounds": "0,1915,1083,2127",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n55",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,1915,209,2127",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n56",
+            "text": "la, Osittain aurinkoista, Ylin 14, Alin 11, valittu",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,1915,209,2127",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n57",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "231,1915,396,2127",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n58",
+            "text": "su, Heikkoa sadetta, Ylin 15, Alin 8",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "231,1915,396,2127",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n59",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "418,1915,583,2127",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n60",
+            "text": "ma, Heikkoa sadetta, Ylin 14, Alin 11",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "418,1915,583,2127",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n61",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "605,1915,770,2127",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n62",
+            "text": "ti, Aurinkoista, Ylin 16, Alin 9",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "605,1915,770,2127",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n63",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "792,1915,957,2127",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n64",
+            "text": "ke, Heikkoa sadetta, Ylin 14, Alin 9",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "792,1915,957,2127",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n65",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "979,1915,1144,2127",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n66",
+            "text": "to, Sadekuuroja, Ylin 12, Alin 8",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "979,1915,1144,2127",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n67",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,2168,1083,2211",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n68",
+            "text": "Vesisade·10 % .",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,2168,1083,2211",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n69",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,6488,1083,2211",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n70",
+            "text": "",
+            "desc": "Yle https://yle.fi Sää Helsinki – Sääennusteet ja sadetutka",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,6488,1083,2211",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n71",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,7627,1083,2211",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n72",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,8196,1083,2211",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n73",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,8765,1083,2211",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n74",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,9335,1083,2211",
+            "className": "android.view.View"
+        }
+    ],
+    "device": "unknown Android SDK built for x86_64, Android 15 (API 35)"
+}

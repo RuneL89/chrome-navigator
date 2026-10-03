@@ -53,5 +53,20 @@ dependencies {
     implementation(libs.room.ktx)
     implementation(libs.onnxruntime.android)
 
+    // Runtime for encoding the :core fixture schemas (Phase-1 capture mode)
+    implementation(libs.kotlinx.serialization.json)
+
     implementation(project(":core"))
+
+    // JVM unit tests (Gates 1.1/1.2 are Robolectric-free: pure Kotlin over fakes)
+    testImplementation(libs.junit.jupiter)
+    testImplementation(libs.kotlin.test.junit5)
+    testRuntimeOnly(libs.junit.platform.launcher)
+}
+
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
+    testLogging {
+        events("passed", "failed", "skipped")
+    }
 }

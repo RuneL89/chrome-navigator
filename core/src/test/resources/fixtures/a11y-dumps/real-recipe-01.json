@@ -1,0 +1,539 @@
+{
+    "capturedAt": "2026-10-03T12:25:52.793561+03:00",
+    "site": "allrecipes",
+    "url": "https://www.allrecipes.com/recipe/12682/apple-pie-by-grandma-ople/",
+    "title": "Apple Pie by Grandma Ople Recipe",
+    "nodes": [
+        {
+            "id": "n0",
+            "text": "WebView Browser Tester 124.0.6367.219",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "11,137,1069,201",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n1",
+            "text": "https://www.allrecipes.com/recipe/12682/apple-pie-by-grandma-ople/",
+            "desc": "",
+            "clickable": true,
+            "editable": true,
+            "scrollable": false,
+            "bounds": "0,205,760,337",
+            "className": "android.widget.EditText"
+        },
+        {
+            "id": "n2",
+            "text": "",
+            "desc": "Load URL",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "760,205,920,337",
+            "className": "android.widget.ImageButton"
+        },
+        {
+            "id": "n3",
+            "text": "",
+            "desc": "About WebView",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "920,205,1080,337",
+            "className": "android.widget.ImageButton"
+        },
+        {
+            "id": "n4",
+            "text": "Apple Pie by Grandma Ople Recipe",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,337,1083,2211",
+            "className": "android.webkit.WebView"
+        },
+        {
+            "id": "n5",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,337,1083,2211",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n6",
+            "text": "Main menu for Allrecipes",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,383,110,455",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n7",
+            "text": "",
+            "desc": "Visit Allrecipes' homepage",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "154,383,418,469",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n8",
+            "text": "Allrecipes",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "148,381,154,389",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n9",
+            "text": "",
+            "desc": "Get the MyRecipes app",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "904,383,1039,455",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n10",
+            "text": "",
+            "desc": "Amazon’s overstock outlet is hiding the best early October Prime Day deals",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "66,537,929,664",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n11",
+            "text": "Amazon’s overstock outlet is hiding the best early October Prime Day deals",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "66,540,918,661",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n12",
+            "text": "Close",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "970,581,1017,631",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n13",
+            "text": "Ad",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "1023,1989,1083,2091",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n14",
+            "text": "",
+            "desc": "RECIPES",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,766,209,821",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n15",
+            "text": "RECIPES",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,766,209,818",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n16",
+            "text": "",
+            "desc": "DESSERTS",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "261,766,459,821",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n17",
+            "text": "DESSERTS",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "261,766,459,818",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n18",
+            "text": "",
+            "desc": "PIES",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "511,766,602,821",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n19",
+            "text": "PIES",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "511,766,602,818",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n20",
+            "text": "",
+            "desc": "APPLE PIE RECIPES",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "654,766,1028,821",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n21",
+            "text": "APPLE PIE RECIPES",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "654,766,1028,818",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n22",
+            "text": "Apple Pie by Grandma Ople",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,884,1039,1098",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n23",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,1140,319,1197",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n24",
+            "text": "4.8",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "341,1140,404,1197",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n25",
+            "text": "(13,020)",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "412,1140,968,1197",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n26",
+            "text": "10,019 REVIEWS",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,1222,357,1280",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n27",
+            "text": "3,666 PHOTOS",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "396,1222,723,1280",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n28",
+            "text": "This prize-winning apple pie recipe belonged to my grandmother, and I have never seen another one quite like it! It’s filled with tart Granny Smith apples beneath a lattice crust, with a buttery brown sugar sauce poured over the top for a glossy, caramelized finish. It makes the perfect dessert for family dinners or the holidays.",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,1318,1039,1753",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n29",
+            "text": "Submitted by",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,1811,261,1863",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n30",
+            "text": "MOSHASMAMA",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "266,1808,519,1866",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n31",
+            "text": "|",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "522,1794,555,1871",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n32",
+            "text": "Updated on September 24, 2026",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,1879,561,1937",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n33",
+            "text": "Tested by",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "96,1959,253,2011",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n34",
+            "text": "Allrecipes Test Kitchen",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "255,1956,643,2014",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n35",
+            "text": "",
+            "desc": "Allrecipes Test Kitchen",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "255,1959,643,2011",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n36",
+            "text": "Allrecipes Test Kitchen",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "255,1959,643,2011",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n37",
+            "text": "Save Recipe",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "68,2121,225,2179",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n38",
+            "text": "Rate",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "269,2121,464,2179",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n39",
+            "text": "Print this article.",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "489,2121,695,2179",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n40",
+            "text": "Print this article.",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "489,2121,668,2179",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n41",
+            "text": "Share",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "720,2121,907,2179",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n42",
+            "text": "We Care About Your Privacy",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,650,1083,2211",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n43",
+            "text": "We Care About Your Privacy",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,650,1083,2211",
+            "className": "android.app.Dialog"
+        },
+        {
+            "id": "n44",
+            "text": "We Care About Your Privacy",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "55,785,693,854",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n45",
+            "text": "We and our 100 partners store and/or access information on a device, such as unique IDs in cookies to process personal data. You may accept or manage your choices by clicking below, including your right to object where legitimate interest is used, or at any time in the privacy policy page. These choices will be signaled to our partners and will not affect browsing data.",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "55,851,1028,1178",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n46",
+            "text": "We and our partners process data to provide:",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "55,1173,1028,1230",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n47",
+            "text": "Store and/or access information on a device. Use limited data to select advertising. Create profiles for personalised advertising. Use profiles to select personalised advertising. Create profiles to personalise content. Use profiles to select personalised content. Measure advertising performance. Measure content performance. Understand audiences through statistics or combinations of data from different sources. Develop and improve services. Use limited data to select content.",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "55,1255,1009,1618",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n48",
+            "text": "List of Partners (vendors)",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "55,1629,464,1679",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n49",
+            "text": "Accept All",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "55,1736,1028,1855",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n50",
+            "text": "Reject All",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "55,1893,1028,2011",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n51",
+            "text": "Show Purposes, Opens the preference center dialog",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "55,2053,1028,2168",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n52",
+            "text": "Close",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "979,727,1014,766",
+            "className": "android.widget.Button"
+        }
+    ],
+    "device": "unknown Android SDK built for x86_64, Android 15 (API 35)"
+}

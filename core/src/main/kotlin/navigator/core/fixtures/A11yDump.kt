@@ -49,6 +49,8 @@ data class A11yNode(
  * @param url full URL captured (including the Chrome URL bar read)
  * @param title page title
  * @param nodes accessibility nodes in deterministic read order (ART-6)
+ * @param device optional capture provenance (`Build.MANUFACTURER MODEL, Android X.Y`);
+ *   absent in pre-Phase-1 fixtures, added optional in Phase 1 (sanctioned deviation)
  */
 @Serializable
 data class A11yDump(
@@ -57,6 +59,7 @@ data class A11yDump(
     val url: String,
     val title: String,
     val nodes: List<A11yNode>,
+    val device: String? = null,
 ) {
     init {
         require(capturedAt.isNotBlank()) { "A11yDump.capturedAt must not be blank" }

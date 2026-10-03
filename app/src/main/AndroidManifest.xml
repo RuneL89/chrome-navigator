@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Phase 0 skeleton: a buildable shell. A11y service, overlay, Room, ONNX wiring
-     arrive in their own phases (vision 01 §3 component split). -->
+<!-- Phase 1: adds the observation service (vision 03) and the debug capture harness.
+     A11y service, overlay UI, Room, ONNX wiring arrive in their own phases (vision 01 §3). -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <application
@@ -15,6 +15,36 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Debug-only capture harness (fixture recording). Exported for adb intents;
+             captures are refused unless the build is debuggable. -->
+        <activity
+            android:name=".observe.CaptureActivity"
+            android:exported="true" />
+
+        <!-- Debug-only adb capture trigger: fires while the browser stays foreground
+             (refused unless the build is debuggable). -->
+        <receiver
+            android:name=".observe.CaptureReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="navigator.app.action.CAPTURE" />
+                <action android:name="navigator.app.action.LIST" />
+            </intent-filter>
+        </receiver>
+
+        <service
+            android:name=".observe.NavigatorAccessibilityService"
+            android:exported="true"
+            android:label="Chrome Navigator Observation"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/navigator_accessibility_service_config" />
+        </service>
 
     </application>
 

@@ -1,0 +1,589 @@
+{
+    "capturedAt": "2026-10-03T12:22:15.043344+03:00",
+    "site": "bbc-news",
+    "url": "https://www.bbc.com/news/world",
+    "title": "World News - BBC News",
+    "nodes": [
+        {
+            "id": "n0",
+            "text": "WebView Browser Tester 124.0.6367.219",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "11,137,1069,201",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n1",
+            "text": "https://www.bbc.com/news/world",
+            "desc": "",
+            "clickable": true,
+            "editable": true,
+            "scrollable": false,
+            "bounds": "0,205,760,337",
+            "className": "android.widget.EditText"
+        },
+        {
+            "id": "n2",
+            "text": "",
+            "desc": "Load URL",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "760,205,920,337",
+            "className": "android.widget.ImageButton"
+        },
+        {
+            "id": "n3",
+            "text": "",
+            "desc": "About WebView",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "920,205,1080,337",
+            "className": "android.widget.ImageButton"
+        },
+        {
+            "id": "n4",
+            "text": "World | Latest News & Updates | BBC News",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": true,
+            "bounds": "0,337,1083,2211",
+            "className": "android.webkit.WebView"
+        },
+        {
+            "id": "n5",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,337,1083,2211",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n6",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,337,1083,2211",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n7",
+            "text": "Open menu",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "33,359,173,447",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n8",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "396,359,687,447",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n9",
+            "text": "",
+            "desc": "British Broadcasting Corporation",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "396,359,687,447",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n10",
+            "text": "British Broadcasting Corporation",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "396,359,687,447",
+            "className": "android.widget.Image"
+        },
+        {
+            "id": "n11",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "957,372,1050,433",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n12",
+            "text": "News",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "313,727,506,779",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n13",
+            "text": "World",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "536,711,767,796",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n14",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,865,1039,2121",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n15",
+            "text": "",
+            "desc": "Image shows Capt Smit Matchhar with a bandage around his head and Indian Prime Minister Narendra Modi",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,865,1083,1478",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n16",
+            "text": "Image shows Capt Smit Matchhar with a bandage around his head and Indian Prime Minister Narendra Modi",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,865,1083,1478",
+            "className": "android.widget.Image"
+        },
+        {
+            "id": "n17",
+            "text": "",
+            "desc": "Flydubai co-pilot attacked captain with axe, UAE official says The flydubai plane plunged more than 17,000ft two and a half hours into its journey before passengers and crew overpowered the attacker. 13 mins ago Middle East",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,1538,1039,2075",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n18",
+            "text": "Flydubai co-pilot attacked captain with axe, UAE official says",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,1538,1017,1775",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n19",
+            "text": "The flydubai plane plunged more than 17,000ft two and a half hours into its journey before passengers and crew overpowered the attacker.",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,1802,1039,1954",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n20",
+            "text": "13 mins ago",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,2009,228,2050",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n21",
+            "text": "Middle East",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "280,2009,462,2050",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n22",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,2185,1039,2211",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n23",
+            "text": "",
+            "desc": "A view of the Pivnichnyi Bridge in Kyiv, Ukraine. There are cars driving across it and water running below with orange and green trees lining the banks. Russia strikes second major bridge in Kyiv, mayor says 2 hrs ago Europe",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,2185,1039,2211",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n24",
+            "text": "A view of the Pivnichnyi Bridge in Kyiv, Ukraine. There are cars driving across it and water running below with orange and green trees lining the banks.",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,2185,407,2211",
+            "className": "android.widget.Image"
+        },
+        {
+            "id": "n25",
+            "text": "Russia strikes second major bridge in Kyiv, mayor says",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "429,2185,1017,2211",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n26",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,3356,1039,2211",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n27",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,9271,1039,2211",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n28",
+            "text": "Let us know you agree to cookies",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,1822,1039,1879",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n29",
+            "text": "We use ",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,1918,170,1965",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n30",
+            "text": "",
+            "desc": "cookies",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "167,1918,294,1965",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n31",
+            "text": "cookies",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "167,1918,294,1965",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n32",
+            "text": " to give you the best online experience.",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "291,1918,907,1965",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n33",
+            "text": "Please let us know if you agree to all of these cookies.",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,1962,1039,2009",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n34",
+            "text": "Yes, I agree",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,2047,1039,2094",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n35",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,2088,1039,2168",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n36",
+            "text": "",
+            "desc": "No, take me to settings",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,2113,558,2165",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n37",
+            "text": "No, take me to settings",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "110,2113,558,2165",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n38",
+            "text": "SP Consent Message",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,337,1083,2211",
+            "className": "android.app.Dialog"
+        },
+        {
+            "id": "n39",
+            "text": "Notice Message App",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,337,1083,2211",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n40",
+            "text": "BBC Logo",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "46,414,423,524",
+            "className": "android.widget.Image"
+        },
+        {
+            "id": "n41",
+            "text": "Let us know you agree to advertising cookies",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "46,546,1034,697",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n42",
+            "text": "We and our 54 partners use cookies and similar technologies to collect and process personal data from your device, such as your IP address and the pages you visit. We use this data to help us to better understand our audiences and to improve and personalise your experience. We also use this data to manage the advertising shown on our services. We make money from these ads, which in turn helps to fund our services and the creation of more BBC content. Please let us know if you agree to:",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "46,708,1034,1178",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n43",
+            "text": "Store and/or access information on a device",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "46,1200,1034,1277",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n44",
+            "text": "Personalised advertising and content, advertising and content measurement, audience research and services development ",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "46,1274,1034,1439",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n45",
+            "text": "Click “Manage Options” to set your choice for specific purposes and to view the list of our partners . You can find out more on advertising cookies in our privacy policy . To change your preferences at any other time (including to withdraw consent or opt out of legitimate interest processing) by clicking on ‘Do not share or sell my info‘ at the bottom of any page. Your choice only applies to BBC.com.",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "46,1437,1034,1775",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n46",
+            "text": "Click “Manage Options” to set your choice for specific purposes and to view the list of our ",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "46,1464,979,1547",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n47",
+            "text": "",
+            "desc": "partners",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "423,1505,550,1547",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n48",
+            "text": "partners",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "423,1505,550,1547",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n49",
+            "text": ". You can find out more on advertising cookies in our ",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "46,1505,935,1588",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n50",
+            "text": "",
+            "desc": "privacy policy",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "431,1544,632,1588",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n51",
+            "text": "privacy policy",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "431,1544,632,1588",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n52",
+            "text": ". To change your preferences at any other time (including to withdraw consent or opt out of legitimate interest processing) by clicking on ",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "46,1544,1031,1668",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n53",
+            "text": "‘Do not share or sell my info‘ ",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "46,1624,1003,1706",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n54",
+            "text": "at the bottom of any page. Your choice only applies to BBC.com.",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "46,1665,1025,1745",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n55",
+            "text": "I do not agree",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "93,1819,508,1943",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n56",
+            "text": "I agree",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "572,1819,987,1943",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n57",
+            "text": "Manage options",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "357,1992,723,2110",
+            "className": "android.widget.Button"
+        }
+    ],
+    "device": "unknown Android SDK built for x86_64, Android 15 (API 35)"
+}

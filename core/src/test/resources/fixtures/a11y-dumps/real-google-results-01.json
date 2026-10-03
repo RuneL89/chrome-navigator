@@ -1,0 +1,689 @@
+{
+    "capturedAt": "2026-10-03T12:25:03.912378+03:00",
+    "site": "google-search",
+    "url": "https://www.google.com/search?q=apple+pie+recipe",
+    "title": "apple pie recipe - Google Search",
+    "nodes": [
+        {
+            "id": "n0",
+            "text": "WebView Browser Tester 124.0.6367.219",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "11,137,1069,201",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n1",
+            "text": "https://www.google.com/search?q=apple+pie+recipe",
+            "desc": "",
+            "clickable": true,
+            "editable": true,
+            "scrollable": false,
+            "bounds": "0,205,760,337",
+            "className": "android.widget.EditText"
+        },
+        {
+            "id": "n2",
+            "text": "",
+            "desc": "Load URL",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "760,205,920,337",
+            "className": "android.widget.ImageButton"
+        },
+        {
+            "id": "n3",
+            "text": "",
+            "desc": "About WebView",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "920,205,1080,337",
+            "className": "android.widget.ImageButton"
+        },
+        {
+            "id": "n4",
+            "text": "apple pie recipe - Google-haku",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": true,
+            "bounds": "0,337,1083,2211",
+            "className": "android.webkit.WebView"
+        },
+        {
+            "id": "n5",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,337,1083,2211",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n6",
+            "text": "",
+            "desc": "Siirry Googlen kotisivulle",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "412,337,668,529",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n7",
+            "text": "",
+            "desc": "Kirjaudu",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "841,361,1053,477",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n8",
+            "text": "Kirjaudu",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "874,392,1020,441",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n9",
+            "text": "Hakuasetukset",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,337,165,513",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n10",
+            "text": "Päävalikko",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,337,165,513",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n11",
+            "text": "Google-haku",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,507,176,634",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n12",
+            "text": "apple pie recipe",
+            "desc": "",
+            "clickable": true,
+            "editable": true,
+            "scrollable": false,
+            "bounds": "176,535,891,606",
+            "className": "android.widget.EditText"
+        },
+        {
+            "id": "n13",
+            "text": "Tyhjennä haku",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "885,507,1023,634",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n14",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,628,1083,766",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n15",
+            "text": "Tekoälytila Kaikki Lyhyet videot Kuvahaku Videot Verkkohaku Teokset Talous Hakutyökalut Palaute",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": true,
+            "bounds": "0,628,1083,766",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n16",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "11,628,2334,766",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n17",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "11,628,264,766",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n18",
+            "text": "",
+            "desc": "Tekoälytila",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "11,628,264,766",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n19",
+            "text": "Tekoälytila",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,672,231,722",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n20",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "261,628,437,766",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n21",
+            "text": "",
+            "desc": "Kaikki",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "261,628,437,766",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n22",
+            "text": "Kaikki",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "261,628,437,766",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n23",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "431,628,728,766",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n24",
+            "text": "",
+            "desc": "Lyhyet videot",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "431,628,728,766",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n25",
+            "text": "Lyhyet videot",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "464,672,695,722",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n26",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "726,628,962,766",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n27",
+            "text": "",
+            "desc": "Kuvahaku",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "726,628,962,766",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n28",
+            "text": "Kuvahaku",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "759,672,929,722",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n29",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "959,628,1141,766",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n30",
+            "text": "",
+            "desc": "Videot",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "959,628,1141,766",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n31",
+            "text": "Videot",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "992,672,1108,722",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n32",
+            "text": "Hakutulokset",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,788,5,793",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n33",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,763,1083,2211",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n34",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,763,1083,1448",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n35",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,763,1083,1448",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n36",
+            "text": "Tulokset internetistä",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,818,5,823",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n37",
+            "text": "",
+            "desc": "Little Spoon Farm https://littlespoonfarm.com Easy Apple Pie Recipe (Just like Grandma Made!)",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,763,1083,1109",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n38",
+            "text": "Little Spoon Farm",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "151,807,929,865",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n39",
+            "text": "https://littlespoonfarm.com",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "151,862,929,909",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n40",
+            "text": "Easy Apple Pie Recipe (Just like Grandma Made!)",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,936,1039,1096",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n41",
+            "text": "Tietoja tästä tuloksesta",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "946,785,1080,920",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n42",
+            "text": "8.8.2021 — In a large bowl, combine the sliced apples, granulated sugar, light brown sugar, flour, cinnamon, nutmeg, and lemon juice and lemon zest; toss ...",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,1112,789,1338",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n43",
+            "text": "Arvio 5,0/5 (978) käyttäjäarvostelua",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,1365,396,1415",
+            "className": "android.widget.Image"
+        },
+        {
+            "id": "n44",
+            "text": "2 t",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "423,1365,470,1415",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n45",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,1464,1083,2072",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n46",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,1464,1083,2072",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n47",
+            "text": "",
+            "desc": "Natasha's Kitchen https://natashaskitchen.com The BEST Apple Pie Recipe",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,1464,1083,1736",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n48",
+            "text": "Natasha's Kitchen",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "151,1508,929,1569",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n49",
+            "text": "https://natashaskitchen.com",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "151,1563,929,1613",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n50",
+            "text": "The BEST Apple Pie Recipe",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,1637,1039,1723",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n51",
+            "text": "Tietoja tästä tuloksesta",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "946,1486,1080,1624",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n52",
+            "text": "7.10.2025 — The best Apple Pie Recipe you'll find! The homemade pie crust is perfect, and the saucy apple pie filling is as easy and tasty as it gets!",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,1736,789,1965",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n53",
+            "text": "Arvio 5,0/5 (3 283) käyttäjäarvostelua",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,1989,429,2039",
+            "className": "android.widget.Image"
+        },
+        {
+            "id": "n54",
+            "text": "2 t 30 min",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "453,1989,627,2039",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n55",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,2091,1083,2211",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n56",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,2091,1083,2211",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n57",
+            "text": "",
+            "desc": "Allrecipes https://www.allrecipes.com Apple Pie by Grandma Ople Recipe",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,2091,1083,2211",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n58",
+            "text": "Allrecipes",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "151,2135,929,2193",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n59",
+            "text": "https://www.allrecipes.com",
+            "desc": "",
+            "clickable": false,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "151,2190,929,2211",
+            "className": "android.widget.TextView"
+        },
+        {
+            "id": "n60",
+            "text": "Tietoja tästä tuloksesta",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "946,2113,1080,2211",
+            "className": "android.widget.Button"
+        },
+        {
+            "id": "n61",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,2715,1083,2211",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n62",
+            "text": "",
+            "desc": "Kuvat: apple pie recipe / sallysbakingaddiction.com",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "44,3076,1039,2211",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n63",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,3587,1083,2211",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n64",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,4159,1083,2211",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n65",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,5790,1083,2211",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n66",
+            "text": "",
+            "desc": "RecipeTin Eats https://www.recipetineats.com My Perfect Apple Pie",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,5790,1083,2211",
+            "className": "android.view.View"
+        },
+        {
+            "id": "n67",
+            "text": "",
+            "desc": "",
+            "clickable": true,
+            "editable": false,
+            "scrollable": false,
+            "bounds": "0,6538,1083,2211",
+            "className": "android.view.View"
+        }
+    ],
+    "device": "unknown Android SDK built for x86_64, Android 15 (API 35)"
+}

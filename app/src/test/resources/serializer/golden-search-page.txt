@@ -1,0 +1,7 @@
+[n0] "apple pie - Google Search" tap edit (540,128)
+[n1] "" scroll (540,1230)
+  [n2] "" tap (540,460)
+    [n3] "Apple Pie Recipe (with Video) - Allrecip" tap (540,394)
+    [n4] "Cinnamon and nutmeg add flavor to the sy" (477,500)
+      [n5] "DEEP" (5,5)
+    [n6] "Advertisement" (540,570)

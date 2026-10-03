@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Observation service config (vision 03 §1). packageNames only filters event delivery;
+     the authoritative code-side observation filter is
+     NavigatorAccessibilityService.PACKAGE_ALLOWLIST (the harness widens that constant).
+     NB: the platform has no "typeWindowScrollChanged" token — the scroll event type is
+     typeViewScrolled (AccessibilityEvent.TYPE_VIEW_SCROLLED). -->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeViewScrolled"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagDefault|flagReportViewIds|flagRetrieveInteractiveWindows"
+    android:canRetrieveWindowContent="true"
+    android:canPerformGestures="true"
+    android:notificationTimeout="100"
+    android:packageNames="com.android.chrome"
+    android:description="@string/a11y_service_description"
+    android:summary="@string/a11y_service_summary" />
