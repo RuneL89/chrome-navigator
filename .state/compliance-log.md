@@ -308,3 +308,14 @@ a new dated entry. Format per `Implementation Plan/MASTER_IMPLEMENTATION_PROMPT.
     - Findings F1-F3 recorded as Tier A scope limitations (loop question-builders, SUBMIT_TRAP duplication mitigated by explicit actionKind in golds) — non-blocking, tracked for Tier B (Phase 12) to cover.
   Result: COMPLIANT — Phase 7 accepted (PHASE 7 VERIFIED)
   Checked By: canon-verifier (cold check) + Main agent (orchestrator close-out)
+
+[2026-10-03] Phase 8 (LayaEngine & Shadow Router) Pre-Implementation Compliance Check
+  Changed: (pre-check; no files changed yet)
+  Vision Docs Checked: 02 §4-§5 (ShadowRouter semantics, pinning, graduation path); 05 §6 (shadow model law, amended tokenizer note); ART-2/ART-11
+  Comparison:
+    - LayaEngine = on-device ONNX int8 of convaiinnovations/laya; two-stage bucketed choice; marker construction + calibration in Kotlin outside the graph. COMPLIANT.
+    - ShadowRouter: primary synchronous, shadow fire-and-forget async, never blocks, droppable under thermal pressure (every-Nth-step), shadow answers logged NEVER executed; log rows carry both engines. COMPLIANT.
+    - Graduation is config-flip-only (ART-2 proof point); per-channel int8 banned (upstream issue #790). COMPLIANT.
+    - $0 cloud spend; on-device inference only; model provenance (revision+sha256) committed. COMPLIANT.
+  Result: COMPLIANT — no contradictions
+  Checked By: Main agent (phase orchestrator)
