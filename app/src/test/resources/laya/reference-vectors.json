@@ -1,0 +1,713 @@
+{
+ "schema": "navigator.laya.reference-vectors/1",
+ "gate": "PHASE_08 ss3 Gate 8.1 (max abs probability delta <= 0.01)",
+ "parityTarget": "probabilities (int8 artifact logits, calibrated exactly like navigator.app.laya.Calibration)",
+ "driftEvidence": "agentProbabilities / maxAbsDeltaVsEagerAgent: the eager torch Agent on the same input — the int8-vs-eager drift is RECORDED, not gated",
+ "checkpoint": {
+  "repo": "convaiinnovations/laya",
+  "revision": "55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851",
+  "maxLen": 512,
+  "headMaxLen": 192
+ },
+ "artifact": {
+  "file": "laya-int8.onnx",
+  "sha256": "7be83389f75d428d60075ab8a8339adafb2713846681b6ba10f250863ab7a068"
+ },
+ "cases": [
+  {
+   "id": "bucket-stage-6",
+   "kind": "choice",
+   "state": "GOAL: find an apple pie recipe\nURL: https://www.allrecipes.com/recipes/78/baking/\nTITLE: Baking Recipes - Allrecipes\nHISTORY: (none)\nUNTRUSTED PAGE CONTENT:\nBrowse our collection of baking recipes, from quick breads to pies and cakes.",
+   "optionIds": [
+    "nav-links",
+    "form-fields",
+    "buttons",
+    "scroll",
+    "back",
+    "finish"
+   ],
+   "question": {
+    "t": "choice",
+    "ins": "In which group is the best next action?",
+    "crit": {
+     "nav-links": "links believed to navigate",
+     "form-fields": "editable fields",
+     "buttons": "clickable non-link controls",
+     "scroll": "scroll actions on scrollable containers",
+     "back": "system back",
+     "finish": "goal achieved, stop"
+    }
+   },
+   "qtype": 0,
+   "tokenCount": 141,
+   "inputIdsSha256": "1d3a7515c5ad337462e2528ed73995d1968a9bca24a176dbb168451d536b2c4d",
+   "markerPositions": [
+    14,
+    23,
+    31,
+    40,
+    49,
+    54
+   ],
+   "temperatureUsed": 1.0000158548355103,
+   "logitsInt8": [
+    1.124789,
+    0.936092,
+    1.004277,
+    0.975214,
+    0.973957,
+    0.997396
+   ],
+   "probabilities": [
+    0.1881124991,
+    0.1557646284,
+    0.1667557563,
+    0.1619792362,
+    0.1617756723,
+    0.1656122077
+   ],
+   "agentProbabilities": [
+    0.8099,
+    0.0136,
+    0.0398,
+    0.0414,
+    0.0508,
+    0.0445
+   ],
+   "agentChosen": "nav-links",
+   "maxAbsDeltaVsEagerAgent": 0.6217875009
+  },
+  {
+   "id": "bucket-stage-4",
+   "kind": "choice",
+   "state": "GOAL: hyväksy evästeet ja hae parhaat hakutulokset\nURL: https://www.google.com/search?q=omenapiirakka+resepti\nTITLE: omenapiirakka resepti - Google-haku\nHISTORY: (none)\nUNTRUSTED PAGE CONTENT:\nHyväksy evästeet — näin parannamme kokemustasi. Haku-osio: parhaat omenapiirakan reseptit suomalaisille leivontasivustoille.",
+   "optionIds": [
+    "nav-links",
+    "buttons",
+    "scroll",
+    "finish"
+   ],
+   "question": {
+    "t": "choice",
+    "ins": "In which group is the best next action?",
+    "crit": {
+     "nav-links": "links believed to navigate",
+     "buttons": "clickable non-link controls",
+     "scroll": "scroll actions on scrollable containers",
+     "finish": "goal achieved, stop"
+    }
+   },
+   "qtype": 0,
+   "tokenCount": 184,
+   "inputIdsSha256": "c0596089b3b4acb2754679a2de0421c12d1a9c2a41b31d2299a4c9c65037c15a",
+   "markerPositions": [
+    14,
+    23,
+    32,
+    41
+   ],
+   "temperatureUsed": 1.7601518630981445,
+   "logitsInt8": [
+    0.881643,
+    0.847498,
+    0.84716,
+    1.008642
+   ],
+   "probabilities": [
+    0.2477573713,
+    0.2429974209,
+    0.2429508508,
+    0.266294357
+   ],
+   "agentProbabilities": [
+    0.263,
+    0.2659,
+    0.106,
+    0.3651
+   ],
+   "agentChosen": "finish",
+   "maxAbsDeltaVsEagerAgent": 0.1369508508
+  },
+  {
+   "id": "bucket-stage-3",
+   "kind": "choice",
+   "state": "GOAL: compare two laptop prices on a shop listing\nURL: https://www.verkkokauppa.com/fi/product/612435/Super-XYZ-14-Laptop\nTITLE: SuperXYZ 14\" Laptop - Verkkokauppa\nHISTORY: step 0: tap \"Laptops\" -> progressed\nHISTORY: step 1: tap \"SuperXYZ 14\" -> progressed\nHINT: try scrolling if the buy button is not visible\nUNTRUSTED PAGE CONTENT:\nSuperXYZ 14 Laptop - 16 GB RAM, 512 GB SSD, 2.8K OLED display. Delivery 1-3 business days. Free returns within 30 days. Add the two-year extended warranty for 89,90 eur. Customers also bought: sleeve, USB-C hub, wireless mouse. Price alert available. 4523,00 eur incl. VAT.",
+   "optionIds": [
+    "form-fields",
+    "scroll",
+    "back"
+   ],
+   "question": {
+    "t": "choice",
+    "ins": "In which group is the best next action?",
+    "crit": {
+     "form-fields": "editable fields",
+     "scroll": "scroll actions on scrollable containers",
+     "back": "system back"
+    }
+   },
+   "qtype": 0,
+   "tokenCount": 232,
+   "inputIdsSha256": "ee1ea21df7723958c69278299ba62529c96af5853ce5eb58b5438c8579a27a57",
+   "markerPositions": [
+    14,
+    22,
+    31
+   ],
+   "temperatureUsed": 1.7601518630981445,
+   "logitsInt8": [
+    0.947565,
+    1.007243,
+    1.002076
+   ],
+   "probabilities": [
+    0.3261641854,
+    0.3374124716,
+    0.3364233429
+   ],
+   "agentProbabilities": [
+    0.217,
+    0.2964,
+    0.4867
+   ],
+   "agentChosen": "back",
+   "maxAbsDeltaVsEagerAgent": 0.1502766571
+  },
+  {
+   "id": "element-navlinks-6",
+   "kind": "choice",
+   "state": "GOAL: find an apple pie recipe\nURL: https://www.allrecipes.com/recipes/78/baking/\nTITLE: Baking Recipes - Allrecipes\nHISTORY: (none)\nUNTRUSTED PAGE CONTENT:\nBrowse our collection of baking recipes, from quick breads to pies and cakes.",
+   "optionIds": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4",
+    "n5"
+   ],
+   "question": {
+    "t": "choice",
+    "ins": "Which option in the nav-links group is the best next action?",
+    "crit": {
+     "Apple Pies": "bucket=nav-links (270,300)",
+     "Cakes": "bucket=nav-links (270,360)",
+     "Cookies": "bucket=nav-links (270,420)",
+     "Breads": "bucket=nav-links (270,480)",
+     "No-Bake Desserts": "bucket=nav-links (270,540)",
+     "All Baking Recipes": "bucket=nav-links (270,600)"
+    }
+   },
+   "qtype": 0,
+   "tokenCount": 192,
+   "inputIdsSha256": "19f14827ac92944c1a929aeda1f5c2cdc58fcdbbe210f87bda75d7d3b4463d4b",
+   "markerPositions": [
+    19,
+    34,
+    48,
+    61,
+    75,
+    95
+   ],
+   "temperatureUsed": 1.0000158548355103,
+   "logitsInt8": [
+    1.073794,
+    1.07984,
+    0.990031,
+    0.999416,
+    1.027255,
+    1.150562
+   ],
+   "probabilities": [
+    0.169826709,
+    0.1708565644,
+    0.1561812204,
+    0.1576538745,
+    0.1621043828,
+    0.183377249
+   ],
+   "agentProbabilities": [
+    0.044,
+    0.0235,
+    0.0036,
+    0.0025,
+    0.0033,
+    0.9231
+   ],
+   "agentChosen": "All Baking Recipes",
+   "maxAbsDeltaVsEagerAgent": 0.739722751
+  },
+  {
+   "id": "element-navlinks-12",
+   "kind": "choice",
+   "state": "GOAL: compare two laptop prices on a shop listing\nURL: https://www.verkkokauppa.com/fi/product/612435/Super-XYZ-14-Laptop\nTITLE: SuperXYZ 14\" Laptop - Verkkokauppa\nHISTORY: step 0: tap \"Laptops\" -> progressed\nHISTORY: step 1: tap \"SuperXYZ 14\" -> progressed\nHINT: try scrolling if the buy button is not visible\nUNTRUSTED PAGE CONTENT:\nSuperXYZ 14 Laptop - 16 GB RAM, 512 GB SSD, 2.8K OLED display. Delivery 1-3 business days. Free returns within 30 days. Add the two-year extended warranty for 89,90 eur. Customers also bought: sleeve, USB-C hub, wireless mouse. Price alert available. 4523,00 eur incl. VAT.",
+   "optionIds": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4",
+    "n5",
+    "n6",
+    "n7",
+    "n8",
+    "n9",
+    "n10",
+    "n11"
+   ],
+   "question": {
+    "t": "choice",
+    "ins": "Which option in the nav-links group is the best next action?",
+    "crit": {
+     "Laptops": "bucket=nav-links (270,240)",
+     "Computers": "bucket=nav-links (270,290)",
+     "Gaming": "bucket=nav-links (270,340)",
+     "Accessories": "bucket=nav-links (270,390)",
+     "Deals": "bucket=nav-links (270,440)",
+     "Brand: SuperXYZ": "bucket=nav-links (270,490)",
+     "14-inch laptops": "bucket=nav-links (270,540)",
+     "Compare (2)": "bucket=nav-links (270,590)",
+     "Reviews (23)": "bucket=nav-links (270,640)",
+     "Questions (4)": "bucket=nav-links (270,690)",
+     "Spare parts": "bucket=nav-links (270,740)",
+     "Product documents": "bucket=nav-links (270,790)"
+    }
+   },
+   "qtype": 0,
+   "tokenCount": 382,
+   "inputIdsSha256": "a8923804a657f9c6623b2c75d0d718b9139dbcb07982d6a90a74f92f772ea888",
+   "markerPositions": [
+    19,
+    33,
+    47,
+    60,
+    74,
+    88,
+    102,
+    116,
+    130,
+    144,
+    158,
+    172
+   ],
+   "temperatureUsed": 0.5,
+   "logitsInt8": [
+    0.783385,
+    1.36741,
+    0.697935,
+    0.65335,
+    0.698409,
+    0.666339,
+    0.770542,
+    0.459027,
+    0.436734,
+    0.254817,
+    0.996351,
+    0.455671
+   ],
+   "probabilities": [
+    0.0843199363,
+    0.2711493595,
+    0.0710738541,
+    0.0650104952,
+    0.0711413115,
+    0.0667214474,
+    0.0821816814,
+    0.0440754769,
+    0.0421535154,
+    0.0292969444,
+    0.1290954032,
+    0.0437805747
+   ],
+   "agentProbabilities": [
+    0.1303,
+    0.5119,
+    0.0033,
+    0.0465,
+    0.2258,
+    0.0537,
+    0.0218,
+    0.002,
+    0.0016,
+    0.0001,
+    0.0029,
+    0.0002
+   ],
+   "agentChosen": "Computers",
+   "maxAbsDeltaVsEagerAgent": 0.2407506405
+  },
+  {
+   "id": "element-formfields-4",
+   "kind": "choice",
+   "state": "GOAL: find an apple pie recipe\nURL: https://www.allrecipes.com/recipes/78/baking/\nTITLE: Baking Recipes - Allrecipes\nHISTORY: (none)\nUNTRUSTED PAGE CONTENT:\nBrowse our collection of baking recipes, from quick breads to pies and cakes.",
+   "optionIds": [
+    "n0",
+    "n1",
+    "n2",
+    "n3"
+   ],
+   "question": {
+    "t": "choice",
+    "ins": "Which option in the form-fields group is the best next action?",
+    "crit": {
+     "Search terminal": "bucket=form-fields (200,180)",
+     "Email": "bucket=form-fields (200,260)",
+     "Password": "bucket=form-fields (200,340)",
+     "Comment": "bucket=form-fields (200,420)"
+    }
+   },
+   "qtype": 0,
+   "tokenCount": 152,
+   "inputIdsSha256": "f92963f367e411a06423f0121e211b4b963ef6d0025f21fbdacc07be2c58b735",
+   "markerPositions": [
+    19,
+    33,
+    46,
+    59
+   ],
+   "temperatureUsed": 1.7601518630981445,
+   "logitsInt8": [
+    1.081777,
+    0.992298,
+    0.986527,
+    1.005501
+   ],
+   "probabilities": [
+    0.2593799419,
+    0.2465236851,
+    0.2457166273,
+    0.2483797456
+   ],
+   "agentProbabilities": [
+    0.5732,
+    0.1463,
+    0.1478,
+    0.1327
+   ],
+   "agentChosen": "Search terminal",
+   "maxAbsDeltaVsEagerAgent": 0.3138200581
+  },
+  {
+   "id": "element-buttons-3",
+   "kind": "choice",
+   "state": "GOAL: hyväksy evästeet ja hae parhaat hakutulokset\nURL: https://www.google.com/search?q=omenapiirakka+resepti\nTITLE: omenapiirakka resepti - Google-haku\nHISTORY: (none)\nUNTRUSTED PAGE CONTENT:\nHyväksy evästeet — näin parannamme kokemustasi. Haku-osio: parhaat omenapiirakan reseptit suomalaisille leivontasivustoille.",
+   "optionIds": [
+    "n0",
+    "n1",
+    "n2"
+   ],
+   "question": {
+    "t": "choice",
+    "ins": "Which option in the buttons group is the best next action?",
+    "crit": {
+     "Hyväksy kaikki": "bucket=buttons (540,900)",
+     "Vain välttämättömät": "bucket=buttons (540,960)",
+     "Asetukset": "bucket=buttons (540,1020)"
+    }
+   },
+   "qtype": 0,
+   "tokenCount": 203,
+   "inputIdsSha256": "7645b54294260cc8e17f197b92503b3b911c7e2dbf6ed758fb6c303c4b7ba81f",
+   "markerPositions": [
+    17,
+    34,
+    52
+   ],
+   "temperatureUsed": 1.7601518630981445,
+   "logitsInt8": [
+    1.120574,
+    1.100412,
+    1.094168
+   ],
+   "probabilities": [
+    0.3362791201,
+    0.3324490585,
+    0.3312718215
+   ],
+   "agentProbabilities": [
+    0.4976,
+    0.2218,
+    0.2806
+   ],
+   "agentChosen": "Hyväksy kaikki",
+   "maxAbsDeltaVsEagerAgent": 0.1613208799
+  },
+  {
+   "id": "element-scroll-2",
+   "kind": "choice",
+   "state": "GOAL: compare two laptop prices on a shop listing\nURL: https://www.verkkokauppa.com/fi/product/612435/Super-XYZ-14-Laptop\nTITLE: SuperXYZ 14\" Laptop - Verkkokauppa\nHISTORY: step 0: tap \"Laptops\" -> progressed\nHISTORY: step 1: tap \"SuperXYZ 14\" -> progressed\nHINT: try scrolling if the buy button is not visible\nUNTRUSTED PAGE CONTENT:\nSuperXYZ 14 Laptop - 16 GB RAM, 512 GB SSD, 2.8K OLED display. Delivery 1-3 business days. Free returns within 30 days. Add the two-year extended warranty for 89,90 eur. Customers also bought: sleeve, USB-C hub, wireless mouse. Price alert available. 4523,00 eur incl. VAT.",
+   "optionIds": [
+    "scroll-down@n9",
+    "scroll-up@n9"
+   ],
+   "question": {
+    "t": "choice",
+    "ins": "Which option in the scroll group is the best next action?",
+    "crit": {
+     "scroll-down@n9": "bucket=scroll (540,1100) (540,1100)",
+     "scroll-up@n9": "bucket=scroll (540,300) (540,300)"
+    }
+   },
+   "qtype": 0,
+   "tokenCount": 255,
+   "inputIdsSha256": "276a707680eff6fbdad712008bc3146d3740b1d440a78568832a2a688face30e",
+   "markerPositions": [
+    17,
+    38
+   ],
+   "temperatureUsed": 1.9063563346862793,
+   "logitsInt8": [
+    0.506399,
+    0.289647
+   ],
+   "probabilities": [
+    0.5283943421,
+    0.4716056579
+   ],
+   "agentProbabilities": [
+    0.6492,
+    0.3508
+   ],
+   "agentChosen": "scroll-down@n9",
+   "maxAbsDeltaVsEagerAgent": 0.1208056579
+  },
+  {
+   "id": "noul-goal-achieved",
+   "kind": "noul",
+   "state": "GOAL: find an apple pie recipe\nURL: https://www.allrecipes.com/recipes/78/baking/\nTITLE: Baking Recipes - Allrecipes\nHISTORY: (none)\nUNTRUSTED PAGE CONTENT:\nBrowse our collection of baking recipes, from quick breads to pies and cakes.",
+   "optionIds": [
+    "false",
+    "true"
+   ],
+   "question": {
+    "t": "noul",
+    "ins": "The goal \"find an apple pie recipe\" is fully achieved on the current page."
+   },
+   "qtype": 2,
+   "tokenCount": 121,
+   "inputIdsSha256": "33fea65dbd8e803884ffd86fa249baa5290973b9ac6e5f353137130267e1a411",
+   "markerPositions": [
+    23,
+    33
+   ],
+   "temperatureUsed": 1.983399510383606,
+   "logitsInt8": [
+    0.97023,
+    1.025962
+   ],
+   "probabilities": [
+    0.4929756531,
+    0.5070243469
+   ],
+   "agentProbabilities": [
+    0.3433,
+    0.6567
+   ],
+   "agentChosen": 0.6567,
+   "maxAbsDeltaVsEagerAgent": 0.1496756531
+  },
+  {
+   "id": "score-urgency-4",
+   "kind": "score",
+   "state": "GOAL: compare two laptop prices on a shop listing\nURL: https://www.verkkokauppa.com/fi/product/612435/Super-XYZ-14-Laptop\nTITLE: SuperXYZ 14\" Laptop - Verkkokauppa\nHISTORY: step 0: tap \"Laptops\" -> progressed\nHISTORY: step 1: tap \"SuperXYZ 14\" -> progressed\nHINT: try scrolling if the buy button is not visible\nUNTRUSTED PAGE CONTENT:\nSuperXYZ 14 Laptop - 16 GB RAM, 512 GB SSD, 2.8K OLED display. Delivery 1-3 business days. Free returns within 30 days. Add the two-year extended warranty for 89,90 eur. Customers also bought: sleeve, USB-C hub, wireless mouse. Price alert available. 4523,00 eur incl. VAT.",
+   "optionIds": [
+    "1",
+    "2",
+    "3",
+    "4"
+   ],
+   "question": {
+    "t": "score",
+    "ins": "Score the state against the rubric.",
+    "crit": [
+     "not urgent, browse another day",
+     "mildly urgent, this week",
+     "urgent, today",
+     "critical, right now"
+    ]
+   },
+   "qtype": 1,
+   "tokenCount": 243,
+   "inputIdsSha256": "1639b34c56f91062c875c322bebf7e9e9736305f329588f3d87d303bd8ba3c94",
+   "markerPositions": [
+    13,
+    23,
+    32,
+    39
+   ],
+   "temperatureUsed": 1.2514300346374512,
+   "logitsInt8": [
+    1.707126,
+    1.648985,
+    1.62658,
+    1.576429
+   ],
+   "probabilities": [
+    0.2636368093,
+    0.2516684634,
+    0.247202731,
+    0.2374919963
+   ],
+   "agentProbabilities": [
+    0.2191,
+    0.5239,
+    0.1981,
+    0.059
+   ],
+   "agentChosen": 1.0969,
+   "maxAbsDeltaVsEagerAgent": 0.2722315366
+  },
+  {
+   "id": "single-recovery-4",
+   "kind": "choice",
+   "state": "GOAL: compare two laptop prices on a shop listing\nURL: https://www.verkkokauppa.com/fi/product/612435/Super-XYZ-14-Laptop\nTITLE: SuperXYZ 14\" Laptop - Verkkokauppa\nHISTORY: step 0: tap \"Laptops\" -> progressed\nHISTORY: step 1: tap \"SuperXYZ 14\" -> progressed\nHINT: try scrolling if the buy button is not visible\nUNTRUSTED PAGE CONTENT:\nSuperXYZ 14 Laptop - 16 GB RAM, 512 GB SSD, 2.8K OLED display. Delivery 1-3 business days. Free returns within 30 days. Add the two-year extended warranty for 89,90 eur. Customers also bought: sleeve, USB-C hub, wireless mouse. Price alert available. 4523,00 eur incl. VAT.",
+   "optionIds": [
+    "back",
+    "scroll",
+    "rephrase",
+    "give-up"
+   ],
+   "question": {
+    "t": "choice",
+    "ins": "What is the best next action?",
+    "crit": {
+     "back": "recovery action chosen by the engine when stuck",
+     "scroll": "recovery action chosen by the engine when stuck",
+     "rephrase": "recovery action chosen by the engine when stuck",
+     "give-up": "recovery action chosen by the engine when stuck"
+    }
+   },
+   "qtype": 0,
+   "tokenCount": 255,
+   "inputIdsSha256": "9466d0e4aa9f42a4fc9614c604126a1d7bde7f7c2cbcf41b912ba2db568d681e",
+   "markerPositions": [
+    12,
+    23,
+    34,
+    46
+   ],
+   "temperatureUsed": 1.7601518630981445,
+   "logitsInt8": [
+    1.06182,
+    0.9859,
+    0.941528,
+    0.968824
+   ],
+   "probabilities": [
+    0.2603988543,
+    0.2494059804,
+    0.2431972012,
+    0.246997964
+   ],
+   "agentProbabilities": [
+    0.378,
+    0.2637,
+    0.1643,
+    0.194
+   ],
+   "agentChosen": "back",
+   "maxAbsDeltaVsEagerAgent": 0.1176011457
+  },
+  {
+   "id": "bucket-stage-long-state",
+   "kind": "choice",
+   "state": "GOAL: compare two laptop prices on a shop listing\nURL: https://www.verkkokauppa.com/fi/product/612435/Super-XYZ-14-Laptop\nTITLE: SuperXYZ 14\" Laptop - Verkkokauppa\nHISTORY: step 0: tap \"Laptops\" -> progressed\nHISTORY: step 1: tap \"SuperXYZ 14\" -> progressed\nHINT: try scrolling if the buy button is not visible\nUNTRUSTED PAGE CONTENT:\nSuperXYZ 14 Laptop - 16 GB RAM, 512 GB SSD, 2.8K OLED display. Delivery 1-3 business days. Free returns within 30 days. Add the two-year extended warranty for 89,90 eur. Customers also bought: sleeve, USB-C hub, wireless mouse. Price alert available. 4523,00 eur incl. VAT.",
+   "optionIds": [
+    "nav-links",
+    "form-fields",
+    "buttons",
+    "scroll",
+    "back",
+    "finish"
+   ],
+   "question": {
+    "t": "choice",
+    "ins": "In which group is the best next action?",
+    "crit": {
+     "nav-links": "links believed to navigate",
+     "form-fields": "editable fields",
+     "buttons": "clickable non-link controls",
+     "scroll": "scroll actions on scrollable containers",
+     "back": "system back",
+     "finish": "goal achieved, stop"
+    }
+   },
+   "qtype": 0,
+   "tokenCount": 257,
+   "inputIdsSha256": "78d62eea170af67e6770852f72a7f0ce4bf626c1c8b9817168b1233cdffd7d8f",
+   "markerPositions": [
+    14,
+    23,
+    31,
+    40,
+    49,
+    54
+   ],
+   "temperatureUsed": 1.0000158548355103,
+   "logitsInt8": [
+    0.324432,
+    -0.432131,
+    0.017793,
+    -0.044913,
+    -0.034848,
+    0.279392
+   ],
+   "probabilities": [
+    0.2197542727,
+    0.103126861,
+    0.1617215315,
+    0.1518922677,
+    0.1534287476,
+    0.2100763195
+   ],
+   "agentProbabilities": [
+    0.7055,
+    0.0226,
+    0.044,
+    0.0619,
+    0.0868,
+    0.0792
+   ],
+   "agentChosen": "nav-links",
+   "maxAbsDeltaVsEagerAgent": 0.4857457273
+  },
+  {
+   "id": "element-navlinks-2-long",
+   "kind": "choice",
+   "state": "GOAL: compare two laptop prices on a shop listing\nURL: https://www.verkkokauppa.com/fi/product/612435/Super-XYZ-14-Laptop\nTITLE: SuperXYZ 14\" Laptop - Verkkokauppa\nHISTORY: step 0: tap \"Laptops\" -> progressed\nHISTORY: step 1: tap \"SuperXYZ 14\" -> progressed\nHINT: try scrolling if the buy button is not visible\nUNTRUSTED PAGE CONTENT:\nSuperXYZ 14 Laptop - 16 GB RAM, 512 GB SSD, 2.8K OLED display. Delivery 1-3 business days. Free returns within 30 days. Add the two-year extended warranty for 89,90 eur. Customers also bought: sleeve, USB-C hub, wireless mouse. Price alert available. 4523,00 eur incl. VAT.",
+   "optionIds": [
+    "n2",
+    "n5"
+   ],
+   "question": {
+    "t": "choice",
+    "ins": "Which option in the nav-links group is the best next action?",
+    "crit": {
+     "Product documents": "bucket=nav-links (270,740)",
+     "Compare (2)": "bucket=nav-links (270,590)"
+    }
+   },
+   "qtype": 0,
+   "tokenCount": 244,
+   "inputIdsSha256": "fe896df3685c913c095dde7b354dd6a23f0c25d77db4443e1dc136788811050a",
+   "markerPositions": [
+    19,
+    33
+   ],
+   "temperatureUsed": 1.9063563346862793,
+   "logitsInt8": [
+    0.554705,
+    0.652753
+   ],
+   "probabilities": [
+    0.4871449099,
+    0.5128550901
+   ],
+   "agentProbabilities": [
+    0.5923,
+    0.4077
+   ],
+   "agentChosen": "Product documents",
+   "maxAbsDeltaVsEagerAgent": 0.1051550901
+  }
+ ]
+}

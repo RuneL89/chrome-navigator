@@ -24,6 +24,14 @@ okhttp = "4.12.0"
 kotlinxCoroutinesCore = "1.9.0"
 room = "2.8.5"
 onnxruntimeAndroid = "1.30.0"
+# Desktop ONNX Runtime, TEST-ONLY (Gates 8.1/8.3 run the real int8 graph on the JVM;
+# same ai.onnxruntime Java API as the Android AAR). NOT in lockstep with the AAR: the
+# 1.30 desktop build segfaults on this dev box (measured — the Python wheel AND the JVM
+# native both access-violate on real inference; 1.20.0 is the verified desktop runtime
+# (Maven Central skips 1.20.1 for the Java package); the graph is opset 18, readable by
+# both). The device AAR stays 1.30.0 — a different binary on a different OS; Gate 8.4
+# proves it on the emulator.
+onnxruntimeDesktop = "1.20.0"
 composeBom = "2025.12.01"
 activityCompose = "1.13.0"
 
@@ -41,6 +49,8 @@ room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "
 room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 onnxruntime-android = { group = "com.microsoft.onnxruntime", name = "onnxruntime-android", version.ref = "onnxruntimeAndroid" }
+# Desktop JVM runtime for the laya gates (test-only — never shipped in the APK)
+onnxruntime-desktop = { group = "com.microsoft.onnxruntime", name = "onnxruntime", version.ref = "onnxruntimeDesktop" }
 
 # Room DAO gate (5.1) runs the database on the JVM under Robolectric (test-only)
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }

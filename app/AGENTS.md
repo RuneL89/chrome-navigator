@@ -6,11 +6,29 @@
 integration, Room, ONNX, cloud LLM client. Phase 0 shipped the buildable skeleton;
 Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
 (`log/`); Phase 6 the navigation loop (`loop/`), the fixture-driven stub engine
-(`stub/`), and the headless debug harness (`harness/`).
+(`stub/`), and the headless debug harness (`harness/`); Phase 8 the on-device shadow
+(`laya/`) and the `ShadowRouter`.
 
 ## Ownership
 
 * `src/main/kotlin/navigator/app/` — Android UI and services
+  * `src/main/kotlin/navigator/app/laya/` — the on-device laya engine (Phase 8,
+    vision 05 §6): `LayaOnnxSession` (ONNX Runtime over the pinned int8 graph — CPU EP,
+    1 intra-op thread; first-run asset→files copy, direct-path session; the
+    `ai.onnxruntime` API is identical on the Android AAR and the desktop JVM artifact,
+    so the laya gates run it unmodified on the JVM), `MarkerBuilder` (the upstream
+    sequence format `[CLS] <type> question [SEP] [MASK] opt … [SEP] state [SEP]`, ported
+    branch-by-branch from the pinned upstream commit), `Calibration` (fitted
+    per-`(qtype, option-bucket)` temperatures from the checkpoint's
+    `rl_agent_config.json`, clamped to [0.5, 5.0], softmax + confidences),
+    `LayaEngine` (implements `DecisionEngine`; two-stage bucketed `choose` — bucket
+    question then ≤20-element question — plus `judge`/`score` mappings), and
+    `BucketedForms` (reconstructs the shadow's bucketed question from the loop's
+    `bucket=<serial>`-tagged option descriptions; untagged questions — triage, the
+    recovery set — are NOT bucketable: vision 03 §3 deliberately keeps recovery out of
+    the page-bucket taxonomy). Question-text wording is fixture law: the Gate 8.1
+    reference vectors (`tools/laya_reference.py` → `app/src/test/resources/laya/`)
+    mirror it exactly
   * `src/main/kotlin/navigator/app/observe/` — observation layer (Phase 1,
     vision 03): `NavigatorAccessibilityService` (fresh-root reads of the
     `PACKAGE_ALLOWLIST` browsers; Phase 6 added `observeForLoop()` = the same fresh
@@ -36,16 +54,27 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     `phraseStub`), `GatePresenter` (interface; `AutoDenyGatePresenter` = harness
     test mode, `DebugGatePresenter` = overlay dialog with 30s countdown,
     `ScriptedGatePresenter`), `JevSpendRecorder` (records token counts into the
-    budget meter around any engine)
+    budget meter around any engine); Phase 8 added `ShadowRouter` (vision 02 §4):
+    implements `DecisionEngine`, returns the PRIMARY's answer synchronously, fires the
+    shadow async on a single-thread `laya-shadow` dispatcher, every-Nth sampling with
+    the thermal/battery every-3rd toggle (`SamplingPolicy`), and a `sink()` decorator
+    that enriches the loop's row with `shadow`/`shadowAnswer`/agreement fields — or
+    freezes it as a shadowMiss (`shadowSampled=true`, `shadow=null`) when the shadow
+    is not complete at row-write time (rows are immutable history, vision 05, so the
+    miss boundary is the write)
   * `src/main/kotlin/navigator/app/stub/` — `StubEngine` (Phase 6): a
     `DecisionEngine` replaying a `StubScript` deterministically ($0 spend); answers
     select by option id, `labelContains`, or `bucketFirst`(+ordinal), with an
     optional `fallbackBucketOrdinal`; exhausted scripts and unmatched labels fail
     loudly
   * `src/main/kotlin/navigator/app/harness/` — the headless debug harness (Phase 6,
-    NOT product UI): `HarnessActivity` (engine STUB|LIVE picker, auto-deny default ON
-    in harness only, goal runner streaming the step log, run-report JSON export to
-    `run-reports/`), `HarnessPagesServer` (loopback-only static server over
+    NOT product UI): `HarnessActivity` (engine STUB|LIVE picker, shadow toggle +
+    `shadow`/`shadowEveryNth` intent extras (Phase 8, plus `settleMs` — the loop's
+    page-settle pacing, adb-settable so an emulator's step period can exceed the
+    MEASURED shadow latency; never shadow-driven waiting), auto-deny default ON in
+    harness only, goal runner streaming the step log, run-report JSON export to
+    `run-reports/` incl. the `ShadowReport` block — coverage, misses, measured laya
+    latencies), `HarnessPagesServer` (loopback-only static server over
     `assets/harness/pages/`), `GoalCatalog` (`assets/harness/goals.json` — the M0
     scripted goal families), `HarnessRunners` (`HarnessObserver`, engine factory,
     Room-backed `DecisionLogSink`, `RunReportStore`)
@@ -104,6 +133,17 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
 * `Observation.nodes` is Phase 2's bucketing input — the node list shape is frozen
   (PHASE_01 §6); changes to it are a cross-phase contract change (Phase 6 added the
   separate `observeForLoop()` + `LoopObservation` instead of touching it)
+* Shadow law (vision 02 §4, Phase 8): shadow answers NEVER reach the executor — the
+  router's `choose`/`judge`/`score` return the primary's value untouched and the sink
+  decorator only ever ADDS log fields (a shadow failure degrades to a miss inside the
+  sink, never an exception into the loop); the shadow runs on its own single thread and
+  never blocks the loop; question wording of the two laya question forms is pinned by
+  the Gate 8.1 reference fixtures — change the words, regenerate the fixture
+* The laya model artifact (~0.5 GB) lives OUT of git in `src/main/assets-local/`
+  (gitignored); `tools/fetch_laya.py` builds it and writes
+  `assets/laya/PROVENANCE.txt` (committed, sha256-pinned); the `verifyLayaModel`
+  gradle task (wired to `preBuild`) fails the build loudly when the artifact is
+  missing or its sha256 drifts — never ship or commit around it
 
 ## Work Guidance
 
@@ -115,10 +155,19 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
   gates (`NavigationLoopTest`: strict step order incl. GATE-before-EXECUTE, budget
   clean-stops per dimension, double-deny abort, ART-4 adversarial finish refusal,
   one-row-per-decision; `TaskBudgetTest`, `StuckDetectorTest`, `CompletionGuardsTest`,
-  `StubEngineTest`, `GoalCatalogTest`) — plain JVM, Robolectric-free
+  `StubEngineTest`, `GoalCatalogTest`) + the Phase-8 laya gates (`LayaEngineTwoStageTest`
+  Gate 8.2 scripted two-stage correctness, `LayaEngineReferenceParityTest` Gate 8.1
+  reference-vector parity over the REAL int8 graph on the desktop JVM ONNX Runtime,
+  `ShadowRouterTest` Gate 8.3 router semantics: latency isolation, shadowMiss under a
+  slow shadow, every-3rd sampling pattern, executor-sees-primary-only, enrichment) —
+  plain JVM, Robolectric-free; the laya gates need the model artifact (verifyLayaModel
+  fails the build loudly when it is missing)
 * Gate 6.2 (on-device): the harness suite runs all six scripted goal families to their
   expected terminal states with zero log gaps; evidence = the pulled `run-reports/`
   (`suite-report.json` `allPassed: true`)
+* Gate 8.4 (on-device, Phase 8): one harness goal with `--ez shadow true`: rows carry
+  both engines, measured laya latency in the run report's `ShadowReport`, >= 90% shadow
+  coverage, no ANR
 * `./gradlew :core:test` — `RealA11yDumpFixturesTest` strictly re-validates every
   committed a11y-dump fixture (seed + Phase-1 real captures)
 

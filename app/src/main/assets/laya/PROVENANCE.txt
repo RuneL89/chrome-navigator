@@ -1,0 +1,42 @@
+PROVENANCE - laya ONNX int8 shadow model (Phase 8)
+
+File: laya-int8.onnx
+Source repo: https://huggingface.co/convaiinnovations/laya
+Revision: 55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851 (same pin as the Phase-2 tokenizer resource)
+sha256: 7be83389f75d428d60075ab8a8339adafb2713846681b6ba10f250863ab7a068
+Bytes: 596442064
+Quantization: int8 dynamic, per-tensor (official scripts/export_onnx.py quantize_model: MatMul-only, weight_type=QInt8, per_channel=False); per-channel forbidden (upstream issue #790)
+Export: torch.onnx.export opset 18, official dummy shapes/dynamic axes, fp32 trace (fp32 intermediate sha256 954bcdd074cba3c2e9503997da2f27443b0b1b644d92ae5d28685d9acfb9c5d7)
+Graph inputs: input_ids, attention_mask, marker_pos, marker_mask, qtype
+Graph outputs: logits, act_logits
+Upstream export script: https://github.com/NandhaKishorM/laya/blob/c829d5ac2f0530f3c024c37cb812598ba47ceaa6/scripts/export_onnx.py
+Upstream package commit: https://github.com/NandhaKishorM/laya/blob/2e4d9c87e8b1621deb344eac7de5c7258f32f849 (the installed laya package: Agent + common.build_sequence the reference vectors run through)
+License: Apache-2.0
+Built by: tools/fetch_laya.py; build decision recorded in .state/phase-8-status.json
+
+Machine-readable copy:
+{
+  "model": "convaiinnovations/laya",
+  "revision": "55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851",
+  "file": "laya-int8.onnx",
+  "sha256": "7be83389f75d428d60075ab8a8339adafb2713846681b6ba10f250863ab7a068",
+  "bytes": 596442064,
+  "quantization": "int8 dynamic, per-tensor (official scripts/export_onnx.py quantize_model: MatMul-only, weight_type=QInt8, per_channel=False); per-channel forbidden (upstream issue #790)",
+  "export": "torch.onnx.export opset 18, official dummy shapes/dynamic axes, fp32 trace (fp32 intermediate sha256 954bcdd074cba3c2e9503997da2f27443b0b1b644d92ae5d28685d9acfb9c5d7)",
+  "upstream_export_script": "https://github.com/NandhaKishorM/laya/blob/c829d5ac2f0530f3c024c37cb812598ba47ceaa6/scripts/export_onnx.py",
+  "upstream_package_commit": "https://github.com/NandhaKishorM/laya/blob/2e4d9c87e8b1621deb344eac7de5c7258f32f849 (the installed laya package: Agent + common.build_sequence the reference vectors run through)",
+  "graph_inputs": [
+    "input_ids",
+    "attention_mask",
+    "marker_pos",
+    "marker_mask",
+    "qtype"
+  ],
+  "graph_outputs": [
+    "logits",
+    "act_logits"
+  ],
+  "checkpoint_config": "rl_agent_config.json at the pinned revision (max_len=512, head_max_len=192, temperatures in temperature_by_options)",
+  "license": "Apache-2.0",
+  "built": "by tools/fetch_laya.py (community ONNX builds audited and rejected: block-wise MatMulNBits, not the pinned per-tensor int8)"
+}

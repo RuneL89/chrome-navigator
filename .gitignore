@@ -24,3 +24,7 @@ captures/
 # OS noise
 .DS_Store
 Thumbs.db
+
+# Phase 8: the ~0.5GB laya shadow model lives OUT of git (tools/fetch_laya.py rebuilds it;
+# app/src/main/assets/laya/PROVENANCE.txt pins its sha256)
+app/src/main/assets-local/

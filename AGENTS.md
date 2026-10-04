@@ -94,5 +94,10 @@ When the user requests a durable behavior change, record it here or in the relev
 * `core/` — `:core`, the pure-JVM decision core (DecisionEngine + JevEngine, types, banding, the systemone wire client + engine configs, golden-fixture schemas + loaders, candidate enumeration, state text builder, laya tokenizer port, risk gate: H1–H8 classifier + per-task trust state machine + gate card, DecisionLog row schema + RLCD export + agreement calculators, the Tier-A eval harness: deterministic replay + position-bias rotation + measurement reports). See `core/AGENTS.md`
 * `app/` — `:app`, the Android application (a11y observation, the Phase-6 navigation
   loop + budgets/stuck-detector/completion-guards + the fixture-driven stub engine and
-  headless debug harness, DecisionLog Room persistence; overlay/result UI and shadow
-  engine arrive per phase). See `app/AGENTS.md`
+  headless debug harness, DecisionLog Room persistence; Phase 8 added the on-device
+  laya shadow engine (`laya/`, gitignored ~0.5GB int8 asset rebuilt by
+  `tools/fetch_laya.py`, provenance-pinned in `app/src/main/assets/laya/PROVENANCE.txt`)
+  and the `ShadowRouter` (primary-sync, shadow-async, log-only); overlay/result UI
+  arrive per phase). See `app/AGENTS.md`
+* `tools/` — Phase-8 model-acquisition + reference-vector scripts (uv-driven; build-time
+  HF downloads only). See `tools/AGENTS.md`

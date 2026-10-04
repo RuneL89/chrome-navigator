@@ -43,6 +43,9 @@ import navigator.app.loop.DebugGatePresenter
 import navigator.app.loop.GestureExecutor
 import navigator.app.loop.NavigationLoop
 import navigator.app.loop.RunResult
+import navigator.app.loop.ShadowRouter
+import navigator.app.laya.LayaEngine
+import navigator.app.laya.LayaOnnxSession
 import navigator.app.observe.NavigatorAccessibilityService
 
 /**
@@ -63,6 +66,13 @@ class HarnessActivity : ComponentActivity() {
     private val running = mutableStateOf(false)
     private val liveMode = mutableStateOf(false)
     private val autoDeny = mutableStateOf(true)
+    private val shadowOn = mutableStateOf(false)
+
+    /** Shadow sampling period for the next runs (1 = every step, vision 02 §4.3). */
+    private var shadowEveryNth: Long = 1
+
+    /** The loop's post-gesture page settle for the next runs (adb-settable; ms). */
+    private var settleMs: Long = DEFAULT_SETTLE_MS
 
     private lateinit var catalog: GoalCatalog
     private lateinit var pagesServer: HarnessPagesServer
@@ -114,13 +124,21 @@ class HarnessActivity : ComponentActivity() {
             EXTRA_AUTO_DENY,
             intent.getBooleanExtra(EXTRA_AUTO_DENY_SHORT, true),
         )
+        shadowOn.value = intent.getBooleanExtra(EXTRA_SHADOW, intent.getBooleanExtra(EXTRA_SHADOW_SHORT, false))
+        shadowEveryNth = intent.getLongExtra(EXTRA_SHADOW_EVERY_NTH, intent.getLongExtra(
+            EXTRA_SHADOW_EVERY_NTH_SHORT, 1,
+        )).coerceAtLeast(1)
+        settleMs = intent.getLongExtra(EXTRA_SETTLE_MS, intent.getLongExtra(
+            EXTRA_SETTLE_MS_SHORT, DEFAULT_SETTLE_MS,
+        )).coerceAtLeast(0)
         val startDelay = intent.getLongExtra(
             EXTRA_START_DELAY_MS,
             intent.getLongExtra(EXTRA_START_DELAY_SHORT_MS, DEFAULT_START_DELAY_MS),
         )
         log(
             "headless run: goal=$extraGoal live=${liveMode.value} " +
-                "autoDeny=${autoDeny.value} delay=${startDelay}ms fresh=$freshInstance",
+                "autoDeny=${autoDeny.value} shadow=${shadowOn.value} " +
+                "shadowEveryNth=$shadowEveryNth delay=${startDelay}ms fresh=$freshInstance",
         )
         scope.launch {
             delay(startDelay)
@@ -357,21 +375,64 @@ class HarnessActivity : ComponentActivity() {
         val mode = if (liveMode.value) HarnessEngineMode.LIVE else HarnessEngineMode.STUB
         val built = HarnessEngineFactory.build(mode, goal)
         log("engine: ${built.mode} (${built.identity.configId}, ${built.identity.model}); auto-deny=${autoDeny.value}")
+        // Phase 8: shadow ON wraps the primary in the ShadowRouter (vision 02 §4) — the
+        // loop cannot tell (ART-2); the sink gains the shadow fields of every row.
+        val shadowSession = if (shadowOn.value) LayaOnnxSession.open(this) else null
+        val shadowEngine = shadowSession?.let {
+            log(
+                "shadow: laya int8 session open (${LayaOnnxSession.ASSET_DIR}/${LayaOnnxSession.ASSET_FILE}, " +
+                    "cpu, 1 intra-op thread)",
+            )
+            LayaEngine(it)
+        }
+        val router = shadowEngine?.let {
+            ShadowRouter(
+                primary = built.engine,
+                shadow = it,
+                samplingPolicy = ShadowRouter.SamplingPolicy.everyNth(shadowEveryNth),
+            )
+        }
         val loop = NavigationLoop(
-            engine = built.engine,
+            engine = router ?: built.engine,
             observer = HarnessObserver(service),
             executor = GestureExecutor(service),
             gatePresenter = if (autoDeny.value) AutoDenyGatePresenter else DebugGatePresenter(this),
-            logSink = logSink,
+            logSink = router?.sink(logSink) ?: logSink,
             spendMeter = built.spendMeter,
+            // Page-settle pacing (the loop's own post-gesture settle, NEVER shadow-driven —
+            // vision 02 §4.3). adb-settable so a slow emulator can run Gate 8.4 with a step
+            // period above the MEASURED shadow latency; default mirrors the loop default.
+            config = NavigationLoop.Config(settleMs = settleMs),
         )
         val startedAt = System.currentTimeMillis()
-        val result = loop.run(
-            goal = goal.goal,
-            goalId = goal.id,
-            engineIdentity = built.identity,
-            isCancelled = { cancelRequested },
-        )
+        var shadowSnapshot: ShadowRouter.Snapshot? = null
+        val result = try {
+            loop.run(
+                goal = goal.goal,
+                goalId = goal.id,
+                engineIdentity = built.identity,
+                isCancelled = { cancelRequested },
+            )
+        } finally {
+            // The shadow is fire-and-forget: settle it before the report freezes counts.
+            try {
+                shadowSnapshot = router?.let { r ->
+                    r.awaitIdle(SHADOW_SETTLE_TIMEOUT_MS)
+                    r.snapshot()
+                }
+                shadowSnapshot?.let {
+                    log(
+                        "shadow: sampled=${it.sampled} completed=${it.completions} miss=${it.misses} " +
+                            "fail=${it.failures} forwardMs(p50/p95)=" +
+                            "${percentile(it.latenciesMs.map { p -> p.first }, 50)}/" +
+                            "${percentile(it.latenciesMs.map { p -> p.first }, 95)} " +
+                            "totalMs(p95)=${percentile(it.latenciesMs.map { p -> p.second }, 95)}",
+                    )
+                }
+            } finally {
+                shadowSession?.close()
+            }
+        }
         result.stepLog.forEach { log(it) }
         val report = RunReport(
             goalId = goal.id,
@@ -405,6 +466,7 @@ class HarnessActivity : ComponentActivity() {
             attempts = attempt,
             flakeRetried = attempt > 1,
             stepLog = result.stepLog,
+            shadow = shadowReport(shadowSnapshot),
         )
         val path = RunReportStore.write(this, "run-${goal.id}-${result.taskId}.json", reportJson(report))
         log("report: $path")
@@ -413,6 +475,32 @@ class HarnessActivity : ComponentActivity() {
                 "gaps=${result.logGaps}, attempts=$attempt)",
         )
         return report
+    }
+
+    /** Phase 8 evidence: the shadow side of one run (null when the shadow was OFF). */
+    private fun shadowReport(snapshot: ShadowRouter.Snapshot?): ShadowReport? = snapshot?.let {
+        val forwards = it.latenciesMs.map { p -> p.first }.sorted()
+        val totals = it.latenciesMs.map { p -> p.second }.sorted()
+        ShadowReport(
+            enabled = true,
+            everyNth = it.samplingEveryNth,
+            decisions = it.decisions,
+            sampled = it.sampled,
+            completed = it.completions,
+            missed = it.misses,
+            failed = it.failures,
+            coverage = if (it.sampled > 0) it.enrichedRows.toDouble() / it.sampled else 0.0,
+            forwardLatencyP50Ms = percentile(forwards, 50),
+            forwardLatencyP95Ms = percentile(forwards, 95),
+            totalLatencyP95Ms = percentile(totals, 95),
+        )
+    }
+
+    /** Nearest-rank percentile of a SORTED list (empty → 0). */
+    private fun percentile(sorted: List<Long>, p: Int): Long {
+        if (sorted.isEmpty()) return 0
+        val index = ((p / 100.0) * (sorted.size - 1)).toInt().coerceIn(0, sorted.size - 1)
+        return sorted[index]
     }
 
     private fun writeSuiteReport(reports: List<RunReport>) {
@@ -487,11 +575,22 @@ class HarnessActivity : ComponentActivity() {
         const val EXTRA_AUTO_DENY = "navigator.harness.extra.AUTO_DENY"
         const val EXTRA_START_DELAY_MS = "navigator.harness.extra.START_DELAY_MS"
 
+        /** Phase 8: shadow ON + its every-Nth sampling period (1 = every step). */
+        const val EXTRA_SHADOW = "navigator.harness.extra.SHADOW"
+        const val EXTRA_SHADOW_EVERY_NTH = "navigator.harness.extra.SHADOW_EVERY_NTH"
+
         /** adb-friendly aliases (`am start --es goal ...`). */
         const val EXTRA_GOAL_SHORT = "goal"
         const val EXTRA_ENGINE_SHORT = "engine"
         const val EXTRA_AUTO_DENY_SHORT = "autoDeny"
         const val EXTRA_START_DELAY_SHORT_MS = "startDelayMs"
+        const val EXTRA_SHADOW_SHORT = "shadow"
+        const val EXTRA_SHADOW_EVERY_NTH_SHORT = "shadowEveryNth"
+
+        /** The loop's post-gesture page settle (adb-settable; ms; mirrors the loop default). */
+        const val EXTRA_SETTLE_MS = "navigator.harness.extra.SETTLE_MS"
+        const val EXTRA_SETTLE_MS_SHORT = "settleMs"
+        const val DEFAULT_SETTLE_MS = 700L
 
         const val ALL_GOALS = "all"
         const val DEFAULT_START_DELAY_MS = 4_000L
@@ -503,7 +602,10 @@ class HarnessActivity : ComponentActivity() {
         const val READINESS_RETRY_POLL_STEPS = 8
         const val ABOUT_BLANK = "http://127.0.0.1:8099/blank.html"
         const val WARMUP_BLANK = "http://127.0.0.1:8099/blank.html"
-        const val WARMUP_WAIT_MS = 60_000L
+        // 120s: the FIRST load after a fresh emulator boot has measured at ~90s before the
+        // WebView exposes its content tree to the accessibility bridge (the 60s budget
+        // starved Gate 8.4's run on a cold-booted AVD); every later load is instant.
+        const val WARMUP_WAIT_MS = 120_000L
         const val WARMUP_STEP_MS = 8_000L
         const val STARVATION_RETRIES = 2
         const val BACKGROUND_SETTLE_MS = 1_500L
@@ -511,6 +613,9 @@ class HarnessActivity : ComponentActivity() {
 
         /** The loop's own budgets bound a run; this catches a wedged run on top. */
         const val GOAL_TIMEOUT_MS = 15L * 60_000L
+
+        /** Bounded settle for the fire-and-forget shadow after the loop returns. */
+        const val SHADOW_SETTLE_TIMEOUT_MS = 30_000L
 
         private val pretty = Json { prettyPrint = true }
 
@@ -556,6 +661,29 @@ data class RunReport(
     /** True when attempt 1 ended in observation starvation and a retry followed. */
     val flakeRetried: Boolean = false,
     val stepLog: List<String>,
+    /** Phase 8 shadow evidence (null = the shadow was OFF for this run). */
+    val shadow: ShadowReport? = null,
+)
+
+/**
+ * The shadow side of one run (Gate 8.4 evidence): coverage = completed / sampled
+ * (the phase gate asks >= 90%); latencies are the MEASURED laya call times
+ * (nearest-rank percentiles over the completed decisions).
+ */
+@Serializable
+data class ShadowReport(
+    val enabled: Boolean,
+    /** The sampling period this run ran with (1 = every step, vision 02 §4.3). */
+    val everyNth: Long,
+    val decisions: Long,
+    val sampled: Long,
+    val completed: Long,
+    val missed: Long,
+    val failed: Long,
+    val coverage: Double,
+    val forwardLatencyP50Ms: Long,
+    val forwardLatencyP95Ms: Long,
+    val totalLatencyP95Ms: Long,
 )
 
 /** The batch report: every family at its defined terminal state, zero log gaps. */
