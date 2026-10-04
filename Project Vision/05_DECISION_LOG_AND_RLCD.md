@@ -1,8 +1,8 @@
 # Decision Log & RLCD Corpus
 
 **Document ID:** `NAVIGATOR-VISION-005`
-**Version:** 1.0.0
-**Status:** Ratified (2026-10-03)
+**Version:** 1.1.0 *(amended 2026-10-04: companion shadow-result rows, owner-ratified)*
+**Status:** Ratified (2026-10-03; amendment ratified 2026-10-04)
 **Date:** 2026-10-03
 **Implements:** ART-3 (everything logs), ART-8 (privacy boundary)
 
@@ -37,14 +37,38 @@ It exists from v1 day one in its final shape — retrofitting is explicitly reje
 
 Storage: Room (`:app`), one row per decision, exported as JSONL. Local-only (ART-8).
 
-## 3. Agreement metric (ratified definition)
+### Amendment 2026-10-04 — companion shadow-result rows (owner-ratified)
 
-- **UI metric: top-1 exact match** between shadow and teacher choices, aggregated over all
-  rows where both answers exist. Displayed as "Laya agreed with the teacher on X% of
-  decisions" (live progress bar).
+A second insert-only row type exists for exactly one purpose: capturing a shadow answer
+that completed **after** its decision row froze.
+
+`ShadowResultRow { rowId, taskId, stepIndex, timestamp, shadow {checkpoint, precision},
+shadowAnswer (bucket + element choices + distributions), latencyMs }`
+
+Rules (law):
+- (a) A companion row is legal **only** for a decision row logged with `shadow == null`
+  (shadowMiss) — never alongside a decision row that already carries the shadow answer;
+  exactly one companion per `(taskId, stepIndex)`.
+- (b) Both row types are immutable inserts — nothing is ever updated or deleted (ART-3
+  unchanged; this amendment extends appends, it does not open mutation).
+- (c) The router may insert a companion any time before the logger is closed; late
+  arrivals after process death are lost by design in v1.
+- (d) **Agreement metrics are computed over the joined view** (decision-row shadows +
+  companions), with coverage = joined/total-sampled reported alongside the percentage.
+- (e) The RLCD **training** corpus is unchanged — training rows (state, questions,
+  teacher gold) are complete in decision rows alone; companions serve agreement
+  measurement (the graduation clock) and diagnostics.
+
+## 3. Agreement metric (ratified definition; joined-view amendment 2026-10-04)
+
+- **UI metric: top-1 exact match** between shadow and teacher choices, aggregated over
+  all rows where both answers exist **in the joined view** (decision-row shadow answers +
+  companion `ShadowResultRow`s, per §2 amendment). Displayed as "Laya agreed with the
+  teacher on X% of decisions" (live progress bar), with coverage (joined/sampled)
+  reported alongside.
 - **Logged metric: KL divergence** per decision, retained for plateau analysis (doc 02 §6).
 - Graduation criteria consume the exact-match figure (> 85% over 2 consecutive weeks,
-  doc 02 §6).
+  doc 02 §6) over the joined view.
 
 ## 4. RLCD export
 

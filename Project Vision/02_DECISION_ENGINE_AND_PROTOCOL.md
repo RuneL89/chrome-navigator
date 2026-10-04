@@ -1,8 +1,8 @@
 # Decision Engine & Protocol
 
 **Document ID:** `NAVIGATOR-VISION-002`
-**Version:** 1.0.0
-**Status:** Ratified (2026-10-03)
+**Version:** 1.1.0 *(amended 2026-10-04: companion shadow-result rows — see §4)*
+**Status:** Ratified (2026-10-03; amendment ratified 2026-10-04)
 **Date:** 2026-10-03
 **Implements:** ART-2 (one decision gateway), ART-11 (offline endgame)
 
@@ -71,6 +71,9 @@ Wire-client rules (from documented provider caveats — these are law):
    step (deterministic toggle, logged per row) — shadow execution must never block or slow
    the primary loop (perf law, doc 01 §1).
 4. Writes the DecisionLog row (both answers, both distributions, agreement fields — doc 05).
+   If the shadow completes **after** the decision row freezes, the router inserts a
+   companion `ShadowResultRow` keyed `(taskId, stepIndex)` when the answer lands — still
+   insert-only, never an update (doc 05 §2 amendment 2026-10-04; owner-ratified).
 
 ## 5. Version pinning and upgrades
 

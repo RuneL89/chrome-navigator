@@ -395,3 +395,11 @@ a new dated entry. Format per `Implementation Plan/MASTER_IMPLEMENTATION_PROMPT.
   Changed: (verification + records) .state/phase-6-gate63-verification.md persisted (GATE 6.3 VERIFIED); status/compliance prose corrected per verifier check 8; Phase 6 now gates-complete (6.1-6.3 all verified) with UAT 6.1/6.2 pending owner judgment. Code changes this round (key-delivery wiring, onUsage spend recorder) verified COMPLIANT (vision 02 §5 secrecy, 04 §5 spend law strengthened with real usage).
   Result: COMPLIANT — Phase 6 gates complete; M0 declaration deferred to owner UAT 6.2 as planned
   Checked By: canon-verifier (cold, no live calls) + Main agent (close-out)
+
+[2026-10-04] Vision amendment — companion shadow-result rows (owner-ratified)
+  Changed: Project Vision/05_DECISION_LOG_AND_RLCD.md (v1.1.0: §2 amendment — ShadowResultRow companion type + 5 rules; §3 agreement over joined view + coverage), 02_DECISION_ENGINE_AND_PROTOCOL.md (v1.1.0: §4 router companion insert), Implementation Plan/PHASE_08B_shadow_companion_rows.md (new), master index + master prompt §4 mapping
+  Provenance: Owner decisions recorded 2026-10-04: (1) UAT 6.2 follows orchestrator recommendation — M0 acceptance deferred to the S25+ real-device session (clean data, alongside UAT 6.1 and Phase 8's deferred coverage check); (2) Item 3 (shadow-corpus density) follows recommendation — Option 2 companion rows RATIFIED. Session model GLM-5.3 (vision-law gate satisfied).
+  Comparison:
+    - Amendment extends appends without opening mutation (ART-3 intact); RLCD training corpus unchanged (decision rows complete); agreement metric + graduation clock move to joined view with explicit coverage. No contradictions with other articles (checked vs ART-1..11 and docs 01/04/06/07).
+  Result: AMENDED — law updated; Phase 8B slotted ahead of Phase 9
+  Checked By: Main agent (GLM-5.3 session), owner directive
