@@ -379,3 +379,19 @@ a new dated entry. Format per `Implementation Plan/MASTER_IMPLEMENTATION_PROMPT.
     - UAT 3.1 executed orchestrator-side per owner directive (live decisions sane; spend ~$0.0001 of $0.50); human acceptance open.
   Result: COMPLIANT — wire repair accepted
   Checked By: canon-verifier (cold) + Main agent (close-out evidence)
+
+[2026-10-04 18:20] Phase 6 Gate 6.3 Compliance Check (LIVE Jev on-device)
+  Changed: core SystemOneClient.kt (+onUsage observation hook, additive), core UsageObservationTest.kt (NEW), app JevSpendRecorder.kt (real-usage accounting via NEW UsageFeed; estimate/tokenizer retired), app TaskBudget.kt (SpendPrices doc; ESTIMATED_OUTPUT_TOKENS_PER_CALL removed — obsolete), app HarnessRunners.kt (key delivery: intent extra > env > keys file + HarnessKeySource + usage wiring), app HarnessActivity.kt (openrouterKey extra parse; key never logged), app HarnessEngineFactoryTest.kt (NEW), app NavigationLoopTest.kt (spend tests reworked to real-usage semantics), app/AGENTS.md, .state/phase-6-status.json, .state/gate63-reports/
+  Vision Docs Checked: 04 §5 (budgets: token counts x pinned prices, ART-5, clean stops), 04 §2-§3 (loop order/exits — untouched), 06 (gate/auto-deny harness rules — untouched; autoDeny stayed ON for the mechanical run), 02 §5 (secrets: key never logged/committed; EngineConfig redaction)
+  Comparison:
+    - Spend law: budget arithmetic remains recorded-token-counts x pinned prices in integer micro-USD; token counts are now the provider-reported `usage` object (required by the wire envelope since the Phase-3 repair) instead of the retired placeholder estimate. Fulfills vision 04 s5 MORE faithfully; no billing API. COMPLIANT.
+    - Budget caps untouched: $0.20/$0.25 soft/hard enforced with real numbers (evidenced: dead-end-1 attempt-2 hard-stopped at 60 steps; spend warnings available on the same path). COMPLIANT.
+    - Key delivery is a harness-only addition (product UI untouched); secret handling per vision 02 s5: value only ever inside EngineConfig (toString redacts), never logged/exported. COMPLIANT.
+    - Shadow ON was attempted first per dispatch; the laya ONNX SIGSEGV (Phase-8 emulator instability, crash log captured) forced the gate re-run with shadow OFF — Gate 6.3's scope is the LIVE Jev loop; shadow evidence from the shadow-ON attempt is retained in .state/gate63-reports/attempt1-shadow-on/. COMPLIANT (deviation recorded).
+  Result: COMPLIANT — Gate 6.3 executed: final suite 6/6 goals mechanically terminated (REFUSED x3, STUCK_KILL x2, BUDGET_EXHAUSTED(steps) x1; unreadable-1 REFUSED = expected), logGaps 0 everywhere, no crash, no hang, 0 wire protocol errors; recorded live spend $0.5618 (harness, all attempts) — under the $2.00 phase cap. AVD web-content a11y starvation (environmental, diagnosed, screenshot evidence) degraded goal OUTCOMES — quality is measured not gated (ratified M0 bar); owner judges quality at UAT 6.2.
+  Checked By: canon-implementer (independent re-verification pending)
+
+[2026-10-04] Phase 6 Gate 6.3 close-out
+  Changed: (verification + records) .state/phase-6-gate63-verification.md persisted (GATE 6.3 VERIFIED); status/compliance prose corrected per verifier check 8; Phase 6 now gates-complete (6.1-6.3 all verified) with UAT 6.1/6.2 pending owner judgment. Code changes this round (key-delivery wiring, onUsage spend recorder) verified COMPLIANT (vision 02 §5 secrecy, 04 §5 spend law strengthened with real usage).
+  Result: COMPLIANT — Phase 6 gates complete; M0 declaration deferred to owner UAT 6.2 as planned
+  Checked By: canon-verifier (cold, no live calls) + Main agent (close-out)

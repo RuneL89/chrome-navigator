@@ -1,10 +1,14 @@
 package navigator.app.loop
 
 import kotlinx.coroutines.runBlocking
-import navigator.app.stub.ScriptedAnswer
-import navigator.app.stub.StubEngine
-import navigator.app.stub.StubScript
 import navigator.core.STATE_FORMAT_VERSION
+import navigator.core.decision.ChoiceQuestion
+import navigator.core.decision.ChoiceResult
+import navigator.core.decision.DecisionEngine
+import navigator.core.decision.NoulQuestion
+import navigator.core.decision.NoulResult
+import navigator.core.decision.ScoreQuestion
+import navigator.core.decision.ScoreResult
 import navigator.core.log.ActionDisposition
 import navigator.core.log.EngineIdentity
 import navigator.core.log.LoggedActionKind
@@ -12,6 +16,7 @@ import navigator.core.log.LoggedGateDecision
 import navigator.core.log.Outcome
 import navigator.core.log.TriageClass
 import navigator.core.log.serialNameOf
+import navigator.core.wire.Usage
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.test.assertEquals
@@ -604,14 +609,43 @@ class NavigationLoopTest {
     }
 
     @Test
-    fun `the live spend recorder feeds the same budget meter`() = runBlocking {
+    fun `the live spend recorder books PROVIDER-REPORTED usage into the budget meter`() = runBlocking {
         val meter = SpendMeter()
+        val feed = UsageFeed()
         val recorder = JevSpendRecorder(
-            inner = StubEngine(StubScript(listOf(ScriptedAnswer(question = "triage", chosen = "lookup")))),
+            inner = UsageReportingEngine(
+                feed,
+                ArrayDeque(
+                    listOf(
+                        Usage(inputTokens = 1_000, outputTokens = 200, costUsd = 0.006),
+                        Usage(inputTokens = 100, outputTokens = 100, costUsd = 0.0012),
+                    ),
+                ),
+            ),
             spend = meter,
+            usage = feed,
         )
         recorder.choose("a short state text", Triage.question())
-        assertTrue(meter.spentMicroUsd > 0, "recorded spend must exceed zero for live calls")
+        recorder.judge("another short state", NoulQuestion("noul-check", "the goal is achieved"))
+
+        // Real token counts x pinned prices (ART-5): 1000 in + 200 out = 6000u$,
+        // then 100 in + 100 out = 1800u$ — no tokenizer counting, no per-call estimate.
+        assertEquals(7_800, meter.spentMicroUsd)
+    }
+
+    @Test
+    fun `a completed live call with NO wire usage fails loudly, never books silent zero`() = runBlocking {
+        val meter = SpendMeter()
+        val feed = UsageFeed()
+        val recorder = JevSpendRecorder(
+            inner = UsageReportingEngine(feed, ArrayDeque()),
+            spend = meter,
+            usage = feed,
+        )
+        assertThrows<IllegalStateException> {
+            recorder.choose("a short state text", Triage.question())
+        }
+        assertEquals(0, meter.spentMicroUsd)
     }
 
     @Test
@@ -632,5 +666,37 @@ class NavigationLoopTest {
         assertThrows<IllegalStateException> {
             fixture.loop.run("run the script dry", "g", identity, fixture.clock)
         }
+    }
+
+    /**
+     * A stand-in live engine: reports wire usage like the [navigator.core.wire.SystemOneClient]
+     * does — one [Usage] per call, popped from [usages] (an empty queue simulates a
+     * miswired feed) — and answers like a stub.
+     */
+    private class UsageReportingEngine(
+        private val feed: UsageFeed,
+        private val usages: ArrayDeque<Usage>,
+    ) : DecisionEngine {
+
+        private fun offer() {
+            usages.removeFirstOrNull()?.let { feed.offer(it) }
+        }
+
+        override suspend fun choose(state: String, question: ChoiceQuestion): ChoiceResult {
+            offer()
+            return ChoiceResult(
+                question.options.first().id,
+                question.options.associate { it.id to 1.0 / question.options.size },
+                0.9,
+            )
+        }
+
+        override suspend fun judge(state: String, question: NoulQuestion): NoulResult {
+            offer()
+            return NoulResult(0.95)
+        }
+
+        override suspend fun score(state: String, question: ScoreQuestion): ScoreResult =
+            throw UnsupportedOperationException("score is not exercised by these tests")
     }
 }

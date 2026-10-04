@@ -7,6 +7,7 @@ import navigator.app.loop.GestureExecutor
 import navigator.app.loop.JevSpendRecorder
 import navigator.app.loop.LoopObserver
 import navigator.app.loop.SpendMeter
+import navigator.app.loop.UsageFeed
 import navigator.app.log.DecisionLogDb
 import navigator.app.log.DecisionLogger
 import navigator.app.observe.NavigatorAccessibilityService
@@ -17,6 +18,7 @@ import navigator.core.log.DecisionLogRow
 import navigator.core.wire.DefaultEngineConfigs
 import navigator.core.wire.OkHttpWireTransport
 import navigator.core.wire.SystemOneClient
+import navigator.core.wire.WireTransport
 import navigator.core.decision.JevEngine
 
 /**
@@ -81,12 +83,26 @@ enum class HarnessEngineMode {
     }
 }
 
+/**
+ * Where a LIVE run's OpenRouter key came from — the SOURCE only, never the key itself
+ * (the key is a secret: it must not appear in logs, reports, or toString()s). Resolution
+ * priority: the harness intent extra (adb key delivery — an Android app process has no
+ * environment or `.tools/keys.env`), then the environment, then the keys file.
+ */
+enum class HarnessKeySource {
+    INTENT_EXTRA,
+    ENV,
+    KEYS_FILE,
+}
+
 /** Built engine: the loop cannot tell stub from live (ART-2); the harness knows. */
 data class HarnessEngine(
     val engine: DecisionEngine,
     val identity: navigator.core.log.EngineIdentity,
     val spendMeter: SpendMeter,
     val mode: HarnessEngineMode,
+    /** Null for STUB. The key's SOURCE for LIVE — never the key value. */
+    val keySource: HarnessKeySource? = null,
 )
 
 object HarnessEngineFactory {
@@ -98,10 +114,22 @@ object HarnessEngineFactory {
     /**
      * STUB: the fixture-driven [StubEngine] replaying [goal]'s script, $0 spend. LIVE:
      * the pinned Jev config over the one wire client, wrapped in [JevSpendRecorder] so
-     * the task budget sees every token. A LIVE request without a configured key fails
-     * loudly — never a silent stub.
+     * the task budget sees the provider-reported usage of every call. The LIVE key is
+     * resolved with priority [deliveredKey] (the adb intent extra) > env
+     * (`NAVIGATOR_OPENROUTER_KEY`) > the git-ignored keys file — an Android app process
+     * has neither an environment nor the repo's `.tools/` directory, so headless live
+     * runs deliver the key by intent extra. A LIVE request without any configured key
+     * fails loudly — never a silent stub. [deliveredKey] is never logged and never
+     * stored beyond the built [EngineConfig] (whose `toString` redacts it).
      */
-    fun build(mode: HarnessEngineMode, goal: ScriptedGoal): HarnessEngine = when (mode) {
+    fun build(
+        mode: HarnessEngineMode,
+        goal: ScriptedGoal,
+        deliveredKey: String? = null,
+        env: Map<String, String> = System.getenv(),
+        keysFile: java.nio.file.Path = DefaultEngineConfigs.DEFAULT_KEYS_FILE,
+        transport: WireTransport = OkHttpWireTransport(),
+    ): HarnessEngine = when (mode) {
         HarnessEngineMode.STUB -> HarnessEngine(
             engine = StubEngine(goal.stubScript()),
             identity = navigator.core.log.EngineIdentity(STUB_CONFIG_ID, STUB_MODEL),
@@ -109,23 +137,37 @@ object HarnessEngineFactory {
             mode = mode,
         )
         HarnessEngineMode.LIVE -> {
-            val primary = DefaultEngineConfigs.resolveJevPrimary()
-                ?: throw IllegalStateException(
-                    "LIVE mode needs NAVIGATOR_OPENROUTER_KEY (env or .tools/keys.env) - " +
-                        "no key configured, refusing to run silently",
-                )
+            val envKey = env[DefaultEngineConfigs.OPENROUTER_KEY_ENV]?.trim()?.takeIf { it.isNotEmpty() }
+            val resolved: Pair<navigator.core.wire.EngineConfig, HarnessKeySource>? = when {
+                !deliveredKey.isNullOrBlank() ->
+                    DefaultEngineConfigs.jevPrimary(deliveredKey.trim()) to HarnessKeySource.INTENT_EXTRA
+                envKey != null ->
+                    DefaultEngineConfigs.jevPrimary(envKey) to HarnessKeySource.ENV
+                else ->
+                    DefaultEngineConfigs.resolveJevPrimary(env, keysFile)
+                        ?.let { it to HarnessKeySource.KEYS_FILE }
+            }
+            val (primary, keySource) = resolved ?: throw IllegalStateException(
+                "LIVE mode needs an OpenRouter key - pass it via the harness intent extra " +
+                    "(--es openrouterKey <KEY>), or set ${DefaultEngineConfigs.OPENROUTER_KEY_ENV} " +
+                    "in the environment, or add it to the git-ignored .tools/keys.env. " +
+                    "No key configured, refusing to run a silent stub.",
+            )
             val meter = SpendMeter()
+            val usageFeed = UsageFeed()
             val client = SystemOneClient(
-                transport = OkHttpWireTransport(),
+                transport = transport,
                 primary = primary,
-                fallback = DefaultEngineConfigs.resolveJevFallback(),
+                fallback = DefaultEngineConfigs.resolveJevFallback(env, keysFile),
+                onUsage = usageFeed::offer,
             )
             val jev = JevEngine(client)
             HarnessEngine(
-                engine = JevSpendRecorder(jev, meter),
+                engine = JevSpendRecorder(jev, meter, usageFeed),
                 identity = navigator.core.log.EngineIdentity(LIVE_CONFIG_ID, DefaultEngineConfigs.OPENROUTER_MODEL),
                 spendMeter = meter,
                 mode = mode,
+                keySource = keySource,
             )
         }
     }

@@ -17,8 +17,9 @@ interface Clock {
 /**
  * Cloud-spend recorder (vision 04 §5: spend is "computed from recorded token counts × the
  * pinned config's prices"). All arithmetic is integer micro-dollars in code (ART-5) —
- * no provider billing API, no floats. The LIVE engine wrapper records after every call;
- * the STUB harness engine records nothing, so stub runs cost exactly $0.
+ * no provider billing API, no floats. The LIVE engine wrapper records the wire call's
+ * PROVIDER-REPORTED token counts after every call; the STUB harness engine records
+ * nothing, so stub runs cost exactly $0.
  */
 interface SpendRecorder {
     fun record(inputTokens: Int, outputTokens: Int)
@@ -26,15 +27,13 @@ interface SpendRecorder {
 
 /**
  * The pinned price table (ART-5: numbers in code). Micro-USD per 1K tokens for the
- * pinned primary config, plus the per-call output estimate used until providers echo
- * usage (the wire contract carries no usage field — the input side is counted with the
- * real laya tokenizer, the output side is this conservative constant). Changing a price
- * or the estimate is a reviewed amendment, never a runtime value.
+ * pinned primary config, applied to the PROVIDER-REPORTED token counts of each wire
+ * call (the response envelope's required `usage` object). Changing a price is a
+ * reviewed amendment, never a runtime value.
  */
 object SpendPrices {
     const val INPUT_MICRO_USD_PER_1K: Long = 3_000L // $3 / 1M input tokens
     const val OUTPUT_MICRO_USD_PER_1K: Long = 15_000L // $15 / 1M output tokens
-    const val ESTIMATED_OUTPUT_TOKENS_PER_CALL: Int = 256
 }
 
 /** Accumulates spend in integer micro-dollars from recorded token counts (ART-5). */

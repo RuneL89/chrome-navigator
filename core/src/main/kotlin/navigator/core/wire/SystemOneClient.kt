@@ -100,6 +100,14 @@ class SystemOneClient(
     val maxRetries: Int = MAX_RETRIES,
     val backoffBaseMs: Long = DEFAULT_BACKOFF_BASE_MS,
     private val retryDelay: suspend (Long) -> Unit = { delay(it) },
+    /**
+     * Observes the provider-reported [Usage] of every successful wire call, exactly once
+     * per successful response (a retried transport failure reports nothing — the provider
+     * returned no body). Spend accounting (TaskBudget, ART-5) is the consumer: recorded
+     * token counts × pinned prices. The hook never sees secrets — [Usage] carries token
+     * counts and the provider's own cost figure only.
+     */
+    private val onUsage: (Usage) -> Unit = {},
 ) {
     init {
         require(maxRetries in 0..MAX_RETRIES) {
@@ -160,6 +168,7 @@ class SystemOneClient(
                     )
                 }
                 val parsed = parseResponse(response.body, config, questions)
+                onUsage(parsed.usage)
                 return WireDecision(parsed.answers, parsed.usage, usedFallback, config)
             } catch (e: WireTransportException) {
                 if (attempt >= maxRetries) throw e

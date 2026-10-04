@@ -74,6 +74,15 @@ class HarnessActivity : ComponentActivity() {
     /** The loop's post-gesture page settle for the next runs (adb-settable; ms). */
     private var settleMs: Long = DEFAULT_SETTLE_MS
 
+    /**
+     * The LIVE run's OpenRouter key as delivered by the launch intent extra (adb key
+     * delivery: an app process has no environment or `.tools/keys.env`). SECRET — it is
+     * only ever handed to [HarnessEngineFactory]; it is never logged, never written to
+     * any report, and never stored anywhere else.
+     */
+    @Volatile
+    private var deliveredOpenRouterKey: String? = null
+
     private lateinit var catalog: GoalCatalog
     private lateinit var pagesServer: HarnessPagesServer
     private val logSink by lazy { RoomDecisionLogSink(this) }
@@ -131,6 +140,11 @@ class HarnessActivity : ComponentActivity() {
         settleMs = intent.getLongExtra(EXTRA_SETTLE_MS, intent.getLongExtra(
             EXTRA_SETTLE_MS_SHORT, DEFAULT_SETTLE_MS,
         )).coerceAtLeast(0)
+        // SECRET: parsed and held only; NEVER logged (the headless line below reports
+        // only whether an extra was present, never its value).
+        deliveredOpenRouterKey = intent.getStringExtra(EXTRA_OPENROUTER_KEY)
+            ?: intent.getStringExtra(EXTRA_OPENROUTER_KEY_SHORT)
+        val keyExtraPresent = !deliveredOpenRouterKey.isNullOrBlank()
         val startDelay = intent.getLongExtra(
             EXTRA_START_DELAY_MS,
             intent.getLongExtra(EXTRA_START_DELAY_SHORT_MS, DEFAULT_START_DELAY_MS),
@@ -138,7 +152,8 @@ class HarnessActivity : ComponentActivity() {
         log(
             "headless run: goal=$extraGoal live=${liveMode.value} " +
                 "autoDeny=${autoDeny.value} shadow=${shadowOn.value} " +
-                "shadowEveryNth=$shadowEveryNth delay=${startDelay}ms fresh=$freshInstance",
+                "shadowEveryNth=$shadowEveryNth delay=${startDelay}ms fresh=$freshInstance " +
+                "keyExtra=$keyExtraPresent",
         )
         scope.launch {
             delay(startDelay)
@@ -373,8 +388,12 @@ class HarnessActivity : ComponentActivity() {
         }
         if (attempt > 1) log("goal ${goal.id} attempt $attempt")
         val mode = if (liveMode.value) HarnessEngineMode.LIVE else HarnessEngineMode.STUB
-        val built = HarnessEngineFactory.build(mode, goal)
-        log("engine: ${built.mode} (${built.identity.configId}, ${built.identity.model}); auto-deny=${autoDeny.value}")
+        val built = HarnessEngineFactory.build(mode, goal, deliveredKey = deliveredOpenRouterKey)
+        log(
+            "engine: ${built.mode} (${built.identity.configId}, ${built.identity.model}); " +
+                "auto-deny=${autoDeny.value}" +
+                (built.keySource?.let { "; live key source: ${it.name.lowercase()}" } ?: ""),
+        )
         // Phase 8: shadow ON wraps the primary in the ShadowRouter (vision 02 §4) — the
         // loop cannot tell (ART-2); the sink gains the shadow fields of every row.
         val shadowSession = if (shadowOn.value) LayaOnnxSession.open(this) else null
@@ -579,6 +598,13 @@ class HarnessActivity : ComponentActivity() {
         const val EXTRA_SHADOW = "navigator.harness.extra.SHADOW"
         const val EXTRA_SHADOW_EVERY_NTH = "navigator.harness.extra.SHADOW_EVERY_NTH"
 
+        /**
+         * Gate 6.3 key delivery: the LIVE run's OpenRouter key, passed by adb
+         * (`--es openrouterKey <KEY>`). SECRET — consumed by [HarnessEngineFactory]
+         * only; never logged, never exported, never persisted.
+         */
+        const val EXTRA_OPENROUTER_KEY = "navigator.harness.extra.OPENROUTER_KEY"
+
         /** adb-friendly aliases (`am start --es goal ...`). */
         const val EXTRA_GOAL_SHORT = "goal"
         const val EXTRA_ENGINE_SHORT = "engine"
@@ -586,6 +612,7 @@ class HarnessActivity : ComponentActivity() {
         const val EXTRA_START_DELAY_SHORT_MS = "startDelayMs"
         const val EXTRA_SHADOW_SHORT = "shadow"
         const val EXTRA_SHADOW_EVERY_NTH_SHORT = "shadowEveryNth"
+        const val EXTRA_OPENROUTER_KEY_SHORT = "openrouterKey"
 
         /** The loop's post-gesture page settle (adb-settable; ms; mirrors the loop default). */
         const val EXTRA_SETTLE_MS = "navigator.harness.extra.SETTLE_MS"

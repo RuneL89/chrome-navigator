@@ -53,8 +53,10 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     (`ActionExecutor` interface + `GestureExecutor` dispatchGesture impl +
     `phraseStub`), `GatePresenter` (interface; `AutoDenyGatePresenter` = harness
     test mode, `DebugGatePresenter` = overlay dialog with 30s countdown,
-    `ScriptedGatePresenter`), `JevSpendRecorder` (records token counts into the
-    budget meter around any engine); Phase 8 added `ShadowRouter` (vision 02 §4):
+    `ScriptedGatePresenter`), `JevSpendRecorder` (records each call's
+    PROVIDER-REPORTED wire usage into the budget meter, fed by a `UsageFeed` bridge
+    from `SystemOneClient(onUsage = ...)`; a completed call with no reported usage
+    fails loudly — never a silent $0 on live spend); Phase 8 added `ShadowRouter` (vision 02 §4):
     implements `DecisionEngine`, returns the PRIMARY's answer synchronously, fires the
     shadow async on a single-thread `laya-shadow` dispatcher, every-Nth sampling with
     the thermal/battery every-3rd toggle (`SamplingPolicy`), and a `sink()` decorator
@@ -77,7 +79,12 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     latencies), `HarnessPagesServer` (loopback-only static server over
     `assets/harness/pages/`), `GoalCatalog` (`assets/harness/goals.json` — the M0
     scripted goal families), `HarnessRunners` (`HarnessObserver`, engine factory,
-    Room-backed `DecisionLogSink`, `RunReportStore`)
+    Room-backed `DecisionLogSink`, `RunReportStore`). Gate-6.3 key delivery: the
+    factory resolves the OpenRouter key by priority intent extra
+    (`--es openrouterKey <KEY>` — the only delivery that works inside an app process,
+    which has neither an environment nor the repo's `.tools/`) > env > keys file,
+    failing loudly when LIVE is selected with no key anywhere; only the key's SOURCE
+    (`HarnessKeySource`) is ever exposed or logged — never the value
 * `src/main/AndroidManifest.xml` — application manifest (service + debug capture
   activity/receiver declarations; service config XML in `src/main/res/xml/`; Phase 6
   added INTERNET + SYSTEM_ALERT_WINDOW permissions, `<queries>` for the two
@@ -116,7 +123,8 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
 * Auto-deny and the ScriptedGatePresenter are HARNESS-ONLY test modes; the Phase 9
   product UI has no auto modes (phase doc §2.1)
 * All budget/spend arithmetic is integer micro-dollars in `TaskBudget`/`SpendPrices`
-  (ART-5); spend comes from recorded token counts, never a billing API
+  (ART-5); spend comes from recorded token counts — the provider-reported `usage` of
+  each wire call — never a billing API
 * Gate outcomes are always presented through `GateCard` verbatim (class, site, URL,
   target, consequence) and resolved through the `:core` `TaskGate` — the loop never
   bypasses the gate; DENY and TIMEOUT both skip, second same-(class,site) refusal
@@ -165,6 +173,11 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
 * Gate 6.2 (on-device): the harness suite runs all six scripted goal families to their
   expected terminal states with zero log gaps; evidence = the pulled `run-reports/`
   (`suite-report.json` `allPassed: true`)
+* Gate 6.3 (on-device, LIVE): the full six-goal suite under the LIVE Jev engine with
+  auto-deny terminates every goal mechanically (goal-achieved / budget / stuck-kill /
+  refusal — no crash, no hang), every navigation decision logged (logGaps 0), real
+  provider-usage spend recorded per task; quality is MEASURED not gated (ratified M0
+  bar). Evidence: `.state/gate63-reports/`
 * Gate 8.4 (on-device, Phase 8): one harness goal with `--ez shadow true`: rows carry
   both engines, measured laya latency in the run report's `ShadowReport`, >= 90% shadow
   coverage, no ANR
