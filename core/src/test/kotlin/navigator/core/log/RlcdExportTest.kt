@@ -179,4 +179,24 @@ class RlcdExportTest {
         assertEquals(2, decoded.rowCount)
         assertFalse(decoded.mixedTeacher, "a stateFormatVersion bump alone is not a teacher bump")
     }
+
+    @Test
+    fun `manifest carries the companion row count informationally - training rows unchanged (amendment rule e)`() {
+        val rows = listOf(LogRowFixtures.complete(), LogRowFixtures.shadowMiss())
+        val manifest = exporter.manifest(rows, companionRowCount = 7)
+        assertEquals(7, manifest.companionRowCount)
+        assertEquals(2, manifest.rowCount, "rowCount stays the decision-row (training) count")
+        // the JSONL cases themselves are untouched by companions — rule (e)
+        val cases = exportLines(rows)
+        for ((line, row) in cases.zip(rows)) validateCase(line, row)
+        val encoded = exporter.encodeManifest(manifest)
+        val decoded = strict.decodeFromString(RlcdExportManifest.serializer(), encoded)
+        assertEquals(7, decoded.companionRowCount)
+    }
+
+    @Test
+    fun `companion row count defaults to zero`() {
+        assertEquals(0, exporter.manifest(listOf(LogRowFixtures.complete())).companionRowCount)
+        assertEquals(0, exporter.manifest(emptyList()).companionRowCount)
+    }
 }

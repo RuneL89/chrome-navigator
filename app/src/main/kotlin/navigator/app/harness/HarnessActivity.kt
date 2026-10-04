@@ -409,6 +409,7 @@ class HarnessActivity : ComponentActivity() {
                 primary = built.engine,
                 shadow = it,
                 samplingPolicy = ShadowRouter.SamplingPolicy.everyNth(shadowEveryNth),
+                companionSink = logSink.companionSink, // late answers land as companion rows (8B)
             )
         }
         val loop = NavigationLoop(
@@ -442,17 +443,29 @@ class HarnessActivity : ComponentActivity() {
                 shadowSnapshot?.let {
                     log(
                         "shadow: sampled=${it.sampled} completed=${it.completions} miss=${it.misses} " +
-                            "fail=${it.failures} forwardMs(p50/p95)=" +
+                            "fail=${it.failures} companions=${it.companionRows} " +
+                            "droppedAfterClose=${it.droppedAfterClose} " +
+                            "forwardMs(p50/p95)=" +
                             "${percentile(it.latenciesMs.map { p -> p.first }, 50)}/" +
                             "${percentile(it.latenciesMs.map { p -> p.first }, 95)} " +
                             "totalMs(p95)=${percentile(it.latenciesMs.map { p -> p.second }, 95)}",
                     )
                 }
+                // Phase 8B: the logger is closed for companions — any straggler completion
+                // from here on is dropped AND counted (amendment rule c).
+                router?.close()
             } finally {
                 shadowSession?.close()
             }
         }
         result.stepLog.forEach { log(it) }
+        // Phase 8B: the run-report coverage is the JOINED view (vision 05 §3 amendment
+        // rule d) — decision-row shadows + companions for THIS task, from the database.
+        val joinedAgreement = runCatching {
+            logSink.shadowResults.joinedAgreementByTask(result.taskId)
+        }.onFailure {
+            log("joined agreement read failed: ${it::class.simpleName}: ${it.message}")
+        }.getOrNull()
         val report = RunReport(
             goalId = goal.id,
             family = goal.family,
@@ -485,7 +498,7 @@ class HarnessActivity : ComponentActivity() {
             attempts = attempt,
             flakeRetried = attempt > 1,
             stepLog = result.stepLog,
-            shadow = shadowReport(shadowSnapshot),
+            shadow = shadowReport(shadowSnapshot, joinedAgreement),
         )
         val path = RunReportStore.write(this, "run-${goal.id}-${result.taskId}.json", reportJson(report))
         log("report: $path")
@@ -496,8 +509,17 @@ class HarnessActivity : ComponentActivity() {
         return report
     }
 
-    /** Phase 8 evidence: the shadow side of one run (null when the shadow was OFF). */
-    private fun shadowReport(snapshot: ShadowRouter.Snapshot?): ShadowReport? = snapshot?.let {
+    /**
+     * Phase 8/8B evidence: the shadow side of one run (null when the shadow was OFF).
+     * [joined] is the database's joined-view agreement for this task (vision 05 §3
+     * amendment rule d) — when present with sampled rows, [ShadowReport.coverage] is
+     * the joined coverage (decision-row shadows + companions); the in-memory
+     * row-enrichment ratio is only the fallback.
+     */
+    private fun shadowReport(
+        snapshot: ShadowRouter.Snapshot?,
+        joined: navigator.core.log.JoinedAgreementMetrics?,
+    ): ShadowReport? = snapshot?.let {
         val forwards = it.latenciesMs.map { p -> p.first }.sorted()
         val totals = it.latenciesMs.map { p -> p.second }.sorted()
         ShadowReport(
@@ -508,10 +530,17 @@ class HarnessActivity : ComponentActivity() {
             completed = it.completions,
             missed = it.misses,
             failed = it.failures,
-            coverage = if (it.sampled > 0) it.enrichedRows.toDouble() / it.sampled else 0.0,
+            coverage = when {
+                joined != null && joined.sampledRows > 0 -> joined.coverage
+                it.sampled > 0 -> it.enrichedRows.toDouble() / it.sampled
+                else -> 0.0
+            },
             forwardLatencyP50Ms = percentile(forwards, 50),
             forwardLatencyP95Ms = percentile(forwards, 95),
             totalLatencyP95Ms = percentile(totals, 95),
+            companionRows = it.companionRows,
+            droppedAfterClose = it.droppedAfterClose,
+            companionRejected = it.companionRejected,
         )
     }
 
@@ -693,9 +722,12 @@ data class RunReport(
 )
 
 /**
- * The shadow side of one run (Gate 8.4 evidence): coverage = completed / sampled
- * (the phase gate asks >= 90%); latencies are the MEASURED laya call times
- * (nearest-rank percentiles over the completed decisions).
+ * The shadow side of one run (Gate 8.4/8B evidence): coverage is the JOINED-VIEW
+ * fraction (vision 05 §3 amendment 2026-10-04, rule d: joined rows over total sampled —
+ * decision-row shadows + companion `ShadowResultRow`s; the in-memory enrichment ratio
+ * is only the fallback when the joined read is unavailable); `companionRows` /
+ * `droppedAfterClose` are the amendment's companion counters. Latencies are the
+ * MEASURED laya call times (nearest-rank percentiles over the completed decisions).
  */
 @Serializable
 data class ShadowReport(
@@ -711,6 +743,12 @@ data class ShadowReport(
     val forwardLatencyP50Ms: Long,
     val forwardLatencyP95Ms: Long,
     val totalLatencyP95Ms: Long,
+    /** Late shadow answers landed as companion rows (amendment 2026-10-04). */
+    val companionRows: Long = 0,
+    /** Completions dropped because the logger was already closed (amendment rule c). */
+    val droppedAfterClose: Long = 0,
+    /** Companion inserts the persistence guard rejected (must stay 0; loud if not). */
+    val companionRejected: Long = 0,
 )
 
 /** The batch report: every family at its defined terminal state, zero log gaps. */

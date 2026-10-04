@@ -199,15 +199,52 @@ interface DecisionLogDao {
     suspend fun agreementAggregate(): AgreementAggregateRow
 }
 
-@Database(entities = [DecisionLogEntity::class], version = 1, exportSchema = false)
+@Database(
+    entities = [DecisionLogEntity::class, ShadowResultEntity::class],
+    version = 2,
+    exportSchema = false,
+)
 abstract class DecisionLogDb : RoomDatabase() {
 
     abstract fun decisionLogDao(): DecisionLogDao
 
+    abstract fun shadowResultDao(): ShadowResultDao
+
     companion object {
+
+        /**
+         * v1 → v2 (vision 05 §2 amendment 2026-10-04): adds the companion `shadow_result`
+         * table beside the untouched `decision_log` table — existing databases keep every
+         * historical row (insert-only law; no destructive fallback anywhere). The DDL is
+         * exactly what Room expects for [ShadowResultEntity], so the post-migration
+         * schema validation passes.
+         */
+        val MIGRATION_1_2: androidx.room.migration.Migration = object : androidx.room.migration.Migration(1, 2) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `shadow_result` (" +
+                        "`rowId` TEXT NOT NULL, " +
+                        "`taskId` TEXT NOT NULL, " +
+                        "`stepIndex` INTEGER NOT NULL, " +
+                        "`timestamp` INTEGER NOT NULL, " +
+                        "`shadowCheckpoint` TEXT NOT NULL, " +
+                        "`shadowPrecision` TEXT NOT NULL, " +
+                        "`shadowAnswerJson` TEXT NOT NULL, " +
+                        "`latencyMs` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`rowId`))",
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_shadow_result_taskId_stepIndex` " +
+                        "ON `shadow_result` (`taskId`, `stepIndex`)",
+                )
+            }
+        }
+
         /** Production: a named, on-disk database (indefinite local retention, vision 05 §5). */
         fun open(context: Context, name: String): DecisionLogDb =
-            Room.databaseBuilder(context, DecisionLogDb::class.java, name).build()
+            Room.databaseBuilder(context, DecisionLogDb::class.java, name)
+                .addMigrations(MIGRATION_1_2)
+                .build()
 
         /** In-memory variant (tests / ephemeral windows). */
         fun inMemory(context: Context): DecisionLogDb =

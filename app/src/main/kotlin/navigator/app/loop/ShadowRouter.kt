@@ -10,6 +10,7 @@ import navigator.core.decision.ScoreResult
 import navigator.core.log.Agreement
 import navigator.core.log.DecisionLogRow
 import navigator.core.log.ShadowAnswer
+import navigator.core.log.ShadowResultRow
 import navigator.core.log.ShadowPrecision
 import navigator.core.log.ShadowRef
 import navigator.core.log.ShadowStageAnswer
@@ -22,6 +23,15 @@ import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.launch
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicLong
+
+/**
+ * The companion-row edge (phase 8B §2.3): the router hands over a complete
+ * [ShadowResultRow] exactly once per frozen miss; the implementation owns persistence
+ * (the `:app` guarded insert). Insert-only by law — implementations must not mutate.
+ */
+fun interface CompanionSink {
+    suspend fun write(row: ShadowResultRow)
+}
 
 /**
  * The only [DecisionEngine] the navigation loop sees (vision 02 §4 — law):
@@ -42,7 +52,17 @@ import java.util.concurrent.atomic.AtomicLong
  *    `shadow`, which is the row schema's explicit `shadowMiss` marker (vision 02 §4:
  *    not ready before the next step; a DecisionLogRow is immutable history — vision 05
  *    — so the miss is frozen at write time, and the write happens before the next step
- *    begins).
+ *    begins);
+ * 5. a shadow answer that completes AFTER its row froze lands as exactly ONE companion
+ *    [ShadowResultRow] keyed `(taskId, stepIndex)` (vision 02 §4.4, vision 05 §2
+ *    amendment 2026-10-04 — owner-ratified): still insert-only, never an update. The
+ *    freeze/completion transition is atomic (both sides synchronize on the job), so the
+ *    answer lands in exactly one place — the decision row, or one companion — under any
+ *    interleaving (amendment rule a). Inserts may continue until [close] (the logger is
+ *    closed); after close, late completions are dropped AND counted
+ *    ([Snapshot.droppedAfterClose]). A companion sink that rejects (the `:app` guard:
+ *    answered row, orphan) is counted and surfaced in the snapshot — never propagated
+ *    into the loop (vision 02 §4.3).
  *
  * Isolation law (Gate 8.3): the shadow runs on its own dispatcher, a shadow failure is
  * recorded as a miss (never propagated into the loop), and a sampled-but-missed row is
@@ -54,6 +74,8 @@ class ShadowRouter(
     private val shadow: ShadowDecisions,
     private val samplingPolicy: SamplingPolicy = SamplingPolicy.everyStep(),
     dispatcher: CoroutineDispatcher = singleThreadDispatcher(),
+    /** Null = the companion path is inert (Phase-8 behavior; answers die with the miss). */
+    private val companionSink: CompanionSink? = null,
 ) : DecisionEngine {
 
     /** Deterministic every-Nth sampling with the thermal/battery toggle (vision 02 §4.3). */
@@ -107,6 +129,9 @@ class ShadowRouter(
         val questionName: String,
         val optionIds: List<String>,
     ) {
+        /** The companion key of a row that froze as a shadowMiss (amendment rule a). */
+        data class FreezeRecord(val taskId: String, val stepIndex: Int)
+
         @Volatile
         var done: Boolean = false
 
@@ -115,6 +140,13 @@ class ShadowRouter(
 
         @Volatile
         var failed: Throwable? = null
+
+        // Frozen/companion state below is guarded by `synchronized(job)` on BOTH sides
+        // (the row write and the shadow completion), which makes the decision atomic:
+        // the answer lands in exactly one place — the decision row, or ONE companion.
+        var frozen: Boolean = false
+
+        var freeze: FreezeRecord? = null
     }
 
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
@@ -136,6 +168,26 @@ class ShadowRouter(
 
     /** Rows that actually gained a shadow answer (coverage numerator, Gate 8.4). */
     private val enrichedRows = AtomicLong(0)
+
+    /** Companion rows handed to [companionSink] (phase 8B §2.3; exactly one per frozen miss). */
+    private val companionRows = AtomicLong(0)
+
+    /** Late completions dropped because the logger was already [close]d (amendment rule c). */
+    private val droppedAfterClose = AtomicLong(0)
+
+    /** Companion inserts the sink rejected (guard violations; loud in the snapshot, never the loop). */
+    private val companionRejected = AtomicLong(0)
+
+    @Volatile
+    private var closed = false
+
+    /**
+     * Closes the logger for companions (amendment rule c): late completions after this
+     * call are dropped AND counted. Nothing else changes — the engine keeps answering.
+     */
+    fun close() {
+        closed = true
+    }
 
     // -- the engine the loop sees ----------------------------------------------------
 
@@ -182,9 +234,11 @@ class ShadowRouter(
     /**
      * The loop's sink, wrapped: the row written for a sampled step gains the shadow
      * fields when the shadow answer is complete at write time, or freezes as a
-     * `shadowMiss` (`shadow=null`, `shadowSampled=true`) otherwise. Unsampled steps and
-     * steps whose decision carried no bucketed form (triage, recovery) pass through
-     * untouched — the executor's view of every row is primary-only, always.
+     * `shadowMiss` (`shadow=null`, `shadowSampled=true`) otherwise — registering the
+     * companion key so the late answer lands as exactly one companion row (rule a).
+     * Unsampled steps and steps whose decision carried no bucketed form (triage,
+     * recovery) pass through untouched — the executor's view of every row is
+     * primary-only, always.
      */
     fun sink(delegate: DecisionLogSink): DecisionLogSink = object : DecisionLogSink {
         override suspend fun write(row: DecisionLogRow) {
@@ -194,50 +248,63 @@ class ShadowRouter(
 
     private suspend fun logSinkWrite(delegate: DecisionLogSink, row: DecisionLogRow) {
         val job = matchJob(row) ?: return delegate.write(row)
-        if (!job.done) {
-            // shadowMiss (vision 02 §4.2): not ready before the row froze. The row keeps
-            // its primary-only shape, with shadowSampled=true recording THAT it ran.
-            shadowMisses.incrementAndGet()
-            return delegate.write(row.copy(shadowSampled = true))
-        }
-        val answer = job.answer
-        val enriched = if (answer != null) {
-            // A bad/unnormalized distribution or any enrichment failure is the SHADOW's
-            // failure: it degrades to a miss, it never propagates into the loop's log
-            // path (vision 02 §4.3 — shadow execution must never block or slow the loop).
-            try {
-                enrich(row, answer)
-            } catch (t: Throwable) {
-                shadowFailures.incrementAndGet()
-                null
+        // The freeze/complete decision is atomic against the shadow's completion (both
+        // sides synchronize on the job), so under ANY interleaving the answer lands in
+        // exactly one place: this row, or one companion — never both (rule a), never
+        // neither. Delegate writes happen outside the lock (suspend calls).
+        val outcome: WriteOutcome = synchronized(job) {
+            when {
+                // Already froze as a shadowMiss: the companion path owns the answer. A
+                // repeated write neither re-freezes nor enriches (exactly-once).
+                job.frozen -> WriteOutcome.PASS_FROZEN
+                !job.done -> {
+                    job.frozen = true
+                    job.freeze = ShadowJob.FreezeRecord(row.taskId, row.stepIndex)
+                    WriteOutcome.FREEZE
+                }
+                job.answer != null -> WriteOutcome.ENRICH
+                else -> WriteOutcome.FAIL
             }
-        } else {
-            shadowFailures.incrementAndGet()
-            null
         }
-        if (enriched != null) delegate.write(enriched) else delegate.write(row.copy(shadowSampled = true))
+        when (outcome) {
+            WriteOutcome.PASS_FROZEN -> delegate.write(row.copy(shadowSampled = true))
+            WriteOutcome.FREEZE -> {
+                // shadowMiss (vision 02 §4.2): not ready before the row froze. The row
+                // keeps its primary-only shape, with shadowSampled=true recording THAT
+                // it ran; the companion key is registered for the late answer.
+                shadowMisses.incrementAndGet()
+                delegate.write(row.copy(shadowSampled = true))
+            }
+            WriteOutcome.ENRICH -> {
+                val answer = synchronized(job) { job.answer }
+                val enriched = try {
+                    enrich(row, answer!!)
+                } catch (t: Throwable) {
+                    // A bad/unnormalized distribution or any enrichment failure is the
+                    // SHADOW's failure: it degrades to a miss, it never propagates into
+                    // the loop's log path (vision 02 §4.3 — shadow execution must never
+                    // block or slow the loop).
+                    shadowFailures.incrementAndGet()
+                    null
+                }
+                if (enriched != null) delegate.write(enriched) else delegate.write(row.copy(shadowSampled = true))
+            }
+            WriteOutcome.FAIL -> {
+                shadowFailures.incrementAndGet()
+                delegate.write(row.copy(shadowSampled = true))
+            }
+        }
     }
+
+    /** What the row write must do with its (tracked, sampled) shadow job. */
+    private enum class WriteOutcome { PASS_FROZEN, FREEZE, ENRICH, FAIL }
 
     /** Enriches the row with both engines' answers + agreement (vision 05 §2/§3). */
     private fun enrich(
         row: DecisionLogRow,
         answer: LayaEngine.TwoStageAnswer,
     ): DecisionLogRow {
-        val bucketStage = answer.bucket
-        val bucketAnswer = bucketStage?.let {
-            ShadowStageAnswer(chosen = it.chosen, probabilities = it.probabilities)
-        } ?: ShadowStageAnswer(
-            // single-stage fallback (no buckets): the element IS the whole answer
-            chosen = answer.element.chosen,
-            probabilities = answer.element.probabilities,
-        )
-        val shadowAnswer = ShadowAnswer(
-            bucket = bucketAnswer,
-            element = ShadowStageAnswer(
-                chosen = answer.element.chosen,
-                probabilities = answer.element.probabilities,
-            ),
-        )
+        val shadowAnswer = toShadowAnswer(answer)
         val enriched = row.copy(
             shadow = ShadowRef(checkpoint = CHECKPOINT, precision = PRECISION),
             shadowAnswer = shadowAnswer,
@@ -248,6 +315,65 @@ class ShadowRouter(
         shadowCompletions.incrementAndGet()
         enrichedRows.incrementAndGet()
         return enriched
+    }
+
+    /** Maps the shadow's two-stage answer onto the row/companion answer shape (vision 05 §2). */
+    private fun toShadowAnswer(answer: LayaEngine.TwoStageAnswer): ShadowAnswer {
+        val bucketStage = answer.bucket
+        val bucketAnswer = bucketStage?.let {
+            ShadowStageAnswer(chosen = it.chosen, probabilities = it.probabilities)
+        } ?: ShadowStageAnswer(
+            // single-stage fallback (no buckets): the element IS the whole answer
+            chosen = answer.element.chosen,
+            probabilities = answer.element.probabilities,
+        )
+        return ShadowAnswer(
+            bucket = bucketAnswer,
+            element = ShadowStageAnswer(
+                chosen = answer.element.chosen,
+                probabilities = answer.element.probabilities,
+            ),
+        )
+    }
+
+    /**
+     * The companion row for a shadow answer that landed after its decision row froze
+     * (vision 05 §2 amendment): full answer + measured latency, keyed and idempotent by
+     * `(taskId, stepIndex)`.
+     */
+    private fun companionRowFor(
+        freeze: ShadowJob.FreezeRecord,
+        answer: LayaEngine.TwoStageAnswer,
+    ): ShadowResultRow = ShadowResultRow(
+        rowId = ShadowResultRow.rowIdFor(freeze.taskId, freeze.stepIndex),
+        taskId = freeze.taskId,
+        stepIndex = freeze.stepIndex,
+        timestamp = System.currentTimeMillis(),
+        shadow = ShadowRef(checkpoint = CHECKPOINT, precision = PRECISION),
+        shadowAnswer = toShadowAnswer(answer),
+        latencyMs = answer.totalMs,
+    )
+
+    /**
+     * Exactly-once companion insert for a frozen miss (phase 8B §2.3): dropped and
+     * counted after [close] (rule c); counted + surfaced — never propagated — when the
+     * sink rejects (the `:app` guard or a constraint failure is a programming error
+     * that must be visible, but the shadow may never break the loop, vision 02 §4.3).
+     */
+    private fun launchCompanionInsert(row: ShadowResultRow) {
+        val sink = companionSink ?: return // companion path inert (no logger wired)
+        synchronized(this) { inFlight += 1 }
+        scope.launch {
+            try {
+                sink.write(row)
+                companionRows.incrementAndGet()
+            } catch (t: Throwable) {
+                companionRejected.incrementAndGet()
+                lastFailure = "companion insert rejected: ${t::class.simpleName}: ${t.message}"
+            } finally {
+                synchronized(this) { inFlight -= 1 }
+            }
+        }
     }
 
     // -- snapshot (run reports / tests) -------------------------------------------------
@@ -265,6 +391,14 @@ class ShadowRouter(
         val pressureSamplingEveryNth: Long,
         /** Class+message of the last shadow failure (diagnosability; log-only path). */
         val lastFailure: String? = null,
+        /** Companion rows handed to the sink (late shadow answers, phase 8B). */
+        val companionRows: Long = 0,
+        /** Late completions dropped because the logger was closed (amendment rule c). */
+        val droppedAfterClose: Long = 0,
+        /** Companion inserts the sink rejected (guard violations — loud in the snapshot). */
+        val companionRejected: Long = 0,
+        /** True once [close] ran: companions are dropped+counted from here on. */
+        val closed: Boolean = false,
     )
 
     @Volatile
@@ -282,6 +416,10 @@ class ShadowRouter(
             samplingEveryNth = samplingPolicy.samplingEveryNth,
             pressureSamplingEveryNth = samplingPolicy.pressureSamplingEveryNth,
             lastFailure = lastFailure,
+            companionRows = companionRows.get(),
+            droppedAfterClose = droppedAfterClose.get(),
+            companionRejected = companionRejected.get(),
+            closed = closed,
         )
     }
 
@@ -333,8 +471,29 @@ class ShadowRouter(
         scope.launch {
             try {
                 val answer = shadow.chooseTwoStage(state, question)
-                job.answer = answer
-                job.done = true
+                // The completion/freeze transition is atomic (the row write synchronizes
+                // on the job too): either this runs BEFORE the write (the row will
+                // enrich) or AFTER it (frozen=true → exactly one companion, rule a).
+                var companion: ShadowResultRow? = null
+                synchronized(job) {
+                    job.answer = answer
+                    job.done = true
+                    if (job.frozen) {
+                        val freeze = job.freeze
+                        job.freeze = null // consume once: duplicate completions never re-enqueue
+                        if (freeze != null) {
+                            companion = when {
+                                companionSink == null -> null // no logger wired: inert
+                                closed -> {
+                                    droppedAfterClose.incrementAndGet()
+                                    null
+                                }
+                                else -> companionRowFor(freeze, answer)
+                            }
+                        }
+                    }
+                }
+                if (companion != null) launchCompanionInsert(companion!!)
                 shadowCompletions.incrementAndGet()
                 // MEASURED laya latency, recorded for EVERY completed decision (the run
                 // report's latency evidence must not depend on whether the row enriched).

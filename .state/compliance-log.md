@@ -403,3 +403,37 @@ a new dated entry. Format per `Implementation Plan/MASTER_IMPLEMENTATION_PROMPT.
     - Amendment extends appends without opening mutation (ART-3 intact); RLCD training corpus unchanged (decision rows complete); agreement metric + graduation clock move to joined view with explicit coverage. No contradictions with other articles (checked vs ART-1..11 and docs 01/04/06/07).
   Result: AMENDED — law updated; Phase 8B slotted ahead of Phase 9
   Checked By: Main agent (GLM-5.3 session), owner directive
+
+[2026-10-04] Phase 8B (Companion Shadow-Result Rows) Pre-Implementation Compliance Check
+  Changed: (pre-check; no files changed yet)
+  Vision Docs Checked: 05 §2 (amendment 2026-10-04: ShadowResultRow schema + rules a–e), 05 §3 (joined-view agreement + coverage), 02 §4 (router companion-insert law, rule 4)
+  Sections Checked: amendment rule (a) companion only for shadow==null rows, exactly one per (taskId, stepIndex); rule (b) insert-only, no UPDATE/DELETE; rule (c) inserts legal until logger close, post-death arrivals lost by design in v1; rule (d) agreement metrics over the joined view with coverage = joined/total-sampled reported alongside; rule (e) RLCD training corpus unchanged (decision rows complete; companions informational); 02 §4.4 router inserts the companion when the shadow completes after the row freezes — still insert-only, never an update
+  Comparison:
+    - Plan: :core ShadowResultRow model (strict init validation) + joined-view agreement math (pure, zero I/O); :app shadow_result Room entity with unique (taskId, stepIndex) index + INSERT-ONLY DAO + persistence-boundary guard (reject loudly: companion-for-answered-row, orphan companion) + v1→v2 migration (existing DBs survive, no destructive fallback); ShadowRouter late-write path (freeze/completion transition made atomic — exactly once, rule a holds under races; post-close drop+count; executor isolation untouched); joined-view agreement exposed as (percentage, coverage) for the Phase 9/11 contract; RunReport/ShadowReport gains companionRows + droppedAfterClose, coverage moves to joined view; RlcdExport manifest gains companionRowCount (training rows untouched). COMPLIANT with all five amendment rules and 02 §4.
+    - Tier A drift: no eval-schema/state/wire/taxonomy/gate change planned — committed .state/eval artifacts must stay byte-identical (Gate 8B.4 watches this). COMPLIANT.
+  Result: COMPLIANT — no contradictions
+  Checked By: canon-implementer
+
+[2026-10-04] Phase 8B (Companion Shadow-Result Rows) Post-Implementation Compliance Check
+  Changed: core/src/main/kotlin/navigator/core/log/ShadowResultRow.kt (NEW: ShadowResultRow + JoinedDecisionRow + JoinedAgreementMetrics/AgreementUiMetric + JoinedAgreement), core/src/main/kotlin/navigator/core/log/RlcdExport.kt (manifest.companionRowCount informational), app/src/main/kotlin/navigator/app/log/ShadowResultDao.kt (NEW: ShadowResultEntity UNIQUE(taskId,stepIndex) + insert-only DAO + @Transaction rule-a guard + LEFT-JOIN joined view + ShadowResultLogger), app/src/main/kotlin/navigator/app/log/DecisionLogDb.kt (v2 + MIGRATION_1_2, no destructive fallback), app/src/main/kotlin/navigator/app/loop/ShadowRouter.kt (CompanionSink + atomic freeze/completion late-write path + close/drop-count + snapshot counters), app/src/main/kotlin/navigator/app/harness/HarnessRunners.kt + HarnessActivity.kt (companion wiring; joined-view coverage + companion counts in ShadowReport), tests (ShadowResultRowTest, JoinedAgreementTest, RlcdExportTest +2, ShadowResultDbTest incl. v1→v2 migration, ShadowRouterCompanionTest), DOX (core/app/root AGENTS.md), .state/phase-8B-status.json
+  Vision Docs Checked: 05 §2 (amendment 2026-10-04: ShadowResultRow schema, rules a–e), 05 §3 (joined-view agreement + coverage, UI reads (percentage, coverage)), 02 §4 (router companion insert — insert-only, never an update), ART-3/ART-8
+  Comparison:
+    - Rule (a): companion only for shadow==null rows, exactly one per (taskId, stepIndex) — enforced twice: atomic freeze/completion transition in the router (the answer lands in the decision row OR one companion, never both, under any interleaving) AND the transactional persistence guard rejecting companion-for-answered-row and orphans loudly + UNIQUE index ABORT. COMPLIANT.
+    - Rule (b): insert-only everywhere — grep-verifiable, no UPDATE/DELETE/REPLACE in log code (only the law's own KDoc names them); migration is CREATE-only; no destructive fallback. COMPLIANT.
+    - Rule (c): inserts legal until close(); late completions after close are dropped AND counted (gate-asserted); post-death arrivals remain lost by design in v1 (nothing added). COMPLIANT.
+    - Rule (d): agreement exact-match % and mean KL computed over the joined view (decision-row shadows + companions), coverage = joined/total-sampled reported alongside; UI-metric function returns (percentage, coverage) for the Phase 9/11 contract; hand-computed Gate 8B.3 ledger matches. COMPLIANT.
+    - Rule (e): RLCD training export byte-unchanged (strict finetune validator re-run over a window exported WITH companions); manifest gains informational companionRowCount only. COMPLIANT.
+    - 02 §4.4: router inserts the companion when the shadow completes after the freeze — still insert-only; executor isolation re-proven inside the real loop (Gate 8B.2). COMPLIANT.
+    - Tier A drift: .state/eval/ artifacts byte-identical after the full suite (no eval-schema change in the diff). COMPLIANT.
+    - $0 LLM spend; local-only log path untouched (no network in navigator.app.log / navigator.core.log). COMPLIANT.
+  Result: COMPLIANT — no contradictions; 5 implementation notes recorded in .state/phase-8B-status.json (aggregation scope, fresh-KL join computation, close semantics, harness read fallback, Phase-8 counter parity) — none contradict vision law
+  Checked By: canon-implementer (verifier cold-check pending)
+
+[2026-10-04] Phase 8B (Companion Shadow-Result Rows) Post-Implementation Compliance Check + Close-out
+  Changed: core log/ShadowResultRow (+JoinedAgreement/AgreementUiMetric), app log/ShadowResultDao+Entity+Logger (Room v2 migration), ShadowRouter companion path (atomic freeze/completion), harness joined-view report fields, RlcdExport manifest companionRowCount; 23 new tests
+  Vision Docs Checked: 05 v1.1.0 §2 amendment rules a-e + §3; 02 v1.1.0 §4
+  Comparison:
+    - All amendment rules verified code-first with dual enforcement; joined-view math hand-verified by verifier; insert-only law intact; RLCD training export unchanged. COMPLIANT.
+    - UAT 8B.1 satisfied by the owner's explicit same-day ratification of the amendment design (recorded in the orchestrator addendum of .state/phase-8B-verification.md); behavior summary re-presented at close-out.
+  Result: COMPLIANT — Phase 8B accepted (PHASE 8B VERIFIED)
+  Checked By: canon-verifier (cold) + Main agent (orchestrator close-out)

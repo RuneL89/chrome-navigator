@@ -59,7 +59,9 @@ without a device.
   (Phase 5): `DecisionLogModels.kt` (the full vision 05 §2 row schema as serializable
   types + `DECISION_LOG_JSON` + enum-serial-name helpers), `Agreement.kt`
   (top-1 exact match + KL(teacher ∥ shadow), vision 05 §3), `RlcdExport.kt` (the RLCD
-  JSONL export + manifest, vision 05 §4); pure data + math, zero I/O (ART-8);
+  JSONL export + manifest, vision 05 §4), `ShadowResultRow.kt` (Phase 8B: the companion
+  shadow-result row + the joined-view aggregation `JoinedAgreement`, the 2026-10-04
+  amendment); pure data + math, zero I/O (ART-8);
   law: `Project Vision/05` §1–§5, `Project Vision/02` §4–§5
 * `src/main/kotlin/navigator/core/StateFormat.kt` — `STATE_FORMAT_VERSION`
 * `src/test/resources/fixtures/` — golden fixtures (recorded a11y dumps + wire transcripts;
@@ -136,6 +138,15 @@ without a device.
   Phase 6 added ONE additive `ActionDisposition` value — `refused-by-guard` (@SerialName
   "refused-by-guard"), the loop's ART-4 refusal of an engine self-reported finish
   (vision 04 §3); earlier rows decode unchanged
+* Companion shadow-result rows (Phase 8B, vision 05 §2 amendment 2026-10-04):
+  `ShadowResultRow` is the second INSERT-ONLY row type, legal only for a decision row
+  logged as a shadowMiss and exactly once per `(taskId, stepIndex)` — enforced at the
+  `:app` persistence boundary (guard + unique index), never by convention; agreement
+  metrics are computed over the joined view (`JoinedAgreement.metrics`, incoherent
+  views fail loudly instead of double-counting) with coverage = joined/total-sampled,
+  exposed to the UI as `(percentage, coverage)` (the Phase 9/11 contract); the RLCD
+  training corpus stays decision-row-only (`RlcdExportManifest.companionRowCount` is
+  informational)
 * The KL convention (vision 05 §3, documented in `Agreement.kt`): natural log, union of
   distribution keys zero-filled, p→0 terms contribute 0 (limit), q→0 terms floored at
   1e-12 (epsilon — large but finite, JSON cannot carry Infinity); inputs asserted

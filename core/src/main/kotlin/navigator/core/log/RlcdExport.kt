@@ -29,6 +29,10 @@ data class RlcdTeacherPin(
  * mixed-teacher flag, row count, and the state-format versions present. A
  * mixed-teacher corpus (any teacher bump mid-window, vision 02 §5) is flagged so
  * fine-tune runs can subset if desired.
+ *
+ * [companionRowCount] (vision 05 §2 amendment 2026-10-04, rule e) is INFORMATIONAL
+ * only: companion `ShadowResultRow`s serve agreement measurement, never training —
+ * the exported cases stay decision-row-only and the count never changes them.
  */
 @Serializable
 data class RlcdExportManifest(
@@ -37,6 +41,7 @@ data class RlcdExportManifest(
     val teacherPins: List<RlcdTeacherPin>,
     val mixedTeacher: Boolean,
     val stateFormatVersions: List<Int>,
+    val companionRowCount: Int = 0,
 )
 
 /**
@@ -73,8 +78,8 @@ class RlcdExporter(
             .associate { it.key to it.value },
     )
 
-    /** Builds the manifest for the exported window. */
-    fun manifest(rows: List<DecisionLogRow>): RlcdExportManifest {
+    /** Builds the manifest for the exported window. [companionRowCount] is informational (rule e). */
+    fun manifest(rows: List<DecisionLogRow>, companionRowCount: Int = 0): RlcdExportManifest {
         val pins = rows.map { RlcdTeacherPin(configId = it.teacher.configId, model = it.teacher.model) }
             .distinct()
         val distinctModels = pins.map { it.model }.distinct()
@@ -84,6 +89,7 @@ class RlcdExporter(
             teacherPins = pins,
             mixedTeacher = distinctModels.size > 1,
             stateFormatVersions = rows.map { it.stateFormatVersion }.distinct().sorted(),
+            companionRowCount = companionRowCount,
         )
     }
 

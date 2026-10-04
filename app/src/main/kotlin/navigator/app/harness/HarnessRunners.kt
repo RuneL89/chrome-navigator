@@ -2,14 +2,17 @@ package navigator.app.harness
 
 import android.content.Context
 import navigator.app.loop.ActionExecutor
+import navigator.app.loop.CompanionSink
 import navigator.app.loop.DecisionLogSink
 import navigator.app.loop.GestureExecutor
 import navigator.app.loop.JevSpendRecorder
 import navigator.app.loop.LoopObserver
+import navigator.app.loop.ShadowRouter
 import navigator.app.loop.SpendMeter
 import navigator.app.loop.UsageFeed
 import navigator.app.log.DecisionLogDb
 import navigator.app.log.DecisionLogger
+import navigator.app.log.ShadowResultLogger
 import navigator.app.observe.NavigatorAccessibilityService
 import navigator.app.stub.StubEngine
 import navigator.core.decision.DecisionEngine
@@ -176,9 +179,19 @@ object HarnessEngineFactory {
 /** Room-backed [DecisionLogSink]: the durable, insert-only decision history. */
 class RoomDecisionLogSink(context: Context, name: String = DB_NAME) : DecisionLogSink {
 
-    private val logger = DecisionLogger(DecisionLogDb.open(context, name))
+    private val db = DecisionLogDb.open(context, name)
+    private val logger = DecisionLogger(db)
+
+    /** Companion shadow-result logger over the SAME database (phase 8B §2.2). */
+    val shadowResults = ShadowResultLogger(db)
 
     override suspend fun write(row: DecisionLogRow) = logger.insert(row)
+
+    /**
+     * The router's companion edge: guarded, exactly-once inserts into `shadow_result`
+     * (amendment rule a at the persistence boundary; duplicates ABORT).
+     */
+    val companionSink = CompanionSink { row -> shadowResults.insert(row) }
 
     private companion object {
         const val DB_NAME = "navigator-decision-log.db"

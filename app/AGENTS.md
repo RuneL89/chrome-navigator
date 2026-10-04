@@ -63,7 +63,12 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     that enriches the loop's row with `shadow`/`shadowAnswer`/agreement fields — or
     freezes it as a shadowMiss (`shadowSampled=true`, `shadow=null`) when the shadow
     is not complete at row-write time (rows are immutable history, vision 05, so the
-    miss boundary is the write)
+    miss boundary is the write); Phase 8B (amendment 2026-10-04): a shadow answer
+    completing AFTER the freeze lands as exactly ONE companion `ShadowResultRow` via
+    the optional `CompanionSink` (the freeze/completion transition is atomic on the
+    job, so the answer lands in the row OR one companion — never both; `close()` ends
+    companion inserts and later completions are dropped and counted; the executor's
+    view of every row stays primary-only)
   * `src/main/kotlin/navigator/app/stub/` — `StubEngine` (Phase 6): a
     `DecisionEngine` replaying a `StubScript` deterministically ($0 spend); answers
     select by option id, `labelContains`, or `bucketFirst`(+ordinal), with an
@@ -93,7 +98,13 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
   (Phase 5, vision 05 §2): `DecisionLogDb.kt` — `DecisionLogEntity` (nested log objects
   as `DECISION_LOG_JSON` columns), `DecisionLogConverters` (row ↔ entity, loud decode),
   `DecisionLogDao` + `DecisionLogger` (the Phase-6 insert/query API),
-  `DecisionLogDb`; law: `Project Vision/05` §2, §5
+  `DecisionLogDb`; Phase 8B added `ShadowResultDao.kt` (vision 05 §2 amendment
+  2026-10-04): `ShadowResultEntity` (companion rows; UNIQUE index over
+  `(taskId, stepIndex)`), `ShadowResultDao` + `ShadowResultLogger` (guarded insert-only
+  companions — loud rejection of companion-for-answered-row and orphans — plus the
+  decision ⋈ companion LEFT-JOIN view and the joined-view agreement with coverage),
+  and `DecisionLogDb` v2 with `MIGRATION_1_2` (adds `shadow_result`; existing
+  databases keep every row; no destructive fallback); law: `Project Vision/05` §2, §5
 * `build.gradle.kts` — Android build config (minSdk 34, compile/targetSdk 36, Compose;
   Room compiler wired via KSP; kotlinx-serialization + coroutines plugins/deps)
 
@@ -112,7 +123,11 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
   @Delete, no DELETE/UPDATE queries may ever exist (rows are immutable history; a
   duplicate rowId fails loudly via `OnConflictStrategy.ABORT`); retention is indefinite
   with no auto-pruning; all access converts through the validated `:core`
-  `DecisionLogRow` so corrupt columns fail loudly on decode
+  `DecisionLogRow` so corrupt columns fail loudly on decode. Companion rows (Phase 8B)
+  are insert-only too: a UNIQUE `(taskId, stepIndex)` index ABORTs duplicates and a
+  transactional guard rejects loudly a companion beside an answered decision row or an
+  orphan companion (rule a); DB migrations preserve history (v1→v2 adds `shadow_result`;
+  no destructive fallback anywhere)
 * The loop's Android edges sit behind interfaces (`LoopObserver`, `ActionExecutor`,
   `GatePresenter`, `DecisionLogSink`, `Clock`) so Gate 6.1 runs on the plain JVM with
   fakes — Robolectric-free; Android types appear only in `GestureExecutor`,
@@ -159,7 +174,10 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
 
 * `./gradlew :app:assembleDebug` must produce an APK
 * `./gradlew :app:testDebugUnitTest` — Gate 1.1 serializer goldens + Gate 1.2 URL-bar
-  strategy paths + Gate 5.1 Room half (`DecisionLogDbTest`) + the Phase-6 Gate 6.1 loop
+  strategy paths + Gate 5.1 Room half (`DecisionLogDbTest`) + Gate 8B.1/8B.3 Room half
+  (`ShadowResultDbTest`: companion round-trip, duplicate-key ABORT, the rule-a guard,
+  the v1→v2 migration, the joined view + hand-checked agreement/coverage) + the
+  Phase-6 Gate 6.1 loop
   gates (`NavigationLoopTest`: strict step order incl. GATE-before-EXECUTE, budget
   clean-stops per dimension, double-deny abort, ART-4 adversarial finish refusal,
   one-row-per-decision; `TaskBudgetTest`, `StuckDetectorTest`, `CompletionGuardsTest`,
@@ -167,7 +185,11 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
   Gate 8.2 scripted two-stage correctness, `LayaEngineReferenceParityTest` Gate 8.1
   reference-vector parity over the REAL int8 graph on the desktop JVM ONNX Runtime,
   `ShadowRouterTest` Gate 8.3 router semantics: latency isolation, shadowMiss under a
-  slow shadow, every-3rd sampling pattern, executor-sees-primary-only, enrichment) —
+  slow shadow, every-3rd sampling pattern, executor-sees-primary-only, enrichment;
+  `ShadowRouterCompanionTest` Gate 8B.2 late-write semantics: freeze → exactly-once
+  companion, fast-shadow single row with NO companion, duplicate-write idempotence,
+  post-close drop counted, rejecting sink surfaced not propagated, executor isolation
+  in the real loop) —
   plain JVM, Robolectric-free; the laya gates need the model artifact (verifyLayaModel
   fails the build loudly when it is missing)
 * Gate 6.2 (on-device): the harness suite runs all six scripted goal families to their
