@@ -20,21 +20,23 @@
     "questions": {
       "next-action": {
         "type": "choice",
-        "options": [
-          { "id": "result-1", "label": "Open first result", "description": "Open 'Apple Pie Recipe (with Video) - Allrecipes'" },
-          { "id": "result-2", "label": "Open second result", "description": "Open 'Easy Apple Pie Recipe - Sally's Baking Addiction'" },
-          { "id": "result-3", "label": "Open third result", "description": "Open 'Grandma's Apple Pie - Food Network'" },
-          { "id": "next-page-button", "label": "Go to next results page", "description": "Load the next page of search results" }
-        ]
+        "instructions": "Choose the one option that best advances the goal given in the state. Answer with the chosen option key, the full probability distribution over all offered option keys, and your confidence.",
+        "criteria": {
+          "result-1": "Open 'Apple Pie Recipe (with Video) - Allrecipes'",
+          "result-2": "Open 'Easy Apple Pie Recipe - Sally's Baking Addiction'",
+          "result-3": "Open 'Grandma's Apple Pie - Food Network'",
+          "next-page-button": "Load the next page of search results"
+        }
       }
     }
   },
   "responseBody": {
     "id": "resp_or_0001",
     "model": "typesafe/jev-1.13-20260917",
-    "usage": { "input_tokens": 412, "output_tokens": 87 },
+    "usage": { "input_tokens": 412, "output_tokens": 87, "cost": 0.0000211 },
     "answers": {
       "next-action": {
+        "type": "choice",
         "choice": "result-1",
         "probabilities": {
           "next-page-button": 0.07,

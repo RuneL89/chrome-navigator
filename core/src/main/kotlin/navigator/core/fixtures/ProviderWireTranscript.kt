@@ -27,6 +27,8 @@ import java.nio.file.Path
  *  - `expectedResults`: the typed results the client must produce, encoded with the same
  *    `type`-discriminated shape as [WireTranscript] — deliberately INDEPENDENT of the
  *    wire parser so Gate 3.1 compares parser output against an independent recording.
+ *  - `note` (optional): provenance — which fixtures carry a verbatim live-captured
+ *    response body and which are hand-crafted transcripts (phase doc §2.3).
  */
 @Serializable
 data class ProviderWireTranscript(
@@ -37,6 +39,7 @@ data class ProviderWireTranscript(
     val requestBody: JsonObject,
     val responseBody: JsonObject,
     val expectedResults: Map<String, TypedResult>,
+    val note: String? = null,
 ) {
     init {
         require(engine.isNotBlank()) { "ProviderWireTranscript.engine must not be blank" }

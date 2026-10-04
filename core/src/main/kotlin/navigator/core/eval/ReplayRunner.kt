@@ -77,7 +77,7 @@ data class ReplayOutcome(
  *  3. build the questions: the flat primary form (one `choice` over ≤255 candidates,
  *     name [PRIMARY_QUESTION_NAME]) and the bucketed shadow form ([BucketedQuestion]);
  *  4. parse the recorded response through the REAL wire parser
- *     ([SystemOneClient.parseAnswers]) — a distribution that does not cover exactly the
+ *     ([SystemOneClient.parseResponse]) — a distribution that does not cover exactly the
  *     declared option ids fails loudly right here;
  *  5. resolve the chosen candidate as the argmax over the parsed name-keyed distribution
  *     (ties break by option id — never by position, wire law vision 02 §2);
@@ -196,8 +196,8 @@ class ReplayRunner(
 
     /** Parses the recorded body with the production wire parser (same-module internal). */
     private fun parseRecordedResponse(body: String, question: ChoiceQuestion): ChoiceResult {
-        val answers = SystemOneClient.parseAnswers(body, evalConfig, mapOf(question.name to question))
-        val result = answers.getValue(question.name)
+        val response = SystemOneClient.parseResponse(body, evalConfig, mapOf(question.name to question))
+        val result = response.answers.getValue(question.name)
         return result as? ChoiceResult
             ?: throw WireProtocolException(
                 "recorded response carries a '${result::class.simpleName}' answer for " +
@@ -297,6 +297,7 @@ object RecordedResponse {
         val body = buildJsonObject {
             putJsonObject("answers") {
                 putJsonObject(PRIMARY_QUESTION_NAME) {
+                    put("type", "choice")
                     put("choice", goldId)
                     put("probabilities", buildJsonObject {
                         put(goldId, 0.5)
@@ -304,6 +305,13 @@ object RecordedResponse {
                     })
                     put("confidence", CONFIDENCE)
                 }
+            }
+            // The real envelope carries the call's usage (required by the wire parser);
+            // synthesized recordings use zeros — usage never feeds a replay outcome.
+            putJsonObject("usage") {
+                put("input_tokens", 0)
+                put("output_tokens", 0)
+                put("cost", 0.0)
             }
         }
         return body.toString()

@@ -15,9 +15,11 @@ without a device.
   with the failover tag and `scoreExpectedLevel` — the ART-5 numeric mapping computed in
   code, never taken from the model); law: `Project Vision/02` §1–§3
 * `src/main/kotlin/navigator/core/wire/` — `SystemOneClient` (the ONE wire client for the
-  `/v1/systemone`-family contract), `WireTransport` + `OkHttpWireTransport` (injectable
-  transport; only HTTP speaker in the repo), `EngineConfig` + `DefaultEngineConfigs`
-  (pinned base URLs/model IDs and API-key resolution); law: `Project Vision/02` §2, §5
+  systemone-family contract, in the REAL provider protocol — see Wire laws below),
+  `WireTransport` + `OkHttpWireTransport` (injectable transport; only HTTP speaker in the
+  repo), `EngineConfig` + `DefaultEngineConfigs` (pinned base URLs/model IDs and API-key
+  resolution), `LiveSmoke.kt` (the UAT 3.1 one-shot runner behind `:core:liveSmoke` — the
+  ONLY live-provider path in the build, real spend, owner-keyed); law: `Project Vision/02` §2, §5
 * `src/main/kotlin/navigator/core/fixtures/` — golden-fixture schemas (`A11yDump`,
   `WireTranscript` typed-canonical, `ProviderWireTranscript` provider-shape recordings)
   + strict loaders; law: `Implementation Plan/PHASE_00_infrastructure.md` §2.3,
@@ -61,7 +63,9 @@ without a device.
   law: `Project Vision/05` §1–§5, `Project Vision/02` §4–§5
 * `src/main/kotlin/navigator/core/StateFormat.kt` — `STATE_FORMAT_VERSION`
 * `src/test/resources/fixtures/` — golden fixtures (recorded a11y dumps + wire transcripts;
-  `transcripts/phase3/` holds provider-shape wire transcripts for Gates 3.1–3.3; the
+  `transcripts/phase3/` holds provider-shape wire transcripts for Gates 3.1–3.3, including
+  two LIVE GOLDENS (`live-*.json`, response bodies captured verbatim from the provider
+  2026-10-04, provenance in each file's `note`); the
   `a11y-dumps/adv-*.json` trees are the adversarial fixtures — injected instruction-like
   page text, vision 07 §2)
 * `src/test/resources/eval/` — Tier A replay inputs, reviewable data (NOT fixtures):
@@ -95,13 +99,23 @@ without a device.
 * Probability maps are name/id-keyed, never positional (vision 02 §2); callers branch on
   bands (`band()`), never on exact probability values
 * `ScoreQuestion` enforces 2–10 rubric levels; `ChoiceQuestion` enforces 1–255 options (vision 02 §3)
-* Wire laws (vision 02 §2, Phase 3): request `POST {baseUrl}` Bearer-auth JSON
-  `{state, model, questions{name: shape}}`; answers indexed by question NAME, never
-  position; retries only on transport errors (≤2, exponential backoff), never on content —
-  any HTTP status (4xx/5xx) and any malformed 200 fail loudly with no retry and no
-  failover; failover is exactly one hop (primary → fallback-1), tagged `usedFallback=true`;
-  unknown provider FIELDS are ignored, but required fields, unknown question names, and
-  distribution keys outside the declared names (option ids / "1".."N") are loud errors
+* Wire laws (vision 02 §2, Phase 3; shapes = the REAL provider protocol, live-verified
+  2026-10-04, evidence `.tools/live-smoke-*.json`): request `POST {baseUrl}` Bearer-auth
+  JSON `{state, model, questions{name: {type, instructions, criteria|proposition}}}` —
+  choice `criteria` is a RECORD keyed by `Option.id` (ids are the wire keys; duplicates
+  fail loudly), score `criteria` is an ORDERED ARRAY of level descriptions; every question
+  carries a required `instructions` string from the client's versioned constants
+  (`PROMPT_VERSION`, changes fail Gate 3.1 via fixture bytes). Answers are indexed by
+  question NAME, carry a `type` discriminator that must match the question (mismatch
+  loud), and the envelope requires `usage {input_tokens, output_tokens, cost}` (returned
+  as `Usage` for TaskBudget). Score responses: probabilities keyed "0".."N-1" (0-based)
+  plus a `legend` that must equal the declared rubric exactly — converted to internal
+  1-based ordinals; the provider's `score` echo is ignored (ART-5). Retries only on
+  transport errors (≤2, exponential backoff), never on content — any HTTP status
+  (4xx/5xx) and any malformed 200 fail loudly with no retry and no failover; failover is
+  exactly one hop (primary → fallback-1), tagged `usedFallback=true`; unknown provider
+  FIELDS are ignored, but required fields, unknown question names, and distribution keys
+  outside the declared names (option ids / "0".."N-1") are loud errors
 * API keys never live in this repo: constructor, env (`NAVIGATOR_OPENROUTER_KEY` /
   `NAVIGATOR_RUNWARE_KEY`), or a git-ignored keys file (`.tools/keys.env`, `KEY=value`);
   `EngineConfig.toString` redacts the key and nothing logs it
@@ -140,13 +154,18 @@ without a device.
 
 * `./gradlew :core:test` — banding boundaries, type serialization round-trips, fixture
   accept/reject tests, enumeration determinism + taxonomy gates (2.1), tokenizer reference
-  vectors (2.2), state-text law (2.3), the wire gates (3.1 transcript round-trips,
-  3.2 failover + retry law, 3.3 name-indexing + banding — all MockWebServer-only), the
+  vectors (2.2), state-text law (2.3), the wire gates (3.1 transcript round-trips incl.
+  the live goldens, 3.2 failover + retry law, 3.3 name-indexing + banding — all keyless;
+  real request bytes/statuses via MockWebServer, transport-failure simulations
+  deterministic via the in-memory `CountingWireTransport`, never a live provider), the
   risk-gate gates (4.1 classifier matrix vs `gate/classifier-matrix.json`, 4.2 trust
   state machine, 4.3 adversarial injection fixtures), and the DecisionLog gates
   (5.1 schema round-trip + byte-stable `log/goldens/` snapshots, 5.2 RLCD export vs a
   strict finetune-row validator + mixed-teacher manifest, 5.3 agreement math with
   hand-computed KL values) must all pass
+* `./gradlew :core:liveSmoke` — UAT 3.1 only: TWO live provider calls through the
+  production client (choice+noul, score); needs the owner key (env `NAVIGATOR_OPENROUTER_KEY`
+  or git-ignored `.tools/keys.env`), costs ~$0.00005, never run by a gate
 * `./gradlew :core:dependencies --configuration runtimeClasspath` must show no Android artifacts
 * `./gradlew :core:test --tests "navigator.core.eval.*"` — the Tier A gates (7.1 golden
   replay vs `eval/replay-expectations.json` + byte-identical consecutive runs + committed

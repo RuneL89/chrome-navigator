@@ -18,17 +18,20 @@
     "questions": {
       "recovery-strategy": {
         "type": "choice",
-        "options": [
-          { "id": "reload-page", "label": "Reload the page", "description": "Retry loading the same watch page once more" },
-          { "id": "go-back", "label": "Go back to the playlist", "description": "Return to the playlist and pick the video again" }
-        ]
+        "instructions": "Choose the one option that best advances the goal given in the state. Answer with the chosen option key, the full probability distribution over all offered option keys, and your confidence.",
+        "criteria": {
+          "reload-page": "Retry loading the same watch page once more",
+          "go-back": "Return to the playlist and pick the video again"
+        }
       }
     }
   },
   "responseBody": {
     "region": "eu",
+    "usage": { "input_tokens": 288, "output_tokens": 61, "cost": 0.0000152 },
     "answers": {
       "recovery-strategy": {
+        "type": "choice",
         "choice": "go-back",
         "probabilities": {
           "go-back": 0.88,

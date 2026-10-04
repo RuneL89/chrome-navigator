@@ -1,0 +1,92 @@
+{
+  "engine": "jev",
+  "model": "typesafe/jev-1.13-20260917",
+  "state": "STATE_FORMAT_VERSION=1\nGOAL: find a recipe for apple pie\nPAGE: allrecipes.com — search results for 'apple pie' (recipe list, page 1)\nCANDIDATES:\n1. n3 Apple Pie From a Brown Paper Bag — 'Apple Pie From a Brown Paper Bag' (link)\n2. n7 Classic Apple Pie — 'Classic Apple Pie' (link)\n3. n9 Jump to Recipe — 'Jump to Recipe' (link)\n4. scroll-down — 'Scroll down for more results' (scroll)\n5. back — 'Back to the previous page' (back)\n6. finish — 'Declare the goal achieved' (finish)",
+  "questions": {
+    "next-action": {
+      "type": "choice",
+      "name": "next-action",
+      "options": [
+        { "id": "back", "label": "Go back", "description": "go back" },
+        { "id": "n3 Apple Pie From a Brown Paper Bag", "label": "Open 'Apple Pie From a Brown Paper Bag'", "description": "open the result 'Apple Pie From a Brown Paper Bag'" },
+        { "id": "n7 Classic Apple Pie", "label": "Open 'Classic Apple Pie'", "description": "open the result 'Classic Apple Pie'" },
+        { "id": "scroll-down", "label": "Scroll down", "description": "scroll the page" },
+        { "id": "finish", "label": "Finish", "description": "declare the goal achieved" },
+        { "id": "n9 Jump to Recipe", "label": "Jump to Recipe", "description": "jump straight to the recipe card" }
+      ]
+    },
+    "goal-achieved": {
+      "type": "noul",
+      "name": "goal-achieved",
+      "proposition": "The page currently shows the full apple pie recipe, so the goal 'find a recipe for apple pie' is achieved."
+    }
+  },
+  "requestBody": {
+    "state": "STATE_FORMAT_VERSION=1\nGOAL: find a recipe for apple pie\nPAGE: allrecipes.com — search results for 'apple pie' (recipe list, page 1)\nCANDIDATES:\n1. n3 Apple Pie From a Brown Paper Bag — 'Apple Pie From a Brown Paper Bag' (link)\n2. n7 Classic Apple Pie — 'Classic Apple Pie' (link)\n3. n9 Jump to Recipe — 'Jump to Recipe' (link)\n4. scroll-down — 'Scroll down for more results' (scroll)\n5. back — 'Back to the previous page' (back)\n6. finish — 'Declare the goal achieved' (finish)",
+    "model": "typesafe/jev-1.13-20260917",
+    "questions": {
+      "next-action": {
+        "type": "choice",
+        "instructions": "Choose the one option that best advances the goal given in the state. Answer with the chosen option key, the full probability distribution over all offered option keys, and your confidence.",
+        "criteria": {
+          "back": "go back",
+          "n3 Apple Pie From a Brown Paper Bag": "open the result 'Apple Pie From a Brown Paper Bag'",
+          "n7 Classic Apple Pie": "open the result 'Classic Apple Pie'",
+          "scroll-down": "scroll the page",
+          "finish": "declare the goal achieved",
+          "n9 Jump to Recipe": "jump straight to the recipe card"
+        }
+      },
+      "goal-achieved": {
+        "type": "noul",
+        "instructions": "Judge whether the proposition is true of the state. Answer with P(true), a single probability in [0,1].",
+        "proposition": "The page currently shows the full apple pie recipe, so the goal 'find a recipe for apple pie' is achieved."
+      }
+    }
+  },
+  "responseBody": {
+    "model": "typesafe/jev-1.13-20260917",
+    "answers": {
+      "next-action": {
+        "type": "choice",
+        "choice": "n9 Jump to Recipe",
+        "probabilities": {
+          "back": 0,
+          "n3 Apple Pie From a Brown Paper Bag": 0,
+          "n7 Classic Apple Pie": 0.04,
+          "scroll-down": 0.01,
+          "finish": 0,
+          "n9 Jump to Recipe": 0.95
+        },
+        "confidence": 0.93
+      },
+      "goal-achieved": {
+        "type": "noul",
+        "noul": 0.3
+      }
+    },
+    "usage": { "input_tokens": 515, "output_tokens": 100, "cost": 0.00002163 },
+    "id": "gen-dec-1791108861-5Njsl1brbhiBSFiraCre",
+    "provider": "TypeSafe"
+  },
+  "expectedResults": {
+    "next-action": {
+      "type": "choice",
+      "chosenId": "n9 Jump to Recipe",
+      "probabilities": {
+        "back": 0.0,
+        "n3 Apple Pie From a Brown Paper Bag": 0.0,
+        "n7 Classic Apple Pie": 0.04,
+        "scroll-down": 0.01,
+        "finish": 0.0,
+        "n9 Jump to Recipe": 0.95
+      },
+      "confidence": 0.93
+    },
+    "goal-achieved": {
+      "type": "noul",
+      "pTrue": 0.3
+    }
+  },
+  "note": "LIVE GOLDEN: response body captured verbatim from OpenRouter (typesafe/jev-1.13-20260917), HTTP 200 on 2026-10-04 — promoted from .tools/live-smoke-3.json (one combined choice+noul call). The request side is a faithful reconstruction (probe request bytes were not persisted); the response answers/usage/id/provider bytes are the provider's own."
+}

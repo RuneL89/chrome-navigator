@@ -19,10 +19,11 @@
     "questions": {
       "source-confidence": {
         "type": "score",
-        "levels": [
-          { "id": 1, "description": "not-confident — the snippet gives no signal about the source" },
-          { "id": 2, "description": "somewhat-confident — the snippet looks like a real recipe page" },
-          { "id": 3, "description": "confident — the snippet names the dish and promises a full recipe" }
+        "instructions": "Rate the state against the ordered rubric levels. Answer with a probability for every rubric level, in order, and your confidence.",
+        "criteria": [
+          "not-confident — the snippet gives no signal about the source",
+          "somewhat-confident — the snippet looks like a real recipe page",
+          "confident — the snippet names the dish and promises a full recipe"
         ]
       }
     }
@@ -30,14 +31,22 @@
   "responseBody": {
     "id": "resp_or_0009",
     "model_version": "jev-1.13",
+    "usage": { "input_tokens": 259, "output_tokens": 31, "cost": 0.0000126 },
     "answers": {
       "source-confidence": {
-        "level_probabilities": {
-          "1": 0.60,
-          "2": 0.30,
-          "3": 0.10
+        "type": "score",
+        "score": 1.5,
+        "legend": {
+          "0": "not-confident — the snippet gives no signal about the source",
+          "1": "somewhat-confident — the snippet looks like a real recipe page",
+          "2": "confident — the snippet names the dish and promises a full recipe"
         },
-        "score": 1.5
+        "probabilities": {
+          "0": 0.60,
+          "1": 0.30,
+          "2": 0.10
+        },
+        "confidence": 0.4
       }
     }
   },

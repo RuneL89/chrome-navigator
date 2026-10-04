@@ -19,7 +19,8 @@ import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** Shared plumbing for the Phase-3 wire gates (MockWebServer only — never a live provider). */
+/** Shared plumbing for the Phase-3 wire gates (MockWebServer or the in-memory
+ *  [CountingWireTransport] only — never a live provider). */
 internal object WireGateSupport {
 
     val transcriptsDir: Path = Path.of(

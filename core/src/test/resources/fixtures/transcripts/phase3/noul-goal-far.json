@@ -15,6 +15,7 @@
     "questions": {
       "goal-achieved": {
         "type": "noul",
+        "instructions": "Judge whether the proposition is true of the state. Answer with P(true), a single probability in [0,1].",
         "proposition": "The current page shows the workout video the task set out to play, so the goal is achieved."
       }
     }
@@ -22,8 +23,10 @@
   "responseBody": {
     "session": { "turns": 4 },
     "id": "resp_or_0007",
+    "usage": { "input_tokens": 244, "output_tokens": 35, "cost": 0.0000121 },
     "answers": {
       "goal-achieved": {
+        "type": "noul",
         "reasoning_ref": "tr-91",
         "noul": 0.07
       }

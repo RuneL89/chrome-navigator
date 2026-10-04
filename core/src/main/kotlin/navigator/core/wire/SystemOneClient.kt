@@ -20,36 +20,70 @@ import navigator.core.decision.TypedQuestion
 import navigator.core.decision.TypedResult
 import navigator.core.decision.scoreExpectedLevel
 
-/** A completed wire decision: parsed typed answers plus the failover tag (phase 3 §2.2). */
+/**
+ * Provider-reported cost of one wire call, parsed from the response envelope's `usage`
+ * object (real protocol, verified live: `.tools/live-smoke-3.json` / `-5.json`). Exposed
+ * for TaskBudget accounting (Phase-6 integration); [costUsd] is the provider-reported
+ * authoritative USD figure.
+ */
+data class Usage(
+    val inputTokens: Long,
+    val outputTokens: Long,
+    val costUsd: Double,
+)
+
+/** The parsed wire response: typed answers keyed by question NAME plus the call's [Usage]. */
+data class WireResponse(
+    val answers: Map<String, TypedResult>,
+    val usage: Usage,
+)
+
+/** A completed wire decision: parsed typed answers, usage, and the failover tag (phase 3 §2.2). */
 data class WireDecision(
     val answers: Map<String, TypedResult>,
+    val usage: Usage,
     val usedFallback: Boolean,
     val servedBy: EngineConfig,
 )
 
 /**
- * The one wire client for the `/v1/systemone`-family JSON contract (ART-2, vision 02 §2).
+ * The one wire client for the systemone-family JSON contract (ART-2, vision 02 §2).
  * Every cloud engine is a config of this client; nothing else in the codebase speaks to a
  * provider. This is also what Phase 8 wraps (shadow) and Phase 10 contrasts.
  *
- * Request: `POST {baseUrl}` with `Authorization: Bearer {key}` and JSON body
- * `{"state": ..., "model": <pinned id>, "questions": {"<name>": {<typed shape>}}}`.
- * Question shapes (researched provider contract):
- *  - `choice`: `{"type":"choice","options":[{"id","label","description"}]}`
- *  - `noul`: `{"type":"noul","proposition":"..."}`
- *  - `score`: `{"type":"score","levels":[{"id":<1-based ordinal>,"description":"..."}]}`
- *    (rubric levels are ordinal; wire ids are their 1-based declared order, ART-5/ART-6).
+ * The shapes below are the REAL provider protocol, reconciled live (HTTP 200 evidence:
+ * `.tools/live-smoke-3.json` choice+noul, `.tools/live-smoke-5.json` score; the rejected
+ * hand-crafted shapes are recorded in `live-smoke-1/2/4.json` as 400 schema errors).
  *
- * Response: JSON whose required `answers` object maps question NAME to answer body —
+ * Request: `POST {baseUrl}` with `Authorization: Bearer {key}` and JSON body
+ * `{"state": ..., "model": <pinned id>, "questions": {"<name>": {<typed shape>}}}`:
+ *  - `choice`: `{"type":"choice","instructions":"<string>","criteria":{"<option-id>":"<description>"}}`
+ *    — `criteria` is a RECORD keyed by the option ids (our ids are unique names; the
+ *    name-keyed law then maps answers straight back to options). Duplicate ids are a loud
+ *    construction error.
+ *  - `noul`: `{"type":"noul","instructions":"<string>","proposition":"..."}`
+ *  - `score`: `{"type":"score","instructions":"<string>","criteria":["<level-0>","<level-1>",...]}`
+ *    — `criteria` is an ARRAY of the declared rubric levels, in order (the order is the
+ *    wire name space, ART-6; ART-5: any numeric mapping is computed in `:core`).
+ * `instructions` is a required per-question string; the client supplies versioned default
+ * constants ([PROMPT_VERSION], [CHOICE_INSTRUCTIONS], [NOUL_INSTRUCTIONS],
+ * [SCORE_INSTRUCTIONS]) — the prompt surface is owned here, not by callers.
+ *
+ * Response: `{"model", "answers": {"<name>": <answer>}, "usage": {"input_tokens",
+ * "output_tokens", "cost"}, "id", "provider"}`. `answers` is keyed by question NAME —
  * key order shifts between calls, so answers are always indexed by name, never position.
- *  - choice: `{"choice":"<option-id>","probabilities":{...},"confidence":0.xx}`
- *  - noul: `{"noul":0.xx}` (no separate confidence — uncertain band means "don't know")
- *  - score: `{"score":<float>,"level_probabilities":{"1":0.xx,...}}` — the provider's
- *    `score` echo is IGNORED: the expected value is computed in `:core` code
+ *  - choice: `{"type":"choice","choice":"<option-id>","probabilities":{...},"confidence":0.xx}`
+ *  - noul: `{"type":"noul","noul":0.xx}` (no confidence — uncertain band means "don't know")
+ *  - score: `{"type":"score","score":<float>,"legend":{"0":"<level-0>",...},
+ *    "probabilities":{"0":0.xx,...},"confidence":0.xx}` — distribution keys are 0-BASED
+ *    indices; `legend` maps each index back to the level string. The parser checks the
+ *    legend against the declared rubric and converts to 1-based ordinals internally. The
+ *    provider's `score` float is IGNORED: the expected value is computed in `:core` code
  *    ([scoreExpectedLevel], ART-5), never taken from the model.
  *
  * Field law: providers may add unknown FIELDS (extra answer/top-level fields are ignored);
  * the client REQUIRES the fields it uses — a missing question name, missing answer field,
+ * a wrong answer `type` discriminator, a legend that disagrees with the declared rubric,
  * or a distribution key outside the declared names is a loud [WireProtocolException],
  * never a default.
  *
@@ -125,8 +159,8 @@ class SystemOneClient(
                             "— not retried, not failed over (wire law). Body: ${response.body.take(200)}",
                     )
                 }
-                val answers = parseAnswers(response.body, config, questions)
-                return WireDecision(answers, usedFallback, config)
+                val parsed = parseResponse(response.body, config, questions)
+                return WireDecision(parsed.answers, parsed.usage, usedFallback, config)
             } catch (e: WireTransportException) {
                 if (attempt >= maxRetries) throw e
                 val delayMs = backoffBaseMs shl attempt
@@ -139,6 +173,23 @@ class SystemOneClient(
     companion object {
         const val MAX_RETRIES = 2
         const val DEFAULT_BACKOFF_BASE_MS = 200L
+
+        /**
+         * Version of the default `instructions` surface below. Bump on any wording change
+         * (the prompt text is part of the wire contract the fixtures record verbatim).
+         */
+        const val PROMPT_VERSION = "jev-instructions-1"
+
+        const val CHOICE_INSTRUCTIONS =
+            "Choose the one option that best advances the goal given in the state. " +
+                "Answer with the chosen option key, the full probability distribution over " +
+                "all offered option keys, and your confidence."
+        const val NOUL_INSTRUCTIONS =
+            "Judge whether the proposition is true of the state. " +
+                "Answer with P(true), a single probability in [0,1]."
+        const val SCORE_INSTRUCTIONS =
+            "Rate the state against the ordered rubric levels. " +
+                "Answer with a probability for every rubric level, in order, and your confidence."
 
         private val json = Json { ignoreUnknownKeys = true }
 
@@ -156,56 +207,68 @@ class SystemOneClient(
         }
 
         internal fun questionJson(question: TypedQuestion): JsonObject = when (question) {
-            is ChoiceQuestion -> buildJsonObject {
-                put("type", "choice")
-                put("options", buildJsonArray {
-                    question.options.forEach { option ->
-                        add(buildJsonObject {
-                            put("id", option.id)
-                            put("label", option.label)
-                            put("description", option.description)
-                        })
-                    }
-                })
+            is ChoiceQuestion -> {
+                // The criteria record is keyed by option id — ids ARE the wire names, so
+                // duplicates would silently collapse keys. Fail loudly here too (the typed
+                // question already enforces this; the wire boundary repeats it).
+                val ids = question.options.map { it.id }
+                require(ids.size == ids.toSet().size) {
+                    "choice question '${question.name}': option ids are wire keys and must be " +
+                        "unique (name-keyed law): ${ids.groupBy { it }.filterValues { it.size > 1 }.keys}"
+                }
+                buildJsonObject {
+                    put("type", "choice")
+                    put("instructions", CHOICE_INSTRUCTIONS)
+                    put("criteria", buildJsonObject {
+                        question.options.forEach { put(it.id, it.description) }
+                    })
+                }
             }
 
             is NoulQuestion -> buildJsonObject {
                 put("type", "noul")
+                put("instructions", NOUL_INSTRUCTIONS)
                 put("proposition", question.proposition)
             }
 
             is ScoreQuestion -> buildJsonObject {
                 put("type", "score")
-                put("levels", buildJsonArray {
-                    question.levels.forEachIndexed { index, level ->
-                        // Wire id = 1-based ordinal of the declared rubric order (ART-6);
-                        // the typed ScoreLevel.id stays internal (ordinal is the wire name).
-                        add(buildJsonObject {
-                            put("id", index + 1)
-                            put("description", level.description)
-                        })
-                    }
+                put("instructions", SCORE_INSTRUCTIONS)
+                // Ordered level array: declared rubric order is the wire name space
+                // (ART-6); the typed ScoreLevel.id stays internal.
+                put("criteria", buildJsonArray {
+                    question.levels.forEach { level -> add(level.description) }
                 })
             }
         }
 
         /**
-         * Parses `answers` by question NAME — the interpretation of each answer body comes
-         * from the question asked under that name (provider answer bodies carry no type
-         * discriminator). Unknown question names, missing answers, and missing/invalid
-         * required fields fail loudly.
+         * Parses the response envelope: `answers` by question NAME plus the call `usage`.
+         * The interpretation of each answer body comes from the question asked under that
+         * name, cross-checked against the body's `type` discriminator. Unknown question
+         * names, missing answers, and missing/invalid required fields fail loudly.
          */
-        internal fun parseAnswers(
+        internal fun parseResponse(
             responseBody: String,
             config: EngineConfig,
             questions: Map<String, TypedQuestion>,
-        ): Map<String, TypedResult> {
+        ): WireResponse {
             val root = parseJsonObject(responseBody, "response body from ${config.baseUrl}")
             val answers = root["answers"] as? JsonObject
                 ?: throw WireProtocolException(
                     "response from ${config.baseUrl} is missing the required 'answers' object " +
                         "(answers are keyed by question name); top-level keys were ${root.keys}",
                 )
+            val usageObject = root["usage"] as? JsonObject
+                ?: throw WireProtocolException(
+                    "response from ${config.baseUrl} is missing the required 'usage' object " +
+                        "({input_tokens, output_tokens, cost}); top-level keys were ${root.keys}",
+                )
+            val usage = Usage(
+                inputTokens = intValue(usageObject, "input_tokens", "response usage"),
+                outputTokens = intValue(usageObject, "output_tokens", "response usage"),
+                costUsd = numberValue(usageObject, "cost", "response usage"),
+            )
             val parsed = LinkedHashMap<String, TypedResult>()
             for ((name, question) in questions) {
                 val answer = answers[name] as? JsonObject
@@ -222,11 +285,25 @@ class SystemOneClient(
                         "${questions.keys} (name-keyed law: loud error, never a default)",
                 )
             }
-            return parsed
+            return WireResponse(parsed, usage)
         }
 
-        private fun parseAnswer(name: String, question: TypedQuestion, answer: JsonObject): TypedResult =
-            when (question) {
+        private fun parseAnswer(name: String, question: TypedQuestion, answer: JsonObject): TypedResult {
+            // The provider tags every answer body with a type discriminator; an answer
+            // that does not match the question asked under this name is malformed content.
+            val expectedType = when (question) {
+                is ChoiceQuestion -> "choice"
+                is NoulQuestion -> "noul"
+                is ScoreQuestion -> "score"
+            }
+            val declaredType = stringValue(answer, "type", "answer '$name'")
+            if (declaredType != expectedType) {
+                throw WireProtocolException(
+                    "answer '$name' declares type '$declaredType' but the question asked under " +
+                        "that name is a '$expectedType' — mismatched discriminator is a loud error",
+                )
+            }
+            return when (question) {
                 is ChoiceQuestion -> {
                     val optionIds = question.options.map { it.id }
                     val chosen = stringValue(answer, "choice", "choice answer '$name'")
@@ -246,16 +323,44 @@ class SystemOneClient(
                 is NoulQuestion -> NoulResult(probability(answer, "noul", "noul answer '$name'"))
 
                 is ScoreQuestion -> {
-                    val ordinals = (1..question.levels.size).map { it.toString() }
+                    // Wire keys are 0-based indices ("0".."N-1"); legend maps each index
+                    // back to the level string it was declared as.
+                    val indices = question.levels.indices.map { it.toString() }
+                    val legend = answer["legend"] as? JsonObject
+                        ?: throw WireProtocolException(
+                            "score answer '$name': missing required field 'legend' (index -> " +
+                                "level string) — loud failure, never a default (wire law)",
+                        )
+                    val extraLegend = legend.keys - indices.toSet()
+                    if (extraLegend.isNotEmpty()) {
+                        throw WireProtocolException(
+                            "score answer '$name': 'legend' has entries outside the declared " +
+                                "indices $indices: $extraLegend (distributions are exact and " +
+                                "name-keyed — loud failure)",
+                        )
+                    }
+                    for (index in question.levels.indices) {
+                        val level = stringValue(legend, index.toString(), "score answer '$name'.legend")
+                        if (level != question.levels[index].description) {
+                            throw WireProtocolException(
+                                "score answer '$name': legend entry $index is '$level' but the " +
+                                    "declared rubric level is '${question.levels[index].description}' " +
+                                    "— the provider answered a different rubric (loud error, never remapped)",
+                            )
+                        }
+                    }
                     val distribution = distribution(
-                        answer, "level_probabilities", "score answer '$name'", ordinals,
+                        answer, "probabilities", "score answer '$name'", indices,
                     )
-                    // ART-5: the numeric mapping (expected value over levels) is computed in
-                    // :core code — the provider's "score" echo, if present, is ignored.
-                    val levelProbabilities = distribution.entries.associate { (k, v) -> k.toInt() to v }
+                    // Convert 0-based wire indices to the 1-based internal ordinals, then
+                    // ART-5: the expected value is computed in :core code — the provider's
+                    // "score" echo, if present, is ignored.
+                    val levelProbabilities =
+                        distribution.entries.associate { (k, v) -> (k.toInt() + 1) to v }
                     ScoreResult(scoreExpectedLevel(levelProbabilities), levelProbabilities)
                 }
             }
+        }
 
         private fun parseJsonObject(text: String, what: String): JsonObject = try {
             json.parseToJsonElement(text).jsonObject
@@ -271,6 +376,12 @@ class SystemOneClient(
                     "$what: missing required field '$key' — loud failure, never a default (wire law)",
                 )
             return primitive.content
+        }
+
+        private fun intValue(o: JsonObject, key: String, what: String): Long {
+            val value = numberValue(o, key, what)
+            if (value % 1.0 != 0.0) throw WireProtocolException("$what: field '$key' must be an integer, got $value")
+            return value.toLong()
         }
 
         private fun probability(o: JsonObject, key: String, what: String): Double {
@@ -290,8 +401,9 @@ class SystemOneClient(
 
         /**
          * A distribution must cover EXACTLY the declared names (choice: option ids; score:
-         * "1".."N") — keyed by name, complete, each value in [0,1]. Unknown keys and values
-         * for names we did not declare are malformed content, not provider variance.
+         * 0-based indices "0".."N-1") — keyed by name, complete, each value in [0,1].
+         * Unknown keys and values for names we did not declare are malformed content, not
+         * provider variance.
          */
         private fun distribution(
             o: JsonObject,

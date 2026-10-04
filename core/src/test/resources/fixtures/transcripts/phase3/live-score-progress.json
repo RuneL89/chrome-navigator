@@ -1,0 +1,71 @@
+{
+  "engine": "jev",
+  "model": "typesafe/jev-1.13-20260917",
+  "state": "STATE_FORMAT_VERSION=1\nGOAL: find a recipe for apple pie\nPAGE: sallysbakingaddiction.com — recipe page opened, ingredient list being read\nCANDIDATES:\n1. ingredients-list — 'Ingredients' (heading)\n2. print-recipe — 'Print recipe' (button)",
+  "questions": {
+    "progress": {
+      "type": "score",
+      "name": "progress",
+      "levels": [
+        { "id": "not-started", "description": "not started" },
+        { "id": "browsing", "description": "browsing" },
+        { "id": "close", "description": "close" },
+        { "id": "done", "description": "done" }
+      ]
+    }
+  },
+  "requestBody": {
+    "state": "STATE_FORMAT_VERSION=1\nGOAL: find a recipe for apple pie\nPAGE: sallysbakingaddiction.com — recipe page opened, ingredient list being read\nCANDIDATES:\n1. ingredients-list — 'Ingredients' (heading)\n2. print-recipe — 'Print recipe' (button)",
+    "model": "typesafe/jev-1.13-20260917",
+    "questions": {
+      "progress": {
+        "type": "score",
+        "instructions": "Rate the state against the ordered rubric levels. Answer with a probability for every rubric level, in order, and your confidence.",
+        "criteria": [
+          "not started",
+          "browsing",
+          "close",
+          "done"
+        ]
+      }
+    }
+  },
+  "responseBody": {
+    "model": "typesafe/jev-1.13-20260917",
+    "answers": {
+      "progress": {
+        "type": "score",
+        "score": 1.2,
+        "legend": {
+          "0": "not started",
+          "1": "browsing",
+          "2": "close",
+          "3": "done"
+        },
+        "probabilities": {
+          "0": 0,
+          "1": 0.8,
+          "2": 0.2,
+          "3": 0
+        },
+        "confidence": 0.8
+      }
+    },
+    "usage": { "input_tokens": 340, "output_tokens": 17, "cost": 0.00001428 },
+    "id": "gen-dec-1791108893-Qw8BUoipn38VfBNQcGGt",
+    "provider": "TypeSafe"
+  },
+  "expectedResults": {
+    "progress": {
+      "type": "score",
+      "expectedLevel": 2.2,
+      "levelProbabilities": {
+        "1": 0.0,
+        "2": 0.8,
+        "3": 0.2,
+        "4": 0.0
+      }
+    }
+  },
+  "note": "LIVE GOLDEN: response body captured verbatim from OpenRouter (typesafe/jev-1.13-20260917), HTTP 200 on 2026-10-04 — promoted from .tools/live-smoke-5.json (one score call). The provider's 0-based probability indices {0..3} map to internal 1-based ordinals {1..4}; its 'score' echo 1.2 (a 0-based expected value) disagrees with the ART-5 code-computed 2.2 (1-based) and is correctly ignored."
+}

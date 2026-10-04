@@ -19,18 +19,21 @@
     "questions": {
       "consent-choice": {
         "type": "choice",
-        "options": [
-          { "id": "accept-all", "label": "Accept all cookies", "description": "Grant all cookie consents and dismiss the dialog" },
-          { "id": "essential-only", "label": "Only essential cookies", "description": "Reject optional cookies and dismiss the dialog" },
-          { "id": "open-settings", "label": "Open cookie settings", "description": "Open the per-category consent settings" }
-        ]
+        "instructions": "Choose the one option that best advances the goal given in the state. Answer with the chosen option key, the full probability distribution over all offered option keys, and your confidence.",
+        "criteria": {
+          "accept-all": "Grant all cookie consents and dismiss the dialog",
+          "essential-only": "Reject optional cookies and dismiss the dialog",
+          "open-settings": "Open the per-category consent settings"
+        }
       }
     }
   },
   "responseBody": {
     "id": "resp_or_0003",
+    "usage": { "input_tokens": 331, "output_tokens": 76, "cost": 0.0000194 },
     "answers": {
       "consent-choice": {
+        "type": "choice",
         "choice": "essential-only",
         "probabilities": {
           "open-settings": 0.15,

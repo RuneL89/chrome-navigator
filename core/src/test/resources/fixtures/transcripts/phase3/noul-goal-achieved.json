@@ -15,14 +15,17 @@
     "questions": {
       "goal-achieved": {
         "type": "noul",
+        "instructions": "Judge whether the proposition is true of the state. Answer with P(true), a single probability in [0,1].",
         "proposition": "The page currently shows a complete apple pie recipe with ingredients and steps, so the goal 'find a recipe for apple pie' is achieved."
       }
     }
   },
   "responseBody": {
     "id": "resp_or_0005",
+    "usage": { "input_tokens": 297, "output_tokens": 42, "cost": 0.0000139 },
     "answers": {
       "goal-achieved": {
+        "type": "noul",
         "noul": 0.93,
         "calibration": "high"
       }

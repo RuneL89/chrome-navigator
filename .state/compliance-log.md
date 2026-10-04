@@ -345,3 +345,37 @@ a new dated entry. Format per `Implementation Plan/MASTER_IMPLEMENTATION_PROMPT.
     - Design question logged for owner: multi-second shadow latency vs insert-once rows -> many shadowMiss; possible future vision amendment (companion shadow-result rows). NOT changed now (current behavior lawful).
   Result: COMPLIANT — Phase 8 accepted-partial (PHASE 8 VERIFIED 8.1-8.3 + 8.4 pass-with-caveat)
   Checked By: canon-verifier (cold check incl. binary-level quantization verification) + Main agent (orchestrator close-out repair)
+
+[2026-10-04] Phase 3 Live-Reconciliation Compliance Check (wire-shape repair)
+  Changed: core wire/SystemOneClient.kt (real request/response protocol: choice criteria RECORD keyed by Option.id, score criteria ordered ARRAY, required per-primitive instructions constants versioned PROMPT_VERSION, answer type-discriminator check, score legend + 0-based-index probabilities -> 1-based internal, required envelope usage -> Usage on WireDecision/parseResponse), core fixtures/ProviderWireTranscript.kt (additive provenance note), core eval/ReplayRunner.kt + ReplayInputs.kt (synthesized envelope usage + parseResponse rename), core build.gradle.kts (:core:liveSmoke task), core wire/LiveSmoke.kt (UAT 3.1 runner), 11 phase3 transcripts converted + 2 LIVE GOLDENS promoted verbatim from .tools/live-smoke-3/5.json (mechanically verified), wire tests (+2 loud tests: legend mismatch, discriminator mismatch), .state/phase-3-status.json
+  Vision Docs Checked: 02 s1 (ART-2 single gateway — only SystemOneClient/WireTransport build provider HTTP; liveSmoke goes through the production client), 02 s2 (wire laws: name-keyed maps — preserved, our unique option ids ARE the provider keys; banding downstream; noul no-confidence; retries transport-only <=2 + one-hop failover — unchanged and re-proven), 02 s3 (primitives: choice/noul/score I-O unchanged at the typed level), 02 s5 (pinning: model IDs still only in DefaultEngineConfigs, untouched)
+  Comparison:
+    - Contradiction candidate: the phase doc's recorded transcripts encoded the hand-crafted shape; the LIVE provider rejects that shape (400s in .tools/live-smoke-1/2/4.json) and accepts the repaired one (200s in -3/-5). Vision 02 s2 fixes the LAWS (name-keyed, banding, retry/failover), not the literal JSON field names; the reconciliation aligns the implementation with the verified real protocol WITHOUT weakening any law. COMPLIANT (recorded as a live-reconciliation deviation with evidence, per the orchestrator's live-reconciliation directive).
+    - Name-keyed law: choice answers/probabilities keyed by our option ids; score 0-based indices checked against the declared rubric via legend before conversion — order-independence re-proven (Gate 3.3, 5-seed shuffle). COMPLIANT.
+    - ART-5: provider score echo still ignored; expected value computed in code — now proven against a REAL capture (echo 1.2 = 0-based, code says 2.2 = 1-based). COMPLIANT.
+    - Retry/failover/4xx-5xx laws re-proven green (Gate 3.2, 6/6). COMPLIANT.
+    - Key law: keys only via env or git-ignored .tools/keys.env; liveSmoke prints the redacted config only. COMPLIANT.
+    - Tier A law: synthesized bodies updated for the required envelope; outcomes unchanged; committed .state/eval artifacts byte-stable (drift detector green in the full run). COMPLIANT.
+  Result: COMPLIANT — no contradictions; live UAT 3.1 executed through the production client per owner directive ($0.00004486 for 2 calls; phase total ~$0.00010 of $0.50)
+  Checked By: canon-implementer (self-check while closing; verifier cold-check pending)
+
+[2026-10-04] Phase 3 Verifier-Fix Round Compliance Check (flaky gate-3.2 harness + Windows file lock)
+  Changed: core wire test support CountingWireTransport.kt (NEW deterministic in-memory transport: no sockets, no timing, per-URL attempt counters), FailoverRetryLawTest.kt (4 transport-failure tests moved off the NO_RESPONSE + real-call-timeout harness onto CountingWireTransport; +1 connection-refused test proving the real OkHttp IOException -> WireTransportException mapping; 4xx/5xx/malformed-200 keep real MockWebServer), JevEngineTest.kt (failover test moved onto CountingWireTransport), WireGateSupport.kt KDoc, core/AGENTS.md verification line, .state/phase-3-status.json
+  Vision Docs Checked: 02 s2 (retry/failover law — the LAW is untouched; only the harness asserting it became deterministic), 02 s1 (ART-2 — no production code changed)
+  Comparison:
+    - Flake root cause: test-harness artifact, not a client defect — NO_RESPONSE + real callTimeout(250ms) + server-side requestCount oracle; under load a cancelled mid-backlog attempt is never dispatched and the counter undercounts (expected 3, was 2) while usedFallback=true proves the client made exactly 3 law-conform attempts. Client NOT modified (verifier directive: protocol code compliant, law stays as-is). COMPLIANT.
+    - New connection-refused test keeps the real-IOException mapping coverage the retired timed-socket harness incidentally provided. COMPLIANT.
+    - Windows R.jar lock: environmental; mitigation = './gradlew --stop' + ':app:clean' before the full run; recorded as a deviation. Not a law matter.
+    - No live calls made this round; spend ledger unchanged (~$0.00010 of $0.50). COMPLIANT.
+  Result: COMPLIANT — Gate 3.2 7/7 + JevEngineTest 5/5 (exit 0); 3 consecutive green full :core:test --rerun-tasks (exit 0 x3, 184 execs each); full ./gradlew test --rerun-tasks exit 0 (16m23s, 362 executions, 0 failures, no R.jar lock recurrence)
+  Checked By: canon-implementer (verifier-directed fixes; re-verification pending)
+
+[2026-10-04] Phase 3 wire-repair close-out (live reconciliation)
+  Changed: SystemOneClient rewritten to REAL protocol (criteria record/array, instructions w/ PROMPT_VERSION, legend+0-based score indices, required usage envelope, parseResponse rename); 13 real-shape transcripts incl. 2 live-captured goldens; Tier A synthesizer envelope (outcomes unchanged, artifacts byte-stable); deterministic CountingWireTransport test harness (flake fix — client innocent); LiveSmoke runner
+  Vision Docs Checked: 02 §1-§2, §5
+  Comparison:
+    - Real protocol details are EXTENSIONS specializing the generic state+questions contract, grounded in live 200/400 captures. COMPLIANT.
+    - All laws preserved (name-keying, retry/failover, ART-5, pinning, secrets). WIRE REPAIR VERIFIED (.state/phase-3-repair-verification.md).
+    - UAT 3.1 executed orchestrator-side per owner directive (live decisions sane; spend ~$0.0001 of $0.50); human acceptance open.
+  Result: COMPLIANT — wire repair accepted
+  Checked By: canon-verifier (cold) + Main agent (close-out evidence)

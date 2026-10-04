@@ -18,22 +18,30 @@
     "questions": {
       "page-quality": {
         "type": "score",
-        "levels": [
-          { "id": 1, "description": "low-quality — the page is broken or its content is missing" },
-          { "id": 2, "description": "high-quality — the page renders the recipe completely" }
+        "instructions": "Rate the state against the ordered rubric levels. Answer with a probability for every rubric level, in order, and your confidence.",
+        "criteria": [
+          "low-quality — the page is broken or its content is missing",
+          "high-quality — the page renders the recipe completely"
         ]
       }
     }
   },
   "responseBody": {
     "id": "resp_or_0010",
+    "usage": { "input_tokens": 251, "output_tokens": 29, "cost": 0.0000123 },
     "answers": {
       "page-quality": {
-        "level_probabilities": {
-          "2": 0.75,
-          "1": 0.25
-        },
+        "type": "score",
         "score": 1.75,
+        "legend": {
+          "0": "low-quality — the page is broken or its content is missing",
+          "1": "high-quality — the page renders the recipe completely"
+        },
+        "probabilities": {
+          "0": 0.25,
+          "1": 0.75
+        },
+        "confidence": 0.75,
         "rubric_size": 2
       }
     }

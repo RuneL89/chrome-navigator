@@ -50,3 +50,16 @@ val generateTierAReport by tasks.registering(JavaExec::class) {
             (project.findProperty("evalArgs")?.toString()?.split(' ')?.filter { it.isNotBlank() } ?: emptyList())
     })
 }
+
+// UAT 3.1 (Phase 3): the ONE live-provider path in the build — two real calls through the
+// production SystemOneClient. Every gate runs keyless on MockWebServer; only this task
+// touches a provider. Needs the owner key (env NAVIGATOR_OPENROUTER_KEY or the git-ignored
+// .tools/keys.env); costs ~$0.00005 at the measured ~$0.00002/call.
+val liveSmoke by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "UAT 3.1: two live provider calls through SystemOneClient (choice+noul, score); " +
+        "prints decisions, distributions, usage and latency. Requires the owner key; real spend."
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass = "navigator.core.wire.LiveSmokeKt"
+    workingDir = rootDir // DefaultEngineConfigs resolves .tools/keys.env from the repo root
+}

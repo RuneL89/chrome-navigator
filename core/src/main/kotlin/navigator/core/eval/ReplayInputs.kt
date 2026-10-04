@@ -21,7 +21,7 @@ import java.nio.file.Path
  * every dump with a **deterministically synthesized recorded response**: the pairing
  * records the owner-chosen gold decision (chosen node id + action kind) and the runner
  * synthesizes the name-keyed provider response for it, then re-parses that response
- * through the REAL wire parser ([navigator.core.wire.SystemOneClient.parseAnswers]) —
+ * through the REAL wire parser ([navigator.core.wire.SystemOneClient.parseResponse]) —
  * so the replay exercises state build, question form, wire parse, and gate classify
  * exactly as production does. This is the documented deviation from "replay the phase-3
  * transcripts verbatim"; the pairings themselves are reviewable data, and expectation

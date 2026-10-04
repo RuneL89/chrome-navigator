@@ -3,7 +3,10 @@ package navigator.core.wire
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.double
+import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import navigator.core.fixtures.ProviderWireTranscript
 import okhttp3.mockwebserver.MockWebServer
@@ -75,6 +78,18 @@ class SystemOneClientTranscriptTest {
                         expected, decision.answers.getValue(qName), "$name/$qName",
                     )
                 }
+                // The real envelope's usage ({input_tokens, output_tokens, cost}) must be
+                // parsed through to the decision (TaskBudget raw material).
+                val usage = fixture.responseBody.getValue("usage").jsonObject
+                assertEquals(
+                    Usage(
+                        inputTokens = usage.getValue("input_tokens").jsonPrimitive.int.toLong(),
+                        outputTokens = usage.getValue("output_tokens").jsonPrimitive.int.toLong(),
+                        costUsd = usage.getValue("cost").jsonPrimitive.double,
+                    ),
+                    decision.usage,
+                    "usage: $name",
+                )
             }
         }
     }
@@ -176,6 +191,66 @@ class SystemOneClientTranscriptTest {
                 e.message!!.contains("phantom-option"),
                 "error must name the undeclared distribution key: ${e.message}",
             )
+        }
+    }
+
+    @Test
+    fun `gate 3_1 - a score legend that disagrees with the declared rubric fails loudly`() {
+        // Real-protocol law: the provider's legend must map each 0-based index back to the
+        // exact declared level string; a foreign rubric is never silently remapped.
+        val fixture = WireGateSupport.loadTranscript("score-quality-2.json")
+        val answers = fixture.responseBody.getValue("answers").jsonObject
+        val doctoredAnswers = answers.mapValues { (name, body) ->
+            if (name != "page-quality") return@mapValues body
+            val answer = body.jsonObject
+            val foreignLegend = JsonObject(
+                answer.getValue("legend").jsonObject.entries.associate { (index, level) ->
+                    index to Json.parseToJsonElement("\"" + level.jsonPrimitive.content + "-FOREIGN\"")
+                },
+            )
+            JsonObject(answer + ("legend" to foreignLegend))
+        }
+        val doctored = JsonObject(
+            fixture.responseBody + ("answers" to JsonObject(doctoredAnswers)),
+        )
+        MockWebServer().use { server ->
+            server.start()
+            server.enqueue(WireGateSupport.successResponse(doctored))
+            val client = SystemOneClient(
+                WireGateSupport.testTransport(),
+                WireGateSupport.config(server, fixture.model),
+            )
+            val e = assertFailsWith<WireProtocolException> { WireGateSupport.decide(client, fixture) }
+            assertTrue(
+                e.message!!.contains("legend") && e.message!!.contains("different rubric"),
+                "error must name the legend mismatch: ${e.message}",
+            )
+            assertEquals(1, server.requestCount, "content errors are never retried")
+        }
+    }
+
+    @Test
+    fun `gate 3_1 - an answer whose type discriminator mismatches the question fails loudly`() {
+        val fixture = WireGateSupport.loadTranscript("noul-goal-achieved.json")
+        val doctored = withAnswers(fixture) { answers ->
+            answers.mapValues { (name, body) ->
+                if (name != "goal-achieved") return@mapValues body
+                JsonObject(body.jsonObject + ("type" to Json.parseToJsonElement("\"choice\"")))
+            }
+        }
+        MockWebServer().use { server ->
+            server.start()
+            server.enqueue(WireGateSupport.successResponse(doctored))
+            val client = SystemOneClient(
+                WireGateSupport.testTransport(),
+                WireGateSupport.config(server, fixture.model),
+            )
+            val e = assertFailsWith<WireProtocolException> { WireGateSupport.decide(client, fixture) }
+            assertTrue(
+                e.message!!.contains("mismatched discriminator") && e.message!!.contains("goal-achieved"),
+                "error must name the discriminator mismatch: ${e.message}",
+            )
+            assertEquals(1, server.requestCount, "content errors are never retried")
         }
     }
 

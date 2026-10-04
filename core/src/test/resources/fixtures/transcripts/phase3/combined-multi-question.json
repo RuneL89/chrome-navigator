@@ -32,41 +32,54 @@
     "questions": {
       "next-action": {
         "type": "choice",
-        "options": [
-          { "id": "open-recipe", "label": "Open the recipe card", "description": "Open the full apple pie recipe card" },
-          { "id": "back-to-results", "label": "Back to results", "description": "Return to the search result list" }
-        ]
+        "instructions": "Choose the one option that best advances the goal given in the state. Answer with the chosen option key, the full probability distribution over all offered option keys, and your confidence.",
+        "criteria": {
+          "open-recipe": "Open the full apple pie recipe card",
+          "back-to-results": "Return to the search result list"
+        }
       },
       "goal-achieved": {
         "type": "noul",
+        "instructions": "Judge whether the proposition is true of the state. Answer with P(true), a single probability in [0,1].",
         "proposition": "The page currently shows a complete apple pie recipe, so the goal 'find a recipe for apple pie' is achieved."
       },
       "result-relevance": {
         "type": "score",
-        "levels": [
-          { "id": 1, "description": "irrelevant — not an apple pie recipe" },
-          { "id": 2, "description": "related — an apple dessert but not a pie recipe" },
-          { "id": 3, "description": "exact-match — the apple pie recipe itself" }
+        "instructions": "Rate the state against the ordered rubric levels. Answer with a probability for every rubric level, in order, and your confidence.",
+        "criteria": [
+          "irrelevant — not an apple pie recipe",
+          "related — an apple dessert but not a pie recipe",
+          "exact-match — the apple pie recipe itself"
         ]
       }
     }
   },
   "responseBody": {
     "id": "resp_or_0011",
+    "usage": { "input_tokens": 688, "output_tokens": 151, "cost": 0.0000332 },
     "answers": {
       "goal-achieved": {
+        "type": "noul",
         "noul": 0.71,
         "calibration": "medium"
       },
       "result-relevance": {
-        "level_probabilities": {
-          "3": 0.5,
-          "1": 0.2,
-          "2": 0.3
+        "type": "score",
+        "score": 2.3,
+        "legend": {
+          "0": "irrelevant — not an apple pie recipe",
+          "1": "related — an apple dessert but not a pie recipe",
+          "2": "exact-match — the apple pie recipe itself"
         },
-        "score": 2.3
+        "probabilities": {
+          "0": 0.2,
+          "1": 0.3,
+          "2": 0.5
+        },
+        "confidence": 0.7
       },
       "next-action": {
+        "type": "choice",
         "choice": "open-recipe",
         "probabilities": {
           "back-to-results": 0.13,
@@ -75,8 +88,7 @@
         "confidence": 0.81,
         "why": "the recipe card link is the goal itself"
       }
-    },
-    "usage": { "input_tokens": 688, "output_tokens": 151 }
+    }
   },
   "expectedResults": {
     "next-action": {

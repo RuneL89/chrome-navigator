@@ -1,5 +1,7 @@
 package navigator.core.decision
 
+import navigator.core.wire.CountingWireTransport
+import navigator.core.wire.EngineConfig
 import navigator.core.wire.SystemOneClient
 import navigator.core.wire.WireGateSupport
 import navigator.core.wire.WireGateSupport.assertTypedResultEquals
@@ -7,12 +9,10 @@ import navigator.core.wire.WireGateSupport.config
 import navigator.core.wire.WireGateSupport.loadTranscript
 import navigator.core.wire.WireGateSupport.successResponse
 import navigator.core.wire.WireGateSupport.testTransport
+import navigator.core.wire.WireHttpResponse
+import navigator.core.wire.WireTransportException
 import kotlinx.coroutines.runBlocking
-import okhttp3.mockwebserver.Dispatcher
-import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
-import okhttp3.mockwebserver.RecordedRequest
-import okhttp3.mockwebserver.SocketPolicy
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -65,34 +65,31 @@ class JevEngineTest {
 
     @Test
     fun `failover surfaces usedFallback=true through EngineResult`() {
+        // Deterministic in-memory transport (CountingWireTransport): transport failures
+        // without sockets or timing. The earlier NO_RESPONSE + real-call-timeout harness
+        // was load-flaky — a cancelled mid-backlog attempt was never dispatched, so the
+        // SERVER-side requestCount undercounted the client's 3 attempts (see its KDoc).
         val fixture = loadTranscript("choice-search-results.json")
-        val primary = MockWebServer().also { it.start() }
-        primary.dispatcher = object : Dispatcher() {
-            override fun dispatch(request: RecordedRequest): MockResponse =
-                MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE)
+        val primaryUrl = "http://primary.test/decisions"
+        val fallbackUrl = "http://fallback.test/decisions"
+        val transport = CountingWireTransport { call ->
+            if (call.url == primaryUrl) throw WireTransportException("simulated transport failure")
+            WireHttpResponse(200, fixture.responseBody.toString())
         }
-        val fallback = MockWebServer().also { it.start() }
-        fallback.enqueue(successResponse(fixture.responseBody))
-        try {
-            val engine = JevEngine(
-                SystemOneClient(
-                    transport = testTransport(callTimeoutMs = 250),
-                    primary = config(primary, fixture.model),
-                    fallback = config(fallback, fixture.model),
-                    retryDelay = { },
-                ),
-            )
-            val outcome = runBlocking {
-                engine.chooseResult(fixture.state, fixture.questions.getValue("next-action") as ChoiceQuestion)
-            }
-            assertTrue(outcome.usedFallback, "the failover tag must surface through EngineResult")
-            assertTypedResultEquals(fixture.expectedResults.getValue("next-action"), outcome.result, "result")
-            assertEquals(3, primary.requestCount, "exactly 2 retries before the failover hop")
-            assertEquals(1, fallback.requestCount)
-        } finally {
-            primary.shutdown()
-            fallback.shutdown()
+        val engine = JevEngine(
+            SystemOneClient(
+                transport = transport,
+                primary = EngineConfig(primaryUrl, "test-key-not-a-secret", fixture.model),
+                fallback = EngineConfig(fallbackUrl, "test-key-not-a-secret", fixture.model),
+            ),
+        )
+        val outcome = runBlocking {
+            engine.chooseResult(fixture.state, fixture.questions.getValue("next-action") as ChoiceQuestion)
         }
+        assertTrue(outcome.usedFallback, "the failover tag must surface through EngineResult")
+        assertTypedResultEquals(fixture.expectedResults.getValue("next-action"), outcome.result, "result")
+        assertEquals(3, transport.callsTo(primaryUrl), "exactly 2 retries before the failover hop")
+        assertEquals(1, transport.callsTo(fallbackUrl))
     }
 
     @Test
