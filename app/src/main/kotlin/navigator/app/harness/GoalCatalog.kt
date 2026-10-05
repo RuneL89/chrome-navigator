@@ -40,5 +40,39 @@ data class GoalCatalog(
 
         /** Strict parse: unknown fields and missing goals fail loudly (fixture discipline). */
         fun parse(text: String): GoalCatalog = json.decodeFromString(serializer(), text)
+
+        /**
+         * Builds a one-off custom goal at RUNTIME (harness-only debug tooling; never a
+         * fixture): drives the LIVE engine against a real website. The expected terminal
+         * is GOAL_ACHIEVED and the completion-guard semantics are the standard ones —
+         * the triage class comes from the LIVE engine's triage answer, so the guard is
+         * whichever state machine that triage selects (the empty script only means "no
+         * STUB transcript"; custom goals refuse to run under STUB — see
+         * [HarnessActivity]). Blank fields or a non-http(s) start URL fail loudly.
+         */
+        fun customGoal(id: String?, goalText: String?, startUrl: String?): ScriptedGoal {
+            val trimmedText = goalText?.trim()
+            val trimmedUrl = startUrl?.trim()
+            require(!trimmedText.isNullOrBlank()) { "custom goal needs non-blank customGoalText" }
+            require(!trimmedUrl.isNullOrBlank()) { "custom goal needs non-blank customStartUrl" }
+            require(trimmedUrl.startsWith("http://") || trimmedUrl.startsWith("https://")) {
+                "custom goal start URL must be absolute http(s) (was: \"$trimmedUrl\")"
+            }
+            val goalId = id?.trim().takeUnless { it.isNullOrEmpty() } ?: DEFAULT_CUSTOM_GOAL_ID
+            return ScriptedGoal(
+                id = goalId,
+                family = CUSTOM_FAMILY,
+                goal = trimmedText,
+                startUrl = trimmedUrl,
+                expectedTerminal = "GOAL_ACHIEVED",
+                script = emptyList(),
+            )
+        }
+
+        /** The family recorded on runtime-built custom goals (reports/filtering only). */
+        const val CUSTOM_FAMILY = "custom"
+
+        /** The goal id used when the launch intent omits `customGoalId`. */
+        const val DEFAULT_CUSTOM_GOAL_ID = "custom-goal"
     }
 }

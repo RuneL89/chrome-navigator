@@ -83,6 +83,15 @@ class HarnessActivity : ComponentActivity() {
     @Volatile
     private var deliveredOpenRouterKey: String? = null
 
+    /**
+     * The runtime-built custom goal for this launch (harness-only debug tooling): set
+     * when the intent carries `customGoalText`/`customStartUrl` — it REPLACES the
+     * catalog selection for this run and refuses to run under the STUB engine (no
+     * script exists to replay).
+     */
+    @Volatile
+    private var customGoal: ScriptedGoal? = null
+
     private lateinit var catalog: GoalCatalog
     private lateinit var pagesServer: HarnessPagesServer
     private val logSink by lazy { RoomDecisionLogSink(this) }
@@ -115,7 +124,14 @@ class HarnessActivity : ComponentActivity() {
             return
         }
         val extraGoal = intent.getStringExtra(EXTRA_GOAL) ?: intent.getStringExtra(EXTRA_GOAL_SHORT)
-        if (extraGoal == null) {
+        val customText = intent.getStringExtra(EXTRA_CUSTOM_GOAL_TEXT)
+            ?: intent.getStringExtra(EXTRA_CUSTOM_GOAL_TEXT_SHORT)
+        val customUrl = intent.getStringExtra(EXTRA_CUSTOM_START_URL)
+            ?: intent.getStringExtra(EXTRA_CUSTOM_START_URL_SHORT)
+        val customId = intent.getStringExtra(EXTRA_CUSTOM_GOAL_ID)
+            ?: intent.getStringExtra(EXTRA_CUSTOM_GOAL_ID_SHORT)
+        val wantsCustomGoal = !customText.isNullOrBlank() || !customUrl.isNullOrBlank()
+        if (extraGoal == null && !wantsCustomGoal) {
             if (!freshInstance) log("launch ignored: the intent carries no headless extras")
             return
         }
@@ -125,6 +141,32 @@ class HarnessActivity : ComponentActivity() {
                     "`am start -S` for a fresh instance. Requested goal=$extraGoal (ignored)",
             )
             return
+        }
+        customGoal = if (wantsCustomGoal) {
+            if (HarnessEngineMode.parse(
+                    intent.getStringExtra(EXTRA_ENGINE) ?: intent.getStringExtra(EXTRA_ENGINE_SHORT),
+                ) != HarnessEngineMode.LIVE
+            ) {
+                log(
+                    "LAUNCH REFUSED (loud): a custom goal needs the LIVE engine - " +
+                        "re-launch with `--es engine live` (custom goals carry no STUB script)",
+                )
+                return
+            }
+            val built = try {
+                GoalCatalog.customGoal(customId, customText, customUrl)
+            } catch (t: IllegalArgumentException) {
+                log("LAUNCH REFUSED (loud): ${t.message}")
+                return
+            }
+            log(
+                "custom goal: id=${built.id} family=${built.family} " +
+                    "start=${built.startUrl} expected=${built.expectedTerminal} " +
+                    "goal=\"${built.goal}\"",
+            )
+            built
+        } else {
+            null
         }
         liveMode.value = HarnessEngineMode.parse(
             intent.getStringExtra(EXTRA_ENGINE) ?: intent.getStringExtra(EXTRA_ENGINE_SHORT),
@@ -157,7 +199,9 @@ class HarnessActivity : ComponentActivity() {
         )
         scope.launch {
             delay(startDelay)
-            runSelected(extraGoal)
+            // A custom goal replaces the catalog selection; the selection string is then
+            // unused (requestedGoals returns the custom goal alone).
+            runSelected(extraGoal ?: customGoal?.id ?: return@launch)
         }
     }
 
@@ -205,6 +249,16 @@ class HarnessActivity : ComponentActivity() {
         if (selection.equals(ALL_GOALS, ignoreCase = true)) catalog.goals.map { it.id }
         else listOf(catalog.byId(selection).id)
 
+    /**
+     * The goals this launch actually runs: a custom goal REPLACES the catalog selection
+     * entirely (one launch, one real-site goal); `--es goal all` still means the whole
+     * fixture catalog when no custom goal was requested.
+     */
+    private fun requestedGoals(selection: String): List<ScriptedGoal> {
+        val custom = customGoal ?: return goalIds(selection).map { catalog.byId(it) }
+        return listOf(custom)
+    }
+
     private suspend fun runSelected(selection: String) {
         if (running.value) return
         running.value = true
@@ -217,9 +271,8 @@ class HarnessActivity : ComponentActivity() {
             // pipeline once: alternate target <- blank <- target, polling fresh reads,
             // until real page content is visible.
             warmUpWebAccessibility()
-            for (id in goalIds(selection)) {
+            for (goal in requestedGoals(selection)) {
                 if (cancelRequested) break
-                val goal = catalog.byId(id)
                 log("=== goal ${goal.id} (${goal.family}): \"${goal.goal}\"")
                 // Fault isolation + environment-flake retries: a REFUSED run that never
                 // got a successful decision is observation starvation (0-line/collapsed
@@ -441,14 +494,18 @@ class HarnessActivity : ComponentActivity() {
                     r.snapshot()
                 }
                 shadowSnapshot?.let {
+                    // percentile() takes SORTED input — sort here too, or the log line's
+                    // p50/p95 disagree with the report's (measured in the 2026-10-05 sweep).
+                    val forwardsSorted = it.latenciesMs.map { p -> p.first }.sorted()
+                    val totalsSorted = it.latenciesMs.map { p -> p.second }.sorted()
                     log(
                         "shadow: sampled=${it.sampled} completed=${it.completions} miss=${it.misses} " +
                             "fail=${it.failures} companions=${it.companionRows} " +
                             "droppedAfterClose=${it.droppedAfterClose} " +
                             "forwardMs(p50/p95)=" +
-                            "${percentile(it.latenciesMs.map { p -> p.first }, 50)}/" +
-                            "${percentile(it.latenciesMs.map { p -> p.first }, 95)} " +
-                            "totalMs(p95)=${percentile(it.latenciesMs.map { p -> p.second }, 95)}",
+                            "${percentile(forwardsSorted, 50)}/" +
+                            "${percentile(forwardsSorted, 95)} " +
+                            "totalMs(p95)=${percentile(totalsSorted, 95)}",
                     )
                 }
                 // Phase 8B: the logger is closed for companions — any straggler completion
@@ -634,6 +691,16 @@ class HarnessActivity : ComponentActivity() {
          */
         const val EXTRA_OPENROUTER_KEY = "navigator.harness.extra.OPENROUTER_KEY"
 
+        /**
+         * Custom-goal delivery (harness-only debug tooling): `--es customGoalText "..."` +
+         * `--es customStartUrl "https://..."` (+ optional `--es customGoalId ...`) builds
+         * a one-off LIVE-only goal at runtime via [GoalCatalog.customGoal], replacing the
+         * catalog selection for this launch.
+         */
+        const val EXTRA_CUSTOM_GOAL_TEXT = "navigator.harness.extra.CUSTOM_GOAL_TEXT"
+        const val EXTRA_CUSTOM_START_URL = "navigator.harness.extra.CUSTOM_START_URL"
+        const val EXTRA_CUSTOM_GOAL_ID = "navigator.harness.extra.CUSTOM_GOAL_ID"
+
         /** adb-friendly aliases (`am start --es goal ...`). */
         const val EXTRA_GOAL_SHORT = "goal"
         const val EXTRA_ENGINE_SHORT = "engine"
@@ -642,6 +709,9 @@ class HarnessActivity : ComponentActivity() {
         const val EXTRA_SHADOW_SHORT = "shadow"
         const val EXTRA_SHADOW_EVERY_NTH_SHORT = "shadowEveryNth"
         const val EXTRA_OPENROUTER_KEY_SHORT = "openrouterKey"
+        const val EXTRA_CUSTOM_GOAL_TEXT_SHORT = "customGoalText"
+        const val EXTRA_CUSTOM_START_URL_SHORT = "customStartUrl"
+        const val EXTRA_CUSTOM_GOAL_ID_SHORT = "customGoalId"
 
         /** The loop's post-gesture page settle (adb-settable; ms; mirrors the loop default). */
         const val EXTRA_SETTLE_MS = "navigator.harness.extra.SETTLE_MS"

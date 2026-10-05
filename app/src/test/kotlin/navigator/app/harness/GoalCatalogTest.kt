@@ -77,4 +77,42 @@ class GoalCatalogTest {
     fun `unknown ids fail loudly`() {
         assertThrows<IllegalArgumentException> { catalog.byId("no-such-goal") }
     }
+
+    @Test
+    fun `custom goals are runtime-built with the standard GOAL_ACHIEVED contract`() {
+        val goal = GoalCatalog.customGoal("real-web-01", "Find the featured article and read it.", "https://en.wikipedia.org")
+        assertEquals("real-web-01", goal.id)
+        assertEquals(GoalCatalog.CUSTOM_FAMILY, goal.family)
+        assertEquals("Find the featured article and read it.", goal.goal)
+        assertEquals("https://en.wikipedia.org", goal.startUrl)
+        assertEquals("GOAL_ACHIEVED", goal.expectedTerminal)
+        assertTrue(TerminalState.entries.any { it.name == goal.expectedTerminal }, goal.id)
+        // No STUB transcript: custom goals refuse to run under the stub engine.
+        assertTrue(goal.script.isEmpty(), goal.id)
+    }
+
+    @Test
+    fun `custom goals default the id when the launch omits it`() {
+        val goal = GoalCatalog.customGoal(null, "Read the headline.", "  https://www.bbc.com/news  ")
+        assertEquals(GoalCatalog.DEFAULT_CUSTOM_GOAL_ID, goal.id)
+        // Trimming: the harness passes raw adb strings.
+        assertEquals("Read the headline.", goal.goal)
+        assertEquals("https://www.bbc.com/news", goal.startUrl)
+    }
+
+    @Test
+    fun `custom goals fail loudly on blank text, blank url, or a non-http scheme`() {
+        assertThrows<IllegalArgumentException> { GoalCatalog.customGoal("x", " ", "https://a.example") }
+        assertThrows<IllegalArgumentException> { GoalCatalog.customGoal("x", "Read it.", null) }
+        assertThrows<IllegalArgumentException> { GoalCatalog.customGoal("x", "Read it.", "") }
+        assertThrows<IllegalArgumentException> { GoalCatalog.customGoal("x", "Read it.", "en.wikipedia.org") }
+        assertThrows<IllegalArgumentException> { GoalCatalog.customGoal("x", "Read it.", "file:///etc/hosts") }
+    }
+
+    @Test
+    fun `custom goals never join the fixture catalog`() {
+        // The catalog stays the strict M0 fixture set: custom ids are runtime-only.
+        assertThrows<IllegalArgumentException> { catalog.byId(GoalCatalog.DEFAULT_CUSTOM_GOAL_ID) }
+        assertEquals(6, catalog.goals.size)
+    }
 }

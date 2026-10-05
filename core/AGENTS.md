@@ -149,8 +149,11 @@ without a device.
   informational)
 * The KL convention (vision 05 §3, documented in `Agreement.kt`): natural log, union of
   distribution keys zero-filled, p→0 terms contribute 0 (limit), q→0 terms floored at
-  1e-12 (epsilon — large but finite, JSON cannot carry Infinity); inputs asserted
-  normalized (Σp = 1 within 1e-6), identical distributions give exactly 0.0
+  1e-12 (epsilon — large but finite, JSON cannot carry Infinity); inputs asserted in
+  range and normalized (Σp = 1 within 1e-6 used exactly; within the documented
+  `WIRE_ROUNDING_TOLERANCE` 0.02 renormalized — the provider emits 2-decimal
+  probabilities whose sum can be e.g. 0.99, measured live; beyond that, loud failure),
+  identical distributions give exactly 0.0
 * The RLCD export (vision 05 §4) copies state text verbatim, exports `questions` as the
   bucketed shadow form and `gold` as the teacher's full distribution (never a bare
   label), and flags mixed-teacher corpora when more than one pinned teacher model

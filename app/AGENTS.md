@@ -83,13 +83,22 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     `run-reports/` incl. the `ShadowReport` block — coverage, misses, measured laya
     latencies), `HarnessPagesServer` (loopback-only static server over
     `assets/harness/pages/`), `GoalCatalog` (`assets/harness/goals.json` — the M0
-    scripted goal families), `HarnessRunners` (`HarnessObserver`, engine factory,
+    scripted goal families; `GoalCatalog.customGoal(...)` builds a ONE-OFF custom goal
+    at runtime for real-site diagnostics: launch with `--es customGoalText "..."` +
+    `--es customStartUrl "https://..."` (+ optional `--es customGoalId`) — LIVE-only
+    (a STUB launch is refused loudly), expected terminal GOAL_ACHIEVED with the standard
+    completion guards, empty STUB script; harness-only test tooling, never a fixture),
+    `HarnessRunners` (`HarnessObserver`, engine factory,
     Room-backed `DecisionLogSink`, `RunReportStore`). Gate-6.3 key delivery: the
     factory resolves the OpenRouter key by priority intent extra
     (`--es openrouterKey <KEY>` — the only delivery that works inside an app process,
     which has neither an environment nor the repo's `.tools/`) > env > keys file,
     failing loudly when LIVE is selected with no key anywhere; only the key's SOURCE
-    (`HarnessKeySource`) is ever exposed or logged — never the value
+    (`HarnessKeySource`) is ever exposed or logged — never the value.
+    Launch-note: `am start -S` force-stops the app and the platform then DROPS its
+    enabled accessibility service — re-put `enabled_accessibility_services` +
+    `accessibility_enabled` immediately after the launch, inside the harness's
+    20s service-await window (measured 2026-10-05; the runbook for every headless run)
 * `src/main/AndroidManifest.xml` — application manifest (service + debug capture
   activity/receiver declarations; service config XML in `src/main/res/xml/`; Phase 6
   added INTERNET + SYSTEM_ALERT_WINDOW permissions, `<queries>` for the two

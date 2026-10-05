@@ -1,0 +1,95 @@
+{
+  "sweep": "pre-UAT full-app test sweep (pre-device-session UAT diagnostics)",
+  "date": "2026-10-05",
+  "status": "complete",
+  "goal": "Build, install, and drive the real app on AVD pocketpet-test (API-35, browser org.chromium.webview_shell) with the LIVE OpenRouter engine against REAL websites; shake out crashes/ANRs, wire errors, budget/gate behavior, a11y quality on real pages, and shadow/companion behavior before the owner's UAT. Add a harness-only custom-goal capability for one-off real-site goals.",
+  "harnessChange": "ADDITIVE, harness-only: GoalCatalog.customGoal(id?, text?, url?) builds a runtime goal (family=custom, expectedTerminal=GOAL_ACHIEVED, empty STUB script, blank/scheme validation fails loudly, id defaults to custom-goal); HarnessActivity extras --es customGoalText/customStartUrl/customGoalId (long names navigator.harness.extra.CUSTOM_*); a custom goal replaces the catalog selection for the launch and REFUSES to run under STUB loudly at launch; 4 new GoalCatalogTest cases. Trivial fix bundled: the shadow-settle LOG line now sorts latencies before percentile (the log line's p50/p95 disagreed with the report's — measured run 1: 3814/4282 vs 4355/7991).",
+  "runs": [
+    {
+      "id": "real-web-01",
+      "site": "https://en.wikipedia.org",
+      "goalText": "find the featured article of the day and read its introduction",
+      "terminal": "BUDGET_EXHAUSTED (cloud spend 251430 u$ >= hard 250000; clean stop)",
+      "stepsRowsGaps": "37 steps / 37 rows / 0 gaps / 0 gate events / 1 soft spend warning",
+      "spendUsd": 0.25143,
+      "loopWallMs": 165405,
+      "treeQuality": "RICH: 10-25 candidates/step; URL bar read correctly (incl. #/media/ fragment); zero starvation on the real page",
+      "decisionSanity": "First action = tap the TFA image 'White-headed fruit dove' (p=high) -> opened the #/media File viewer overlay, then 'back', then repeat: 18+ tap/back cycles, never finish, never the TFA text link. Alternating tap/back evades all 5 stuck signals (hash/text change every swap). Budget was the backstop.",
+      "shadow": "sampled=37 completed=36 missed=37 failed=0 companions=24 (report)/28 (DB) coverage=0.0 (DEGRADED: joined read threw; see [wire] fix) forward p50/p95=4355/7991ms",
+      "crash": "SIGSEGV at settle: Fatal signal 11 SEGV_MAPERR addr 0x0 tid laya-shadow (libonnxruntime OrtSession.run) 14ms AFTER awaitIdle+snapshot returned, during router/session close; process died ~1.6s later — AFTER run report + suite report were written (evidence intact)"
+    },
+    {
+      "id": "real-web-02",
+      "site": "https://www.allrecipes.com",
+      "goalText": "find a highly rated apple pie recipe and open it",
+      "terminal": "STUCK_KILL (L1 hint -> L2 recovery(rephrase stub) -> L3 auto-kill; clean)",
+      "stepsRowsGaps": "6 steps / 5 rows / 1 metaDecisions / 0 gaps / 0 gate events",
+      "spendUsd": 0.036054,
+      "loopWallMs": 36250,
+      "treeQuality": "13 candidates/step: WebView-shell chrome + consent wall ('List of Partners (vendors)' / 'Accept All' / 'Reject All'); page body behind the overlay",
+      "decisionSanity": "Engine repeated the consent-BLOCKED 'Search' submit (p=0.77/0.68/0.76/0.43/0.59) and never considered Accept/Reject (p<=0.05) or typing; L1 hint did not change the choice; recovery + kill fired exactly as designed",
+      "shadow": "sampled=5 completed=5 missed=5 failed=0 companions=5 coverage=1.0 (JOINED read computed — first live proof of the 8B amendment end-to-end; joined agreement + coverage on real data) forward p50/p95=4896/9039ms",
+      "crash": "none (small run: all shadow work settled before close)"
+    },
+    {
+      "id": "real-web-03",
+      "site": "https://www.bbc.com/news",
+      "goalText": "open the top story and read the headline and first paragraph",
+      "terminal": "BUDGET_EXHAUSTED (cloud spend 257013 u$ >= hard 250000; clean stop)",
+      "stepsRowsGaps": "30 steps / 30 rows / 0 gaps / 0 gate events / 1 soft spend warning",
+      "spendUsd": 0.257013,
+      "loopWallMs": 140937,
+      "treeQuality": "RICH and stable: 14-24 candidates/step, deterministic 20-candidate saturation; URL read correctly; URL never changed (taps never navigated)",
+      "decisionSanity": "Two 'Load URL' taps, then ~28 taps of the SAME story link ('No10 insists UK military base RAF Fairfo...') at fixed coordinates — BBC story links are target=_blank and webview_shell drops new-window requests, so nothing happened; one L1->L2(recovery=scroll) cycle fired, then the loop resumed: the page's changing text kept the stuck window under 3 signals; spend budget was the only backstop",
+      "shadow": "decisions=31 sampled=29 (triage+recovery unshadowed by design) completed=20 missed=29 failed=0 companions=6 snapshot/11 DB coverage=0.379 (JOINED view = 11/29; rest completed after close) forward p50/p95=8160/11446ms",
+      "crash": "SIGSEGV at settle: same signature (laya-shadow OrtSession.run, addr 0x0) while a shadow forward was in flight during awaitIdle; report+suite still written"
+    },
+    {
+      "id": "stub-regression-suite",
+      "site": "loopback HarnessPagesServer (goal all, engine stub, shadow off)",
+      "terminal": "6/6 MECHANICALLY TERMINATED, 0 log gaps, $0; 4/6 at expected terminals — search-and-read-2 GOAL_ACHIEVED (2 steps), form-fill-1 GOAL_ACHIEVED (3), dead-end-1 STUCK_KILL (6), unreadable-1 REFUSED (expected); search-and-read-1 + research-multi-step-1 REFUSED after 3 attempts each = loopback observation starvation (pageNodes=2 toolbar-only), the documented AVD issue — NOT a regression: the stub path is untouched by the harness change and the server verifiably serves bytes (adb forward + curl check); all goals with readable trees hit their expected terminals in 1 attempt",
+      "spendUsd": 0,
+      "crash": "none"
+    }
+  ],
+  "fruitList": [
+    "[crash] laya ONNX SIGSEGV reproduced (runs 1+3; 3rd independent session incl. gate63 attempt 1): SEGV_MAPERR addr 0x0 on the laya-shadow thread in libonnxruntime OrtSession.run at run-end settle/close — races with session close or late forwards. The harness survives long enough to write all evidence, but the APP process dies. ARCHITECTURAL (native ORT on emulated x86 + close race) — NOT fixed; keep shadow OFF on this AVD outside dedicated shadow gates (phase-6 blocker re-confirmed); Gate 8.4 on a device saw zero crashes in ~8 runs. Owner UAT on a real device should be unaffected but this is the top emulator finding.",
+    "[wire] FIXED: provider 2-decimal probability rounding (6/37 run-1 rows sum to 0.99) threw 'KL: teacher distribution is not normalized (Sigma p = 0.99, tolerance 1e-6)' out of the joined-view read — joined coverage/agreement degraded to the in-memory fallback exactly on live data (run 1: coverage reported 0.0 despite 24 companions); on fast-shadow live runs the same rows silently count as shadow FAILURES at row-write enrichment. FIX (core Agreement): documented WIRE_ROUNDING_TOLERANCE=0.02 — exact within 1e-6, renormalized within 0.02, loud failure beyond; 3 new AgreementTest cases at sweep time (+2 at close-out); full ./gradlew test green incl. the Tier A byte-identical drift check; verified live (runs 2+3 joined reads computed: coverage 1.0 and 0.379).",
+    "[decision-quality] Run 1: tap(TFA image -> #/media overlay) <-> back loop, 37 steps, never finish — the engine picked the image node (its label matches the TFA title) instead of the article link and alternating actions evade every stuck signal. Budget bounded it. Architectural (stuck-detector design is vision 04 s4) — reported, not fixed.",
+    "[decision-quality] Run 2: consent-wall blindness — 'Accept All'/'Reject All' enumerated but never considered (p<=0.05) while a consent-blocked 'Search' submit repeated 5x (p up to 0.77); the L1 hint text did not change the choice. Real-web UAT implication: consent-walled sites need either a swap-site rule or engine guidance. Architectural — reported.",
+    "[decision-quality]+[ux-friction] Run 3: target=_blank story links are dropped by webview_shell (no multi-window) — tap executes, nothing happens, engine retries; one recovery cycle fired then dynamic-page text changes kept the stuck window below threshold. Site choice for UAT should favor same-window navigators (Wikipedia works). Architectural/environment — reported.",
+    "[a11y-quality] POSITIVE: real-page observation was excellent all session — 10-25 candidates/step, correct URL reads (incl. fragments), deterministic enumeration, ZERO starvation on real sites (contrast: gate63's all-starved session). The M0 loop's observation layer holds on real web pages.",
+    "[environment] Loopback starvation inversion: this AVD session exposed REAL sites but never loopback pages (pageNodes=2 across warm-up 3/3 launches + stub attempts), while gate63 saw both starved; HarnessPagesServer verified serving bytes (adb forward + curl). Warm-up primes on loopback home.html and never succeeded — priming warm-up with a real site is a candidate harness improvement (not changed this sweep).",
+    "[none] HarnessActivity shadow-settle log line computed percentiles over UNSORTED latencies (log vs report disagreed) — FIXED (sorted; harness-only).",
+    "[budget][gate] POSITIVE: TaskBudget enforced on real provider numbers ($0.25 hard stop fired twice, soft $0.20 warned+logged first); auto-deny headless mode produced 0 gate events (no H-class action was attempted on these sites); every terminal (BUDGET_EXHAUSTED/STUCK_KILL/REFUSED) clean; 0 log gaps across 73 live rows + 12 stub rows; 0 wire-protocol/transport exceptions; no ANRs."
+  ],
+  "fixesApplied": [
+    "core Agreement.kt: WIRE_ROUNDING_TOLERANCE=0.02 wire-rounding renormalization (see [wire] above); AgreementTest +4 cases",
+    "HarnessActivity.kt: sorted percentile inputs for the shadow-settle log line",
+    "GoalCatalog.customGoal + HarnessActivity custom-goal extras (harness-only, +4 GoalCatalogTest cases)"
+  ],
+  "deviations": [
+    "CUSTOM-GOAL HARNESS CAPABILITY (dispatch-directed, test tooling only): runtime-built goals bypass the goals.json fixture; LIVE-only enforced at launch; completion-guard semantics unchanged (triage still decides the class; lookup guard requires a contentful page beyond the first).",
+    "AGREEMENT TOLERANCE (product code in :core — the only non-harness change): vision 05 s3 pins no rounding tolerance; the strict 1e-6 assert predated live-wire data and made the ratified 8B joined view unusable on real rows. The fix keeps loud failure beyond 2%, is documented in KDoc + core/AGENTS.md, is unit-tested, and leaves fixture-replay values bitwise unchanged (exactly-normalized inputs scale by 1.0). Tier A drift artifacts byte-identical (drift test green).",
+    "SHADOW ON per dispatch despite the phase-6 blocker recommendation — accepted diagnostics risk; the SIGSEGV reproduced and is now characterized (settle/close race), strengthening the keep-shadow-OFF-on-this-AVD rule for everything except dedicated shadow gates.",
+    "Launch runbook deviation discovered: am start -S disables the app's enabled a11y service (platform behavior); the service must be re-put via settings inside the harness's 20s await window. Two early launches failed with service-not-enabled before the runbook was established ($0 spend). Recorded in app/AGENTS.md."
+  ],
+  "spend": {
+    "run1WikipediaUsd": 0.25143,
+    "run2AllrecipesUsd": 0.036054,
+    "run3BbcUsd": 0.257013,
+    "stubSuiteUsd": 0.0,
+    "failedEarlyLaunchesUsd": 0.0,
+    "totalUsd": 0.544497,
+    "capUsd": 1.0,
+    "note": "All spend is provider-reported usage recorded by JevSpendRecorder; every run also self-bounded at the $0.25 TaskBudget hard stop"
+  },
+  "verification": {
+    "fullGradlewTest": "exit 0, BUILD SUCCESSFUL in 7m12s, 0 FAILED (includes :core Agreement/JoinedAgreement tests, Tier A byte-identical drift detector, harness GoalCatalog tests)",
+    "harnessUnitTests": "navigator.app.harness.* green (incl. 4 new custom-goal cases)",
+    "stubRegression": "6/6 mechanically terminated, 0 gaps (see runs[3])"
+  },
+  "blocker": null,
+  "nextAction": "Owner device-session UAT can proceed: use same-window sites (e.g. Wikipedia) and expect rich observation + clean budgets/gates; expect laya-shadow SIGSEGV risk ONLY on emulator with shadow ON. The [decision-quality] fruits (consent walls, _blank links, tap/back loops vs stuck signals, finish-never-chosen) are engine/vision-level and belong to the owner's UAT 6.2 quality read-out, not mechanical gates. canon-verifier: cold-check this sweep's evidence in .state/preUAT-reports/ and the two small diffs (core Agreement + harness).",
+  "notCommitted": true
+}

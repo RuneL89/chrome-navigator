@@ -171,6 +171,62 @@ class AgreementTest {
             Agreement.klDivergence(mapOf("a" to 1.5, "b" to -0.5), mapOf("a" to 1.0))
         }
     }
+
+    // ---- KL: wire rounding (2-decimal provider probabilities) is tolerated ----
+
+    @Test
+    fun `a wire-rounded distribution summing to 099 renormalizes close to the true KL`() {
+        // Live evidence (2026-10-05 pre-UAT sweep): the provider's 2-decimal probabilities
+        // can sum to 0.99 — the joined read must compute, not throw, and the sub-2%
+        // renormalization must move the metric by no more than rounding itself does.
+        val roundedTeacher = mapOf("a" to 0.50, "b" to 0.25, "c" to 0.24) // Σ = 0.99
+        val trueTeacher = mapOf("a" to 0.5, "b" to 0.25, "c" to 0.25)
+        val shadow = mapOf("a" to 0.25, "b" to 0.50, "c" to 0.25) // Σ = 1.0
+        val fromRounded = Agreement.klDivergence(roundedTeacher, shadow) // must not throw
+        assertEquals(Agreement.klDivergence(trueTeacher, shadow), fromRounded, 0.01)
+    }
+
+    @Test
+    fun `a wire-rounded distribution summing to 101 above unity also renormalizes`() {
+        // Verifier-requested (2026-10-05): the above-unity rescale path (divide-by-sum on
+        // the >1 side) is code-symmetric with 0.99 but was untested — pin it.
+        val roundedTeacher = mapOf("a" to 0.50, "b" to 0.25, "c" to 0.26) // Σ = 1.01
+        val trueTeacher = mapOf("a" to 0.5, "b" to 0.25, "c" to 0.25)
+        val shadow = mapOf("a" to 0.25, "b" to 0.50, "c" to 0.25) // Σ = 1.0
+        val fromRounded = Agreement.klDivergence(roundedTeacher, shadow)
+        assertEquals(Agreement.klDivergence(trueTeacher, shadow), fromRounded, 0.01)
+    }
+
+    @Test
+    fun `the tolerance edge passes inside and fails loudly beyond`() {
+        // Verifier-requested edge pin. Exactly Σ=0.98 is NOT a supported boundary case:
+        // 1.0 - 0.98 = 0.020000000000000018 in IEEE-754, i.e. strictly beyond a 0.02
+        // comparison — so the edge is pinned float-robustly: Σ=0.985 (inside by half the
+        // tolerance) renormalizes; Σ=0.96 (clearly beyond) stays loud. The guaranteed
+        // provider cases 0.99/1.01 are pinned by the dedicated tests above.
+        val inside = mapOf("a" to 0.50, "b" to 0.25, "c" to 0.235) // Σ = 0.985
+        Agreement.klDivergence(inside, mapOf("a" to 0.5, "b" to 0.25, "c" to 0.25)) // no throw
+        val beyondEdge = mapOf("a" to 0.50, "b" to 0.25, "c" to 0.21) // Σ = 0.96
+        assertFailsWith<IllegalArgumentException> {
+            Agreement.klDivergence(beyondEdge, mapOf("a" to 0.5, "b" to 0.25, "c" to 0.25))
+        }
+    }
+
+    @Test
+    fun `identical wire-rounded distributions still give KL exactly zero`() {
+        val d = mapOf("a" to 0.50, "b" to 0.30, "c" to 0.19) // Σ = 0.99
+        assertEquals(0.0, Agreement.klDivergence(d, d))
+    }
+
+    @Test
+    fun `a sum beyond the wire-rounding tolerance still fails loudly`() {
+        // Σ = 0.99 sits INSIDE the tolerance; Σ = 0.97 does not and must stay loud.
+        val drifted = mapOf("a" to 0.60, "b" to 0.37) // Σ = 0.97
+        val e = assertFailsWith<IllegalArgumentException> {
+            Agreement.klDivergence(drifted, mapOf("a" to 0.5, "b" to 0.5))
+        }
+        assertTrue("teacher" in e.message!!, "failure must name the offending input: ${e.message}")
+    }
 }
 
 /** Adapts a teacher answer into a shadow element answer with the SAME distribution (test helper). */
