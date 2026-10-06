@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -312,14 +313,16 @@ class NavigationLoopTest {
             N("line three"),
             N("line four"),
             N("line five"),
+            N("Filler", scrollable = true),
         )
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
                 choose("action", "finish"),
                 noul(0.99),
-                choose("action", "finish"),
-                noul(0.99),
+                // anti-oscillation (vision 04 §3 v1.2.0): the refusal withholds finish
+                // from the next M=2 decisions - the engine must act instead
+                chooseByLabel("action", "Scroll down"),
             ),
             observations = listOf(blank),
             presenter = ScriptedGatePresenter(),
@@ -331,11 +334,11 @@ class NavigationLoopTest {
         assertFalse(result.terminal == TerminalState.GOAL_ACHIEVED)
         assertEquals(TerminalState.BUDGET_EXHAUSTED, result.terminal)
         assertEquals(2, result.rowsLogged)
-        fixture.sink.rows.forEach { row ->
-            assertEquals(ActionDisposition.REFUSED_BY_GUARD, row.executedAction.disposition)
-            assertEquals(LoggedActionKind.FINISH, row.executedAction.kind)
-            assertEquals(Outcome.NO_CHANGE, row.outcome)
-        }
+        val refusal = fixture.sink.rows[0]
+        assertEquals(ActionDisposition.REFUSED_BY_GUARD, refusal.executedAction.disposition)
+        assertEquals(LoggedActionKind.FINISH, refusal.executedAction.kind)
+        assertEquals(Outcome.NO_CHANGE, refusal.outcome)
+        assertNull(refusal.exit, "a refused finish carries no exit provenance")
         assertTrue(result.stepLog.any { it.contains("REFUSED (ART-4)") })
     }
 
@@ -356,6 +359,7 @@ class NavigationLoopTest {
             N("Line two of the answer"),
             N("Line three of the answer"),
             N("Footer"),
+            N("Filler", scrollable = true),
         )
         val fixture = LoopFixture(
             script = scriptOf(
@@ -363,6 +367,10 @@ class NavigationLoopTest {
                 chooseByLabel("action", "Open the result"),
                 choose("action", "finish"),
                 noul(0.5),
+                // the refusal starts the anti-oscillation window: two non-finish
+                // decisions before `finish` is offered again (vision 04 §3 v1.2.0)
+                chooseByLabel("action", "Scroll down"),
+                chooseByLabel("action", "Scroll down"),
                 choose("action", "finish"),
                 noul(0.95),
             ),
@@ -372,14 +380,20 @@ class NavigationLoopTest {
         val result = fixture.run()
 
         assertEquals(TerminalState.GOAL_ACHIEVED, result.terminal)
-        assertEquals(3, result.rowsLogged)
+        assertEquals(5, result.rowsLogged)
         // step 1: the code guard passes (contentful page read beyond the seed) but the
         // noul is UNCERTAIN -> the self-report is refused (either half alone is not enough)
         assertEquals(ActionDisposition.REFUSED_BY_GUARD, fixture.sink.rows[1].executedAction.disposition)
-        // step 2: noul HIGH + guard -> exit
-        assertEquals(ActionDisposition.EXECUTED, fixture.sink.rows[2].executedAction.disposition)
-        assertEquals(Outcome.EXITED, fixture.sink.rows[2].outcome)
-        assertTrue(result.terminalDetail.contains("high band"))
+        // step 4: noul HIGH + guard -> exit through Path A (classic)
+        assertEquals(ActionDisposition.EXECUTED, fixture.sink.rows[4].executedAction.disposition)
+        assertEquals(Outcome.EXITED, fixture.sink.rows[4].outcome)
+        assertTrue(result.terminalDetail.contains("HIGH"))
+        val exitRow = fixture.sink.rows[4]
+        assertEquals(navigator.core.log.LoggedExitPath.HIGH, exitRow.exit?.path)
+        assertEquals(navigator.core.log.LoggedGuardLevel.WEAK, exitRow.exit?.guardLevel)
+        assertEquals(0.95, exitRow.exit?.noul)
+        assertEquals(2, result.exit?.finishChecks, "two finish checks ran before the accept")
+        assertEquals(false, result.exit?.completionCardShown)
     }
 
     // -- stuck detector escalation -------------------------------------------------------

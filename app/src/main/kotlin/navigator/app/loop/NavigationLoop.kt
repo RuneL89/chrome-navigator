@@ -1,13 +1,11 @@
 package navigator.app.loop
 
 import kotlinx.coroutines.delay
-import navigator.core.decision.Band
 import navigator.core.decision.ChoiceQuestion
 import navigator.core.decision.ChoiceResult
 import navigator.core.decision.DecisionEngine
 import navigator.core.decision.DecisionRecord
 import navigator.core.decision.FallbackReporting
-import navigator.core.decision.NoulQuestion
 import navigator.core.decision.Option
 import navigator.core.decision.band
 import navigator.core.enumerate.Bucket
@@ -33,10 +31,13 @@ import navigator.core.log.CompressedBy
 import navigator.core.log.DecisionLogRow
 import navigator.core.log.EngineIdentity
 import navigator.core.log.ExecutedAction
+import navigator.core.log.ExitProvenance
 import navigator.core.log.FallbackInfo
 import navigator.core.log.LoggedActionKind
+import navigator.core.log.LoggedExitPath
 import navigator.core.log.LoggedGateDecision
 import navigator.core.log.LoggedGateEvent
+import navigator.core.log.LoggedGuardLevel
 import navigator.core.log.Outcome
 import navigator.core.log.TeacherAnswer
 import navigator.core.log.TriageClass
@@ -72,6 +73,7 @@ class NavigationLoop(
     private val executor: ActionExecutor,
     private val gatePresenter: GatePresenter,
     private val logSink: DecisionLogSink,
+    private val completionCardPresenter: CompletionCardPresenter = AutoKeepGoingCompletionPresenter,
     private val spendMeter: SpendMeter = SpendMeter(),
     private val stateTextBuilder: StateTextBuilder = StateTextBuilder(),
     private val config: Config = Config(),
@@ -153,6 +155,7 @@ class NavigationLoop(
         )
         val taskGate = TaskGate()
         val stuck = StuckDetector()
+        val exitPolicy = ExitPolicy()
         val history = mutableListOf<String>()
         val hints = mutableListOf<String>()
         var goalText = goal
@@ -163,6 +166,10 @@ class NavigationLoop(
         var triageLabel = "untriaged"
         var triageClass: TriageClass? = null
         var guards: CompletionGuards? = null
+        var entity: TargetEntity? = null
+        var exitSummary: ExitSummary? = null
+        /** The completion card's resolution when it was shown (once per task). */
+        var completionCardResolution: String? = null
         var lastPost: StepObservation? = null
 
         fun partialResult(): String =
@@ -196,6 +203,7 @@ class NavigationLoop(
                 softWarnings = softWarnings.distinct(),
                 stepLog = stepLog.toList(),
                 partialResult = partialResult(),
+                exit = exitSummary,
             )
         }
 
@@ -224,6 +232,7 @@ class NavigationLoop(
             gateEvent: LoggedGateEvent?,
             outcome: Outcome,
             escalation: DecisionRecord? = null,
+            exit: ExitProvenance? = null,
         ) {
             // Escalated rows (doc 05 v1.2.0): teacherAnswer stays the PRIMARY's own
             // answer when it produced one (vision 05 §2 — the teacher is the primary of
@@ -274,6 +283,7 @@ class NavigationLoop(
                 shadowSampled = false,
                 escalated = escalated,
                 fallback = fallbackInfo,
+                exit = exit,
             )
             logSink.write(row)
             rows += 1
@@ -288,6 +298,13 @@ class NavigationLoop(
                 1 -> {
                     line("stuck: L1 hint injected (${assessment.signals})")
                     hints.add(StuckDetector.HINT)
+                    // Sixth signal (vision 04 §3 v1.2.0): the exit-conflict note rides
+                    // the L1 hint so the engine re-orients to evidence, not finishing.
+                    assessment.exitConflictEvidence?.let { evidence ->
+                        val conflictHint = StuckDetector.exitConflictHint(evidence)
+                        line("stuck: $conflictHint")
+                        hints.add(conflictHint)
+                    }
                 }
                 2 -> {
                     line("stuck: L2 - next decide comes from the recovery set (${assessment.signals})")
@@ -315,8 +332,12 @@ class NavigationLoop(
             is Triage.Result.Task -> {
                 triageClass = triage.triageClass
                 triageLabel = triage.triageClass.serial()
-                guards = CompletionGuards(triage.triageClass)
+                // Triage-time target-entity extraction (vision 04 §3 v1.2.0): pure code,
+                // once per task; anchors the STRONG guard and the noul proposition.
+                entity = TargetEntity.extract(goal)
+                guards = CompletionGuards(triage.triageClass, entity)
                 line("triage: $triageLabel")
+                entity?.let { line("triage: target entity \"${it.text}\" (code-extracted)") }
                 line("guard state: ${guards.describe()}")
             }
         }
@@ -363,7 +384,13 @@ class NavigationLoop(
 
             // -- 2. ENUMERATE (deterministic buckets, doc 03 §3) -------------------------
             guards!!.seed(obs.url)
-            val candidates = CandidateEnumerator.enumerate(obs.nodes)
+            var candidates = CandidateEnumerator.enumerate(obs.nodes)
+            // Anti-oscillation (vision 04 §3 v1.2.0): a refused finish withholds the
+            // `finish` pseudo-action from the next M decisions unless the hash changed.
+            if (exitPolicy.finishExcluded(obs.screenHash)) {
+                candidates = candidates.withoutFinish()
+                line("exit: finish excluded this decision (anti-oscillation window)")
+            }
             val state = stateTextBuilder.build(
                 goal = goalText,
                 url = obs.url,
@@ -394,6 +421,8 @@ class NavigationLoop(
 
             // Recovery-set answers trigger code-side recovery (vision 04 §4, level 2).
             if (question === RECOVERY_QUESTION) {
+                // A recovery decision still meters the anti-oscillation window.
+                exitPolicy.noteDecision(obs.screenHash)
                 val recovery = enumFromSerialName(Recovery.serializer(), choice.chosenId)
                 when (recovery) {
                     Recovery.BACK, Recovery.SCROLL -> {
@@ -478,7 +507,7 @@ class NavigationLoop(
                     "engine chose '${choice.chosenId}' which is not a candidate of this step",
                 )
 
-            // -- finish pseudo-action: engine self-report vs code evidence (ART-4) --------
+            // -- finish pseudo-action: the exit policy (vision 04 §3 v1.2.0) -------------
             if (candidate.id == CandidateEnumerator.FINISH_ID) {
                 // The CURRENT observation is code-side evidence of what the screen holds
                 // (the tap's post-observation may have raced the page load). Recording it
@@ -489,60 +518,128 @@ class NavigationLoop(
                     textTyped = false,
                     submitExecuted = false,
                 )
+                val guardLevel = guards!!.levelAt(obs.title, obs.url, obs.lines)
                 val noul = engine.judge(
                     state.text,
-                    NoulQuestion(
-                        GOAL_ACHIEVED_QUESTION,
-                        "The goal \"$goalText\" is fully achieved on the current page.",
-                    ),
+                    AnchoredNoul.question(goalText, entity, requireNotNull(triageClass)),
                 )
-                val high = band(noul.pTrue) == Band.HIGH
-                val guardOk = guards!!.satisfied()
                 line(
                     "decide: finish -> verification: noul=${noul.pTrue} (${band(noul.pTrue)}), " +
-                        "guard ${if (guardOk) "PASSED" else "NOT passed: ${guards.describe()}"}",
+                        "guard=${guardLevel.name}, " +
+                        "guard state: ${guards.describe()}, " +
+                        "proposition=v${AnchoredNoul.ANCHORED_NOUL_VERSION}",
                 )
-                if (high && guardOk) {
-                    logRow(
-                        stepIndex, state, question, choice, candidates,
-                        ExecutedAction(null, LoggedActionKind.FINISH, ActionDisposition.EXECUTED),
-                        gateEvent = null,
-                        outcome = Outcome.EXITED,
-                        escalation = escalation,
-                    )
-                    return finish(
-                        TerminalState.GOAL_ACHIEVED,
-                        "noul pTrue=${noul.pTrue} in the high band AND the code completion guard passed",
-                        stepIndex + 1,
+                val verdict: ExitDecision = when (val first = exitPolicy.onFinishCheck(guardLevel, noul.pTrue)) {
+                    is ExitDecision.AskOwner -> {
+                        line(
+                            "exit: ${first.refusedChecks} consecutive guard-pass refusals - " +
+                                "completion card (max one per task, vision 04 §3 Path C)",
+                        )
+                        when (val resolution = completionCardPresenter.present(
+                            CompletionCard(
+                                goal = goal,
+                                entity = entity?.text,
+                                guardLevel = first.guardLevel,
+                                noul = first.noul,
+                                refusedChecks = first.refusedChecks,
+                            ),
+                        )) {
+                            CompletionResolution.CONFIRM_DONE -> {
+                                completionCardResolution = resolution.name
+                                line("exit: owner CONFIRMED done - accepting via OWNER_CONFIRM")
+                                ExitDecision.Accept(ExitPath.OWNER_CONFIRM, first.guardLevel, first.noul)
+                            }
+                            CompletionResolution.KEEP_GOING -> {
+                                completionCardResolution = resolution.name
+                                ExitDecision.Refuse(
+                                    "the owner said keep going on the completion card",
+                                    first.guardLevel,
+                                    first.noul,
+                                )
+                            }
+                            CompletionResolution.TIMEOUT -> {
+                                completionCardResolution = resolution.name
+                                ExitDecision.Refuse(
+                                    "the completion card timed out (= keep going, fail-safe)",
+                                    first.guardLevel,
+                                    first.noul,
+                                )
+                            }
+                        }
+                    }
+                    else -> first
+                }
+                when (verdict) {
+                    is ExitDecision.Accept -> {
+                        val provenance = ExitProvenance(
+                            path = verdict.path.toLoggedPath(),
+                            guardLevel = verdict.guardLevel.toLoggedLevel(),
+                            noul = verdict.noul,
+                        )
+                        logRow(
+                            stepIndex, state, question, choice, candidates,
+                            ExecutedAction(null, LoggedActionKind.FINISH, ActionDisposition.EXECUTED),
+                            gateEvent = null,
+                            outcome = Outcome.EXITED,
+                            escalation = escalation,
+                            exit = provenance,
+                        )
+                        exitSummary = ExitSummary(
+                            path = verdict.path.name,
+                            guardLevel = verdict.guardLevel.name,
+                            noul = verdict.noul,
+                            finishChecks = exitPolicy.finishChecks,
+                            completionCardShown = exitPolicy.completionCardsShown > 0,
+                            completionCardResolution = completionCardResolution,
+                        )
+                        return finish(
+                            TerminalState.GOAL_ACHIEVED,
+                            "exit path ${verdict.path.name}: noul pTrue=${verdict.noul} with the " +
+                                "${verdict.guardLevel.name} guard after ${exitPolicy.finishChecks} finish check(s)",
+                            stepIndex + 1,
+                        )
+                    }
+                    is ExitDecision.Refuse -> {
+                        line("decide: finish REFUSED (ART-4) - ${verdict.reason}")
+                        history.add("step $stepIndex: finish refused - the goal is not verifiably achieved yet")
+                        logRow(
+                            stepIndex, state, question, choice, candidates,
+                            ExecutedAction(null, LoggedActionKind.FINISH, ActionDisposition.REFUSED_BY_GUARD),
+                            gateEvent = null,
+                            outcome = Outcome.NO_CHANGE,
+                            escalation = escalation,
+                        )
+                        // Anti-oscillation: this refusal withholds `finish` from the next
+                        // M decisions unless the page hash changes (vision 04 §3 v1.2.0).
+                        exitPolicy.onRefusedFinish(obs.screenHash)
+                        stuck.record(
+                            StuckDetector.Footprint(
+                                actionKey = "FINISH",
+                                screenHash = obs.screenHash,
+                                textLines = obs.lines,
+                                isError = false,
+                            ),
+                        )
+                        // Sixth stuck signal: the exit conflict (guard level rides the hint).
+                        stuck.recordRefusedFinish(verdict.guardLevel.name)
+                        stepIndex += 1
+                        if (assessStuck()) {
+                            return finish(
+                                TerminalState.STUCK_KILL,
+                                "repeated unsupported finish claims - L3 auto-kill",
+                                stepIndex,
+                            )
+                        }
+                        continue
+                    }
+                    is ExitDecision.AskOwner -> throw IllegalStateException(
+                        "the exit policy re-asked the completion card - once-per-task is a law invariant",
                     )
                 }
-                line("decide: finish REFUSED (ART-4) - self-report without code evidence")
-                history.add("step $stepIndex: finish refused - the goal is not verifiably achieved yet")
-                logRow(
-                    stepIndex, state, question, choice, candidates,
-                    ExecutedAction(null, LoggedActionKind.FINISH, ActionDisposition.REFUSED_BY_GUARD),
-                    gateEvent = null,
-                    outcome = Outcome.NO_CHANGE,
-                    escalation = escalation,
-                )
-                stuck.record(
-                    StuckDetector.Footprint(
-                        actionKey = "FINISH",
-                        screenHash = obs.screenHash,
-                        textLines = obs.lines,
-                        isError = false,
-                    ),
-                )
-                stepIndex += 1
-                if (assessStuck()) {
-                    return finish(
-                        TerminalState.STUCK_KILL,
-                        "repeated unsupported finish claims - L3 auto-kill",
-                        stepIndex,
-                    )
-                }
-                continue
             }
+
+            // A non-finish decision was taken: meter the anti-oscillation window.
+            exitPolicy.noteDecision(obs.screenHash)
 
             // -- 4. GATE (before any execution, vision 06 §1-2) -----------------------------
             val kind = actionKindFor(candidate)
@@ -744,6 +841,20 @@ class NavigationLoop(
         ActionKind.FINISH -> LoggedActionKind.FINISH
     }
 
+    private fun ExitPath.toLoggedPath(): LoggedExitPath = when (this) {
+        ExitPath.HIGH -> LoggedExitPath.HIGH
+        ExitPath.SUSTAINED -> LoggedExitPath.SUSTAINED
+        ExitPath.OWNER_CONFIRM -> LoggedExitPath.OWNER_CONFIRM
+    }
+
+    private fun GuardLevel.toLoggedLevel(): LoggedGuardLevel = when (this) {
+        GuardLevel.WEAK -> LoggedGuardLevel.WEAK
+        GuardLevel.STRONG -> LoggedGuardLevel.STRONG
+        GuardLevel.NONE -> throw IllegalStateException(
+            "a NONE guard can never ride an accepted exit - no path accepts without code evidence",
+        )
+    }
+
     private fun HClass.toLoggedHClass(): navigator.core.log.LoggedHClass = when (this) {
         HClass.H1_PAYMENT -> navigator.core.log.LoggedHClass.H1
         HClass.H2_PURCHASE_CONFIRM -> navigator.core.log.LoggedHClass.H2
@@ -884,6 +995,26 @@ enum class TerminalState {
     TRIAGE_IMPOSSIBLE,
 }
 
+/**
+ * The exit block of a GOAL_ACHIEVED run (vision 04 §3 v1.2.0; doc 05 v1.4.0 — the run
+ * report's `exit` counterpart of the terminal row's provenance). Null for every other
+ * terminal (nothing exited).
+ */
+data class ExitSummary(
+    /** HIGH | SUSTAINED | OWNER_CONFIRM. */
+    val path: String,
+    /** WEAK | STRONG. */
+    val guardLevel: String,
+    /** The anchored noul of the accepting check. */
+    val noul: Double,
+    /** Finish checks the policy evaluated before accepting. */
+    val finishChecks: Int,
+    /** Whether the completion card was shown in this task (max one). */
+    val completionCardShown: Boolean,
+    /** CONFIRM_DONE | KEEP_GOING | TIMEOUT, when the card was shown. */
+    val completionCardResolution: String?,
+)
+
 /** One task run's durable summary (the harness exports it as the run report). */
 data class RunResult(
     val goalId: String?,
@@ -907,4 +1038,6 @@ data class RunResult(
     val softWarnings: List<String>,
     val stepLog: List<String>,
     val partialResult: String,
+    /** Exit provenance (vision 04 §3 v1.2.0): null unless the terminal is GOAL_ACHIEVED. */
+    val exit: ExitSummary? = null,
 )

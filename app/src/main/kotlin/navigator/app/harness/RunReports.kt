@@ -10,6 +10,27 @@ import kotlinx.serialization.json.Json
  * a unit test).
  */
 
+/**
+ * The exit block of a GOAL_ACHIEVED run (vision 04 §3 v1.2.0, Phase 8J): the run
+ * report's counterpart of the terminal row's `exit` provenance (doc 05 v1.4.0) plus
+ * the family counters the owner reads per UAT: how many finish checks it took and
+ * whether the completion card arbitrated. Null for every other terminal.
+ */
+@Serializable
+data class ExitReport(
+    /** HIGH | SUSTAINED | OWNER_CONFIRM (vision 04 §3 v1.2.0). */
+    val path: String,
+    /** WEAK | STRONG (vision 04 §3 v1.2.0). */
+    val guardLevel: String,
+    val noul: Double,
+    /** Finish checks the exit policy evaluated before accepting. */
+    val finishChecks: Int,
+    /** Whether the completion card was shown in this task (max one per task). */
+    val completionCardShown: Boolean,
+    /** CONFIRM_DONE | KEEP_GOING | TIMEOUT, when the card was shown. */
+    val completionCardResolution: String? = null,
+)
+
 /** One exported run (the Gate 6.2 evidence artifact). */
 @Serializable
 data class RunReport(
@@ -57,6 +78,12 @@ data class RunReport(
      * "no escalations" when the owner reads the UAT comparison.
      */
     val escalations: EscalationStats? = null,
+    /**
+     * Phase 8J exit provenance (vision 04 §3 v1.2.0): the goal-achieved path, guard
+     * level, noul, finish-check count and completion-card record. Null unless the run
+     * ended GOAL_ACHIEVED — never ambiguous with "no exit provenance" on other terminals.
+     */
+    val exit: ExitReport? = null,
 )
 
 /**

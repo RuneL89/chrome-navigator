@@ -324,6 +324,49 @@ enum class CompressedBy {
 }
 
 /**
+ * The goal-achieved path an accepted finish took (vision 04 §3 v1.2.0, doc 05 v1.4.0
+ * `exit.path`). The engine can never finish alone (ART-4) — the path names WHICH code
+ * verification accepted: HIGH (classic high-band noul over a passing guard), SUSTAINED
+ * (STRONG guard + noul over the sustained floor, K consecutive checks), OWNER_CONFIRM
+ * (the owner's completion card).
+ */
+@Serializable
+enum class LoggedExitPath {
+    @SerialName("HIGH") HIGH,
+    @SerialName("SUSTAINED") SUSTAINED,
+    @SerialName("OWNER_CONFIRM") OWNER_CONFIRM,
+}
+
+/**
+ * The code guard level of an accepted exit (vision 04 §3 v1.2.0, doc 05 v1.4.0
+ * `exit.guardLevel`): WEAK (per-triage-class contentful predicates) or STRONG
+ * (deterministic target-entity match). A failing guard never exits, so the logged
+ * vocabulary has no NONE.
+ */
+@Serializable
+enum class LoggedGuardLevel {
+    @SerialName("WEAK") WEAK,
+    @SerialName("STRONG") STRONG,
+}
+
+/**
+ * Exit provenance on the TERMINAL row (doc 05 v1.4.0 `exit`: null on every
+ * non-terminal row): which path accepted the finish, at which guard level, and the
+ * anchored noul of the accepting check. Additive 2026-10-06 amendment — earlier rows
+ * decode unchanged with `exit = null`.
+ */
+@Serializable
+data class ExitProvenance(
+    val path: LoggedExitPath,
+    val guardLevel: LoggedGuardLevel,
+    val noul: Double,
+) {
+    init {
+        require(noul in 0.0..1.0) { "ExitProvenance: noul out of range [0,1]: $noul" }
+    }
+}
+
+/**
  * One DecisionLog row (vision 05 §2 — the full schema, one row per decision).
  *
  * Cross-field consistency fails loudly in [init]: the teacher answer must live on the
@@ -363,6 +406,8 @@ data class DecisionLogRow(
     val escalated: Boolean = false,
     /** The fallback's answer when escalated, else null (doc 05 v1.2.0). */
     val fallback: FallbackInfo? = null,
+    /** Exit provenance on the terminal row (doc 05 v1.4.0): null on every other row. */
+    val exit: ExitProvenance? = null,
 ) {
     init {
         require(rowId.isNotBlank()) { "DecisionLogRow.rowId must not be blank" }

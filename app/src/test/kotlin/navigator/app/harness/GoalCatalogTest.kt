@@ -29,12 +29,14 @@ class GoalCatalogTest {
     @Test
     fun `the M0 families are present with the right multiplicities`() {
         val families = catalog.goals.map { it.family }
-        assertEquals(6, catalog.goals.size)
+        // M0 set + the Phase-8J exit-reliability family (one scripted fixture goal)
+        assertEquals(7, catalog.goals.size)
         assertEquals(2, families.count { it == "search-and-read" })
         assertEquals(1, families.count { it == "research-multi-step" })
         assertEquals(1, families.count { it == "form-fill" })
         assertEquals(1, families.count { it == "stuck-recovery" })
         assertEquals(1, families.count { it == "unreadable-tree" })
+        assertEquals(1, families.count { it == "exit-reliability" })
     }
 
     @Test
@@ -111,8 +113,8 @@ class GoalCatalogTest {
 
     @Test
     fun `custom goals never join the fixture catalog`() {
-        // The catalog stays the strict M0 fixture set: custom ids are runtime-only.
+        // Custom ids are runtime-only: they never join the committed fixture set.
         assertThrows<IllegalArgumentException> { catalog.byId(GoalCatalog.DEFAULT_CUSTOM_GOAL_ID) }
-        assertEquals(6, catalog.goals.size)
+        assertEquals(7, catalog.goals.size)
     }
 }

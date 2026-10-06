@@ -69,6 +69,28 @@ class DecisionLogSchemaRoundTripTest {
         assertEquals(Outcome.PROGRESSED, decoded.outcome)
         assertEquals(CompressedBy.CODE, decoded.compressedBy)
         assertEquals(true, decoded.shadowSampled)
+        // doc 05 v1.4.0: exit provenance is null on every non-terminal row
+        assertNull(decoded.exit)
+    }
+
+    @Test
+    fun `exit provenance round-trips on the terminal row (doc 05 v1-4-0)`() {
+        val row = LogRowFixtures.goalAchievedSustainedExit()
+        val decoded = json.decodeFromString<DecisionLogRow>(json.encodeToString(row))
+        assertEquals(row, decoded)
+        val exit = requireNotNull(decoded.exit) { "exit provenance must survive" }
+        assertEquals(LoggedExitPath.SUSTAINED, exit.path)
+        assertEquals(LoggedGuardLevel.STRONG, exit.guardLevel)
+        assertEquals(0.61, exit.noul)
+    }
+
+    @Test
+    fun `exit provenance rejects an out-of-range noul`() {
+        assertLoudFailure("exit noul outside [0,1] must be rejected") {
+            LogRowFixtures.goalAchievedSustainedExit().copy(
+                exit = ExitProvenance(LoggedExitPath.HIGH, LoggedGuardLevel.WEAK, noul = 1.5),
+            )
+        }
     }
 
     // ---- gateEvent variants (vision 05 §2: class H1–H8, approved|denied|timeout, trustedFromTask) ----
@@ -261,6 +283,7 @@ class DecisionLogSchemaRoundTripTest {
         "row-gate-timeout" to LogRowFixtures.timeout(),
         "row-shadow-miss" to LogRowFixtures.shadowMiss(),
         "row-exited-after-abort" to LogRowFixtures.exitedAfterAbort(),
+        "row-goal-achieved-exit" to LogRowFixtures.goalAchievedSustainedExit(),
     )
 
     private fun goldenDir(): Path =

@@ -188,4 +188,31 @@ internal object LogRowFixtures {
         compressedBy = CompressedBy.LLM,
         shadowSampled = false,
     )
+
+    /**
+     * The terminal row of a goal-achieved task (vision 04 §3 v1.2.0, doc 05 v1.4.0):
+     * the finish executed and the exit provenance names the path, guard level, and the
+     * anchored noul of the accepting check. Phase 8J.
+     */
+    fun goalAchievedSustainedExit(): DecisionLogRow = complete(
+        rowId = "row-0007",
+        stepIndex = 9,
+        shadowAnswer = null,
+        gateEvent = null,
+        disposition = ActionDisposition.EXECUTED,
+        outcome = Outcome.EXITED,
+        compressedBy = null,
+        shadowSampled = false,
+    ).copy(
+        executedAction = ExecutedAction(
+            candidateId = null,
+            kind = LoggedActionKind.FINISH,
+            disposition = ActionDisposition.EXECUTED,
+        ),
+        exit = ExitProvenance(
+            path = LoggedExitPath.SUSTAINED,
+            guardLevel = LoggedGuardLevel.STRONG,
+            noul = 0.61,
+        ),
+    )
 }

@@ -137,7 +137,12 @@ fun obs(
 
 // -- loop wiring -------------------------------------------------------------------------
 
-/** Assembles the loop with fakes; exposes everything a Gate 6.1 scenario asserts on. */
+/**
+ * Assembles the loop with fakes; exposes everything a Gate 6.1 scenario asserts on.
+ * [completionCardPresenter] defaults to the auto keep-going mode (fail-safe: an
+ * unattended completion card never exits — vision 04 §3 Path C); the Phase-8J card
+ * scenarios inject [ScriptedCompletionCardPresenter]s.
+ */
 class LoopFixture(
     script: List<ScriptedAnswer>,
     observations: List<StepObservation>,
@@ -148,6 +153,7 @@ class LoopFixture(
     private val clockAdvancePerObserve: Long = 0,
     /** External journal so presenter lambdas can share the fakes' timeline. */
     val journal: Journal = Journal(),
+    completionCardPresenter: CompletionCardPresenter = AutoKeepGoingCompletionPresenter,
 ) {
     val clock = FakeClock()
     val sink = CollectingLogSink()
@@ -170,6 +176,7 @@ class LoopFixture(
         },
         executor = executor,
         gatePresenter = presenter,
+        completionCardPresenter = completionCardPresenter,
         logSink = sink,
         spendMeter = spendMeter,
         config = config,

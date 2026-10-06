@@ -106,3 +106,122 @@ class DebugGatePresenter(private val activity: Activity) : GatePresenter {
         const val TIMEOUT_MS = 30_000L
     }
 }
+
+// -- completion card (vision 04 §3 v1.2.0, Path C — the owner arbiter) -----------------
+
+/** The completion card payload (data only, no UI — the GateCard pattern). */
+data class CompletionCard(
+    /** The goal as given (context line for the owner). */
+    val goal: String,
+    /** The triage-extracted target entity, or null when none was extracted. */
+    val entity: String?,
+    /** The code evidence level at the card trigger. */
+    val guardLevel: GuardLevel,
+    /** The anchored noul of the triggering check. */
+    val noul: Double,
+    /** Consecutive guard-pass finish refusals that triggered the card (K). */
+    val refusedChecks: Int,
+)
+
+/** The owner's completion-card resolution (vision 04 §3 Path C). */
+enum class CompletionResolution { CONFIRM_DONE, KEEP_GOING, TIMEOUT }
+
+/**
+ * The completion-card presenting edge (the GatePresenter pattern): shows
+ * "Goal appears complete — [Confirm done] / [Keep going]" and waits; 30s timeout =
+ * keep going (fail-safe: the loop continues). The loop calls it at most ONCE per task
+ * (the policy's card trigger is once-per-task); Phase 9's product overlay replaces the
+ * debug implementation.
+ */
+fun interface CompletionCardPresenter {
+    suspend fun present(card: CompletionCard): CompletionResolution
+}
+
+/**
+ * Harness/test auto mode: keep going (timeout semantics, fail-safe — the mirror of
+ * [AutoDenyGatePresenter]). The task only ends by engine-verified evidence, never by
+ * an unattended card.
+ */
+data object AutoKeepGoingCompletionPresenter : CompletionCardPresenter {
+    override suspend fun present(card: CompletionCard): CompletionResolution = CompletionResolution.KEEP_GOING
+}
+
+/** Deterministic scripted presenter for JVM tests / scripted on-device runs. */
+class ScriptedCompletionCardPresenter(private vararg val resolutions: CompletionResolution) : CompletionCardPresenter {
+    private var index = 0
+    val presented = mutableListOf<CompletionCard>()
+
+    override suspend fun present(card: CompletionCard): CompletionResolution {
+        presented.add(card)
+        if (index >= resolutions.size) {
+            throw IllegalStateException(
+                "completion card presenter script exhausted (card: entity=${card.entity}, " +
+                    "guard=${card.guardLevel}) - a second ask is a once-per-task violation",
+            )
+        }
+        return resolutions[index++]
+    }
+}
+
+/**
+ * The harness completion-card stand-in: the law's card verbatim — "Goal appears
+ * complete" with Confirm done / Keep going and a live 30s countdown; timeout = keep
+ * going (vision 04 §3 Path C). Overlay window when the owner granted it, activity-local
+ * dialog otherwise; harness-only, never product UI.
+ */
+class DebugCompletionCardPresenter(private val activity: Activity) : CompletionCardPresenter {
+
+    override suspend fun present(card: CompletionCard): CompletionResolution {
+        var resolution: CompletionResolution? = null
+        val latch = kotlinx.coroutines.CompletableDeferred<CompletionResolution>()
+
+        activity.runOnUiThread {
+            val countdown = TextView(activity).apply { setPadding(48, 16, 48, 0) }
+            val text = buildString {
+                append("Goal appears complete").append('\n')
+                append(card.goal).append('\n')
+                card.entity?.let { append("target: $it").append('\n') }
+                append("evidence: guard=${card.guardLevel}, noul=${card.noul}, " +
+                    "refused checks=${card.refusedChecks}")
+            }
+            val dialog = AlertDialog.Builder(activity)
+                .setTitle("Navigator completion")
+                .setMessage(text)
+                .setCancelable(false)
+                .setPositiveButton("Confirm done") { d, _ ->
+                    resolution = CompletionResolution.CONFIRM_DONE
+                    d.dismiss()
+                }
+                .setNegativeButton("Keep going") { d, _ ->
+                    resolution = CompletionResolution.KEEP_GOING
+                    d.dismiss()
+                }
+                .create()
+            dialog.window?.let { window ->
+                if (android.provider.Settings.canDrawOverlays(activity)) {
+                    window.setType(android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)
+                }
+            }
+            dialog.setOnDismissListener {
+                latch.complete(resolution ?: CompletionResolution.TIMEOUT)
+            }
+            dialog.show()
+            object : CountDownTimer(TIMEOUT_MS, 250) {
+                override fun onTick(msUntilFinished: Long) {
+                    countdown.text = "Keep going in ${msUntilFinished / 1000 + 1}s"
+                }
+
+                override fun onFinish() {
+                    resolution = CompletionResolution.TIMEOUT
+                    dialog.dismiss()
+                }
+            }.start()
+        }
+        return latch.await()
+    }
+
+    private companion object {
+        /** Vision 04 §3 Path C: 30 seconds; timeout = keep going. */
+        const val TIMEOUT_MS = 30_000L
+    }
+}

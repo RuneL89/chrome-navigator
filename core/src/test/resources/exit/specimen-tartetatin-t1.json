@@ -1,0 +1,28 @@
+{
+  "note": "Phase 8J regression fixture derived from the Test-1 specimen .state/specimens/2026-10-06_uat-tart-t1_jev_budget-death.json (live Jev run, 2026-10-06, committed verbatim in .state/specimens/). The specimen's report carries the full noul series (8 finish checks, guard PASSED each time) but not the per-check page states; the pages below are constructed from the specimen's step context (the tapped result label 'Tarte Tatin Caramelised fruit tart', the partialResult text 'Tarte Tatin Article Talk Download PDF') and the known final page title. The policy MUST refuse every recorded check (the run died BUDGET_EXHAUSTED) and accept SUSTAINED exactly on the 3rd CONSECUTIVE >=0.55-with-STRONG check once the series is extended (the 0.44 breaks one streak - K counting is consecutive, vision 04 section 3 v1.2.0).",
+  "sourceSpecimen": "uat-tart-t1",
+  "sourceTerminal": "BUDGET_EXHAUSTED",
+  "goal": "Open Wikipedia article Tarte Tatin.",
+  "triageClass": "lookup",
+  "expectedEntity": "Tarte Tatin",
+  "startPage": {
+    "url": "https://www.google.com/search?q=tarte+tatin",
+    "title": "tarte tatin - Google Search",
+    "contentLines": [
+      "tarte tatin - Google Search",
+      "Tarte Tatin Caramelised fruit tart"
+    ]
+  },
+  "terminalPage": {
+    "url": "https://en.wikipedia.org/wiki/Tarte_Tatin",
+    "title": "Tarte Tatin - Wikipedia",
+    "contentLines": [
+      "Tarte Tatin",
+      "Article Talk",
+      "Download PDF",
+      "The Tarte Tatin is a caramelised fruit tart in which the apples are cooked in butter and sugar"
+    ]
+  },
+  "recordedNoul": [0.66, 0.37, 0.34, 0.59, 0.61, 0.44, 0.6, 0.61],
+  "continuationNoul": [0.58]
+}

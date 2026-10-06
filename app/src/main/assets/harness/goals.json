@@ -91,6 +91,35 @@
       "script": [
         { "question": "triage", "chosen": "lookup" }
       ]
+    },
+    {
+      "id": "exit-reliability-1",
+      "family": "exit-reliability",
+      "goal": "Open the page about the Zephyr Lantern Museum and read its visiting hours.",
+      "startUrl": "http://127.0.0.1:8099/home.html",
+      "expectedTerminal": "GOAL_ACHIEVED",
+      "script": [
+        { "question": "triage", "chosen": "lookup" },
+        { "question": "action", "labelContains": "Zephyr Lantern Museum" },
+        { "question": "action", "chosen": "finish" },
+        { "question": "goal-achieved", "pTrue": 0.6 },
+        { "question": "action", "labelContains": "Scroll down" },
+        { "question": "action", "labelContains": "Scroll up" },
+        { "question": "action", "chosen": "finish" },
+        { "question": "goal-achieved", "pTrue": 0.3 },
+        { "question": "action", "labelContains": "Scroll down" },
+        { "question": "action", "labelContains": "Scroll up" },
+        { "question": "action", "chosen": "finish" },
+        { "question": "goal-achieved", "pTrue": 0.6 },
+        { "question": "action", "labelContains": "Scroll down" },
+        { "question": "action", "labelContains": "Scroll up" },
+        { "question": "action", "chosen": "finish" },
+        { "question": "goal-achieved", "pTrue": 0.6 },
+        { "question": "action", "labelContains": "Scroll down" },
+        { "question": "action", "labelContains": "Scroll up" },
+        { "question": "action", "chosen": "finish" },
+        { "question": "goal-achieved", "pTrue": 0.6 }
+      ]
     }
   ]
 }

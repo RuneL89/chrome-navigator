@@ -95,6 +95,10 @@ without a device.
   additive only)
 * `src/test/resources/tokenizer/` — tokenizer correctness fixtures (real reference
   vectors, vocab sample)
+* `src/test/resources/exit/` — Phase-8J exit fixtures (reviewable data): the Test-1
+  Tarte Tatin specimen replay (`specimen-tartetatin-t1.json`, derived from the verbatim
+  `.state/specimens/` report — recorded noul series + the reconstructed terminal page);
+  the `:app` replay/family tests load it via the `navigator.project.root` property
 
 ## Local Contracts
 
@@ -153,7 +157,11 @@ without a device.
   escalation pair — `escalated: Boolean = false` + `fallback: FallbackInfo?` (`{engine,
   model, answer}` with the polymorphic `TypedResult`; a choice fallback answer must live
   on the primary question's option space; escalated ⇔ fallback present) — the goldens
-  were regenerated via UPDATE_GOLDENS under the ratified amendment
+  were regenerated via UPDATE_GOLDENS under the ratified amendment. Phase 8J (doc 05
+  v1.4.0) added `exit: ExitProvenance? = null` (`{path: HIGH|SUSTAINED|OWNER_CONFIRM,
+  guardLevel: WEAK|STRONG, noul}`, the terminal row's exit provenance per vision 04 §3
+  v1.2.0) — the goldens were regenerated again via UPDATE_GOLDENS (every row now encodes
+  `"exit": null`; the new `row-goal-achieved-exit.json` golden pins the populated shape)
 * Companion shadow-result rows (Phase 8B, vision 05 §2 amendment 2026-10-04):
   `ShadowResultRow` is the second INSERT-ONLY row type, legal only for a decision row
   logged as a shadowMiss and exactly once per `(taskId, stepIndex)` — enforced at the

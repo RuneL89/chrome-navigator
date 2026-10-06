@@ -53,15 +53,39 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     GATE → EXECUTE → LOG; exits goal-achieved / budget-exhausted / stuck-kill /
     guard-abort / user-cancel + the documented REFUSED and TRIAGE_IMPOSSIBLE),
     `Triage` (one choose over `{lookup, research-multi-step, form-fill, impossible}`),
-    `CompletionGuards` (per-triage-class code state machines — ART-4: noul HIGH AND
-    guard pass, never self-report alone), `StuckDetector` (5 signals / 8-step window /
-    3 levels; L2 recovery set, rephrase = deterministic stub until Phase 10), 
+    `CompletionGuards` (per-triage-class code state machines — ART-4; Phase 8J Guard
+    2.0: `TargetEntity` — deterministic code extraction of the goal's target
+    (quoted spans, "article/page titled|named|about X" cues, capitalized multi-word
+    runs, NO site names hardcoded) and the STRONG match (exact word-boundary or >=0.9
+    token overlap) over page title, URL (normalizing `_-/.` to spaces), or observed
+    content lines — `levelAt` returns NONE (class predicate fails; every exit path
+    closed) / WEAK (predicate holds) / STRONG (predicate holds AND entity matched)),
+    `ExitPolicy` (Phase 8J, vision 04 §3 v1.2.0 — the exit law as pure code: Path A
+    HIGH anchored noul > 0.70 (Bands semantics, exclusive) with any guard level; Path
+    B SUSTAINED = STRONG + noul >= 0.55 over K=3 CONSECUTIVE checks (the streak RESETS
+    on any failing check — the Test-1 specimen's 0.44 breaks it); Path C = one
+    completion card after K guard-pass refusals (once per task); anti-oscillation:
+    a refused finish excludes `finish` from the next M=2 decisions via
+    `CandidateList.withoutFinish()`, cleared on any page-hash change; thresholds are
+    code config (ART-5) gated by the exit-calibration family),
+    `AnchoredNoul` (Phase 8J: the finish question's proposition is code-constructed per
+    triage class, anchored to the extracted entity, `ANCHORED_NOUL_VERSION=1`; generic
+    "is the goal achieved?" phrasing is forbidden),
+    `StuckDetector` (6 signals / 8-step window / 3 levels; the Phase-8J sixth signal is
+    the exit conflict — 3 consecutive refused finishes with no screen progress; the L1
+    hint carries "engine wants to finish, evidence says <level>"; a screen change resets
+    both escalations; L2 recovery set, rephrase = deterministic stub until Phase 10), 
     `TaskBudget` (steps 40/60, time 5/10 min, spend $0.20/$0.25 — integer
     micro-dollars via `SpendMeter` + `SpendPrices`, ART-5), `StepExecutor`
     (`ActionExecutor` interface + `GestureExecutor` dispatchGesture impl +
     `phraseStub`), `GatePresenter` (interface; `AutoDenyGatePresenter` = harness
     test mode, `DebugGatePresenter` = overlay dialog with 30s countdown,
-    `ScriptedGatePresenter`), `JevSpendRecorder` (records each call's
+    `ScriptedGatePresenter`; Phase 8J mirrors it for the completion card:
+    `CompletionCardPresenter` with `AutoKeepGoingCompletionPresenter` (unattended =
+    keep going, fail-safe), `ScriptedCompletionCardPresenter` (JVM tests; a second
+    ask fails loudly — once-per-task), `DebugCompletionCardPresenter` ("Goal appears
+    complete — Confirm done / Keep going", 30s timeout = keep going)),
+    `JevSpendRecorder` (records each call's
     PROVIDER-REPORTED wire usage into the budget meter, fed by a `UsageFeed` bridge
     from `SystemOneClient(onUsage = ...)`; a completed call with no reported usage
     fails loudly — never a silent $0 on live spend); Phase 8 added `ShadowRouter` (vision 02 §4):
@@ -107,7 +131,9 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     `RunReportStore` does the file export),
     `HarnessPagesServer` (loopback-only static server over
     `assets/harness/pages/`), `GoalCatalog` (`assets/harness/goals.json` — the M0
-    scripted goal families; `GoalCatalog.customGoal(...)` builds a ONE-OFF custom goal
+    scripted goal families + the Phase-8J `exit-reliability-1` fixture goal (drives
+    `pages/zenith.html` through refusals, one keep-going card, and a SUSTAINED accept;
+    harness-only); `GoalCatalog.customGoal(...)` builds a ONE-OFF custom goal
     at runtime for real-site diagnostics: launch with `--es customGoalText "..."` +
     `--es customStartUrl "https://..."` (+ optional `--es customGoalId`) — LIVE-only
     (a STUB launch is refused loudly), expected terminal GOAL_ACHIEVED with the standard
@@ -146,10 +172,12 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
   `(taskId, stepIndex)`), `ShadowResultDao` + `ShadowResultLogger` (guarded insert-only
   companions — loud rejection of companion-for-answered-row and orphans — plus the
   decision ⋈ companion LEFT-JOIN view and the joined-view agreement with coverage),
-  and `DecisionLogDb` v3 with `MIGRATION_1_2` (adds `shadow_result`) and
+  and `DecisionLogDb` v4 with `MIGRATION_1_2` (adds `shadow_result`),
   `MIGRATION_2_3` (Phase 8C, doc 05 v1.2.0: ALTER ADD COLUMN `escalated` (NOT NULL
-  DEFAULT 0) + `fallbackJson` (nullable) — existing databases keep every row, which
-  decode as the single-engine shape; no destructive fallback); law:
+  DEFAULT 0) + `fallbackJson` (nullable)) and `MIGRATION_3_4` (Phase 8J, doc 05
+  v1.4.0: ALTER ADD COLUMN `exitJson` (nullable) — the terminal row's exit
+  provenance; existing databases keep every row, which decode as exit=null; no
+  destructive fallback); law:
   `Project Vision/05` §2, §5
 * `build.gradle.kts` — Android build config (minSdk 34, compile/targetSdk 36, Compose;
   Room compiler wired via KSP; kotlinx-serialization + coroutines plugins/deps)
@@ -173,7 +201,8 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
   are insert-only too: a UNIQUE `(taskId, stepIndex)` index ABORTs duplicates and a
   transactional guard rejects loudly a companion beside an answered decision row or an
   orphan companion (rule a); DB migrations preserve history (v1→v2 adds `shadow_result`;
-  v2→v3 ALTER-adds the `escalated`/`fallbackJson` columns; no destructive fallback anywhere)
+  v2→v3 ALTER-adds the `escalated`/`fallbackJson` columns; v3→v4 ALTER-adds `exitJson`;
+  no destructive fallback anywhere)
 * The loop's Android edges sit behind interfaces (`LoopObserver`, `ActionExecutor`,
   `GatePresenter`, `DecisionLogSink`, `Clock`) so Gate 6.1 runs on the plain JVM with
   fakes — Robolectric-free; Android types appear only in `GestureExecutor`,
@@ -238,9 +267,27 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
   `ShadowRouterCompanionTest` Gate 8B.2 late-write semantics: freeze → exactly-once
   companion, fast-shadow single row with NO companion, duplicate-write idempotence,
   post-close drop counted, rejecting sink surfaced not propagated, executor isolation
-  in the real loop) —
+  in the real loop) + the Phase-8J exit gates (`ExitPolicyTest` Gate 8J.1 policy
+  matrix: path boundaries per Bands semantics, K-consecutive counting, once-per-task
+  card, M=2 window + hash-change clearing; `TargetEntityTest` + `SpecimenReplayTest`
+  Gate 8J.2: entity extraction, STRONG/WEAK/NONE levels, and the Test-1 specimen
+  replay — the recorded series never exits, the extended series accepts SUSTAINED
+  exactly on the 3rd consecutive >=0.55-with-STRONG check; `ExitFlowLoopTest` Gates
+  8J.3+8J.4: the refusal window is structural in the real loop (a scripted finish
+  after a refusal fails loudly), hash change clears it, the sixth signal's L1 hint,
+  the completion card confirm/keep-going/timeout with once-per-task; `AnchoredNoulTest`;
+  `ExitCalibrationFamilyTest` Gate 8J.5: terminal fixtures <=5 checks, decoys never,
+  per engine mode, report written to `.state/eval/exit-calibration-report.json`;
+  `DecisionLogV4DbTest` Room v4 exit round-trips + the v3→v4 migration) —
   plain JVM, Robolectric-free; the laya gates need the model artifact (verifyLayaModel
   fails the build loudly when it is missing)
+* Gate 8J (on-device smoke): the `exit-reliability-1` harness goal (stub engine, auto
+  keep-going) runs the scripted finish path end-to-end on the emulator — refusals with
+  the anti-oscillation window, one completion card answered keep-going, then the
+  SUSTAINED accept; evidence = `.state/phase-08J-smoke/` (GOAL_ACHIEVED, gaps=0,
+  exit block path=SUSTAINED guard=STRONG checks=5 card=KEEP_GOING). Note: the AVD's
+  webview-shell web-content a11y starvation (documented since Phase 6) needed a
+  one-time `adb shell pm clear org.chromium.webview_shell` this session
 * Gate 6.2 (on-device): the harness suite runs all six scripted goal families to their
   expected terminal states with zero log gaps; evidence = the pulled `run-reports/`
   (`suite-report.json` `allPassed: true`)

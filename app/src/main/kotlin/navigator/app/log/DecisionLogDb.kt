@@ -17,6 +17,7 @@ import navigator.core.log.DecisionLogRow
 import navigator.core.log.DECISION_LOG_JSON
 import navigator.core.log.EngineIdentity
 import navigator.core.log.ExecutedAction
+import navigator.core.log.ExitProvenance
 import navigator.core.log.FallbackInfo
 import navigator.core.log.LoggedGateEvent
 import navigator.core.log.Outcome
@@ -74,6 +75,9 @@ data class DecisionLogEntity(
      *  as escalated=false / fallback=null through the migration's column defaults. */
     @ColumnInfo(defaultValue = "0") val escalated: Boolean = false,
     val fallbackJson: String? = null,
+    /** Phase 8J (doc 05 v1.4.0): exit provenance on the terminal row. Pre-v4 rows decode
+     *  as exit=null through the migration's nullable column (additive only). */
+    val exitJson: String? = null,
 )
 
 /** Bidirectional mapping row ↔ entity. Decoding validates loudly (core log law). */
@@ -111,6 +115,7 @@ object DecisionLogConverters {
         shadowSampled = row.shadowSampled,
         escalated = row.escalated,
         fallbackJson = row.fallback?.let { DECISION_LOG_JSON.encodeToString(FallbackInfo.serializer(), it) },
+        exitJson = row.exit?.let { DECISION_LOG_JSON.encodeToString(ExitProvenance.serializer(), it) },
     )
 
     fun toRow(entity: DecisionLogEntity): DecisionLogRow = DecisionLogRow(
@@ -156,6 +161,9 @@ object DecisionLogConverters {
         escalated = entity.escalated,
         fallback = entity.fallbackJson?.let {
             DECISION_LOG_JSON.decodeFromString(FallbackInfo.serializer(), it)
+        },
+        exit = entity.exitJson?.let {
+            DECISION_LOG_JSON.decodeFromString(ExitProvenance.serializer(), it)
         },
     )
 }
@@ -212,7 +220,7 @@ interface DecisionLogDao {
 
 @Database(
     entities = [DecisionLogEntity::class, ShadowResultEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = false,
 )
 abstract class DecisionLogDb : RoomDatabase() {
@@ -267,10 +275,22 @@ abstract class DecisionLogDb : RoomDatabase() {
             }
         }
 
+        /**
+         * v3 → v4 (vision 05 v1.4.0, Phase 8J): adds the `exitJson` column (nullable) —
+         * the exit provenance on the terminal row (doc 04 §3 v1.2.0: path, guard level,
+         * noul). ALTER ADD COLUMN only: every historical row survives, decoding as
+         * exit=null, never rewritten (insert-only law).
+         */
+        val MIGRATION_3_4: androidx.room.migration.Migration = object : androidx.room.migration.Migration(3, 4) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `decision_log` ADD COLUMN `exitJson` TEXT")
+            }
+        }
+
         /** Production: a named, on-disk database (indefinite local retention, vision 05 §5). */
         fun open(context: Context, name: String): DecisionLogDb =
             Room.databaseBuilder(context, DecisionLogDb::class.java, name)
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build()
 
         /** In-memory variant (tests / ephemeral windows). */

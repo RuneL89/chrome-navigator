@@ -7,7 +7,9 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** StuckDetector law (vision 04 §4): 5 signals / 8-step window / 3 levels, deterministic. */
+/** StuckDetector law (vision 04 §4): 6 signals / 8-step window / 3 levels, deterministic.
+ * Phase 8J: the sixth signal is the exit conflict (consecutive refused finishes,
+ * vision 04 §3 v1.2.0). */
 class StuckDetectorTest {
 
     private fun footprint(
@@ -114,5 +116,63 @@ class StuckDetectorTest {
         detector.record(footprint(hash = 2, lines = listOf("new")))
         detector.record(footprint(hash = 3, lines = listOf("newer")))
         assertNull(detector.assess())
+    }
+
+    // -- sixth signal: the exit conflict (vision 04 §3 v1.2.0) ---------------------------
+
+    @Test
+    fun `three consecutive refused finishes trip the exit-conflict signal`() {
+        val detector = StuckDetector()
+        repeat(2) {
+            detector.record(footprint(action = "FINISH", hash = 1))
+            detector.recordRefusedFinish("WEAK")
+        }
+        assertNull(detector.assess(), "two refused finishes are not the signal yet")
+        detector.record(footprint(action = "FINISH", hash = 1))
+        detector.recordRefusedFinish("WEAK")
+        val assessment = assertNotNull(detector.assess())
+        assertTrue(assessment.signals.contains(StuckDetector.EXIT_CONFLICT_SIGNAL))
+        assertEquals("WEAK", assessment.exitConflictEvidence)
+    }
+
+    @Test
+    fun `interleaved taps on an unchanged screen keep the exit-conflict streak alive`() {
+        // the Test-1 specimen's shape: finish, tap, tap, finish - the taps moved nothing
+        val detector = StuckDetector()
+        detector.record(footprint(action = "FINISH", hash = 1))
+        detector.recordRefusedFinish("STRONG")
+        detector.record(footprint(action = "tap:n9", hash = 1)) // unchanged screen: no reset
+        detector.record(footprint(action = "tap:n9", hash = 1))
+        detector.record(footprint(action = "FINISH", hash = 1))
+        detector.recordRefusedFinish("STRONG")
+        assertNull(detector.assess(), "only two refused finishes so far")
+        detector.record(footprint(action = "tap:n9", hash = 1))
+        detector.record(footprint(action = "tap:n9", hash = 1))
+        detector.record(footprint(action = "FINISH", hash = 1))
+        detector.recordRefusedFinish("STRONG")
+        val assessment = assertNotNull(detector.assess())
+        assertTrue(assessment.signals.contains(StuckDetector.EXIT_CONFLICT_SIGNAL))
+        assertEquals("STRONG", assessment.exitConflictEvidence)
+    }
+
+    @Test
+    fun `a screen change resets the exit-conflict streak - real progress re-opens the question`() {
+        val detector = StuckDetector()
+        detector.record(footprint(action = "FINISH", hash = 1))
+        detector.recordRefusedFinish("WEAK")
+        detector.record(footprint(action = "tap:n9", hash = 1))
+        detector.recordRefusedFinish("WEAK")
+        // the next tap MOVED the screen: the exit conflict is stale, the streak restarts
+        detector.record(footprint(action = "tap:n10", hash = 2, lines = listOf("new page")))
+        detector.recordRefusedFinish("WEAK")
+        detector.record(footprint(action = "FINISH", hash = 2))
+        detector.recordRefusedFinish("WEAK")
+        assertNull(detector.assess(), "two refused finishes since the hash change are not enough")
+    }
+
+    @Test
+    fun `the exit-conflict hint names the evidence level`() {
+        val hint = StuckDetector.exitConflictHint("WEAK")
+        assertTrue(hint.contains("engine wants to finish, evidence says WEAK"))
     }
 }

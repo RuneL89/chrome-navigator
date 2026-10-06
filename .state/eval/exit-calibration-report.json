@@ -1,0 +1,165 @@
+{
+    "family": "exit-calibration",
+    "law": "vision 07 §3a / vision 04 §3 v1.2.0",
+    "bounds": {
+        "terminalMaxFinishChecks": 5,
+        "highFloor": 0.7,
+        "sustainedFloor": 0.55,
+        "sustainedChecks": 3,
+        "exclusionDecisions": 2
+    },
+    "runs": [
+        {
+            "mode": "stub",
+            "fixture": "tarte-tatin-specimen",
+            "terminal": true,
+            "guardLevel": "STRONG",
+            "accepted": true,
+            "path": "OWNER_CONFIRM",
+            "checksUsed": 3,
+            "completionCardShown": true
+        },
+        {
+            "mode": "stub",
+            "fixture": "zephyr-museum-harness-page",
+            "terminal": true,
+            "guardLevel": "STRONG",
+            "accepted": true,
+            "path": "SUSTAINED",
+            "checksUsed": 3,
+            "completionCardShown": false
+        },
+        {
+            "mode": "stub",
+            "fixture": "decoy-tart-article",
+            "terminal": false,
+            "guardLevel": "WEAK",
+            "accepted": false,
+            "checksUsed": 6,
+            "completionCardShown": true
+        },
+        {
+            "mode": "stub",
+            "fixture": "decoy-wrong-recipe-page",
+            "terminal": false,
+            "guardLevel": "WEAK",
+            "accepted": false,
+            "checksUsed": 6,
+            "completionCardShown": true
+        },
+        {
+            "mode": "live",
+            "fixture": "tarte-tatin-specimen",
+            "terminal": true,
+            "guardLevel": "STRONG",
+            "accepted": true,
+            "path": "OWNER_CONFIRM",
+            "checksUsed": 3,
+            "completionCardShown": true
+        },
+        {
+            "mode": "live",
+            "fixture": "zephyr-museum-harness-page",
+            "terminal": true,
+            "guardLevel": "STRONG",
+            "accepted": true,
+            "path": "SUSTAINED",
+            "checksUsed": 3,
+            "completionCardShown": false
+        },
+        {
+            "mode": "live",
+            "fixture": "decoy-tart-article",
+            "terminal": false,
+            "guardLevel": "WEAK",
+            "accepted": false,
+            "checksUsed": 6,
+            "completionCardShown": true
+        },
+        {
+            "mode": "live",
+            "fixture": "decoy-wrong-recipe-page",
+            "terminal": false,
+            "guardLevel": "WEAK",
+            "accepted": false,
+            "checksUsed": 6,
+            "completionCardShown": true
+        },
+        {
+            "mode": "laya",
+            "fixture": "tarte-tatin-specimen",
+            "terminal": true,
+            "guardLevel": "STRONG",
+            "accepted": true,
+            "path": "OWNER_CONFIRM",
+            "checksUsed": 3,
+            "completionCardShown": true
+        },
+        {
+            "mode": "laya",
+            "fixture": "zephyr-museum-harness-page",
+            "terminal": true,
+            "guardLevel": "STRONG",
+            "accepted": true,
+            "path": "SUSTAINED",
+            "checksUsed": 3,
+            "completionCardShown": false
+        },
+        {
+            "mode": "laya",
+            "fixture": "decoy-tart-article",
+            "terminal": false,
+            "guardLevel": "WEAK",
+            "accepted": false,
+            "checksUsed": 6,
+            "completionCardShown": true
+        },
+        {
+            "mode": "laya",
+            "fixture": "decoy-wrong-recipe-page",
+            "terminal": false,
+            "guardLevel": "WEAK",
+            "accepted": false,
+            "checksUsed": 6,
+            "completionCardShown": true
+        },
+        {
+            "mode": "laya_fb_jev",
+            "fixture": "tarte-tatin-specimen",
+            "terminal": true,
+            "guardLevel": "STRONG",
+            "accepted": true,
+            "path": "OWNER_CONFIRM",
+            "checksUsed": 3,
+            "completionCardShown": true
+        },
+        {
+            "mode": "laya_fb_jev",
+            "fixture": "zephyr-museum-harness-page",
+            "terminal": true,
+            "guardLevel": "STRONG",
+            "accepted": true,
+            "path": "SUSTAINED",
+            "checksUsed": 3,
+            "completionCardShown": false
+        },
+        {
+            "mode": "laya_fb_jev",
+            "fixture": "decoy-tart-article",
+            "terminal": false,
+            "guardLevel": "WEAK",
+            "accepted": false,
+            "checksUsed": 6,
+            "completionCardShown": true
+        },
+        {
+            "mode": "laya_fb_jev",
+            "fixture": "decoy-wrong-recipe-page",
+            "terminal": false,
+            "guardLevel": "WEAK",
+            "accepted": false,
+            "checksUsed": 6,
+            "completionCardShown": true
+        }
+    ]
+}

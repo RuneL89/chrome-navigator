@@ -5,21 +5,29 @@ import navigator.core.log.TriageClass
 /**
  * The code completion guards (vision 04 §3 — law, ART-4): per-triage-class state
  * machines over what CODE observed and executed — never over what the engine reports.
- * Goal-achieved requires the engine's noul in the high band AND the guard satisfied;
- * a self-report alone is refused.
+ * Goal-achieved requires the engine's finish choice AND verification through the exit
+ * policy ([ExitPolicy]); the guard level is the code-evidence half of every path.
  *
- * Guard predicates per class:
- * - `lookup` (search-and-read): a non-empty content region was read on a page OTHER
- *   than the task's first page (generalizes PokeClaw's `InAppSearchGuard` — results
- *   must actually have loaded and been read).
- * - `research-multi-step`: at least two distinct content-bearing pages were read.
- * - `form-fill`: a text entry succeeded AND a submit executed afterwards.
+ * Guard levels (vision 04 §3 v1.2.0):
+ * - [GuardLevel.NONE] — the class predicate does not hold; no exit path can accept.
+ * - [GuardLevel.WEAK] — the per-triage-class contentful predicates: lookup/research
+ *   (a non-empty content region read after results loaded), form-fill (submission
+ *   observed), action (post-action state observed), action-multi (tracker drained).
+ * - [GuardLevel.STRONG] — deterministic target verification: the triage-extracted
+ *   [TargetEntity] is matched in the page title, URL, or content (exact/fuzzy code
+ *   match, no model). STRONG is a strict superset of WEAK: the class predicate must
+ *   hold too (an entity named on the task's first page is not completion evidence).
  *
  * A content region is [CONTENT_MIN_TEXT_NODES] or more non-interactive text nodes in
  * one observation (code-countable "the page has body text", vision 04 §3's
  * "non-empty content region").
  */
-class CompletionGuards(triageClass: TriageClass) {
+class CompletionGuards(
+    triageClass: TriageClass,
+    /** The triage-extracted target entity (null when extraction found none — STRONG
+     *  can never fire; WEAK is the ceiling). Extracted once at triage, code-only. */
+    private val entity: TargetEntity? = null,
+) {
 
     private val kind: TriageClass = triageClass
 
@@ -52,12 +60,27 @@ class CompletionGuards(triageClass: TriageClass) {
         if (submitExecuted && fieldFilled) submittedAfterFill = true
     }
 
-    /** Whether the task's class-specific completion preconditions hold. */
+    /** Whether the task's class-specific completion preconditions hold (the WEAK level). */
     fun satisfied(): Boolean = when (kind) {
         TriageClass.LOOKUP -> readContentfulPages().any { it != firstUrl }
         TriageClass.RESEARCH_MULTI_STEP -> readContentfulPages().size >= 2
         TriageClass.FORM_FILL -> fieldFilled && submittedAfterFill
     }
+
+    /**
+     * The guard level for one finish verification over the CURRENT page (vision 04 §3
+     * v1.2.0): NONE when the class predicate fails; STRONG when the extracted entity is
+     * deterministically matched in the title, URL, or observed content; WEAK otherwise.
+     * Call after [record] for the same observation so the current page is in the state.
+     */
+    fun levelAt(title: String, url: String, contentLines: List<String>): GuardLevel = when {
+        !satisfied() -> GuardLevel.NONE
+        entity != null && TargetEntity.matchesIn(entity, title, url, contentLines) -> GuardLevel.STRONG
+        else -> GuardLevel.WEAK
+    }
+
+    /** The extracted entity's text, for logs/propositions (null when none was found). */
+    val targetEntity: TargetEntity? get() = entity
 
     /** Human-readable state for the step log / run report. */
     fun describe(): String = when (kind) {
@@ -68,7 +91,7 @@ class CompletionGuards(triageClass: TriageClass) {
             "research: distinct contentful pages=${readContentfulPages().size} (needs 2)"
         TriageClass.FORM_FILL ->
             "form-fill: fieldFilled=$fieldFilled submittedAfterFill=$submittedAfterFill"
-    }
+    } + entity.let { e -> if (e == null) "" else "; entity=\"${e.text}\"" }
 
     private fun readContentfulPages(): List<String> =
         pages.filterValues { it >= CONTENT_MIN_TEXT_NODES }.keys.toList()
@@ -76,5 +99,152 @@ class CompletionGuards(triageClass: TriageClass) {
     companion object {
         /** A "non-empty content region": >= 3 non-interactive, non-blank text nodes. */
         const val CONTENT_MIN_TEXT_NODES = 3
+    }
+}
+
+/** Guard evidence levels (vision 04 §3 v1.2.0); NONE never reaches the log (an exit
+ *  always carries WEAK or STRONG — a failing guard refuses every path). */
+enum class GuardLevel { NONE, WEAK, STRONG }
+
+/**
+ * The triage-extracted target entity (vision 04 §3 v1.2.0): the goal's named target,
+ * found by DETERMINISTIC code — quoted spans, "article/page X" cue patterns, then
+ * capitalized multi-word runs. No site names, no model, no per-goal hardcoding.
+ *
+ * Matching (STRONG guard): case-insensitive exact word-boundary match OR a token
+ * overlap >= [STRONG_OVERLAP] of the entity's tokens inside the page text — both
+ * deterministic; [STRONG_OVERLAP] is the law's ">= 0.9 token-overlap fuzzy" bound.
+ * URL matching normalizes `_`/`-` and path separators to spaces first
+ * (`wiki/Tarte_Tatin` carries the entity's tokens).
+ */
+data class TargetEntity(val text: String) {
+
+    /** Normalized tokens of the entity (lowercase, punctuation-stripped, deduplicated). */
+    val tokens: List<String> = normalizeTokens(text)
+
+    init {
+        require(text.isNotBlank()) { "TargetEntity text must not be blank" }
+        require(tokens.isNotEmpty()) { "TargetEntity '$text' normalized to no tokens" }
+    }
+
+    companion object {
+
+        /** The law's fuzzy bound (vision 04 §3): >= 0.9 of the entity's tokens must be
+         *  present in the page text for a fuzzy STRONG match. */
+        const val STRONG_OVERLAP = 0.9
+
+        /** Quoted spans win: the goal names its target verbatim ("Tarte Tatin"). */
+        private val QUOTED = Regex("[\"“”]([^\"“”]{2,80})[\"“”]")
+
+        /** Explicit cue ("the article titled X", "page about X") — >= 1 capitalized word. */
+        private val CUE_EXPLICIT =
+            Regex("""\b(?:article|page|entry|post|video|recipe|profile)\s+(?:titled|named|called|about)\s+([A-Z][\w'’-]*(?:\s+[A-Z][\w'’-]*)*)""")
+
+        /** Bare cue ("article Tarte Tatin") — needs >= 2 capitalized words to count. */
+        private val CUE_BARE =
+            Regex("""\b(?:article|page|entry|post|video|recipe|profile)\s+([A-Z][\w'’-]*(?:\s+[A-Z][\w'’-]+)+)""")
+
+        /** One word of a capitalized run (first letter uppercase; trailing punctuation
+         *  is stripped by the extractor, never inside a word). */
+        private val CAPITALIZED_WORD = Regex("""[A-Z][\w'’-]*""")
+
+        /** Sentence-boundary marker for the capitalized-run fallback: a run may not
+         *  include the goal's first word (sentence-start capitalization is not evidence). */
+        fun extract(goal: String): TargetEntity? {
+            val trimmed = goal.trim()
+            if (trimmed.isEmpty()) return null
+            QUOTED.find(trimmed)?.let { match ->
+                return quoted(match.groupValues[1])
+            }
+            CUE_EXPLICIT.find(trimmed)?.let { match ->
+                return quoted(match.groupValues[1])
+            }
+            CUE_BARE.find(trimmed)?.let { match ->
+                return quoted(match.groupValues[1])
+            }
+            return capitalizedRun(trimmed)?.let { TargetEntity(it) }
+        }
+
+        /** Normalizes and validates one candidate span; null when it normalizes away. */
+        private fun quoted(span: String): TargetEntity? {
+            val cleaned = span.trim().trimEnd('.', ',', '!', '?', ';', ':')
+            if (cleaned.isEmpty()) return null
+            return runCatching { TargetEntity(cleaned) }.getOrNull()
+        }
+
+        /** The first capitalized multi-word run after the goal's first word. */
+        private fun capitalizedRun(goal: String): String? {
+            val words = goal.split(whitespace).filter { it.isNotEmpty() }
+            var index = 1 // skip word 0: sentence-start capitalization is not evidence
+            while (index < words.size - 1) { // a run needs the current word AND the next
+                val first = words[index].trimEnd(*TRAILING_PUNCT)
+                if (CAPITALIZED_WORD.matches(first)) {
+                    val run = mutableListOf(first)
+                    var cursor = index + 1
+                    while (cursor < words.size) {
+                        val next = words[cursor].trimEnd(*TRAILING_PUNCT)
+                        if (!CAPITALIZED_WORD.matches(next)) break
+                        run.add(next)
+                        cursor += 1
+                    }
+                    if (run.size >= 2) return run.joinToString(" ")
+                }
+                index += 1
+            }
+            return null
+        }
+
+        private val whitespace = Regex("""\s+""")
+        private val TRAILING_PUNCT = charArrayOf('.', ',', '!', '?', ';', ':', '"', '”')
+
+        /**
+         * STRONG matching (deterministic): the entity matched in title, URL, or any
+         * content line — exact word-boundary match or >= [STRONG_OVERLAP] token overlap.
+         */
+        fun matchesIn(entity: TargetEntity, title: String, url: String, contentLines: List<String>): Boolean {
+            if (matchesText(entity, title)) return true
+            if (matchesText(entity, normalizeUrl(url))) return true
+            return contentLines.any { line -> matchesText(entity, line) }
+        }
+
+        /** One text target: exact word-boundary match (the entity's token sequence as a
+         *  consecutive run of the text's tokens) or the fuzzy token-overlap bound. */
+        fun matchesText(entity: TargetEntity, text: String): Boolean {
+            if (text.isBlank()) return false
+            val textTokens = tokensOf(text)
+            if (textTokens.isEmpty()) return false
+            if (containsConsecutiveRun(textTokens, entity.tokens)) return true
+            val textSet = textTokens.toSet()
+            val entitySet = entity.tokens.toSet()
+            if (entitySet.isEmpty() || textSet.isEmpty()) return false
+            val overlap = entitySet.count { it in textSet }.toDouble() / entitySet.size
+            return overlap >= STRONG_OVERLAP
+        }
+
+        /** The entity's tokens appearing back-to-back in the text's token list
+         *  (word-boundary-safe: "tart" never matches inside "start" or "tartefillin"). */
+        private fun containsConsecutiveRun(textTokens: List<String>, entityTokens: List<String>): Boolean {
+            if (entityTokens.isEmpty() || textTokens.size < entityTokens.size) return false
+            var start = 0
+            while (start <= textTokens.size - entityTokens.size) {
+                if (textTokens.subList(start, start + entityTokens.size) == entityTokens) return true
+                start += 1
+            }
+            return false
+        }
+
+        /** URL matching space: `_`/`-` and separators become token boundaries. */
+        private fun normalizeUrl(url: String): String =
+            url.replace('_', ' ').replace('-', ' ').replace('/', ' ').replace('.', ' ')
+
+        /** Lowercase, punctuation → spaces, collapse whitespace (both sides of a match). */
+        private fun normalize(text: String): String =
+            text.lowercase().replace(Regex("[^\\p{L}\\p{Nd}]+"), " ").trim()
+
+        private fun normalizeTokens(text: String): List<String> =
+            normalize(text).split(' ').filter { it.isNotBlank() }.distinct()
+
+        private fun tokensOf(text: String): List<String> =
+            normalize(text).split(' ').filter { it.isNotBlank() }
     }
 }

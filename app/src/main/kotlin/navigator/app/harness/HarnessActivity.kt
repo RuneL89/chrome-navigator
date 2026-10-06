@@ -45,6 +45,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import navigator.app.loop.AutoDenyGatePresenter
+import navigator.app.loop.AutoKeepGoingCompletionPresenter
+import navigator.app.loop.DebugCompletionCardPresenter
 import navigator.app.loop.DebugGatePresenter
 import navigator.app.loop.GestureExecutor
 import navigator.app.loop.NavigationLoop
@@ -605,6 +607,14 @@ class HarnessActivity : ComponentActivity() {
             observer = HarnessObserver(service),
             executor = GestureExecutor(service),
             gatePresenter = if (autoDeny.value) AutoDenyGatePresenter else DebugGatePresenter(this),
+            // Phase 8J: the completion card (vision 04 §3 Path C). Auto mode keeps going
+            // (fail-safe, the auto-deny mirror); the interactive mode shows the law's
+            // card with the 30s timeout = keep going.
+            completionCardPresenter = if (autoDeny.value) {
+                AutoKeepGoingCompletionPresenter
+            } else {
+                DebugCompletionCardPresenter(this)
+            },
             logSink = notifyingSink(goal.id, router?.sink(logSink) ?: logSink),
             spendMeter = built.spendMeter,
             // Page-settle pacing (the loop's own post-gesture settle, NEVER shadow-driven —
@@ -719,6 +729,21 @@ class HarnessActivity : ComponentActivity() {
                     decisions = stats.decisions,
                     escalations = stats.escalations,
                     rate = stats.rate,
+                )
+            },
+            exit = result.exit?.let { exit ->
+                log(
+                    "exit: path=${exit.path} guard=${exit.guardLevel} noul=${exit.noul} " +
+                        "checks=${exit.finishChecks} card=${exit.completionCardShown}" +
+                        (exit.completionCardResolution?.let { " ($it)" } ?: ""),
+                )
+                ExitReport(
+                    path = exit.path,
+                    guardLevel = exit.guardLevel,
+                    noul = exit.noul,
+                    finishChecks = exit.finishChecks,
+                    completionCardShown = exit.completionCardShown,
+                    completionCardResolution = exit.completionCardResolution,
                 )
             },
         )
