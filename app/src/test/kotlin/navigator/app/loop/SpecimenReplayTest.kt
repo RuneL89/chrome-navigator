@@ -25,6 +25,11 @@ import kotlin.test.assertTrue
  * specimen through Path C: the third guard-pass refusal triggers the completion card
  * and an owner CONFIRM exits at check 3 (the exit-calibration family test runs that
  * variant).
+ *
+ * Round 2 (vision 04 §3 v1.3.0, STRONG = title/URL identity only): every pin here is
+ * unchanged — the specimen's terminal page carries "Tarte Tatin" in BOTH its title and
+ * URL, so STRONG still fires and the SUSTAINED accept still lands exactly at overall
+ * check 9 (the fixture is SACRED and stays byte-identical).
  */
 class SpecimenReplayTest {
 
@@ -51,7 +56,7 @@ class SpecimenReplayTest {
     @Test
     fun `guard 2-0 reaches STRONG on the constructed terminal page`() {
         val (guards, level) = ExitReplaySupport.guardsAtTerminal(fixture())
-        assertEquals(GuardLevel.STRONG, level, "the entity 'Tarte Tatin' is in the title, URL and content")
+        assertEquals(GuardLevel.STRONG, level, "the entity 'Tarte Tatin' is in the title AND URL (page identity, v1.3.0)")
         // and the class predicate it stands on is the WEAK lookup guard, really satisfied:
         assertTrue(guards.satisfied())
         assertEquals(TriageClass.LOOKUP, ExitReplaySupport.triageClass(fixture()))
@@ -103,15 +108,24 @@ class SpecimenReplayTest {
     }
 
     @Test
-    fun `the anchored proposition names the entity, never the generic phrasing`() {
+    fun `the anchored proposition names the entity and pins the page identity (v2, never generic)`() {
         val spec = fixture()
         val entity = TargetEntity.extract(spec.goal)
-        val proposition = AnchoredNoul.proposition(spec.goal, entity, TriageClass.LOOKUP)
+        val proposition = AnchoredNoul.proposition(
+            spec.goal,
+            entity,
+            TriageClass.LOOKUP,
+            spec.terminalPage.title,
+            spec.terminalPage.url,
+        )
         assertTrue(proposition.contains("Tarte Tatin"), "entity-anchored: $proposition")
-        assertEquals(1, AnchoredNoul.ANCHORED_NOUL_VERSION)
+        assertEquals(2, AnchoredNoul.ANCHORED_NOUL_VERSION, "Round 2: the PAGE IDENTITY templates")
+        assertTrue(proposition.contains("PAGE IDENTITY"), "v2 judges arrival against page identity: $proposition")
+        assertTrue(proposition.contains(spec.terminalPage.title))
+        assertTrue(proposition.contains(spec.terminalPage.url))
         assertTrue(
             !proposition.equals("The goal \"${spec.goal}\" is fully achieved on the current page.", ignoreCase = true),
-            "the old generic phrasing is forbidden (vision 04 §3 v1.2.0)",
+            "the old generic phrasing is forbidden (vision 04 §3)",
         )
     }
 }

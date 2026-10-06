@@ -2,7 +2,7 @@
 
 **Document ID:** `NAVIGATOR-IMPL-PHASE-08J`
 **Version:** 1.1.0 *(round 2 added 2026-10-06 — owner-directed after the base-421M Test-2′ false positive; vision 05 v1.5.0 exit-check rows + export kinds)*
-**Status:** Round 1 verified (Gates 8J.1–8J.5, 2026-10-06); Round 2 scoped, NOT started
+**Status:** Round 1 verified (Gates 8J.1–8J.5, 2026-10-06); Round 2 built + verified (Gates 8J.6–8J.9, 2026-10-07, after the owner-ratified 04 §3 v1.3.0 amendment); UAT 8J.1/8J.2 owner-gated (not started)
 **Date:** 2026-10-06
 **Dependencies:** none hard (deliberately executes FIRST in Stage 2, before 08D — owner
 directive after the 2026-10-06 Test-1 specimen: fix exit reliability, then redo the UAT).
@@ -68,7 +68,7 @@ all three modes; owner judges "it stops when done" (per-test protocol).
 **Trigger:** UAT Test 2′ (421M base) accepted GOAL_ACHIEVED (noul 0.807 + STRONG guard)
 while sitting on the Apple-pie page — STRONG had matched the target entity as a **content
 mention** in a Related-Articles card; the owner visually confirmed the target article
-never opened. Scope (vision 04 §3 v1.2.0 + 05 v1.5.0):
+never opened. Scope (vision 04 §3 v1.3.0 + 05 v1.5.0):
 
 - **STRONG = deterministic identity match:** target entity present in the page **title
   or URL** only. Content-only matches demote to WEAK — a mention is not arrival. The

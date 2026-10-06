@@ -8,15 +8,18 @@ import navigator.core.log.TriageClass
  * Goal-achieved requires the engine's finish choice AND verification through the exit
  * policy ([ExitPolicy]); the guard level is the code-evidence half of every path.
  *
- * Guard levels (vision 04 §3 v1.2.0):
+ * Guard levels (vision 04 §3 v1.3.0):
  * - [GuardLevel.NONE] — the class predicate does not hold; no exit path can accept.
  * - [GuardLevel.WEAK] — the per-triage-class contentful predicates: lookup/research
  *   (a non-empty content region read after results loaded), form-fill (submission
  *   observed), action (post-action state observed), action-multi (tracker drained).
  * - [GuardLevel.STRONG] — deterministic target verification: the triage-extracted
- *   [TargetEntity] is matched in the page title, URL, or content (exact/fuzzy code
- *   match, no model). STRONG is a strict superset of WEAK: the class predicate must
- *   hold too (an entity named on the task's first page is not completion evidence).
+ *   [TargetEntity] is matched in the page **title or URL** (exact/fuzzy code match,
+ *   no model) — page identity, not a content mention: a mention is not arrival, and a
+ *   content-only match never yields STRONG (v1.3.0, owner-ratified after the Test-2′
+ *   false GOAL_ACHIEVED on a Related-Articles mention). STRONG is a strict superset of
+ *   WEAK: the class predicate must hold too (an entity named on the task's first page
+ *   is not completion evidence).
  *
  * A content region is [CONTENT_MIN_TEXT_NODES] or more non-interactive text nodes in
  * one observation (code-countable "the page has body text", vision 04 §3's
@@ -69,13 +72,14 @@ class CompletionGuards(
 
     /**
      * The guard level for one finish verification over the CURRENT page (vision 04 §3
-     * v1.2.0): NONE when the class predicate fails; STRONG when the extracted entity is
-     * deterministically matched in the title, URL, or observed content; WEAK otherwise.
-     * Call after [record] for the same observation so the current page is in the state.
+     * v1.3.0): NONE when the class predicate fails; STRONG when the extracted entity is
+     * deterministically matched in the page TITLE or URL (identity, never a content
+     * mention); WEAK otherwise. Call after [record] for the same observation so the
+     * current page is in the state.
      */
-    fun levelAt(title: String, url: String, contentLines: List<String>): GuardLevel = when {
+    fun levelAt(title: String, url: String): GuardLevel = when {
         !satisfied() -> GuardLevel.NONE
-        entity != null && TargetEntity.matchesIn(entity, title, url, contentLines) -> GuardLevel.STRONG
+        entity != null && TargetEntity.matchesIn(entity, title, url) -> GuardLevel.STRONG
         else -> GuardLevel.WEAK
     }
 
@@ -111,11 +115,13 @@ enum class GuardLevel { NONE, WEAK, STRONG }
  * found by DETERMINISTIC code — quoted spans, "article/page X" cue patterns, then
  * capitalized multi-word runs. No site names, no model, no per-goal hardcoding.
  *
- * Matching (STRONG guard): case-insensitive exact word-boundary match OR a token
- * overlap >= [STRONG_OVERLAP] of the entity's tokens inside the page text — both
- * deterministic; [STRONG_OVERLAP] is the law's ">= 0.9 token-overlap fuzzy" bound.
- * URL matching normalizes `_`/`-` and path separators to spaces first
- * (`wiki/Tarte_Tatin` carries the entity's tokens).
+ * Matching (the STRONG guard, vision 04 §3 v1.3.0): the entity matched in the page
+ * TITLE or URL only — case-insensitive exact word-boundary match OR a token overlap
+ * >= [STRONG_OVERLAP] of the entity's tokens — both deterministic; [STRONG_OVERLAP] is
+ * the law's ">= 0.9 token-overlap fuzzy" bound. URL matching normalizes `_`/`-` and
+ * path separators to spaces first (`wiki/Tarte_Tatin` carries the entity's tokens).
+ * Content lines are NEVER consulted: a body-text mention (a Related-Articles card, a
+ * "see also" link) is not arrival.
  */
 data class TargetEntity(val text: String) {
 
@@ -198,13 +204,13 @@ data class TargetEntity(val text: String) {
         private val TRAILING_PUNCT = charArrayOf('.', ',', '!', '?', ';', ':', '"', '”')
 
         /**
-         * STRONG matching (deterministic): the entity matched in title, URL, or any
-         * content line — exact word-boundary match or >= [STRONG_OVERLAP] token overlap.
+         * STRONG matching (deterministic, vision 04 §3 v1.3.0): the entity matched in
+         * the page TITLE or URL — exact word-boundary match or >= [STRONG_OVERLAP]
+         * token overlap. Content is never consulted: a mention is not arrival.
          */
-        fun matchesIn(entity: TargetEntity, title: String, url: String, contentLines: List<String>): Boolean {
+        fun matchesIn(entity: TargetEntity, title: String, url: String): Boolean {
             if (matchesText(entity, title)) return true
-            if (matchesText(entity, normalizeUrl(url))) return true
-            return contentLines.any { line -> matchesText(entity, line) }
+            return matchesText(entity, normalizeUrl(url))
         }
 
         /** One text target: exact word-boundary match (the entity's token sequence as a

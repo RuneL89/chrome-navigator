@@ -71,9 +71,17 @@ without a device.
   (Phase 5): `DecisionLogModels.kt` (the full vision 05 §2 row schema as serializable
   types + `DECISION_LOG_JSON` + enum-serial-name helpers), `Agreement.kt`
   (top-1 exact match + KL(teacher ∥ shadow), vision 05 §3), `RlcdExport.kt` (the RLCD
-  JSONL export + manifest, vision 05 §4), `ShadowResultRow.kt` (Phase 8B: the companion
-  shadow-result row + the joined-view aggregation `JoinedAgreement`, the 2026-10-04
-  amendment); pure data + math, zero I/O (ART-8);
+  JSONL export + manifest, vision 05 §4 v1.5.0: TWO case kinds — `RlcdChooseCase`
+  (decision rows: bucketed shadow form + the teacher/fallback distribution) and
+  `RlcdNoulCase` (exit-check rows: the anchored question + its version + the
+  authoritative pTrue) — with authoritative-gold selection, format-scoped filtering,
+  and the loud exclusion/kind counts in the manifest), `ShadowResultRow.kt` (Phase 8B:
+  the companion shadow-result row + the joined-view aggregation `JoinedAgreement`, the
+  2026-10-04 amendment), and `ExitCheckRow.kt` (Phase 8J Round 2, the 2026-10-06
+  amendment: the third insert-only row type — one row per finish check, accepted or
+  refused, with the anchored question + version, primary noul + band, escalation +
+  fallback noul, guard level (NONE/WEAK/STRONG — refusals can be NONE), verdict, and
+  accepted path; loud incoherent shapes in `init`); pure data + math, zero I/O (ART-8);
   law: `Project Vision/05` §1–§5, `Project Vision/02` §4–§5
 * `src/main/kotlin/navigator/core/StateFormat.kt` — `STATE_FORMAT_VERSION`
 * `src/test/resources/fixtures/` — golden fixtures (recorded a11y dumps + wire transcripts;
@@ -97,8 +105,12 @@ without a device.
   vectors, vocab sample)
 * `src/test/resources/exit/` — Phase-8J exit fixtures (reviewable data): the Test-1
   Tarte Tatin specimen replay (`specimen-tartetatin-t1.json`, derived from the verbatim
-  `.state/specimens/` report — recorded noul series + the reconstructed terminal page);
-  the `:app` replay/family tests load it via the `navigator.project.root` property
+  `.state/specimens/` report — recorded noul series + the reconstructed terminal page)
+  and the Round-2 Apple-pie mention decoy (`decoy-applepie-mention.json` — the Test-2′
+  false-GOAL_ACHIEVED shape: the entity appears in body content only while title/URL
+  name another article; MUST-NOT-EXIT in every engine mode, guard WEAK, provenance note
+  in the file); the `:app` replay/family tests load them via the
+  `navigator.project.root` property
 
 ## Local Contracts
 
@@ -161,16 +173,29 @@ without a device.
   v1.4.0) added `exit: ExitProvenance? = null` (`{path: HIGH|SUSTAINED|OWNER_CONFIRM,
   guardLevel: WEAK|STRONG, noul}`, the terminal row's exit provenance per vision 04 §3
   v1.2.0) — the goldens were regenerated again via UPDATE_GOLDENS (every row now encodes
-  `"exit": null`; the new `row-goal-achieved-exit.json` golden pins the populated shape)
+  `"exit": null`; the new `row-goal-achieved-exit.json` golden pins the populated shape).
+  Phase 8J Round 2 (doc 05 v1.5.0) added the THIRD insert-only row type — `ExitCheckRow`
+  (one per finish check, refused checks included; `answer` = the primary's noul + band,
+  `fallbackAnswer` = the executed fallback noul when escalated — an all-or-nothing pair;
+  ACCEPTED ⇔ acceptedPath present; an accepted NONE guard is incoherent; exit checks
+  are choice-free and excluded from the §3 agreement metrics; training now spans
+  decision rows (choose cases) AND exit-check rows (noul cases), amendment rule d).
+  The goldens are untouched — the generator pins `DecisionLogRow` only
 * Companion shadow-result rows (Phase 8B, vision 05 §2 amendment 2026-10-04):
   `ShadowResultRow` is the second INSERT-ONLY row type, legal only for a decision row
   logged as a shadowMiss and exactly once per `(taskId, stepIndex)` — enforced at the
   `:app` persistence boundary (guard + unique index), never by convention; agreement
   metrics are computed over the joined view (`JoinedAgreement.metrics`, incoherent
   views fail loudly instead of double-counting) with coverage = joined/total-sampled,
-  exposed to the UI as `(percentage, coverage)` (the Phase 9/11 contract); the RLCD
-  training corpus stays decision-row-only (`RlcdExportManifest.companionRowCount` is
-  informational)
+  exposed to the UI as `(percentage, coverage)` (the Phase 9/11 contract); companions
+  remain agreement-only (`RlcdExportManifest.companionRowCount` is informational —
+  the 2026-10-06 amendment's rule d supersedes rule e only in opening the training
+  corpus to exit-check rows)
+* Exit-check rows (Phase 8J Round 2, vision 05 §2 amendment 2026-10-06): the
+  exit-calibration training path — EVERY finish check, accepted or refused, is corpus
+  data (the refusals are the decoy contrast); `:app` persists them insert-only in
+  `exit_check` (Room v5, UNIQUE `(taskId, stepIndex)`); a mixed-anchoredNoulVersion
+  export window is incoherent and fails loudly (question schemas are format-scoped)
 * The KL convention (vision 05 §3, documented in `Agreement.kt`): natural log, union of
   distribution keys zero-filled, p→0 terms contribute 0 (limit), q→0 terms floored at
   1e-12 (epsilon — large but finite, JSON cannot carry Infinity); inputs asserted in
@@ -178,10 +203,18 @@ without a device.
   `WIRE_ROUNDING_TOLERANCE` 0.02 renormalized — the provider emits 2-decimal
   probabilities whose sum can be e.g. 0.99, measured live; beyond that, loud failure),
   identical distributions give exactly 0.0
-* The RLCD export (vision 05 §4) copies state text verbatim, exports `questions` as the
-  bucketed shadow form and `gold` as the teacher's full distribution (never a bare
-  label), and flags mixed-teacher corpora when more than one pinned teacher model
-  appears in the window
+* The RLCD export (vision 05 §4 v1.5.0) copies state text verbatim and emits TWO case
+  kinds: `choose` (from decision rows — `questions` is the bucketed shadow form and
+  `gold` the full distribution, never a bare label) and `noul` (from exit-check rows —
+  `question` is the anchored `NoulQuestion` payload with its `anchoredNoulVersion`,
+  `gold` the authoritative pTrue). AUTHORITATIVE-GOLD LAW: gold is always the EXECUTED
+  answer — the fallback's when `escalated=true`, the primary's otherwise; a student
+  engine is never its own gold. FORMAT SCOPING: only rows of the current
+  `STATE_FORMAT_VERSION` export (pre-08H the canonical text is the noul `state`; the
+  manifest's `layaStateViewVersion` is null until the dual-view builder exists); rows
+  of other versions are excluded and counted by version in the manifest (loudly, never
+  silently dropped). Mixed-teacher corpora are flagged when more than one pinned
+  teacher model appears in the window
 
 ## Work Guidance
 
@@ -199,8 +232,10 @@ without a device.
   risk-gate gates (4.1 classifier matrix vs `gate/classifier-matrix.json`, 4.2 trust
   state machine, 4.3 adversarial injection fixtures), and the DecisionLog gates
   (5.1 schema round-trip + byte-stable `log/goldens/` snapshots, 5.2 RLCD export vs a
-  strict finetune-row validator + mixed-teacher manifest, 5.3 agreement math with
-  hand-computed KL values) must all pass
+  strict finetune-row validator + mixed-teacher manifest + the two case kinds with
+  authoritative-gold selection and loud format-scoping counts, 5.3 agreement math with
+  hand-computed KL values, the Phase-8J-Round-2 `ExitCheckRowTest` schema round-trips
+  + loud incoherent shapes) must all pass
 * `./gradlew :core:liveSmoke` — UAT 3.1 only: TWO live provider calls through the
   production client (choice+noul, score); needs the owner key (env `NAVIGATOR_OPENROUTER_KEY`
   or git-ignored `.tools/keys.env`), costs ~$0.00005, never run by a gate

@@ -60,9 +60,12 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     2.0: `TargetEntity` — deterministic code extraction of the goal's target
     (quoted spans, "article/page titled|named|about X" cues, capitalized multi-word
     runs, NO site names hardcoded) and the STRONG match (exact word-boundary or >=0.9
-    token overlap) over page title, URL (normalizing `_-/.` to spaces), or observed
-    content lines — `levelAt` returns NONE (class predicate fails; every exit path
-    closed) / WEAK (predicate holds) / STRONG (predicate holds AND entity matched)),
+    token overlap) over the page TITLE or URL ONLY (normalizing `_-/.` to spaces) —
+    Round 2, vision 04 §3 v1.3.0: a content-only mention NEVER yields STRONG ("a
+    mention is not arrival"; the Test-2′ Apple-pie mention page is a permanent
+    MUST-NOT-EXIT decoy fixture); `levelAt` returns NONE (class predicate fails; every
+    exit path closed) / WEAK (predicate holds) / STRONG (predicate holds AND the
+    identity match holds)),
     `ExitPolicy` (Phase 8J, vision 04 §3 v1.2.0 — the exit law as pure code: Path A
     HIGH anchored noul > 0.70 (Bands semantics, exclusive) with any guard level; Path
     B SUSTAINED = STRONG + noul >= 0.55 over K=3 CONSECUTIVE checks (the streak RESETS
@@ -72,8 +75,10 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     `CandidateList.withoutFinish()`, cleared on any page-hash change; thresholds are
     code config (ART-5) gated by the exit-calibration family),
     `AnchoredNoul` (Phase 8J: the finish question's proposition is code-constructed per
-    triage class, anchored to the extracted entity, `ANCHORED_NOUL_VERSION=1`; generic
-    "is the goal achieved?" phrasing is forbidden),
+    triage class, anchored to the extracted entity; Round 2 = v2
+    (`ANCHORED_NOUL_VERSION=2`): every proposition carries a code-derived PAGE IDENTITY
+    line (title/URL excerpt, capped) so the engine judges ARRIVAL against page identity,
+    not content vibes; generic "is the goal achieved?" phrasing is forbidden),
     `StuckDetector` (6 signals / 8-step window / 3 levels; the Phase-8J sixth signal is
     the exit conflict — 3 consecutive refused finishes with no screen progress; the L1
     hint carries "engine wants to finish, evidence says <level>"; a screen change resets
@@ -103,7 +108,12 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     the optional `CompanionSink` (the freeze/completion transition is atomic on the
     job, so the answer lands in the row OR one companion — never both; `close()` ends
     companion inserts and later completions are dropped and counted; the executor's
-    view of every row stays primary-only)
+    view of every row stays primary-only); Phase 8J Round 2 (vision 05 §2 amendment
+    2026-10-06): EVERY finish check — accepted or refused — writes exactly ONE
+    insert-only `ExitCheckRow` through the `DecisionLogSink.writeExitCheck` edge (the
+    loop captures the anchored judge's escalation separately from the step's choose;
+    on a primary hard failure the executed fallback noul stands in as `answer`,
+    decision-row precedent)
   * `src/main/kotlin/navigator/app/stub/` — `StubEngine` (Phase 6): a
     `DecisionEngine` replaying a `StubScript` deterministically ($0 spend); answers
     select by option id, `labelContains`, or `bucketFirst`(+ordinal), with an
@@ -182,7 +192,13 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
   DEFAULT 0) + `fallbackJson` (nullable)) and `MIGRATION_3_4` (Phase 8J, doc 05
   v1.4.0: ALTER ADD COLUMN `exitJson` (nullable) — the terminal row's exit
   provenance; existing databases keep every row, which decode as exit=null; no
-  destructive fallback); law:
+  destructive fallback); Phase 8J Round 2 added `ExitCheckDao.kt` (vision 05 §2
+  amendment 2026-10-06): `ExitCheckEntity` (the third insert-only row type; UNIQUE
+  index over `(taskId, stepIndex)` — one finish check consumes one step, so the key
+  IS the check's identity), `ExitCheckConverters` (loud decode), `ExitCheckDao` +
+  `ExitCheckLogger` (insert-only + by-task/time-window queries for the noul-kind
+  export), and `DecisionLogDb` v5 with `MIGRATION_4_5` (CREATE TABLE `exit_check`
+  + indices only — both existing tables untouched); law:
   `Project Vision/05` §2, §5
 * `build.gradle.kts` — Android build config (minSdk 34, compile/targetSdk 36, Compose;
   Room compiler wired via KSP; kotlinx-serialization + coroutines plugins/deps)
@@ -207,7 +223,8 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
   transactional guard rejects loudly a companion beside an answered decision row or an
   orphan companion (rule a); DB migrations preserve history (v1→v2 adds `shadow_result`;
   v2→v3 ALTER-adds the `escalated`/`fallbackJson` columns; v3→v4 ALTER-adds `exitJson`;
-  no destructive fallback anywhere)
+  v4→v5 adds `exit_check`, the third insert-only row type — one row per finish check,
+  refused checks included, UNIQUE `(taskId, stepIndex)`; no destructive fallback anywhere)
 * The loop's Android edges sit behind interfaces (`LoopObserver`, `ActionExecutor`,
   `GatePresenter`, `DecisionLogSink`, `Clock`) so Gate 6.1 runs on the plain JVM with
   fakes — Robolectric-free; Android types appear only in `GestureExecutor`,
@@ -280,15 +297,28 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
   in the real loop) + the Phase-8J exit gates (`ExitPolicyTest` Gate 8J.1 policy
   matrix: path boundaries per Bands semantics, K-consecutive counting, once-per-task
   card, M=2 window + hash-change clearing; `TargetEntityTest` + `SpecimenReplayTest`
-  Gate 8J.2: entity extraction, STRONG/WEAK/NONE levels, and the Test-1 specimen
+  Gate 8J.2 (+8J.6 Round 2): entity extraction, the STRONG/WEAK/NONE matrix — STRONG
+  is a TITLE/URL identity match only, a content-only mention is WEAK, never STRONG
+  (v1.3.0 "a mention is not arrival") — and the Test-1 specimen
   replay — the recorded series never exits, the extended series accepts SUSTAINED
-  exactly on the 3rd consecutive >=0.55-with-STRONG check; `ExitFlowLoopTest` Gates
+  exactly on the 3rd consecutive >=0.55-with-STRONG check (unchanged pins under the
+  Round-2 law: the specimen's terminal page carries the entity in title AND URL);
+  `ExitFlowLoopTest` Gates
   8J.3+8J.4: the refusal window is structural in the real loop (a scripted finish
   after a refusal fails loudly), hash change clears it, the sixth signal's L1 hint,
-  the completion card confirm/keep-going/timeout with once-per-task; `AnchoredNoulTest`;
-  `ExitCalibrationFamilyTest` Gate 8J.5: terminal fixtures <=5 checks, decoys never,
-  per engine mode, report written to `.state/eval/exit-calibration-report.json`;
-  `DecisionLogV4DbTest` Room v4 exit round-trips + the v3→v4 migration) —
+  the completion card confirm/keep-going/timeout with once-per-task;
+  `AnchoredNoulTest` (v2: PAGE IDENTITY line, excerpt cap, determinism);
+  `ExitCheckRowLoopTest` Gate 8J.8 (loop half): every finish check — accepted,
+  refused (incl. guard-NONE), and both card resolutions — writes exactly one
+  ExitCheckRow with the anchored v2 question, pTrue + band, guard level, verdict, path;
+  `ExitCalibrationFamilyTest` Gate 8J.5+8J.6: terminal fixtures <=5 checks, decoys
+  never (incl. the permanent `decoy-applepie-mention` fixture — the Test-2′
+  mention page — WEAK and never exiting in any engine mode), per engine mode,
+  report written to `.state/eval/exit-calibration-report.json` (carries
+  `anchoredNoulVersion`);
+  `DecisionLogV4DbTest` Room v4 exit round-trips + the v3→v4 migration;
+  `DecisionLogV5DbTest` Room v5 exit-check round-trips + duplicate-key ABORT + the
+  v3→v4→v5 migration chain) —
   plain JVM, Robolectric-free; the laya gates need the 421M model artifact
   (verifyLayaModel fails the build loudly when it is missing); the v32b parity gate
   (`LayaEngineV32bReferenceParityTest`) is EVAL-ONLY since the 2026-10-06 demotion — it

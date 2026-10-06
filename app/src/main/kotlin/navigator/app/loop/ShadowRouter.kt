@@ -9,6 +9,7 @@ import navigator.core.decision.ScoreQuestion
 import navigator.core.decision.ScoreResult
 import navigator.core.log.Agreement
 import navigator.core.log.DecisionLogRow
+import navigator.core.log.ExitCheckRow
 import navigator.core.log.ShadowAnswer
 import navigator.core.log.ShadowResultRow
 import navigator.core.log.ShadowPrecision
@@ -243,6 +244,12 @@ class ShadowRouter(
     fun sink(delegate: DecisionLogSink): DecisionLogSink = object : DecisionLogSink {
         override suspend fun write(row: DecisionLogRow) {
             logSinkWrite(delegate, row)
+        }
+
+        // Exit-check rows carry no shadow fields (a noul judgment is shadow-free) —
+        // they pass through untouched, the same pass-through law as unsampled steps.
+        override suspend fun writeExitCheck(row: ExitCheckRow) {
+            delegate.writeExitCheck(row)
         }
     }
 

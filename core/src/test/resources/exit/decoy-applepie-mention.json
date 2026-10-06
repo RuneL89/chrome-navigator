@@ -1,0 +1,29 @@
+{
+  "note": "Phase 8J ROUND-2 decoy fixture (gate 8J.6) - the Test-2' false-GOAL_ACHIEVED shape, owner-directed 2026-10-06: the base-421M laya run accepted GOAL_ACHIEVED (noul 0.807 + STRONG guard) while sitting on an Apple-pie recipe page because STRONG matched the target entity as a CONTENT MENTION in a Related-Articles card; the owner visually confirmed the target article never opened. Under vision 04 section 3 v1.3.0 a content-only mention NEVER yields STRONG ('a mention is not arrival'), so over this page the guard caps at WEAK while title/URL name a different article - every exit path refuses and this fixture must never exit in any engine mode (exit-calibration family, vision 07 section 3a). Provenance: the live Test-2' device run was not archived with raw page text; the page below is reconstructed in the same style as the Round-1 decoy fixtures from the UAT account (an Apple-pie recipe page whose Related-Articles card mentions Tarte Tatin). The recordedNoul series encodes what a PAGE-IDENTITY-anchored engine (AnchoredNoul v2) answers on a wrong page (low pTrue); the UAT's 0.807 is exactly the miscalibration the exit-check corpus (vision 05 section 2 amendment) exists to train away. Reviewable data, NOT a golden dump.",
+  "sourceSpecimen": "uat-test2p-applepie-mention (reconstructed; raw page text not archived)",
+  "sourceTerminal": "GOAL_ACHIEVED (the false positive this fixture must never reproduce)",
+  "goal": "Open Wikipedia article Tarte Tatin.",
+  "triageClass": "lookup",
+  "expectedEntity": "Tarte Tatin",
+  "startPage": {
+    "url": "https://www.google.com/search?q=tarte+tatin",
+    "title": "tarte tatin - Google Search",
+    "contentLines": [
+      "tarte tatin - Google Search",
+      "Tarte Tatin Caramelised fruit tart"
+    ]
+  },
+  "terminalPage": {
+    "url": "https://www.allrecipes.com/recipe/15896/classic-apple-pie",
+    "title": "Classic Apple Pie Recipe",
+    "contentLines": [
+      "Classic Apple Pie Recipe",
+      "Prepare the dough and let it rest for one hour",
+      "Bake at 180C for 45 minutes until golden",
+      "Related Articles",
+      "Tarte Tatin: the French upside-down caramelised apple tart"
+    ]
+  },
+  "recordedNoul": [0.12, 0.12, 0.12, 0.12, 0.12, 0.12],
+  "continuationNoul": []
+}

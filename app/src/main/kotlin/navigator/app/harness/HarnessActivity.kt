@@ -963,6 +963,12 @@ class HarnessActivity : ComponentActivity() {
                 )
                 delegate.write(row)
             }
+
+            // Exit-check rows are not navigation decisions (no page action, no
+            // notification content) — they delegate untouched.
+            override suspend fun writeExitCheck(row: navigator.core.log.ExitCheckRow) {
+                delegate.writeExitCheck(row)
+            }
         }
 
     // -- UI ------------------------------------------------------------------------------

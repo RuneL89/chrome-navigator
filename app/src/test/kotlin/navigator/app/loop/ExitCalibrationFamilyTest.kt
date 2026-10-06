@@ -16,14 +16,19 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * Gate 8J.5 — the exit-calibration family (vision 07 §3a): per engine mode, TERMINAL
- * fixtures (pages where the goal IS achieved — including the committed Test-1 Tarte
- * Tatin specimen) must exit within N=5 finish-checks (any path); DECOY fixtures
- * (plausible wrong pages) must NEVER exit, because the fuzzy STRONG match must not fire
- * on them. All runs are stub-scripted ($0): the exit machinery is engine-independent
- * (ART-2 — the loop never branches on engine identity), the mode names the noul SOURCE,
- * and the stub scripts every mode's series. Results are recorded per mode in
- * `.state/eval/exit-calibration-report.json` with the mode and the path taken.
+ * Gate 8J.5 + 8J.6/8J.7 — the exit-calibration family (vision 07 §3a): per engine mode,
+ * TERMINAL fixtures (pages where the goal IS achieved — including the committed Test-1
+ * Tarte Tatin specimen) must exit within N=5 finish-checks (any path); DECOY fixtures
+ * (plausible wrong pages) must NEVER exit. Round 2 (vision 04 §3 v1.3.0): STRONG is a
+ * deterministic TITLE/URL identity match — the third decoy is the permanent Apple-pie
+ * mention fixture (`core/src/test/resources/exit/decoy-applepie-mention.json`, the
+ * Test-2′ false-GOAL_ACHIEVED shape): the entity appears in body content only, so the
+ * guard caps at WEAK ("a mention is not arrival") and no path accepts. All runs are
+ * stub-scripted ($0): the exit machinery is engine-independent (ART-2 — the loop never
+ * branches on engine identity), the mode names the noul SOURCE, and the stub scripts
+ * every mode's series. Results are recorded per mode in
+ * `.state/eval/exit-calibration-report.json` with the mode, the path taken, and the
+ * anchored-noul proposition version the bump (gate 8J.7) pins.
  */
 class ExitCalibrationFamilyTest {
 
@@ -44,6 +49,10 @@ class ExitCalibrationFamilyTest {
     // -- fixtures (reviewable data; the specimen loads from the committed file) ----------
 
     private fun specimenSpec() = ExitReplaySupport.load(fixturesDir.resolve("specimen-tartetatin-t1.json"))
+
+    /** Decoy 3 (Round 2, permanent fixture): the Test-2' Apple-pie mention page. */
+    private fun applePieMentionSpec() =
+        ExitReplaySupport.load(fixturesDir.resolve("decoy-applepie-mention.json"))
 
     /** Terminal fixture 2: the harness page (mirrors `assets/harness/pages/zenith.html`). */
     private val museumGoal = "Open the page about the Zephyr Lantern Museum and read its visiting hours."
@@ -128,6 +137,15 @@ class ExitCalibrationFamilyTest {
             startUrl = "http://127.0.0.1:8099/home.html",
             noulSeries = listOf(0.55, 0.55, 0.55, 0.55, 0.55, 0.55),
         ),
+        FixtureRun(
+            name = "decoy-applepie-mention",
+            terminal = false,
+            goal = applePieMentionSpec().goal, // same goal, the WRONG page that MENTIONS it
+            page = applePieMentionSpec().terminalPage,
+            startUrl = applePieMentionSpec().startPage?.url,
+            noulSeries = applePieMentionSpec().recordedNoul,
+            fixtureSpec = applePieMentionSpec(),
+        ),
     )
 
     /** Guard 2.0 walked to the fixture's page: the level every finish check sees. */
@@ -139,7 +157,8 @@ class ExitCalibrationFamilyTest {
             guards.record(start, contentTextNodes = 4, textTyped = false, submitExecuted = false)
         } ?: guards.seed(run.page.url)
         guards.record(run.page.url, run.page.contentLines.size, textTyped = false, submitExecuted = false)
-        return guards.levelAt(run.page.title, run.page.url, run.page.contentLines)
+        // Round-2 law (vision 04 §3 v1.3.0): STRONG reads title/URL identity only.
+        return guards.levelAt(run.page.title, run.page.url)
     }
 
     private data class FamilyResult(
@@ -222,11 +241,40 @@ class ExitCalibrationFamilyTest {
         assertTrue(result.cardShown, "the card asked once (Path C) - and the keep-going held the loop")
     }
 
+    @Test
+    fun `the apple-pie mention decoy NEVER exits - the content mention is WEAK, never STRONG`() = runBlocking {
+        // Gate 8J.6 (vision 04 §3 v1.3.0): the Test-2' shape — the entity appears in
+        // body content only, while title and URL name a different article. "A mention
+        // is not arrival": the guard caps at WEAK, Path A's any-guard-level acceptance
+        // can only fire on a calibrated engine's LOW pTrue, and the fixture (in every
+        // engine mode, asserted by the per-mode loop above) must NEVER exit.
+        val spec = applePieMentionSpec()
+        assertEquals("Tarte Tatin", spec.expectedEntity)
+        val entity = TargetEntity.extract(spec.goal)
+        assertEquals("Tarte Tatin", entity?.text)
+        // identity: the title and URL name Apple pie; only the body MENTIONS the target
+        assertFalse(
+            TargetEntity.matchesIn(entity!!, spec.terminalPage.title, spec.terminalPage.url),
+            "the title/URL must NOT carry the entity - that is the decoy's whole point",
+        )
+        assertTrue(
+            spec.terminalPage.contentLines.any { it.contains("Tarte Tatin") },
+            "the body content must mention the entity (the Test-2' shape)",
+        )
+        for (mode in HarnessEngineMode.entries) {
+            val run = family().first { it.name == "decoy-applepie-mention" }
+            val result = runFixture(mode, run)
+            assertFalse(result.accepted, "the mention decoy must NEVER exit: $result")
+            assertEquals(GuardLevel.WEAK, result.guardLevel, "a content mention is never STRONG: $result")
+        }
+    }
+
     /** Vision 07 §3a: results recorded in `.state/eval/` with the mode and path taken. */
     private fun writeReport(results: List<FamilyResult>) {
         val json = buildJsonObject {
             put("family", "exit-calibration")
-            put("law", "vision 07 §3a / vision 04 §3 v1.2.0")
+            put("law", "vision 07 §3a / vision 04 §3 v1.3.0")
+            put("anchoredNoulVersion", AnchoredNoul.ANCHORED_NOUL_VERSION)
             put("bounds", buildJsonObject {
                 put("terminalMaxFinishChecks", 5)
                 put("highFloor", ExitPolicyConfig.HIGH_FLOOR)

@@ -1,6 +1,7 @@
 {
     "family": "exit-calibration",
-    "law": "vision 07 §3a / vision 04 §3 v1.2.0",
+    "law": "vision 07 §3a / vision 04 §3 v1.3.0",
+    "anchoredNoulVersion": 2,
     "bounds": {
         "terminalMaxFinishChecks": 5,
         "highFloor": 0.7,
@@ -48,6 +49,15 @@
             "completionCardShown": true
         },
         {
+            "mode": "stub",
+            "fixture": "decoy-applepie-mention",
+            "terminal": false,
+            "guardLevel": "WEAK",
+            "accepted": false,
+            "checksUsed": 6,
+            "completionCardShown": true
+        },
+        {
             "mode": "live",
             "fixture": "tarte-tatin-specimen",
             "terminal": true,
@@ -86,6 +96,15 @@
             "completionCardShown": true
         },
         {
+            "mode": "live",
+            "fixture": "decoy-applepie-mention",
+            "terminal": false,
+            "guardLevel": "WEAK",
+            "accepted": false,
+            "checksUsed": 6,
+            "completionCardShown": true
+        },
+        {
             "mode": "laya",
             "fixture": "tarte-tatin-specimen",
             "terminal": true,
@@ -124,6 +143,15 @@
             "completionCardShown": true
         },
         {
+            "mode": "laya",
+            "fixture": "decoy-applepie-mention",
+            "terminal": false,
+            "guardLevel": "WEAK",
+            "accepted": false,
+            "checksUsed": 6,
+            "completionCardShown": true
+        },
+        {
             "mode": "laya_fb_jev",
             "fixture": "tarte-tatin-specimen",
             "terminal": true,
@@ -155,6 +183,15 @@
         {
             "mode": "laya_fb_jev",
             "fixture": "decoy-wrong-recipe-page",
+            "terminal": false,
+            "guardLevel": "WEAK",
+            "accepted": false,
+            "checksUsed": 6,
+            "completionCardShown": true
+        },
+        {
+            "mode": "laya_fb_jev",
+            "fixture": "decoy-applepie-mention",
             "terminal": false,
             "guardLevel": "WEAK",
             "accepted": false,

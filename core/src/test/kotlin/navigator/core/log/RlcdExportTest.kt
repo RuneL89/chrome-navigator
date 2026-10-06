@@ -3,18 +3,27 @@ package navigator.core.log
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import navigator.core.decision.NoulQuestion
+import navigator.core.decision.band
 import navigator.core.enumerate.Bucket
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Gate 5.2 — export correctness (vision 05 §4): each exported case is the upstream
- * `docs/finetune.md` row shape — `state` verbatim, `questions` the **bucketed shadow
- * form**, `gold` the **teacher probability distribution** (never a bare label) — and
- * every line loads through a strict validator written from that shape. The manifest
- * flags mixed-teacher corpora (two teacher pins present, vision 02 §5).
+ * Gate 5.2 — export correctness (vision 05 §4 v1.5.0): each exported case is the
+ * upstream `docs/finetune.md` row shape in ONE of two kinds — `choose` (state verbatim,
+ * `questions` the **bucketed shadow form**, `gold` the **full probability
+ * distribution**, never a bare label) from decision rows, and `noul` (state verbatim,
+ * `question` the anchored payload with its version, `gold` the **authoritative pTrue**)
+ * from exit-check rows. Every line loads through a strict validator written from that
+ * shape. Laws pinned here: authoritative gold (the executed answer — the fallback's
+ * when escalated; a student is never its own gold), format scoping (only current-serve-
+ * shape rows export; others are counted loudly in the manifest), and the mixed-teacher
+ * flag (two teacher pins present, vision 02 §5).
  */
 class RlcdExportTest {
 
@@ -28,6 +37,7 @@ class RlcdExportTest {
 
     @Serializable
     private data class FinetuneRow(
+        val kind: String,
         val state: String,
         val stateFormatVersion: Int,
         val questions: FinetuneQuestions,
@@ -50,6 +60,7 @@ class RlcdExportTest {
     /** Strict load + shape law of one exported JSONL line. */
     private fun validateCase(line: String, source: DecisionLogRow): FinetuneRow {
         val row = strict.decodeFromString(FinetuneRow.serializer(), line)
+        assertEquals("choose", row.kind, "a decision row exports as the choose kind (vision 05 §4)")
         // state is the canonical state text, verbatim — the export never rewrites it
         assertEquals(source.stateText, row.state, "export must not rewrite state text")
         assertEquals(source.stateFormatVersion, row.stateFormatVersion)
@@ -169,10 +180,28 @@ class RlcdExportTest {
     }
 
     @Test
-    fun `manifest serializes and records state format versions`() {
-        val rows = listOf(LogRowFixtures.complete(), LogRowFixtures.complete().copy(stateFormatVersion = 2))
-        val manifest = exporter.manifest(rows)
-        assertEquals(listOf(1, 2), manifest.stateFormatVersions)
+    fun `format scoping - foreign-format rows are excluded and counted loudly in the manifest`() {
+        // vision 05 §4: an export includes only rows whose stateFormatVersion matches
+        // the current serve shape; rows of other versions are excluded and counted by
+        // version — never silently dropped.
+        val current = LogRowFixtures.complete()
+        val foreign = LogRowFixtures.complete(rowId = "row-v2").copy(stateFormatVersion = 2)
+        val jsonl = exporter.export(listOf(current, foreign))
+        val lines = jsonl.split("\n")
+        assertEquals(1, lines.size, "only the current-format row exports")
+        assertTrue("row-v2" !in lines.single())
+        assertTrue("\"open-first-result\"" in lines.single(), "the surviving case is the v1 choose case")
+        val manifest = exporter.manifest(listOf(current, foreign))
+        assertEquals(1, manifest.rowCount)
+        assertEquals(listOf(1), manifest.stateFormatVersions)
+        assertEquals(1, manifest.excludedRowCount)
+        assertEquals(mapOf(2 to 1), manifest.excludedByStateFormatVersion)
+    }
+
+    @Test
+    fun `manifest serializes and records state format versions of the exported rows`() {
+        val manifest = exporter.manifest(listOf(LogRowFixtures.complete(), LogRowFixtures.denied()))
+        assertEquals(listOf(1), manifest.stateFormatVersions)
         val encoded = exporter.encodeManifest(manifest)
         val decoded = strict.decodeFromString(RlcdExportManifest.serializer(), encoded)
         assertEquals(manifest, decoded)
@@ -198,5 +227,128 @@ class RlcdExportTest {
     fun `companion row count defaults to zero`() {
         assertEquals(0, exporter.manifest(listOf(LogRowFixtures.complete())).companionRowCount)
         assertEquals(0, exporter.manifest(emptyList()).companionRowCount)
+    }
+
+    // ---- the noul kind + authoritative gold (vision 05 §4 v1.5.0) -----------------
+
+    /** One refused finish check on the Tarte Tatin page (the calibration-decoy contrast). */
+    private fun exitCheck(
+        rowId: String = "exit-check:task-apple-pie:9",
+        pTrue: Double = 0.61,
+        escalated: Boolean = false,
+        fallbackPTrue: Double? = null,
+        verdict: ExitCheckVerdict = ExitCheckVerdict.REFUSED,
+        acceptedPath: LoggedExitPath? = null,
+    ) = ExitCheckRow(
+        rowId = rowId,
+        taskId = "task-apple-pie",
+        stepIndex = 9,
+        timestamp = 1_760_250_000_000,
+        stateText = "GOAL find an apple pie recipe\nSTEP 9\nURL https://www.allrecipes.com/recipe/15896/classic-apple-pie",
+        stateFormatVersion = 1,
+        question = NoulQuestion(
+            name = "goal-achieved",
+            proposition = "The target page about \"Apple Pie\" is currently displayed.\n" +
+                "PAGE IDENTITY: the currently displayed page's title is \"Classic Apple Pie Recipe\" " +
+                "and its address is https://www.allrecipes.com/recipe/15896/classic-apple-pie.",
+        ),
+        anchoredNoulVersion = 2,
+        teacher = EngineIdentity(configId = "primary", model = LogRowFixtures.PINNED_PRIMARY_MODEL),
+        answer = ExitCheckAnswer(pTrue = pTrue, band = band(pTrue).toLoggedBand()),
+        escalated = escalated,
+        fallbackAnswer = fallbackPTrue?.let { ExitCheckFallbackAnswer(it) },
+        guardLevel = ExitCheckGuardLevel.STRONG,
+        verdict = verdict,
+        acceptedPath = acceptedPath,
+    )
+
+    /** STRICT decoder of one exported noul line (unknown fields are errors). */
+    private fun validateNoulLine(line: String, source: ExitCheckRow): RlcdNoulCase {
+        val decoded = strict.decodeFromString(RlcdNoulCase.serializer(), line)
+        // state is the canonical state text, verbatim — the export never rewrites it
+        assertEquals(source.stateText, decoded.state)
+        assertEquals(source.stateFormatVersion, decoded.stateFormatVersion)
+        assertEquals(source.question.name, decoded.question.name)
+        assertEquals(source.question.proposition, decoded.question.proposition)
+        assertEquals(source.anchoredNoulVersion, decoded.anchoredNoulVersion)
+        assertTrue("\"kind\":\"noul\"" in line.replace(" ", ""), "the noul kind is explicit: $line")
+        assertTrue(decoded.gold in 0.0..1.0, "gold is the pTrue scalar, in range")
+        return decoded
+    }
+
+    @Test
+    fun `noul cases carry the anchored question, its version, and the primary's pTrue`() {
+        val check = exitCheck(pTrue = 0.58)
+        val jsonl = exporter.export(emptyList(), listOf(check))
+        val parsed = validateNoulLine(jsonl, check)
+        assertEquals(0.58, parsed.gold, "not escalated: gold is the primary's pTrue")
+        assertFalse("\"questions\"" in jsonl, "a noul case has no bucketed questions field")
+    }
+
+    @Test
+    fun `authoritative gold - an escalated noul case trains on the FALLBACK's pTrue, never the student's`() {
+        // vision 05 §4: gold is always the EXECUTED answer — the fallback's when
+        // escalated=true. The primary's own answer is the mistake training must not teach.
+        val check = exitCheck(pTrue = 0.44, escalated = true, fallbackPTrue = 0.81)
+        val parsed = validateNoulLine(exporter.export(emptyList(), listOf(check)), check)
+        assertEquals(0.81, parsed.gold, "gold = the fallback's (executed) pTrue")
+        assertTrue(0.44 != parsed.gold, "the primary's own pTrue is not the gold")
+    }
+
+    @Test
+    fun `authoritative gold - an escalated choose case trains on the FALLBACK's distribution`() {
+        val fallbackChoice = navigator.core.decision.ChoiceResult(
+            chosenId = "type-query",
+            probabilities = mapOf("type-query" to 0.70, "open-first-result" to 0.20, "scroll-results" to 0.10),
+            confidence = 0.72,
+        )
+        val escalatedRow = LogRowFixtures.complete().copy(
+            escalated = true,
+            fallback = FallbackInfo(
+                engine = "fallback-1",
+                model = LogRowFixtures.PINNED_FALLBACK_MODEL,
+                answer = fallbackChoice,
+            ),
+        )
+        val line = exportLines(listOf(escalatedRow)).single()
+        val parsed = strict.decodeFromString(FinetuneRow.serializer(), line)
+        assertEquals(fallbackChoice.probabilities, parsed.gold, "gold = the executed (fallback) distribution")
+        assertFalse(
+            parsed.gold.equals(LogRowFixtures.teacherAnswer.probabilities),
+            "the primary's own distribution is NOT the gold of an escalated row",
+        )
+    }
+
+    @Test
+    fun `authoritative gold - a non-escalated choose case keeps the teacher's distribution`() {
+        val line = exportLines(listOf(LogRowFixtures.complete())).single()
+        val parsed = strict.decodeFromString(FinetuneRow.serializer(), line)
+        assertEquals(LogRowFixtures.teacherAnswer.probabilities, parsed.gold)
+    }
+
+    @Test
+    fun `the manifest counts case kinds and carries the noul schema versions`() {
+        val decisionRows = listOf(LogRowFixtures.complete(), LogRowFixtures.denied())
+        val exitChecks = listOf(exitCheck(), exitCheck(rowId = "exit-check:t:10", pTrue = 0.58))
+        val manifest = exporter.manifest(decisionRows, exitChecks)
+        assertEquals(4, manifest.rowCount)
+        assertEquals(mapOf("choose" to 2, "noul" to 2), manifest.caseKinds)
+        assertEquals(2, manifest.anchoredNoulVersion)
+        assertNull(manifest.layaStateViewVersion, "pre-08H: canonical state text, no laya view yet")
+        assertEquals(0, manifest.excludedRowCount)
+        // the JSONL itself: choose lines first, then noul lines
+        val lines = exporter.export(decisionRows, exitChecks).split("\n")
+        assertEquals(4, lines.size)
+        assertTrue("\"kind\":\"choose\"" in lines[0].replace(" ", ""))
+        assertTrue("\"kind\":\"noul\"" in lines[3].replace(" ", ""))
+    }
+
+    @Test
+    fun `a mixed anchoredNoulVersion window is incoherent and fails loudly`() {
+        val older = exitCheck(rowId = "exit-check:t:1").copy(anchoredNoulVersion = 1)
+        val newer = exitCheck(rowId = "exit-check:t:2")
+        assertFailsWith<IllegalArgumentException> {
+            exporter.manifest(emptyList(), listOf(older, newer))
+        }
     }
 }

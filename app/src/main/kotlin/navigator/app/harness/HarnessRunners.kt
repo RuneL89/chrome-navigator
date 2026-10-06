@@ -12,6 +12,7 @@ import navigator.app.loop.SpendMeter
 import navigator.app.loop.UsageFeed
 import navigator.app.log.DecisionLogDb
 import navigator.app.log.DecisionLogger
+import navigator.app.log.ExitCheckLogger
 import navigator.app.log.ShadowResultLogger
 import navigator.app.laya.LayaEngine
 import navigator.app.observe.NavigatorAccessibilityService
@@ -20,6 +21,7 @@ import navigator.core.decision.DecisionEngine
 import navigator.core.decision.FallbackEngine
 import navigator.core.enumerate.ObservedNode
 import navigator.core.log.DecisionLogRow
+import navigator.core.log.ExitCheckRow
 import navigator.core.wire.DefaultEngineConfigs
 import navigator.core.wire.OkHttpWireTransport
 import navigator.core.wire.SystemOneClient
@@ -309,7 +311,13 @@ class RoomDecisionLogSink(context: Context, name: String = DB_NAME) : DecisionLo
     /** Companion shadow-result logger over the SAME database (phase 8B §2.2). */
     val shadowResults = ShadowResultLogger(db)
 
+    /** Exit-check logger over the SAME database (vision 05 §2 amendment 2026-10-06). */
+    val exitChecks = ExitCheckLogger(db)
+
     override suspend fun write(row: DecisionLogRow) = logger.insert(row)
+
+    /** Exactly one insert-only row per finish check, refusals included (amendment rule a). */
+    override suspend fun writeExitCheck(row: ExitCheckRow) = exitChecks.insert(row)
 
     /**
      * The router's companion edge: guarded, exactly-once inserts into `shadow_result`

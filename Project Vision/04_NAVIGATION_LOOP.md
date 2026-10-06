@@ -1,8 +1,8 @@
 # Navigation Loop
 
 **Document ID:** `NAVIGATOR-VISION-004`
-**Version:** 1.2.0 *(amended 2026-10-06: exit reliability — guard levels, three exit paths incl. owner completion card, anti-oscillation, anchored noul; owner-ratified after Test-1 live evidence)*
-**Status:** Ratified (2026-10-03; amendment 2026-10-06)
+**Version:** 1.3.0 *(amended 2026-10-07: STRONG guard tightened to page-identity only — the target entity must match in the page title or URL; a content-only mention never yields STRONG ("a mention is not arrival"); owner-ratified after the Test-2′ false GOAL_ACHIEVED on a content mention)*
+**Status:** Ratified (2026-10-03; amendments 2026-10-06, 2026-10-07)
 **Date:** 2026-10-03
 **Implements:** ART-4 (no self-report completion), ART-5 (numbers in code), ART-9 (bounded
 tasks), ART-2 (one decision gateway)
@@ -65,7 +65,7 @@ from it. The 3-line HISTORY digest is never the memory of record for multi-targe
 6. **LOG** (code) — the DecisionLog row (doc 05), including guard outcomes, execution
    result, both engines' answers, and plan/progress provenance.
 
-## 3. Exit conditions (amended 2026-10-06 — exit reliability)
+## 3. Exit conditions (amended 2026-10-06 — exit reliability; 2026-10-07 — STRONG page-identity)
 
 A task ends by exactly one of: **goal-achieved**, **budget exhausted**, **stuck-kill**,
 **guard abort**, **user cancel**.
@@ -75,7 +75,10 @@ A task ends by exactly one of: **goal-achieved**, **budget exhausted**, **stuck-
   content region read after results loaded), form-fill (submission observed), action
   (post-action state observed), action-multi (tracker drained).
 - **STRONG** — deterministic target verification: the **triage-extracted target entity**
-  (code) is matched in the page title, URL, or content (exact/fuzzy code match, no model).
+  (code) is matched in the page **title or URL** (exact/fuzzy code match, no model) —
+  page identity, not a content mention; a mention is not arrival. A content-only match
+  never yields STRONG. STRONG is a strict superset of WEAK: it fires only when the
+  class's WEAK predicate is satisfied AND the identity match holds.
 
 **Goal-achieved requires the engine to choose `finish` AND verification to pass via one of
 three paths** (the engine can never finish alone — ART-4; code evidence lowers the bar,

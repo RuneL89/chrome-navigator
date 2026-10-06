@@ -68,7 +68,8 @@ internal object ExitReplaySupport {
         } ?: guards.seed(spec.terminalPage.url)
         val terminal = spec.terminalPage
         guards.record(terminal.url, terminal.contentLines.size, textTyped = false, submitExecuted = false)
-        return guards to guards.levelAt(terminal.title, terminal.url, terminal.contentLines)
+        // STRONG (v1.3.0) reads page identity only: title/URL, never the content lines.
+        return guards to guards.levelAt(terminal.title, terminal.url)
     }
 
     /** One driven finish check's outcome, for the family's assertions and report. */

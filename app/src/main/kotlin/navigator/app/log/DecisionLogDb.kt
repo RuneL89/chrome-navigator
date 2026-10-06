@@ -219,8 +219,8 @@ interface DecisionLogDao {
 }
 
 @Database(
-    entities = [DecisionLogEntity::class, ShadowResultEntity::class],
-    version = 4,
+    entities = [DecisionLogEntity::class, ShadowResultEntity::class, ExitCheckEntity::class],
+    version = 5,
     exportSchema = false,
 )
 abstract class DecisionLogDb : RoomDatabase() {
@@ -228,6 +228,8 @@ abstract class DecisionLogDb : RoomDatabase() {
     abstract fun decisionLogDao(): DecisionLogDao
 
     abstract fun shadowResultDao(): ShadowResultDao
+
+    abstract fun exitCheckDao(): ExitCheckDao
 
     companion object {
 
@@ -287,10 +289,51 @@ abstract class DecisionLogDb : RoomDatabase() {
             }
         }
 
+        /**
+         * v4 → v5 (vision 05 v1.5.0, Phase 8J Round 2): adds the `exit_check` table
+         * beside the untouched `decision_log` + `shadow_result` tables — the third
+         * insert-only row type (every finish check, accepted or refused; amendment
+         * rule a). CREATE TABLE only: every historical row of both existing tables
+         * survives untouched (insert-only law; no destructive fallback anywhere). The
+         * DDL is exactly what Room expects for [ExitCheckEntity], so the
+         * post-migration schema validation passes.
+         */
+        val MIGRATION_4_5: androidx.room.migration.Migration = object : androidx.room.migration.Migration(4, 5) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `exit_check` (" +
+                        "`rowId` TEXT NOT NULL, " +
+                        "`taskId` TEXT NOT NULL, " +
+                        "`stepIndex` INTEGER NOT NULL, " +
+                        "`timestamp` INTEGER NOT NULL, " +
+                        "`stateText` TEXT NOT NULL, " +
+                        "`stateFormatVersion` INTEGER NOT NULL, " +
+                        "`questionJson` TEXT NOT NULL, " +
+                        "`anchoredNoulVersion` INTEGER NOT NULL, " +
+                        "`teacherConfigId` TEXT NOT NULL, " +
+                        "`teacherModel` TEXT NOT NULL, " +
+                        "`answerPTrue` REAL NOT NULL, " +
+                        "`answerBand` TEXT NOT NULL, " +
+                        "`escalated` INTEGER NOT NULL, " +
+                        "`fallbackPTrue` REAL, " +
+                        "`guardLevel` TEXT NOT NULL, " +
+                        "`verdict` TEXT NOT NULL, " +
+                        "`acceptedPath` TEXT, " +
+                        "PRIMARY KEY(`rowId`))",
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_exit_check_taskId` ON `exit_check` (`taskId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_exit_check_timestamp` ON `exit_check` (`timestamp`)")
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_exit_check_taskId_stepIndex` " +
+                        "ON `exit_check` (`taskId`, `stepIndex`)",
+                )
+            }
+        }
+
         /** Production: a named, on-disk database (indefinite local retention, vision 05 §5). */
         fun open(context: Context, name: String): DecisionLogDb =
             Room.databaseBuilder(context, DecisionLogDb::class.java, name)
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .build()
 
         /** In-memory variant (tests / ephemeral windows). */

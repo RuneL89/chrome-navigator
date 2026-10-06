@@ -5,6 +5,7 @@ import navigator.app.stub.StubEngine
 import navigator.app.stub.StubScript
 import navigator.core.enumerate.ObservedNode
 import navigator.core.log.DecisionLogRow
+import navigator.core.log.ExitCheckRow
 
 /**
  * Shared fakes for the Gate 6.1 loop tests — Robolectric-free: every Android edge of the
@@ -74,9 +75,20 @@ class FakeExecutor(private val journal: Journal) : ActionExecutor {
 class CollectingLogSink : DecisionLogSink {
     val rows = mutableListOf<DecisionLogRow>()
 
+    /** The exit-check rows (vision 05 §2 amendment): one per finish check. */
+    val exitChecks = mutableListOf<ExitCheckRow>()
+
     override suspend fun write(row: DecisionLogRow) {
         require(rows.none { it.rowId == row.rowId }) { "duplicate rowId ${row.rowId}" }
         rows.add(row)
+    }
+
+    override suspend fun writeExitCheck(row: ExitCheckRow) {
+        require(exitChecks.none { it.rowId == row.rowId }) { "duplicate exit-check rowId ${row.rowId}" }
+        require(exitChecks.none { it.taskId == row.taskId && it.stepIndex == row.stepIndex }) {
+            "duplicate exit-check key (${row.taskId}, step ${row.stepIndex}) - exactly one per finish check"
+        }
+        exitChecks.add(row)
     }
 }
 

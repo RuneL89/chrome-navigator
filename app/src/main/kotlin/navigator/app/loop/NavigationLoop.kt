@@ -31,6 +31,11 @@ import navigator.core.log.CompressedBy
 import navigator.core.log.DecisionLogRow
 import navigator.core.log.EngineIdentity
 import navigator.core.log.ExecutedAction
+import navigator.core.log.ExitCheckAnswer
+import navigator.core.log.ExitCheckFallbackAnswer
+import navigator.core.log.ExitCheckGuardLevel
+import navigator.core.log.ExitCheckRow
+import navigator.core.log.ExitCheckVerdict
 import navigator.core.log.ExitProvenance
 import navigator.core.log.FallbackInfo
 import navigator.core.log.LoggedActionKind
@@ -43,6 +48,8 @@ import navigator.core.log.TeacherAnswer
 import navigator.core.log.TriageClass
 import navigator.core.log.enumFromSerialName
 import navigator.core.log.serialNameOf
+import navigator.core.log.toLoggedBand
+import navigator.core.decision.NoulResult
 import navigator.core.state.StateTextBuilder
 
 /**
@@ -213,11 +220,11 @@ class NavigationLoop(
          * slot right after its own call; a stale/mismatched record is a wiring bug and
          * fails loudly rather than mis-attributing an escalation.
          */
-        fun readEscalation(question: ChoiceQuestion): DecisionRecord? {
+        fun readEscalation(questionName: String): DecisionRecord? {
             val record = fallbackReporting?.lastRecord() ?: return null
-            check(record.questionName == question.name) {
+            check(record.questionName == questionName) {
                 "fallback record '${record.questionName}' does not match the question just " +
-                    "decided '${question.name}' - escalation bookkeeping is stale"
+                    "decided '$questionName' - escalation bookkeeping is stale"
             }
             return record
         }
@@ -410,12 +417,12 @@ class NavigationLoop(
                 recoveryArmed = false
                 question = RECOVERY_QUESTION
                 choice = engine.choose(state.text, question)
-                escalation = readEscalation(question)
+                escalation = readEscalation(question.name)
                 line("decide: recovery set -> '${choice.chosenId}'" + escalationSuffix(escalation))
             } else {
                 question = actionQuestion(candidates)
                 choice = engine.choose(state.text, question)
-                escalation = readEscalation(question)
+                escalation = readEscalation(question.name)
                 line("decide: action -> '${choice.chosenId}'" + escalationSuffix(escalation))
             }
 
@@ -507,7 +514,7 @@ class NavigationLoop(
                     "engine chose '${choice.chosenId}' which is not a candidate of this step",
                 )
 
-            // -- finish pseudo-action: the exit policy (vision 04 §3 v1.2.0) -------------
+            // -- finish pseudo-action: the exit policy (vision 04 §3) ---------------------
             if (candidate.id == CandidateEnumerator.FINISH_ID) {
                 // The CURRENT observation is code-side evidence of what the screen holds
                 // (the tap's post-observation may have raced the page load). Recording it
@@ -518,11 +525,18 @@ class NavigationLoop(
                     textTyped = false,
                     submitExecuted = false,
                 )
-                val guardLevel = guards!!.levelAt(obs.title, obs.url, obs.lines)
-                val noul = engine.judge(
-                    state.text,
-                    AnchoredNoul.question(goalText, entity, requireNotNull(triageClass)),
+                val guardLevel = guards!!.levelAt(obs.title, obs.url)
+                val noulQuestion = AnchoredNoul.question(
+                    goalText,
+                    entity,
+                    requireNotNull(triageClass),
+                    obs.title,
+                    obs.url,
                 )
+                val noul = engine.judge(state.text, noulQuestion)
+                // The noul escalation is captured IMMEDIATELY (the engine's single slot):
+                // the anchored judge is its own decision, separate from the step's choose.
+                val noulEscalation = readEscalation(noulQuestion.name)
                 line(
                     "decide: finish -> verification: noul=${noul.pTrue} (${band(noul.pTrue)}), " +
                         "guard=${guardLevel.name}, " +
@@ -569,6 +583,47 @@ class NavigationLoop(
                     }
                     else -> first
                 }
+                // Vision 05 §2 amendment 2026-10-06, rule a: EVERY finish check —
+                // accepted or refused — logs exactly one insert-only ExitCheckRow; the
+                // refusals are the decoy contrast that teaches exit calibration. Rule b:
+                // `answer` is the PRIMARY's noul; on a primary hard failure (no primary
+                // answer) the executed fallback answer stands in — the decision-row
+                // precedent — and `fallbackAnswer` carries the executed judgment whenever
+                // the check escalated.
+                fun exitCheckRow(): ExitCheckRow {
+                    val escalated = noulEscalation?.escalated == true
+                    val primaryPTrue = (noulEscalation?.primary as? NoulResult)?.pTrue
+                    val fallbackPTrue = (noulEscalation?.fallback as? NoulResult)?.pTrue
+                    val answerPTrue = if (escalated) {
+                        primaryPTrue ?: requireNotNull(fallbackPTrue) {
+                            "an escalated finish check must carry the executed fallback noul"
+                        }
+                    } else {
+                        noul.pTrue
+                    }
+                    return ExitCheckRow(
+                        rowId = ExitCheckRow.rowIdFor(taskId, stepIndex),
+                        taskId = taskId,
+                        stepIndex = stepIndex,
+                        timestamp = clock.nowMs(),
+                        stateText = state.text,
+                        stateFormatVersion = state.formatVersion,
+                        question = noulQuestion,
+                        anchoredNoulVersion = AnchoredNoul.ANCHORED_NOUL_VERSION,
+                        teacher = engineIdentity,
+                        answer = ExitCheckAnswer(pTrue = answerPTrue, band = band(answerPTrue).toLoggedBand()),
+                        escalated = escalated,
+                        fallbackAnswer = fallbackPTrue?.let { ExitCheckFallbackAnswer(it) },
+                        guardLevel = verdict.guardLevel.toExitCheckLevel(),
+                        verdict = if (verdict is ExitDecision.Accept) {
+                            ExitCheckVerdict.ACCEPTED
+                        } else {
+                            ExitCheckVerdict.REFUSED
+                        },
+                        acceptedPath = (verdict as? ExitDecision.Accept)?.path?.toLoggedPath(),
+                    )
+                }
+                logSink.writeExitCheck(exitCheckRow())
                 when (verdict) {
                     is ExitDecision.Accept -> {
                         val provenance = ExitProvenance(
@@ -855,6 +910,13 @@ class NavigationLoop(
         )
     }
 
+    /** The exit-check vocabulary carries NONE (a guard-failed finish is a logged refusal). */
+    private fun GuardLevel.toExitCheckLevel(): ExitCheckGuardLevel = when (this) {
+        GuardLevel.WEAK -> ExitCheckGuardLevel.WEAK
+        GuardLevel.STRONG -> ExitCheckGuardLevel.STRONG
+        GuardLevel.NONE -> ExitCheckGuardLevel.NONE
+    }
+
     private fun HClass.toLoggedHClass(): navigator.core.log.LoggedHClass = when (this) {
         HClass.H1_PAYMENT -> navigator.core.log.LoggedHClass.H1
         HClass.H2_PURCHASE_CONFIRM -> navigator.core.log.LoggedHClass.H2
@@ -964,11 +1026,16 @@ interface LoopObserver {
 }
 
 /**
- * The logging edge (vision 05 §2): exactly one row per navigation decision. The
- * Room-backed implementation wraps [navigator.app.log.DecisionLogger]; tests collect.
+ * The logging edge (vision 05 §2): exactly one row per navigation decision plus the
+ * third row type's edge — exactly one [ExitCheckRow] per finish check, refusals
+ * included (vision 05 §2 amendment 2026-10-06). The Room-backed implementation wraps
+ * [navigator.app.log.DecisionLogger]; tests collect.
  */
 interface DecisionLogSink {
     suspend fun write(row: DecisionLogRow)
+
+    /** The exit-calibration corpus edge: insert-only, one row per finish check. */
+    suspend fun writeExitCheck(row: ExitCheckRow)
 }
 
 /** How a task ended (vision 04 §3 exits + the two documented pre/extra-navigation aborts). */
