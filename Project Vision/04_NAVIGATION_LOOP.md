@@ -1,7 +1,7 @@
 # Navigation Loop
 
 **Document ID:** `NAVIGATOR-VISION-004`
-**Version:** 1.1.0 *(amended 2026-10-06: open-ended goal foundations — action triage, LLM-proposed plans, cold-start, task working memory, per-class budgets; owner-ratified via plan v4)*
+**Version:** 1.2.0 *(amended 2026-10-06: exit reliability — guard levels, three exit paths incl. owner completion card, anti-oscillation, anchored noul; owner-ratified after Test-1 live evidence)*
 **Status:** Ratified (2026-10-03; amendment 2026-10-06)
 **Date:** 2026-10-03
 **Implements:** ART-4 (no self-report completion), ART-5 (numbers in code), ART-9 (bounded
@@ -65,21 +65,41 @@ from it. The 3-line HISTORY digest is never the memory of record for multi-targe
 6. **LOG** (code) — the DecisionLog row (doc 05), including guard outcomes, execution
    result, both engines' answers, and plan/progress provenance.
 
-## 3. Exit conditions
+## 3. Exit conditions (amended 2026-10-06 — exit reliability)
 
 A task ends by exactly one of: **goal-achieved**, **budget exhausted**, **stuck-kill**,
 **guard abort**, **user cancel**.
 
-**Goal-achieved** requires BOTH:
-- Primary `noul` "is the goal achieved?" in the high band (`> 0.70`), **and**
-- A **code completion guard** confirming task-type-specific preconditions:
-  - lookup/research: a non-empty content region was read after results loaded;
-  - form-fill: the form actually submitted (post-submission state observed);
-  - **action: the single target operation completed** (post-action state observed —
-    e.g. the button now reads the opposite state);
-  - **action-multi: the working-memory tracker is drained** (every enumerated target
-    processed or explicitly skipped; none pending).
-  (Generalizes PokeClaw's `InAppSearchGuard`: never trust self-report — ART-4.)
+**Guard levels (code-only):**
+- **WEAK** — the per-triage-class contentful predicates: lookup/research (a non-empty
+  content region read after results loaded), form-fill (submission observed), action
+  (post-action state observed), action-multi (tracker drained).
+- **STRONG** — deterministic target verification: the **triage-extracted target entity**
+  (code) is matched in the page title, URL, or content (exact/fuzzy code match, no model).
+
+**Goal-achieved requires the engine to choose `finish` AND verification to pass via one of
+three paths** (the engine can never finish alone — ART-4; code evidence lowers the bar,
+never replaces it):
+
+- **Path A (classic):** anchored noul > 0.70 (HIGH) with any guard level.
+- **Path B (sustained evidence):** STRONG guard + noul ≥ 0.55 sustained over **K=3
+  consecutive** finish checks → accept, logged `exitPath=SUSTAINED`.
+- **Path C (owner arbiter):** finish refused on K consecutive checks while the guard still
+  passes → **completion card** ("Goal appears complete — [Confirm done] / [Keep going]";
+  30s timeout = keep going; **max one card per task**) → `exitPath=OWNER_CONFIRM`.
+
+**Anchored noul:** the goal-achieved proposition is code-constructed per goal — anchored
+to the triaged target entity (e.g. "the article titled <entity> is now displayed") — and
+versioned with the state format. Generic "is the goal achieved?" phrasing is forbidden.
+
+**Anti-oscillation:** a refused finish **excludes `finish` from the next M=2 decisions**
+unless the page hash changes; consecutive refused finishes feed StuckDetector as a signal
+(L1 hint carries the exit-conflict note). This kills the finish↔tap cycling observed in
+the 2026-10-06 Test-1 specimen ($0.25 burned after 8 refused finishes on the open target
+page).
+
+**Thresholds (0.70 / 0.55 / K=3 / M=2) are code config** (ART-5), tunable by amendment and
+gated by the exit-calibration eval family (doc 07 §3a).
 
 Guard predicates live in `:app` code as a per-triage-class state machine and are unit-tested.
 
@@ -87,6 +107,7 @@ Guard predicates live in `:app` code as a per-triage-class state machine and are
 
 Unchanged: 5 signals over the last 8 steps (any 3 trip escalation): same action 3× ·
 screen hash unchanged 3× · zero text diff 3× · high repetition · repeated errors.
+**+ consecutive refused finishes (exit-conflict, added 2026-10-06)** as a sixth signal.
 **L1** hint into HISTORY; **L2** primary chooses from recovery (`back · scroll · rephrase
 · give-up`); **L3** one rescue-coach call (generative LLM), then kill with partial
 results. For `action-multi` tasks, the tracker's progress lines ride the L1 hint so the

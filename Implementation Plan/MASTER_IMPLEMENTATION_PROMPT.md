@@ -238,6 +238,7 @@ Phase documents live in `Implementation Plan/`; vision documents live in `Projec
 | 8 | `PHASE_08_laya_shadow.md` | `02` §4–§5, `05` §6 | Shadow semantics, checkpoint |
 | 8B | `PHASE_08B_shadow_companion_rows.md` | `05` §2 amendment + §3, `02` §4 | Companion rows, joined-view agreement |
 | 8C | `PHASE_08C_laya_primary_jev_fallback.md` | `02` §7, `05` v1.2.0, `07` §3 | Fallback composition, checkpoint import gate |
+| 8J | `PHASE_08J_exit_reliability.md` | `04` §3 v1.2.0, `05` v1.4.0, `07` §3a | Exit paths, guards, anti-oscillation |
 | 8D | `PHASE_08D_action_triage_coldstart_budgets.md` | `04` v1.1.0 | Triage classes, cold-start, budgets |
 | 8E | `PHASE_08E_h9_general_gate.md` | `06` v1.2.0 §1, §3 | H9 net + additive-only law |
 | 8F | `PHASE_08F_credential_entry_redaction.md` | `06` §2a, `05` v1.3.0 | Credential law, redaction |

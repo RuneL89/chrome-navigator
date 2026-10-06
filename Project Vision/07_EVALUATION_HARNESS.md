@@ -1,7 +1,7 @@
 # Evaluation Harness
 
 **Document ID:** `NAVIGATOR-VISION-007`
-**Version:** 1.1.0 *(amended 2026-10-06: suite grows to 16 goals — +multi-action, +H9 bait, +cheapest-compare; owner-ratified via plan v4)*
+**Version:** 1.2.0 *(amended 2026-10-06: + exit-calibration eval family §3a; owner-ratified after Test-1 live evidence)*
 **Status:** Ratified (2026-10-03)
 **Date:** 2026-10-03
 **Implements:** ART-7 (versioned state text gates), doc 02 §5 (pin upgrades), doc 03 §3
@@ -74,3 +74,12 @@ decisions per task, wall-clock per task (perf law: search-and-read median ≤ 2 
 gate events per task (fires, approvals, denials, timeouts, trusted), shadowMiss rate. These reports are the evidence base for: checkpoint race
 (`laya` vs `laya-multilingual`, if ever revisited), precision choice (int8 vs fp16),
 teacher bumps, and the graduation decision (doc 02 §6).
+
+### 3a. Exit-calibration family (added 2026-10-06 — doc 04 §3 v1.2.0)
+
+A fixture-based family run **per engine mode** (Tier A replays + harness pages):
+- **Terminal fixtures** (pages where the goal IS achieved — incl. the committed Test-1
+  Tarte Tatin specimen): finish must be accepted within N=5 finish-checks (any path).
+- **Decoy fixtures** (plausible-looking wrong pages): finish must NEVER be accepted.
+- Gates every exit-threshold change (0.70 / 0.55 / K / M) and every engine-mode addition;
+  results recorded in `.state/eval/` with the mode and path taken.

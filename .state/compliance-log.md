@@ -506,3 +506,12 @@ a new dated entry. Format per `Implementation Plan/MASTER_IMPLEMENTATION_PROMPT.
     - Implementation (Stage 2, phases 08D-08I) intentionally NOT started: Stage 0 (Tarte Tatin tests 1-3, owner-gated) precedes it per owner sequencing decision.
   Result: AMENDED — law recorded; roadmap registered; awaiting Stage 0
   Checked By: Main agent (GLM-5.3 session), owner plan-v4 ratification
+
+[2026-10-06] Vision amendments — exit reliability (owner-ratified via plan approval after Test-1 live evidence)
+  Changed: Project Vision/04 (v1.2.0: §3 rewritten — WEAK/STRONG guard levels, three exit paths HIGH/SUSTAINED/OWNER_CONFIRM incl. completion card, anti-oscillation M=2 + sixth stuck signal, anchored noul propositions, thresholds as code config), 05 (v1.4.0: additive exit provenance field), 07 (v1.2.0: §3a exit-calibration family — terminal + decoy fixtures per engine mode); Implementation Plan/PHASE_08J_exit_reliability.md (new; executes FIRST in Stage 2); master index + mapping
+  Provenance: Test-1 specimen (2026-10-06, uat-tart-t1: 8 refused finishes with guard PASS on the open target page, noul 0.34-0.66, $0.2514 budget death; owner visually confirmed the Tarte Tatin page was open) + owner question answers (dual-path floors + completion card arbiter; fix-first sequencing: build exit reliability now, then REDO the Tarte Tatin UAT on the fixed build). GLM-5.3 session.
+  Comparison:
+    - ART-4 principle intact: engine never finishes alone (paths B/C require code evidence; card requires guard-pass). Thresholds in code (ART-5), eval-gated (doc 07 §3a). No contradictions with ART-1..11 or docs 01-07.
+    - Stage 2 ordering amended: 08J first; 08D-08I resume after the redone UAT.
+  Result: AMENDED — law recorded; Phase 08J registered; build next
+  Checked By: Main agent (GLM-5.3 session), owner plan approval

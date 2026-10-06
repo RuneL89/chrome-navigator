@@ -3,7 +3,7 @@
 # Decision Log & RLCD Corpus
 
 **Document ID:** `NAVIGATOR-VISION-005`
-**Version:** 1.3.0 *(amended 2026-10-06: escalated+fallback fields; then action triage values, H9, secret-redaction, plan field — owner-ratified via plan v4)*
+**Version:** 1.4.0 *(amended 2026-10-06: + exit provenance field for the three-path exit law, doc 04 §3 v1.2.0)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-04, 2026-10-06)
 **Date:** 2026-10-03
 **Implements:** ART-3 (everything logs), ART-8 (privacy boundary)
@@ -34,7 +34,8 @@ It exists from v1 day one in its final shape — retrofitting is explicitly reje
 | `agreementKL` | KL(teacher ∥ shadow) over the shared option space |
 | `executedAction` | what code actually did (incl. `refusal`, gate outcomes) |
 | `gateEvent` | `null`, or `{class: H1–H9, decision: approved \| denied \| timeout, trustedFromTask: bool}` (doc 06) |
-| `typedSecret` | `false`, or `true` when this step's typed text was a credential supplied via the gate card (doc 06 §2a) — the value itself is NEVER stored: step log and rows render `[credential-redacted]` |
+| `typedSecret` | `false`, or `true` when this step typed a credential supplied via the gate card (doc 06 §2a) — the value itself is NEVER stored: step log and rows render `[credential-redacted]` |
+| `exit` | `null`, or `{path: HIGH | SUSTAINED | OWNER_CONFIRM, guardLevel: WEAK | STRONG, noul}` on the terminal row (doc 04 §3 v1.2.0) |
 | `escalated` | `false`, or `true` when the fallback engine was consulted for this decision (doc 02 §7; always `false` in single-engine modes) |
 | `fallback` | `null`, or `{engine, model, answer (choice/noul/score result + distribution)}` — the fallback engine's answer when escalated; its answer is the one executed |
 | `outcome` | post-step label from observation diff: `progressed / no-change / error / exited` |
