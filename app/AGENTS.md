@@ -81,13 +81,28 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     MEASURED shadow latency; never shadow-driven waiting), auto-deny default ON in
     harness only, goal runner streaming the step log, run-report JSON export to
     `run-reports/` incl. the `ShadowReport` block — coverage, misses, measured laya
-    latencies), `HarnessPagesServer` (loopback-only static server over
+    latencies), `HarnessLaunch` (the pure, JVM-tested launch policy: extra aliases —
+    `shadowOn` is a first-class alias of `shadow`, the typo that silently disabled the
+    shadow for the uat-applepie-02 device run, 2026-10-06 —, `showOnly` (bring the
+    harness to the front, NEVER starts or refuses a run), unknown
+    `navigator.harness.*` extras are reported loudly, and the show-only/goal policy),
+    `HarnessNotifications` (harness-DEBUG-ONLY notification text + channel
+    `navigator-debug`: per-step ONGOING progress and FINAL verdict notifications,
+    builders carry ids/kinds only — never typed values or page text; product
+    notifications are Phase 9's with their own rules), `RunReports` (pure report
+    data + JSON; when a launch requests the shadow by ANY alias, EVERY per-run report
+    carries the full `shadowReport` object — zeroed with a `note` on degraded paths;
+    `RunReportStore` does the file export),
+    `HarnessPagesServer` (loopback-only static server over
     `assets/harness/pages/`), `GoalCatalog` (`assets/harness/goals.json` — the M0
     scripted goal families; `GoalCatalog.customGoal(...)` builds a ONE-OFF custom goal
     at runtime for real-site diagnostics: launch with `--es customGoalText "..."` +
     `--es customStartUrl "https://..."` (+ optional `--es customGoalId`) — LIVE-only
     (a STUB launch is refused loudly), expected terminal GOAL_ACHIEVED with the standard
-    completion guards, empty STUB script; harness-only test tooling, never a fixture),
+    completion guards, empty STUB script; harness-only test tooling, never a fixture;
+    registered custom goals appear as marked rows in the harness goal list, and at any
+    terminal the harness returns to the front with one ~200ms buzz and the final verdict
+    notification — the owner always knows a run is over),
     `HarnessRunners` (`HarnessObserver`, engine factory,
     Room-backed `DecisionLogSink`, `RunReportStore`). Gate-6.3 key delivery: the
     factory resolves the OpenRouter key by priority intent extra
@@ -100,9 +115,11 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     `accessibility_enabled` immediately after the launch, inside the harness's
     20s service-await window (measured 2026-10-05; the runbook for every headless run)
 * `src/main/AndroidManifest.xml` — application manifest (service + debug capture
-  activity/receiver declarations; service config XML in `src/main/res/xml/`; Phase 6
-  added INTERNET + SYSTEM_ALERT_WINDOW permissions, `<queries>` for the two
-  allowlisted browsers, and the exported debug `HarnessActivity`)
+  activity/receiver declarations; service config XML in `src/main/res/xml/`; Phase 6 added
+  INTERNET + SYSTEM_ALERT_WINDOW permissions, `<queries>` for the two
+  allowlisted browsers, and the exported debug `HarnessActivity`; 2026-10-06 added
+  POST_NOTIFICATIONS + VIBRATE — harness-debug notifications and the run-over buzz
+  only, never product notification code)
 * `src/main/kotlin/navigator/app/log/` — Room persistence for the DecisionLog
   (Phase 5, vision 05 §2): `DecisionLogDb.kt` — `DecisionLogEntity` (nested log objects
   as `DECISION_LOG_JSON` columns), `DecisionLogConverters` (row ↔ entity, loud decode),

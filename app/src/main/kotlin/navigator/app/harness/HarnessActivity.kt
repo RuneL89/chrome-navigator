@@ -2,10 +2,17 @@ package navigator.app.harness
 
 import android.accessibilityservice.AccessibilityService
 import android.app.ActivityManager
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.os.VibrationEffect
+import android.os.VibratorManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
@@ -15,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -36,8 +44,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import navigator.app.loop.AutoDenyGatePresenter
 import navigator.app.loop.DebugGatePresenter
 import navigator.app.loop.GestureExecutor
@@ -47,6 +53,7 @@ import navigator.app.loop.ShadowRouter
 import navigator.app.laya.LayaEngine
 import navigator.app.laya.LayaOnnxSession
 import navigator.app.observe.NavigatorAccessibilityService
+import navigator.core.log.DecisionLogRow
 
 /**
  * The headless debug harness (phase doc §2.2): pick engine (STUB with a scripted
@@ -58,6 +65,14 @@ import navigator.app.observe.NavigatorAccessibilityService
  * engine and test-mode auto-deny (the flag defaults ON here; product UI has no auto
  * modes). Reports land in the app's external files dir (`run-reports/`), pullable via
  * adb; `suite-report.json` appears when a run batch finishes.
+ *
+ * Owner-directed visibility tooling (2026-10-06, harness-only): the harness is the UAT
+ * session's home base — `--ez showOnly true` brings it to the front without starting or
+ * refusing anything; a run keeps a live per-step progress notification on the
+ * `navigator-debug` channel and at ANY terminal the harness comes back to the front
+ * with one short buzz, a final verdict notification, and the step log scrolled to the
+ * verdict. Custom goals ride visibly in the goal list. Whenever the launch requests the
+ * shadow (by any alias), EVERY per-run report carries the `shadowReport` object.
  */
 class HarnessActivity : ComponentActivity() {
 
@@ -67,12 +82,14 @@ class HarnessActivity : ComponentActivity() {
     private val liveMode = mutableStateOf(false)
     private val autoDeny = mutableStateOf(true)
     private val shadowOn = mutableStateOf(false)
+    private val customGoals = mutableStateListOf<ScriptedGoal>()
+    private val logListState = LazyListState()
 
     /** Shadow sampling period for the next runs (1 = every step, vision 02 §4.3). */
     private var shadowEveryNth: Long = 1
 
     /** The loop's post-gesture page settle for the next runs (adb-settable; ms). */
-    private var settleMs: Long = DEFAULT_SETTLE_MS
+    private var settleMs: Long = HarnessLaunch.DEFAULT_SETTLE_MS
 
     /**
      * The LIVE run's OpenRouter key as delivered by the launch intent extra (adb key
@@ -84,10 +101,10 @@ class HarnessActivity : ComponentActivity() {
     private var deliveredOpenRouterKey: String? = null
 
     /**
-     * The runtime-built custom goal for this launch (harness-only debug tooling): set
-     * when the intent carries `customGoalText`/`customStartUrl` — it REPLACES the
-     * catalog selection for this run and refuses to run under the STUB engine (no
-     * script exists to replay).
+     * The runtime-built custom goal for this launch: set when the intent carries
+     * `customGoalText`/`customStartUrl` — it REPLACES the catalog selection for this run
+     * and refuses to run under the STUB engine (no script exists to replay). Registered
+     * custom goals also appear as rows in the goal list ([customGoals]).
      */
     @Volatile
     private var customGoal: ScriptedGoal? = null
@@ -99,10 +116,34 @@ class HarnessActivity : ComponentActivity() {
     @Volatile
     private var cancelRequested = false
 
+    /**
+     * Per-run shadow bookkeeping (owner-directed 2026-10-06): the uat-applepie-02 device
+     * report had no shadow block because `--ez shadowOn true` was silently unrecognized
+     * AND because the failure path (`failedReport`) never captured the router snapshot.
+     * Every executeGoal now records its shadow state here, so both the success and the
+     * failure report can always include the object.
+     */
+    private class RunShadow {
+        @Volatile
+        var snapshot: ShadowRouter.Snapshot? = null
+
+        /** Why there is no snapshot despite the shadow being requested (for the report note). */
+        @Volatile
+        var failure: String? = null
+    }
+
+    @Volatile
+    private var currentRunShadow: RunShadow? = null
+
+    @Volatile
+    private var currentRunWantsShadow = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         catalog = GoalCatalog.parse(assets.open(GOALS_ASSET).use { it.readBytes().decodeToString() })
         pagesServer = HarnessPagesServer(this).also { it.start() }
+        createNotificationChannel()
+        requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), POST_NOTIFICATIONS_REQUEST_CODE)
         handleLaunchIntent(intent, freshInstance = true)
         setContent { HarnessScreen() }
     }
@@ -113,25 +154,65 @@ class HarnessActivity : ComponentActivity() {
         handleLaunchIntent(intent, freshInstance = false)
     }
 
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == POST_NOTIFICATIONS_REQUEST_CODE &&
+            grantResults.firstOrNull() != PackageManager.PERMISSION_GRANTED
+        ) {
+            log("notifications: POST_NOTIFICATIONS denied - the harness continues without step/verdict notifications")
+        }
+    }
+
+    override fun onDestroy() {
+        scope.cancel()
+        if (this::pagesServer.isInitialized) pagesServer.stop()
+        super.onDestroy()
+    }
+
+    // -- launch handling -----------------------------------------------------------------
+
+    private fun intentExtras(intent: Intent): HarnessLaunch.Extras = object : HarnessLaunch.Extras {
+        override fun string(name: String): String? = intent.getStringExtra(name)
+        override fun bool(name: String, default: Boolean): Boolean = intent.getBooleanExtra(name, default)
+        override fun long(name: String, default: Long): Long = intent.getLongExtra(name, default)
+        override fun keys(): Set<String> = intent.extras?.keySet() ?: emptySet()
+    }
+
     /**
      * Headless launch handling (Gate 6.2 runbook): works on a fresh instance AND on a
      * live one via [onNewIntent] — a silent no-op is a bug. When a run is already in
      * progress the launch is refused LOUDLY (log line), never silently dropped.
+     * Exception: `--ez showOnly true` (owner-directed 2026-10-06) NEVER starts and
+     * NEVER refuses a run — it only brings the harness to the front and refreshes the
+     * goal list / step log (custom-goal extras riding along register rows only).
      */
     private fun handleLaunchIntent(intent: Intent?, freshInstance: Boolean) {
         if (intent == null) {
             if (!freshInstance) log("launch ignored: null intent")
             return
         }
-        val extraGoal = intent.getStringExtra(EXTRA_GOAL) ?: intent.getStringExtra(EXTRA_GOAL_SHORT)
-        val customText = intent.getStringExtra(EXTRA_CUSTOM_GOAL_TEXT)
-            ?: intent.getStringExtra(EXTRA_CUSTOM_GOAL_TEXT_SHORT)
-        val customUrl = intent.getStringExtra(EXTRA_CUSTOM_START_URL)
-            ?: intent.getStringExtra(EXTRA_CUSTOM_START_URL_SHORT)
-        val customId = intent.getStringExtra(EXTRA_CUSTOM_GOAL_ID)
-            ?: intent.getStringExtra(EXTRA_CUSTOM_GOAL_ID_SHORT)
-        val wantsCustomGoal = !customText.isNullOrBlank() || !customUrl.isNullOrBlank()
-        if (extraGoal == null && !wantsCustomGoal) {
+        val launch = HarnessLaunch.parse(intentExtras(intent))
+        if (launch.unrecognizedExtras.isNotEmpty()) {
+            log(
+                "UNRECOGNIZED harness extra(s) ${launch.unrecognizedExtras} - IGNORED (a typo silently " +
+                    "changes nothing; known names: navigator.harness.extra.* + short aliases)",
+            )
+        }
+        if (launch.showOnly) {
+            launch.customGoal?.let { registerCustomGoal(it) }
+            log(
+                "show-only: harness at front - no run started" +
+                    (launch.customGoal?.let { " (custom goal row ${it.id} registered)" } ?: ""),
+            )
+            return
+        }
+        if (!launch.extrasPresent) return // e.g. a notification tap: bring-to-front only
+        val extraGoal = launch.goalId
+        if (extraGoal == null && !launch.customRequested) {
             if (!freshInstance) log("launch ignored: the intent carries no headless extras")
             return
         }
@@ -142,73 +223,50 @@ class HarnessActivity : ComponentActivity() {
             )
             return
         }
-        customGoal = if (wantsCustomGoal) {
-            if (HarnessEngineMode.parse(
-                    intent.getStringExtra(EXTRA_ENGINE) ?: intent.getStringExtra(EXTRA_ENGINE_SHORT),
-                ) != HarnessEngineMode.LIVE
-            ) {
+        customGoal = if (!launch.customRequested) {
+            null
+        } else {
+            val built = launch.customGoal
+            if (built == null) {
+                log("LAUNCH REFUSED (loud): ${launch.customError}")
+                return
+            }
+            if (!launch.live) {
                 log(
                     "LAUNCH REFUSED (loud): a custom goal needs the LIVE engine - " +
                         "re-launch with `--es engine live` (custom goals carry no STUB script)",
                 )
                 return
             }
-            val built = try {
-                GoalCatalog.customGoal(customId, customText, customUrl)
-            } catch (t: IllegalArgumentException) {
-                log("LAUNCH REFUSED (loud): ${t.message}")
-                return
-            }
+            registerCustomGoal(built)
             log(
                 "custom goal: id=${built.id} family=${built.family} " +
                     "start=${built.startUrl} expected=${built.expectedTerminal} " +
                     "goal=\"${built.goal}\"",
             )
             built
-        } else {
-            null
         }
-        liveMode.value = HarnessEngineMode.parse(
-            intent.getStringExtra(EXTRA_ENGINE) ?: intent.getStringExtra(EXTRA_ENGINE_SHORT),
-        ) == HarnessEngineMode.LIVE
-        autoDeny.value = intent.getBooleanExtra(
-            EXTRA_AUTO_DENY,
-            intent.getBooleanExtra(EXTRA_AUTO_DENY_SHORT, true),
-        )
-        shadowOn.value = intent.getBooleanExtra(EXTRA_SHADOW, intent.getBooleanExtra(EXTRA_SHADOW_SHORT, false))
-        shadowEveryNth = intent.getLongExtra(EXTRA_SHADOW_EVERY_NTH, intent.getLongExtra(
-            EXTRA_SHADOW_EVERY_NTH_SHORT, 1,
-        )).coerceAtLeast(1)
-        settleMs = intent.getLongExtra(EXTRA_SETTLE_MS, intent.getLongExtra(
-            EXTRA_SETTLE_MS_SHORT, DEFAULT_SETTLE_MS,
-        )).coerceAtLeast(0)
+        liveMode.value = launch.live
+        autoDeny.value = launch.autoDeny
+        shadowOn.value = launch.shadow
+        shadowEveryNth = launch.shadowEveryNth
+        settleMs = launch.settleMs
         // SECRET: parsed and held only; NEVER logged (the headless line below reports
         // only whether an extra was present, never its value).
-        deliveredOpenRouterKey = intent.getStringExtra(EXTRA_OPENROUTER_KEY)
-            ?: intent.getStringExtra(EXTRA_OPENROUTER_KEY_SHORT)
-        val keyExtraPresent = !deliveredOpenRouterKey.isNullOrBlank()
-        val startDelay = intent.getLongExtra(
-            EXTRA_START_DELAY_MS,
-            intent.getLongExtra(EXTRA_START_DELAY_SHORT_MS, DEFAULT_START_DELAY_MS),
-        )
+        deliveredOpenRouterKey = intent.getStringExtra(HarnessLaunch.EXTRA_OPENROUTER_KEY)
+            ?: intent.getStringExtra(HarnessLaunch.EXTRA_OPENROUTER_KEY_SHORT)
         log(
             "headless run: goal=$extraGoal live=${liveMode.value} " +
                 "autoDeny=${autoDeny.value} shadow=${shadowOn.value} " +
-                "shadowEveryNth=$shadowEveryNth delay=${startDelay}ms fresh=$freshInstance " +
-                "keyExtra=$keyExtraPresent",
+                "shadowEveryNth=$shadowEveryNth delay=${launch.startDelayMs}ms fresh=$freshInstance " +
+                "keyExtra=${launch.keyPresent}",
         )
         scope.launch {
-            delay(startDelay)
+            delay(launch.startDelayMs)
             // A custom goal replaces the catalog selection; the selection string is then
             // unused (requestedGoals returns the custom goal alone).
             runSelected(extraGoal ?: customGoal?.id ?: return@launch)
         }
-    }
-
-    override fun onDestroy() {
-        scope.cancel()
-        if (this::pagesServer.isInitialized) pagesServer.stop()
-        super.onDestroy()
     }
 
     // -- orchestration -----------------------------------------------------------------
@@ -217,6 +275,12 @@ class HarnessActivity : ComponentActivity() {
         val stamped = "[${System.currentTimeMillis()}] $message"
         uiLog.add(0, stamped) // newest first for the debug pane
         android.util.Log.d(LOG_TAG, message)
+    }
+
+    /** Upserts a runtime-built custom goal into the on-screen goal list (visible UAT rows). */
+    private fun registerCustomGoal(goal: ScriptedGoal) {
+        val existing = customGoals.indexOfFirst { it.id == goal.id }
+        if (existing >= 0) customGoals[existing] = goal else customGoals.add(goal)
     }
 
     private suspend fun awaitService(): NavigatorAccessibilityService {
@@ -259,11 +323,35 @@ class HarnessActivity : ComponentActivity() {
         return listOf(custom)
     }
 
+    /**
+     * A goal-list Run button: runs EXACTLY the picked goal (custom rows included — the
+     * same executeGoal path as the extras flow). A custom goal under the STUB engine is
+     * refused loudly here at run time (the launch-time refusal only covers headless
+     * launches, where show-only must stay silent).
+     */
+    private fun runGoal(goal: ScriptedGoal) {
+        if (goal.family == GoalCatalog.CUSTOM_FAMILY && !liveMode.value) {
+            log(
+                "RUN REFUSED (loud): custom goal ${goal.id} needs the LIVE engine - flip the LIVE Jev " +
+                    "switch (custom goals carry no STUB script)",
+            )
+            return
+        }
+        scope.launch { runGoals(listOf(goal)) }
+    }
+
     private suspend fun runSelected(selection: String) {
+        runGoals(requestedGoals(selection))
+    }
+
+    private suspend fun runGoals(goals: List<ScriptedGoal>) {
         if (running.value) return
         running.value = true
         cancelRequested = false
+        currentRunShadow = null
+        currentRunWantsShadow = shadowOn.value
         val reports = mutableListOf<RunReport>()
+        notifyProgress(null, "starting...")
         try {
             // The FIRST page load after the service binds takes ~90s to expose its web
             // content through the a11y bridge on this emulator; every later load is
@@ -271,9 +359,10 @@ class HarnessActivity : ComponentActivity() {
             // pipeline once: alternate target <- blank <- target, polling fresh reads,
             // until real page content is visible.
             warmUpWebAccessibility()
-            for (goal in requestedGoals(selection)) {
+            for (goal in goals) {
                 if (cancelRequested) break
                 log("=== goal ${goal.id} (${goal.family}): \"${goal.goal}\"")
+                notifyProgress(goal.id, "running")
                 // Fault isolation + environment-flake retries: a REFUSED run that never
                 // got a successful decision is observation starvation (0-line/collapsed
                 // trees), not a genuine refusal — retry up to STARVATION_RETRIES times,
@@ -308,6 +397,7 @@ class HarnessActivity : ComponentActivity() {
             }
         } catch (t: Throwable) {
             log("HARNESS ERROR: ${t::class.simpleName}: ${t.message}")
+            announceTerminal(null, "HARNESS_ERROR", "${t::class.simpleName}: ${t.message}")
         } finally {
             writeSuiteReport(reports)
             running.value = false
@@ -381,7 +471,9 @@ class HarnessActivity : ComponentActivity() {
         openBrowser(url)
     }
 
-    /** A failure record so the suite report shows the gap instead of hiding it. */
+    /** A failure record so the suite report shows the gap instead of hiding it.
+     *  Carries the shadow block too whenever the run requested the shadow (the
+     *  zeroed-with-note shape — see [shadowReport]). */
     private fun failedReport(goal: ScriptedGoal, t: Throwable, attempt: Int = 1) = RunReport(
         goalId = goal.id,
         family = goal.family,
@@ -408,9 +500,15 @@ class HarnessActivity : ComponentActivity() {
         attempts = attempt,
         flakeRetried = attempt > 1,
         stepLog = emptyList(),
+        shadow = shadowReport(currentRunWantsShadow, currentRunShadow, joined = null),
     )
 
     private suspend fun executeGoal(goal: ScriptedGoal, attempt: Int = 1): RunReport {
+        val wantShadow = shadowOn.value
+        currentRunWantsShadow = wantShadow
+        // Registered BEFORE anything can fail so even a harness error before the loop
+        // still reports a (zeroed, noted) shadow block when the shadow was requested.
+        val runShadow = if (wantShadow) RunShadow().also { currentRunShadow = it } else null
         // Bind the observation service BEFORE launching the browser: Chromium only
         // builds its a11y tree for services connected at (or after) page load.
         val service = awaitService()
@@ -449,7 +547,7 @@ class HarnessActivity : ComponentActivity() {
         )
         // Phase 8: shadow ON wraps the primary in the ShadowRouter (vision 02 §4) — the
         // loop cannot tell (ART-2); the sink gains the shadow fields of every row.
-        val shadowSession = if (shadowOn.value) LayaOnnxSession.open(this) else null
+        val shadowSession = if (wantShadow) LayaOnnxSession.open(this) else null
         val shadowEngine = shadowSession?.let {
             log(
                 "shadow: laya int8 session open (${LayaOnnxSession.ASSET_DIR}/${LayaOnnxSession.ASSET_FILE}, " +
@@ -470,7 +568,7 @@ class HarnessActivity : ComponentActivity() {
             observer = HarnessObserver(service),
             executor = GestureExecutor(service),
             gatePresenter = if (autoDeny.value) AutoDenyGatePresenter else DebugGatePresenter(this),
-            logSink = router?.sink(logSink) ?: logSink,
+            logSink = notifyingSink(goal.id, router?.sink(logSink) ?: logSink),
             spendMeter = built.spendMeter,
             // Page-settle pacing (the loop's own post-gesture settle, NEVER shadow-driven —
             // vision 02 §4.3). adb-settable so a slow emulator can run Gate 8.4 with a step
@@ -478,7 +576,6 @@ class HarnessActivity : ComponentActivity() {
             config = NavigationLoop.Config(settleMs = settleMs),
         )
         val startedAt = System.currentTimeMillis()
-        var shadowSnapshot: ShadowRouter.Snapshot? = null
         val result = try {
             loop.run(
                 goal = goal.goal,
@@ -489,11 +586,15 @@ class HarnessActivity : ComponentActivity() {
         } finally {
             // The shadow is fire-and-forget: settle it before the report freezes counts.
             try {
-                shadowSnapshot = router?.let { r ->
+                val snapshot = router?.let { r ->
                     r.awaitIdle(SHADOW_SETTLE_TIMEOUT_MS)
                     r.snapshot()
                 }
-                shadowSnapshot?.let {
+                if (wantShadow) {
+                    if (snapshot != null) runShadow?.snapshot = snapshot
+                    else runShadow?.failure = "router produced no snapshot at settle"
+                }
+                snapshot?.let {
                     // percentile() takes SORTED input — sort here too, or the log line's
                     // p50/p95 disagree with the report's (measured in the 2026-10-05 sweep).
                     val forwardsSorted = it.latenciesMs.map { p -> p.first }.sorted()
@@ -511,6 +612,13 @@ class HarnessActivity : ComponentActivity() {
                 // Phase 8B: the logger is closed for companions — any straggler completion
                 // from here on is dropped AND counted (amendment rule c).
                 router?.close()
+            } catch (t: Throwable) {
+                // Settle failures must not hide the run's outcome — record them so the
+                // report's shadow block explains its own emptiness instead.
+                if (wantShadow) {
+                    runShadow?.failure = "shadow settle failed: ${t::class.simpleName}: ${t.message}"
+                }
+                log("shadow settle failed: ${t::class.simpleName}: ${t.message}")
             } finally {
                 shadowSession?.close()
             }
@@ -555,49 +663,75 @@ class HarnessActivity : ComponentActivity() {
             attempts = attempt,
             flakeRetried = attempt > 1,
             stepLog = result.stepLog,
-            shadow = shadowReport(shadowSnapshot, joinedAgreement),
+            shadow = shadowReport(wantShadow, runShadow, joinedAgreement),
         )
-        val path = RunReportStore.write(this, "run-${goal.id}-${result.taskId}.json", reportJson(report))
+        val path = RunReportStore.write(this, "run-${goal.id}-${result.taskId}.json", RunReports.json(report))
         log("report: $path")
         log(
             "=== ${goal.id}: ${result.terminal} (expected ${goal.expectedTerminal}, " +
                 "gaps=${result.logGaps}, attempts=$attempt)",
         )
+        announceTerminal(goal.id, result.terminal.name, result.terminalDetail)
         return report
     }
 
     /**
-     * Phase 8/8B evidence: the shadow side of one run (null when the shadow was OFF).
-     * [joined] is the database's joined-view agreement for this task (vision 05 §3
-     * amendment rule d) — when present with sampled rows, [ShadowReport.coverage] is
-     * the joined coverage (decision-row shadows + companions); the in-memory
-     * row-enrichment ratio is only the fallback.
+     * Phase 8/8B evidence: the shadow side of one run — ALWAYS present when the run
+     * requested the shadow (owner-directed 2026-10-06: uat-applepie-02's report had no
+     * shadow block at all; that must be impossible). [joined] is the database's
+     * joined-view agreement for this task (vision 05 §3 amendment rule d) — when
+     * present with sampled rows, [ShadowReport.coverage] is the joined coverage
+     * (decision-row shadows + companions); the in-memory row-enrichment ratio is only
+     * the fallback. On the degraded paths (no router snapshot: session open failed,
+     * harness error before the loop, settle failure) the block is zeroed with a [note].
      */
     private fun shadowReport(
-        snapshot: ShadowRouter.Snapshot?,
+        wantShadow: Boolean,
+        runShadow: RunShadow?,
         joined: navigator.core.log.JoinedAgreementMetrics?,
-    ): ShadowReport? = snapshot?.let {
-        val forwards = it.latenciesMs.map { p -> p.first }.sorted()
-        val totals = it.latenciesMs.map { p -> p.second }.sorted()
-        ShadowReport(
+    ): ShadowReport? {
+        if (!wantShadow) return null
+        val snapshot = runShadow?.snapshot
+        if (snapshot == null) {
+            return ShadowReport(
+                enabled = true,
+                everyNth = shadowEveryNth,
+                decisions = 0,
+                sampled = 0,
+                completed = 0,
+                missed = 0,
+                failed = 0,
+                coverage = 0.0,
+                forwardLatencyP50Ms = 0,
+                forwardLatencyP95Ms = 0,
+                totalLatencyP95Ms = 0,
+                companionRows = 0,
+                droppedAfterClose = 0,
+                companionRejected = 0,
+                note = runShadow?.failure ?: "no router snapshot was taken for this run",
+            )
+        }
+        val forwards = snapshot.latenciesMs.map { p -> p.first }.sorted()
+        val totals = snapshot.latenciesMs.map { p -> p.second }.sorted()
+        return ShadowReport(
             enabled = true,
-            everyNth = it.samplingEveryNth,
-            decisions = it.decisions,
-            sampled = it.sampled,
-            completed = it.completions,
-            missed = it.misses,
-            failed = it.failures,
+            everyNth = snapshot.samplingEveryNth,
+            decisions = snapshot.decisions,
+            sampled = snapshot.sampled,
+            completed = snapshot.completions,
+            missed = snapshot.misses,
+            failed = snapshot.failures,
             coverage = when {
                 joined != null && joined.sampledRows > 0 -> joined.coverage
-                it.sampled > 0 -> it.enrichedRows.toDouble() / it.sampled
+                snapshot.sampled > 0 -> snapshot.enrichedRows.toDouble() / snapshot.sampled
                 else -> 0.0
             },
             forwardLatencyP50Ms = percentile(forwards, 50),
             forwardLatencyP95Ms = percentile(forwards, 95),
             totalLatencyP95Ms = percentile(totals, 95),
-            companionRows = it.companionRows,
-            droppedAfterClose = it.droppedAfterClose,
-            companionRejected = it.companionRejected,
+            companionRows = snapshot.companionRows,
+            droppedAfterClose = snapshot.droppedAfterClose,
+            companionRejected = snapshot.companionRejected,
         )
     }
 
@@ -615,9 +749,134 @@ class HarnessActivity : ComponentActivity() {
                 reports.all { it.terminalMatchesExpected == true && it.logGaps == 0 },
             finishedAt = System.currentTimeMillis(),
         )
-        val path = RunReportStore.write(this, RunReportStore.SUITE_FILE, suiteJson(suite))
+        val path = RunReportStore.write(this, RunReportStore.SUITE_FILE, RunReports.suiteJson(suite))
         log("suite report (${reports.size} runs, allPassed=${suite.allPassed}): $path")
     }
+
+    // -- run-over visibility (owner-directed UAT tooling) --------------------------------
+
+    /**
+     * The run-over moment, at ANY terminal: a FINAL verdict notification (non-ongoing)
+     * replaces the progress notification, one short buzz fires, the harness comes back
+     * to the front, and the step log scrolls to the verdict — which is already the
+     * newest-first entry.
+     */
+    private fun announceTerminal(goalId: String?, terminal: String, detail: String) {
+        notifyFinal(goalId, terminal, detail)
+        buzz()
+        returnToHarness()
+    }
+
+    /** One short buzz (~200ms). No runtime permission is needed for one-shot vibrations;
+     *  defaults (no VibrationAttributes) are respected on purpose. Best-effort: a
+     *  vibration failure never touches the run. */
+    private fun buzz() {
+        runCatching {
+            val vibrator = getSystemService(VibratorManager::class.java).defaultVibrator
+            vibrator.vibrate(VibrationEffect.createOneShot(BUZZ_MS, VibrationEffect.DEFAULT_AMPLITUDE))
+        }.onFailure { log("buzz failed: ${it::class.simpleName}: ${it.message}") }
+    }
+
+    /** Brings the harness to the front from the run coroutine (its home base) and
+     *  scrolls the step log to the newest entry. Best-effort: never touches the run. */
+    private fun returnToHarness() {
+        runCatching {
+            runOnUiThread {
+                startActivity(
+                    Intent(this, HarnessActivity::class.java).addFlags(
+                        Intent.FLAG_ACTIVITY_NEW_TASK or
+                            Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                            Intent.FLAG_ACTIVITY_REORDER_TO_FRONT,
+                    ),
+                )
+                scope.launch(Dispatchers.Main) {
+                    runCatching { logListState.scrollToItem(0) }
+                }
+            }
+        }.onFailure { log("return-to-harness failed: ${it::class.simpleName}: ${it.message}") }
+    }
+
+    // -- notifications (harness-debug only; Phase 9 owns the product ones) ---------------
+
+    private fun createNotificationChannel() {
+        val channel = NotificationChannel(
+            HarnessNotifications.CHANNEL_ID,
+            HarnessNotifications.CHANNEL_NAME,
+            NotificationManager.IMPORTANCE_LOW,
+        )
+        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+    }
+
+    private fun notificationsAllowed(): Boolean =
+        checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+
+    private fun runContentIntent(): PendingIntent {
+        val intent = Intent(this, HarnessActivity::class.java).addFlags(
+            Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP,
+        )
+        return PendingIntent.getActivity(
+            this,
+            0,
+            intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+    }
+
+    /** The ONGOING per-step progress notification (id [HarnessNotifications.RUN_NOTIFICATION_ID];
+     *  replaced in place at every step — the text carries ids/counts only, never typed
+     *  values). Absent when POST_NOTIFICATIONS was denied. */
+    private fun notifyProgress(goalId: String?, text: String) {
+        if (!notificationsAllowed()) return
+        runCatching {
+            val notification = Notification.Builder(this, HarnessNotifications.CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.stat_sys_download)
+                .setContentTitle(HarnessNotifications.progressTitle(goalId))
+                .setContentText(text)
+                .setContentIntent(runContentIntent())
+                .setOngoing(true)
+                .setOnlyAlertOnce(true)
+            getSystemService(NotificationManager::class.java)
+                .notify(HarnessNotifications.RUN_NOTIFICATION_ID, notification.build())
+        }.onFailure { log("progress notification failed: ${it::class.simpleName}: ${it.message}") }
+    }
+
+    /** The FINAL verdict notification (non-ongoing, same slot). */
+    private fun notifyFinal(goalId: String?, terminal: String, detail: String) {
+        if (!notificationsAllowed()) return
+        runCatching {
+            val notification = Notification.Builder(this, HarnessNotifications.CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.stat_sys_download_done)
+                .setContentTitle(HarnessNotifications.finalTitle(goalId))
+                .setContentText(HarnessNotifications.finalText(terminal, detail))
+                .setContentIntent(runContentIntent())
+                .setOngoing(false)
+            getSystemService(NotificationManager::class.java)
+                .notify(HarnessNotifications.RUN_NOTIFICATION_ID, notification.build())
+        }.onFailure { log("final notification failed: ${it::class.simpleName}: ${it.message}") }
+    }
+
+    /**
+     * The loop's per-step heartbeat: every logged row refreshes the progress notification
+     * BEFORE the row is delegated. ONLY non-secret fields reach the notification (goal
+     * id, step number, action kind, chosen option id, disposition — never state text,
+     * never typed values; see [HarnessNotifications]).
+     */
+    private fun notifyingSink(goalId: String, delegate: navigator.app.loop.DecisionLogSink) =
+        object : navigator.app.loop.DecisionLogSink {
+            override suspend fun write(row: DecisionLogRow) {
+                notifyProgress(
+                    goalId,
+                    HarnessNotifications.stepText(
+                        stepIndex = row.stepIndex,
+                        actionKind = row.executedAction.kind.name,
+                        chosenId = row.teacherAnswer.chosen,
+                        disposition = row.executedAction.disposition.name,
+                    ),
+                )
+                delegate.write(row)
+            }
+        }
 
     // -- UI ------------------------------------------------------------------------------
 
@@ -645,29 +904,42 @@ class HarnessActivity : ComponentActivity() {
                 }
             }
             LazyColumn(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-                items(goals) { goal ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            "${goal.id} -> ${goal.expectedTerminal}",
-                            modifier = Modifier.padding(end = 8.dp),
-                            color = Color.Black,
-                        )
-                        OutlinedButton(
-                            enabled = !running.value,
-                            onClick = { scope.launch { runSelected(goal.id) } },
-                        ) {
-                            Text("Run")
-                        }
-                    }
-                }
+                items(goals) { goal -> GoalRow(goal, custom = false) }
+                items(customGoals) { goal -> GoalRow(goal, custom = true) }
             }
             Text("Step log (newest first)", style = MaterialTheme.typography.titleSmall)
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(modifier = Modifier.fillMaxSize(), state = logListState) {
                 items(uiLog) { line -> Text(line, style = MaterialTheme.typography.bodySmall) }
+            }
+        }
+    }
+
+    /**
+     * One goal row: the six scripted goals as shipped, plus runtime-built custom goals
+     * (owner-directed 2026-10-06) with a distinct "custom" prefix, their goal text, and
+     * the expected GOAL_ACHIEVED marker — so every UAT task is visible in the harness,
+     * and its Run button takes the exact same path as the extras flow.
+     */
+    @Composable
+    private fun GoalRow(goal: ScriptedGoal, custom: Boolean) {
+        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    (if (custom) "custom " else "") +
+                        "${goal.id} -> expected: ${goal.expectedTerminal}",
+                    modifier = Modifier.padding(end = 8.dp),
+                    color = Color.Black,
+                )
+                OutlinedButton(enabled = !running.value, onClick = { runGoal(goal) }) {
+                    Text("Run")
+                }
+            }
+            if (custom) {
+                Text(goal.goal, style = MaterialTheme.typography.bodySmall)
             }
         }
     }
@@ -675,51 +947,8 @@ class HarnessActivity : ComponentActivity() {
     companion object {
         const val LOG_TAG = "NavigatorHarness"
         const val GOALS_ASSET = "harness/goals.json"
-        const val EXTRA_GOAL = "navigator.harness.extra.GOAL"
-        const val EXTRA_ENGINE = "navigator.harness.extra.ENGINE"
-        const val EXTRA_AUTO_DENY = "navigator.harness.extra.AUTO_DENY"
-        const val EXTRA_START_DELAY_MS = "navigator.harness.extra.START_DELAY_MS"
-
-        /** Phase 8: shadow ON + its every-Nth sampling period (1 = every step). */
-        const val EXTRA_SHADOW = "navigator.harness.extra.SHADOW"
-        const val EXTRA_SHADOW_EVERY_NTH = "navigator.harness.extra.SHADOW_EVERY_NTH"
-
-        /**
-         * Gate 6.3 key delivery: the LIVE run's OpenRouter key, passed by adb
-         * (`--es openrouterKey <KEY>`). SECRET — consumed by [HarnessEngineFactory]
-         * only; never logged, never exported, never persisted.
-         */
-        const val EXTRA_OPENROUTER_KEY = "navigator.harness.extra.OPENROUTER_KEY"
-
-        /**
-         * Custom-goal delivery (harness-only debug tooling): `--es customGoalText "..."` +
-         * `--es customStartUrl "https://..."` (+ optional `--es customGoalId ...`) builds
-         * a one-off LIVE-only goal at runtime via [GoalCatalog.customGoal], replacing the
-         * catalog selection for this launch.
-         */
-        const val EXTRA_CUSTOM_GOAL_TEXT = "navigator.harness.extra.CUSTOM_GOAL_TEXT"
-        const val EXTRA_CUSTOM_START_URL = "navigator.harness.extra.CUSTOM_START_URL"
-        const val EXTRA_CUSTOM_GOAL_ID = "navigator.harness.extra.CUSTOM_GOAL_ID"
-
-        /** adb-friendly aliases (`am start --es goal ...`). */
-        const val EXTRA_GOAL_SHORT = "goal"
-        const val EXTRA_ENGINE_SHORT = "engine"
-        const val EXTRA_AUTO_DENY_SHORT = "autoDeny"
-        const val EXTRA_START_DELAY_SHORT_MS = "startDelayMs"
-        const val EXTRA_SHADOW_SHORT = "shadow"
-        const val EXTRA_SHADOW_EVERY_NTH_SHORT = "shadowEveryNth"
-        const val EXTRA_OPENROUTER_KEY_SHORT = "openrouterKey"
-        const val EXTRA_CUSTOM_GOAL_TEXT_SHORT = "customGoalText"
-        const val EXTRA_CUSTOM_START_URL_SHORT = "customStartUrl"
-        const val EXTRA_CUSTOM_GOAL_ID_SHORT = "customGoalId"
-
-        /** The loop's post-gesture page settle (adb-settable; ms; mirrors the loop default). */
-        const val EXTRA_SETTLE_MS = "navigator.harness.extra.SETTLE_MS"
-        const val EXTRA_SETTLE_MS_SHORT = "settleMs"
-        const val DEFAULT_SETTLE_MS = 700L
 
         const val ALL_GOALS = "all"
-        const val DEFAULT_START_DELAY_MS = 4_000L
         const val PAGE_SETTLE_MS = 4_000L
         const val SERVICE_WAIT_MS = 20_000L
         const val SERVICE_POLL_MS = 250L
@@ -743,88 +972,10 @@ class HarnessActivity : ComponentActivity() {
         /** Bounded settle for the fire-and-forget shadow after the loop returns. */
         const val SHADOW_SETTLE_TIMEOUT_MS = 30_000L
 
-        private val pretty = Json { prettyPrint = true }
+        /** The run-over buzz length (owner-directed: one short ~200ms vibration). */
+        const val BUZZ_MS = 200L
 
-        fun reportJson(report: RunReport): String = pretty.encodeToString(RunReport.serializer(), report)
-
-        fun suiteJson(suite: SuiteReport): String = pretty.encodeToString(SuiteReport.serializer(), suite)
+        /** Same value as [HarnessNotifications.POST_NOTIFICATIONS_REQUEST_CODE]. */
+        const val POST_NOTIFICATIONS_REQUEST_CODE = HarnessNotifications.POST_NOTIFICATIONS_REQUEST_CODE
     }
 }
-
-/** One exported run (the Gate 6.2 evidence artifact). */
-@Serializable
-data class RunReport(
-    val goalId: String?,
-    val family: String?,
-    val goal: String,
-    val taskId: String,
-    val engine: String,
-    val autoDeny: Boolean,
-    val triage: String,
-    val terminal: String,
-    val terminalDetail: String,
-    val expectedTerminal: String?,
-    val terminalMatchesExpected: Boolean?,
-    val steps: Int,
-    val rowsLogged: Int,
-    val metaDecisions: Int,
-    /**
-     * Navigation decisions without a row. The rephrase recovery stub is a goal-text
-     * meta-decision ([metaDecisions], no page action, no row) and is EXCLUDED by the
-     * formula (loop: `logGaps = steps - rows - metaDecisions`), so "zero log gaps"
-     * stays meaningful: every navigation decision is logged exactly once.
-     */
-    val logGaps: Int,
-    val gateEvents: Int,
-    val spendMicroUsd: Long,
-    val elapsedMs: Long,
-    val softWarnings: List<String>,
-    val partialResult: String,
-    val startedAt: Long,
-    val finishedAt: Long,
-    /** How many times this goal was attempted in this suite run (1 = no retry). */
-    val attempts: Int = 1,
-    /** True when attempt 1 ended in observation starvation and a retry followed. */
-    val flakeRetried: Boolean = false,
-    val stepLog: List<String>,
-    /** Phase 8 shadow evidence (null = the shadow was OFF for this run). */
-    val shadow: ShadowReport? = null,
-)
-
-/**
- * The shadow side of one run (Gate 8.4/8B evidence): coverage is the JOINED-VIEW
- * fraction (vision 05 §3 amendment 2026-10-04, rule d: joined rows over total sampled —
- * decision-row shadows + companion `ShadowResultRow`s; the in-memory enrichment ratio
- * is only the fallback when the joined read is unavailable); `companionRows` /
- * `droppedAfterClose` are the amendment's companion counters. Latencies are the
- * MEASURED laya call times (nearest-rank percentiles over the completed decisions).
- */
-@Serializable
-data class ShadowReport(
-    val enabled: Boolean,
-    /** The sampling period this run ran with (1 = every step, vision 02 §4.3). */
-    val everyNth: Long,
-    val decisions: Long,
-    val sampled: Long,
-    val completed: Long,
-    val missed: Long,
-    val failed: Long,
-    val coverage: Double,
-    val forwardLatencyP50Ms: Long,
-    val forwardLatencyP95Ms: Long,
-    val totalLatencyP95Ms: Long,
-    /** Late shadow answers landed as companion rows (amendment 2026-10-04). */
-    val companionRows: Long = 0,
-    /** Completions dropped because the logger was already closed (amendment rule c). */
-    val droppedAfterClose: Long = 0,
-    /** Companion inserts the persistence guard rejected (must stay 0; loud if not). */
-    val companionRejected: Long = 0,
-)
-
-/** The batch report: every family at its defined terminal state, zero log gaps. */
-@Serializable
-data class SuiteReport(
-    val runs: List<RunReport>,
-    val allPassed: Boolean,
-    val finishedAt: Long,
-)

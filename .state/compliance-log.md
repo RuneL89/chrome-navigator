@@ -456,3 +456,13 @@ a new dated entry. Format per `Implementation Plan/MASTER_IMPLEMENTATION_PROMPT.
     - Architectural findings reported for UAT 6.2 (stuck-signal evasion via alternating actions; consent-wall blindness; emulator-only SIGSEGV; webview_shell _blank limitation) — NOT fixed (decision-quality/state-text tuning = Phase 10 + eval-harness territory).
   Result: COMPLIANT — PRE-UAT FIXES VERIFIED (.state/preUAT-fix-verification.md); owner UAT unblocked
   Checked By: canon-verifier (cold) + Main agent (close-out: +2 tests, status correction)
+
+[2026-10-06] Harness visibility upgrade (owner-directed tooling iteration)
+  Changed: app harness/ (HarnessActivity, HarnessLaunch.kt show-only policy, HarnessNotifications.kt per-step progress + final verdict notifications, RunReports.kt extraction), manifest (+POST_NOTIFICATIONS/VIBRATE, harness-only), 19 new tests; emulator smoke evidence in .state/harness-visibility-smoke/ (6 screenshots + 2 reports)
+  Provenance: owner directive after round-1 device session — "each task visible in the harness; runs start and END in the harness so I know when it's done"
+  Key fix: root cause of missing shadow stats in device UAT reports = `--ez shadowOn true` was never a recognized extra (harness read `shadow` only) — device UAT runs silently ran shadow-OFF; `shadowOn` now a first-class alias, unrecognized extras log loudly, shadowReport embedded in EVERY report when requested
+  Comparison:
+    - Harness-only tooling; zero :core/product changes; guards/budgets untouched. COMPLIANT.
+    - Emulator smoke: showOnly front+no-run; ongoing per-step notification; terminal auto-return+buzz; shadowReport present in both pulled reports (coverage 1.0). VERIFIED by implementer evidence + orchestrator screenshot review.
+  Result: COMPLIANT — tooling accepted; UAT protocol updated (per-test: ready → showOnly → run → buzz/auto-return → joint log review)
+  Checked By: canon-implementer (with emulator smoke) + Main agent (screenshot evidence review, close-out)
