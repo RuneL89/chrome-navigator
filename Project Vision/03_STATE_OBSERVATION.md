@@ -1,7 +1,7 @@
 # State Observation
 
 **Document ID:** `NAVIGATOR-VISION-003`
-**Version:** 2.0.0 *(amended 2026-10-06: STATE_FORMAT_VERSION=2 — CONTENT excerpt + PLAN + TASK PROGRESS sections, budget ≤960 tokens; owner-ratified via plan v4)*
+**Version:** 2.1.0 *(amended 2026-10-06: dual-view budget law after the v32b demotion — canonical ≤960 + laya state view ≤319; owner-directed fine-tuning audit)*
 **Status:** Ratified (2026-10-03; amendment 2026-10-06)
 **Date:** 2026-10-03
 **Implements:** ART-4 (page text is untrusted), ART-6 (deterministic candidate order),
@@ -77,11 +77,29 @@ Rules:
 
 ## 4. The canonical state-text format (v2)
 
-`STATE_FORMAT_VERSION = 2`. One compact format, budget **≤960 tokens** (fits the v32b
-checkpoint's 1024-token context — the checkpoint of record since Phase 08C; the 421M
-base's 512-token ceiling is retired as a constraint and that checkpoint serves
-parity-testing only). The same text feeds every engine and the RLCD corpus — zero
-train/serve skew. Sections, in order:
+`STATE_FORMAT_VERSION = 2`. **Dual-view law (amended 2026-10-06 after the v32b
+demotion):** one canonical state text, two lawful per-engine views — mirroring the
+per-engine question forms already in §3 (the primary sees the flat candidate list, the
+on-device engine the bucketed form; each engine is asked in the form it will actually
+be asked at graduation):
+
+- **Canonical view — budget ≤960 tokens.** Feeds the cloud primary engines and is the
+  corpus-of-record shape logged in every row (doc 05). Its budget is owned by the
+  product (content-aware navigation and exit calibration), not by any single
+  checkpoint's context window.
+- **Laya state view — `LAYA_STATE_VIEW_VERSION = 1`, budget ≤319 tokens** (`maxLen −
+  headMaxLen − 1`, derived from the pinned on-device checkpoint's config — currently
+  512 − 192 − 1; the constant lives in code beside the marker builder's ceilings and
+  re-derives when an eval-gated checkpoint change moves them, ART-5). A pure,
+  deterministic derivation of the canonical text — same sections, same order, with the
+  content excerpt and candidate lines shrunk by their own deterministic rankings
+  (head-anchored) — built by the same builder family, versioned, and parity-tested
+  against the Python reference. It feeds every on-device engine call **and the
+  on-device-lineage training export** (doc 05 §4): zero train/serve skew per view. A
+  view that cannot fit its budget fails loudly — silent truncation at the marker layer
+  is unlawful (it was the v1 shadow's hidden skew).
+
+Sections, in order:
 
 ```
 GOAL: <goal text>
@@ -105,7 +123,8 @@ Laws:
   eval harness per ART-7 (Tier A golden re-pin by retire-and-add).
 - Oversized trees are compressed **deterministically in code first** (drop lowest-rank
   candidates; shrink the content excerpt by its own deterministic ranking — head-anchored)
-  until the ≤960 budget fits. If the deterministic pass cannot fit, the cloud
+  until the canonical ≤960 budget fits (the laya view likewise within its own ≤319). If
+  the deterministic pass cannot fit, the cloud
   page-compressor role may rewrite the untrusted block — the log records
   `compressedBy=llm|code` per step.
 - Secrets never appear in any section (doc 06 §2a redaction law).

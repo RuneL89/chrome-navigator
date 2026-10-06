@@ -3,7 +3,7 @@
 # Decision Log & RLCD Corpus
 
 **Document ID:** `NAVIGATOR-VISION-005`
-**Version:** 1.4.0 *(amended 2026-10-06: + exit provenance field for the three-path exit law, doc 04 §3 v1.2.0)*
+**Version:** 1.5.0 *(amended 2026-10-06: exit-check rows — every finish check becomes corpus data, §2 amendment; §4 rewritten — two export kinds, authoritative-gold law, on-device state-view export, format-scoped filtering; owner-directed fine-tuning audit)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-04, 2026-10-06)
 **Date:** 2026-10-03
 **Implements:** ART-3 (everything logs), ART-8 (privacy boundary)
@@ -66,6 +66,31 @@ Rules (law):
   teacher gold) are complete in decision rows alone; companions serve agreement
   measurement (the graduation clock) and diagnostics.
 
+### Amendment 2026-10-06 — exit-check rows (the exit-calibration training path)
+
+A third insert-only row type exists because choice rows cannot carry the finish
+verification: a `noul` answer is a judgment over an anchored proposition, not a choice
+over options. Every finish check — **accepted or refused** — logs one row (ART-3):
+
+`ExitCheckRow { rowId, taskId, stepIndex, timestamp, stateText, stateFormatVersion,
+question (the anchored NoulQuestion payload), anchoredNoulVersion, teacher {engine,
+model}, answer {pTrue, band}, escalated, fallbackAnswer {pTrue} | null, guardLevel,
+verdict: ACCEPTED | REFUSED, acceptedPath: HIGH | SUSTAINED | OWNER_CONFIRM | null }`
+
+Rules (law):
+- (a) Insert-only like every row type; exactly one `ExitCheckRow` per finish check,
+  **refused checks included** — the refusals are the decoy contrast that teaches
+  calibration (the 2026-10-06 UAT measured failure in both directions on this axis:
+  v32b never exited on achieved goals; the 421M base false-exited on a mention).
+- (b) `answer` is the primary's noul; when the confidence band escalated (doc 02 §7),
+  `escalated=true` and `fallbackAnswer` records the fallback's noul — the executed
+  judgment.
+- (c) Exit checks are choice-free and are **excluded from the §3 agreement metrics**;
+  graduation's exit leg is the exit-calibration family (doc 07 §3a, doc 02 §6).
+- (d) This amendment supersedes companion-rule (e) above in one respect: training data
+  now spans decision rows (choose cases) **and** exit-check rows (noul cases) —
+  companion rows remain agreement-only.
+
 ## 3. Agreement metric (ratified definition; joined-view amendment 2026-10-04)
 
 - **UI metric: top-1 exact match** between shadow and teacher choices, aggregated over
@@ -76,16 +101,38 @@ Rules (law):
 - **Logged metric: KL divergence** per decision, retained for plateau analysis (doc 02 §6).
 - Graduation criteria consume the exact-match figure (> 85% over 2 consecutive weeks,
   doc 02 §6) over the joined view.
+- Exit-check rows (§2 amendment, 2026-10-06) are choice-free judgments and are excluded
+  from these metrics; the exit axis of graduation reads the exit-calibration family
+  (doc 07 §3a) instead.
 
 ## 4. RLCD export
 
-A user-initiated export produces JSONL shaped for upstream `docs/finetune.md`:
+A user-initiated export produces JSONL shaped for upstream `docs/finetune.md`, in **two
+case kinds** — a graduated Laya is asked both at serve time:
 
-- Each case: `state` (canonical state text, `stateFormatVersion` recorded), `questions`
-  (the **bucketed shadow form** — what a graduated Laya will actually be asked), `gold`
-  (the **teacher's probability distribution** over options — not a bare label).
-- Export is filtering + reshaping of log rows; it never rewrites state text.
-- A mixed-teacher corpus (any teacher bump mid-window, doc 02 §5) is flagged in the export's
+- **`choose` case:** `state`, `questions` (the **bucketed shadow form** — what a
+  graduated Laya will actually be asked), `gold` (a probability distribution over option
+  ids — not a bare label). Source: decision rows.
+- **`noul` case:** `state`, `question` (the anchored `NoulQuestion` payload with its
+  `anchoredNoulVersion`), `gold` (the authoritative `pTrue`). Source: exit-check rows.
+
+Laws:
+- **Authoritative gold:** gold is always the **executed** answer — the fallback's when
+  `escalated=true`, the primary's otherwise. A student engine's own answer is never its
+  own gold: in laya-primary modes an escalated row's primary answer is the mistake the
+  fallback corrected, and training on it would teach the mistake.
+- **State view:** for fine-tunes of the on-device lineage the exported `state` is the
+  **laya state view** (doc 03 §4 dual-view law — a pure, deterministic derivation of the
+  canonical text, with `LAYA_STATE_VIEW_VERSION` recorded in the manifest): byte-for-byte
+  what the graduated checkpoint sees at serve time. The canonical text stays verbatim in
+  the rows; the export derives the view through the same versioned builder, it never
+  rewrites state text.
+- **Format scoping:** an export includes only rows whose `stateFormatVersion`,
+  laya-view version, and question schemas match the current serve shape; rows of other
+  versions are excluded and **counted by version in the manifest** (loudly, never
+  silently dropped). A format bump therefore resets corpus accumulation for training
+  (doc 01 Road L Phase 3) — historical rows remain for replay and diagnostics.
+- A mixed-teacher corpus (any teacher bump mid-window, doc 02 §5) is flagged in the
   manifest so fine-tune runs can subset if desired.
 
 ## 5. Retention & privacy

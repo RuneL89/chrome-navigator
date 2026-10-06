@@ -1,7 +1,7 @@
 # Chrome Navigator (working title) — Product Vision and Architecture
 
 **Document ID:** `NAVIGATOR-VISION-001`
-**Version:** 1.3.0 *(amended 2026-10-06: open-ended goal foundations — action triage, plans, cold-start, H9, state v2; owner-ratified via plan v4)*
+**Version:** 1.3.1 *(amended 2026-10-06: Road L fine-tune minimum is format-scoped and the corpus carries noul cases — doc 05 §4; owner-directed fine-tuning audit; supersedes nothing in the v1.3.0 foundations)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-03, 2026-10-06)
 **Date:** 2026-10-03
 
@@ -44,7 +44,7 @@ Laya-agreement progress bar ("Laya agreed with the teacher on X% of decisions").
 |---|---|---|
 | 1 | Build (v1) | App fully functional on Jev; zero training required. Laya shadow + DecisionLog ship inside v1. |
 | 2 | Accumulate | Normal usage generates labeled decisions per session; agreement % climbs then plateaus at the base model's ceiling (expected, not a bug). |
-| 3 | Fine-tune | Owner-triggered (~2–5k logged decisions minimum); Kaggle free tier (2×T4) per upstream `docs/finetune.md`; export → RLCD → ONNX opset 18 → per-tensor int8 → drop into APK. |
+| 3 | Fine-tune | Owner-triggered (~2–5k logged decisions minimum **in the current export-eligible format** — doc 05 §4; the accumulation counter restarts at every state-format/view/question-version bump, because older rows cannot train the newer serve shape). Corpus carries both `choose` and `noul` cases; Kaggle free tier (2×T4) per upstream `docs/finetune.md`; export → RLCD → ONNX opset 18 → per-tensor int8 → drop into APK, eval-gated per doc 07 before it drives anything. |
 | 4 | Graduation | Flip condition: shadow agreement with Jev > 85% (top-1 exact match) over 2 consecutive weeks AND eval-harness accuracy ≥ Jev's. Flip = config change; Jev demoted to rescue/fallback. |
 
 ## 2. Core Principles (the inviolable articles)

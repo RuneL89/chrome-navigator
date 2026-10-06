@@ -1,7 +1,7 @@
 # Decision Engine & Protocol
 
 **Document ID:** `NAVIGATOR-VISION-002`
-**Version:** 1.1.0 *(amended 2026-10-04: companion shadow-result rows — see §4)*
+**Version:** 1.2.0 *(amended 2026-10-06: §7 primary register corrected after the v32b demotion; §6 graduation gains the exit-calibration leg — owner-directed fine-tuning audit; incorporates the 2026-10-04 companion-rows amendment)*
 **Status:** Ratified (2026-10-03; amendment ratified 2026-10-04)
 **Date:** 2026-10-03
 **Implements:** ART-2 (one decision gateway), ART-11 (offline endgame)
@@ -90,7 +90,12 @@ Wire-client rules (from documented provider caveats — these are law):
 
 - **Criteria (initial, tunable by amendment):** shadow top-1 agreement with the teacher
   > 85% sustained over 2 consecutive weeks **and** eval-harness goal-suite accuracy ≥ the
-  teacher's on the same run.
+  teacher's on the same run **and** the exit-calibration family (doc 07 §3a) no worse
+  than the teacher — terminal fixtures finish within budget, decoy fixtures never
+  finish. (Added 2026-10-06: the UAT proved choice accuracy and exit calibration are
+  independent axes — v32b agreed on choices while never exiting achieved goals, and the
+  421M base false-exited on a mention. A checkpoint that agrees on choices but
+  mis-judges noul must not graduate.)
 - The flip is a config change (`primary = LAYA`); Jev moves to the rescue/fallback tier.
 - Post-graduation the UI counter reads "100% on-device decisions".
 - If Laya never graduates: accepted outcome (Road L risk #7) — the app remains Jev-driven;
@@ -103,8 +108,11 @@ The gateway may compose two engines into one `DecisionEngine` — a **primary** 
 provider access anywhere else).
 
 **Composition law:**
-- **Primary:** the on-device fine-tuned Laya checkpoint (the `laya-browser-v32b` import,
-  eval-gated per doc 07 §3 before it drives anything).
+- **Primary:** the on-device Laya **checkpoint of record** — the best eval-gated
+  checkpoint, pinned in config per §5 (currently the 421M base, `convaiinnovations/laya`;
+  the `laya-browser-v32b` import was demoted to eval-only packaging on 2026-10-06 after
+  its UAT disqualification. Road L Phase 3 fine-tunes enter through the same doc 07 gate
+  and become the checkpoint of record only by passing it).
 - **Fallback:** Jev via OpenRouter (existing pinned config).
 - **Escalation policy — confidence-band:** for `choose`, consult the fallback when the
   primary's confidence is **not HIGH** (≤ 0.70); for `noul`, when the primary lands in the

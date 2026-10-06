@@ -1,8 +1,8 @@
 # Phase 08J: Exit Reliability
 
 **Document ID:** `NAVIGATOR-IMPL-PHASE-08J`
-**Version:** 1.0.0
-**Status:** Draft
+**Version:** 1.1.0 *(round 2 added 2026-10-06 — owner-directed after the base-421M Test-2′ false positive; vision 05 v1.5.0 exit-check rows + export kinds)*
+**Status:** Round 1 verified (Gates 8J.1–8J.5, 2026-10-06); Round 2 scoped, NOT started
 **Date:** 2026-10-06
 **Dependencies:** none hard (deliberately executes FIRST in Stage 2, before 08D — owner
 directive after the 2026-10-06 Test-1 specimen: fix exit reliability, then redo the UAT).
@@ -60,3 +60,42 @@ all three modes; owner judges "it stops when done" (per-test protocol).
 - **Contract with 08H:** state v2's content excerpt strengthens STRONG-guard matching and
   noul calibration; ExitPolicy is format-agnostic.
 - **Ordering:** executes before 08D per owner directive; 08D–08I resume after the redone UAT.
+
+---
+
+## 7. Round 2 — guard truth + the exit-calibration corpus (added 2026-10-06)
+
+**Trigger:** UAT Test 2′ (421M base) accepted GOAL_ACHIEVED (noul 0.807 + STRONG guard)
+while sitting on the Apple-pie page — STRONG had matched the target entity as a **content
+mention** in a Related-Articles card; the owner visually confirmed the target article
+never opened. Scope (vision 04 §3 v1.2.0 + 05 v1.5.0):
+
+- **STRONG = deterministic identity match:** target entity present in the page **title
+  or URL** only. Content-only matches demote to WEAK — a mention is not arrival. The
+  Apple-pie-mentions-Tarte-Tatin page becomes a permanent MUST-NOT-EXIT decoy fixture.
+- **AnchoredNoul v2** (`ANCHORED_NOUL_VERSION = 2`): the proposition gains a code-derived
+  PAGE IDENTITY line (title/URL excerpt), so the engine judges arrival against page
+  identity, not content vibes. Exit-calibration family re-runs on the bump.
+- **Exit-check rows** (vision 05 §2 amendment): every finish check — accepted or refused —
+  logs an insert-only `ExitCheckRow` (anchored question + version, primary noul,
+  escalation + fallback noul, guard level, verdict, accepted path); Room v4→v5 additive
+  migration. The Tarte-Tatin refusal sequence and the Test-2′ false positive both become
+  calibration training data.
+- **noul export kind** (vision 05 §4): `RlcdCase` gains `kind: choose | noul`; noul cases
+  carry the laya state view (post-08H) or canonical state (pre-08H) + the anchored
+  question + the **authoritative** `pTrue` gold (fallback's when escalated).
+- Thresholds untouched (ART-5); the family is the only gate for any future change.
+
+**Gates:**
+- **8J.6** Guard matrix: mention-only → WEAK (never STRONG); title/URL → STRONG; the
+  Apple-pie decoy fixture never exits in any engine mode; Test-1 replay still exits
+  SUSTAINED at check 3.
+- **8J.7** AnchoredNoul v2: PAGE IDENTITY line code-derived; version bump recorded;
+  exit-calibration family green including the new decoy.
+- **8J.8** ExitCheckRow: exactly one per finish check incl. refusals; Room v4→v5 additive
+  migration with surviving history; schema round-trip + loud incoherent shapes.
+- **8J.9** noul export kind + authoritative-gold law in the exporter; full
+  `./gradlew test` green.
+
+**UAT 8J.2 (owner-gated):** the Test-2′ redo on the fixed guard — base laya must NOT
+exit on the mention page and MUST exit on the real article.
