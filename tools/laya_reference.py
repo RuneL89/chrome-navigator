@@ -1,9 +1,9 @@
 #!/usr/bin/env python
-"""Phase 8 Gate 8.1 reference-vector generator.
+"""Phase 8 Gate 8.1 reference-vector generator (Phase 8C: --checkpoint v32b).
 
 Records (state + question -> probability distribution) pairs from the REAL laya
 checkpoint and the REAL shipped int8 artifact, for the Kotlin pipeline to match
-within max |Δp| <= 0.01 (PHASE_08 ss3 Gate 8.1).
+within max |dp| <= 0.01 (PHASE_08 ss3 Gate 8.1; PHASE_08C Gate 8C.2 for v32b).
 
 Per case:
   - the question is built in the EXACT form `LayaEngine` asks it (same instructions,
@@ -16,16 +16,20 @@ Per case:
   - `agentProbabilities` (drift evidence, NOT a gate) = the eager torch Agent's answer
     for the same input, recorded so the int8-vs-fp32 drift is measured and visible.
 
-Output: app/src/test/resources/laya/reference-vectors.json
+Output: app/src/test/resources/laya/reference-vectors.json (default checkpoint), or
+app/src/test/resources/laya/reference-vectors-v32b.json (--checkpoint v32b — lengths and
+temperatures read from THAT checkpoint's rl_agent_config.json, not assumed).
 
 Usage (after tools/fetch_laya.py built the artifact):
   .tools/uv.exe run --no-project --with "git+https://github.com/NandhaKishorM/laya" \\
       --with "torch==2.5.1" --with "transformers>=4.48,<5" --with numpy \\
       --with onnx --with "onnxruntime==1.20.1" python tools/laya_reference.py
+  ... --checkpoint v32b   # the Phase-8C primary checkpoint
 """
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import os
@@ -34,10 +38,16 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "tools"))
-from fetch_laya import HF_REPO, HF_REVISION, MODEL_NAME, ASSETS_LOCAL, ensure_windows_crt  # noqa: E402
+from fetch_laya import (  # noqa: E402
+    ASSETS_LOCAL,
+    CHECKPOINTS,
+    HF_REPO,
+    HF_REVISION,
+    MODEL_NAME,
+    ensure_windows_crt,
+)
 
 FIXTURE_DIR = PROJECT_ROOT / "app" / "src" / "test" / "resources" / "laya"
-FIXTURE = FIXTURE_DIR / "reference-vectors.json"
 
 # --- the two-stage question forms (mirror LayaEngine.kt EXACTLY) ------------------
 
@@ -290,6 +300,9 @@ CASES = [
 
 
 # --- int8 post-processing (same law as Calibration.kt) --------------------------------
+# The 421M checkpoint's fitted tables (its rl_agent_config.json); the v32b checkpoint
+# ships temperature [1,1,1] and an EMPTY temperature_by_options map (identity) — the
+# tables are always loaded from the checkpoint config at run time, never assumed.
 
 BASE_TEMPERATURES = [1.6369030475616455, 1.2514300346374512, 1.983399510383606]
 TEMPERATURE_BY_OPTIONS = {
@@ -315,14 +328,32 @@ def temp_bucket(qtype: int, k: int) -> str:
     return f"{'choice' if qtype == 0 else 'score' if qtype == 1 else 'noul'}:{size}"
 
 
-def temperature_for(qtype: int, k: int) -> float:
-    base = BASE_TEMPERATURES[qtype]
-    return clamp_temperature(TEMPERATURE_BY_OPTIONS.get(temp_bucket(qtype, k), base))
+class CalibrationTables:
+    """The (base, fitted) temperature tables of ONE checkpoint config, upstream law."""
+
+    def __init__(self, base: list[float], fitted: dict[str, float]):
+        self.base = base
+        self.fitted = fitted
+
+    @staticmethod
+    def from_cfg(cfg: dict) -> "CalibrationTables":
+        return CalibrationTables(
+            base=[float(t) for t in cfg.get("temperature", BASE_TEMPERATURES)],
+            fitted={k: float(v) for k, v in (cfg.get("temperature_by_options") or {}).items()},
+        )
+
+    def for_(self, qtype: int, k: int) -> float:
+        base = self.base[qtype]
+        return clamp_temperature(self.fitted.get(temp_bucket(qtype, k), base))
 
 
-def calibrated_probabilities(logits: list[float], qtype: int) -> tuple[list[float], float]:
+def calibrated_probabilities(
+    logits: list[float],
+    qtype: int,
+    tables: CalibrationTables,
+) -> tuple[list[float], float]:
     k = len(logits)
-    t = temperature_for(qtype, k)
+    t = tables.for_(qtype, k)
     z = [v / t for v in logits]
     m = max(z)
     ex = [pow(2.718281828459045, v - m) for v in z]
@@ -332,6 +363,23 @@ def calibrated_probabilities(logits: list[float], qtype: int) -> tuple[list[floa
 
 
 def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument(
+        "--checkpoint",
+        choices=sorted(CHECKPOINTS),
+        default="laya-421m",
+        help="which checkpoint to record vectors for (Phase 8C adds v32b)",
+    )
+    args = ap.parse_args()
+    ckpt = CHECKPOINTS[args.checkpoint]
+    fixture_name = (
+        "reference-vectors.json" if ckpt.key == "laya-421m" else f"reference-vectors-{ckpt.key}.json"
+    )
+    fixture_path = FIXTURE_DIR / fixture_name
+    model_path = ASSETS_LOCAL / ckpt.model_name
+    if not model_path.exists():
+        raise SystemExit(f"{model_path} missing - run tools/fetch_laya.py --checkpoint {ckpt.key} first")
+
     ensure_windows_crt()
     import numpy as np  # noqa: F401
     import torch
@@ -340,13 +388,22 @@ def main() -> int:
     from laya.agent import Agent
     from laya.common import build_sequence
 
-    model_path = ASSETS_LOCAL / MODEL_NAME
-    if not model_path.exists():
-        raise SystemExit(f"{model_path} missing - run tools/fetch_laya.py first")
-
-    print(f"loading Agent from {HF_REPO}@{HF_REVISION} (torch eager)...")
-    agent = Agent(HF_REPO, compile=False, device="cpu", revision=HF_REVISION)
+    subfolder = f" (subfolder {ckpt.subfolder})" if ckpt.subfolder else ""
+    print(f"loading Agent from {ckpt.repo}@{ckpt.revision}{subfolder} (torch eager)...")
+    agent = Agent(
+        ckpt.repo,
+        compile=False,
+        device="cpu",
+        revision=ckpt.revision,
+        subfolder=ckpt.subfolder,
+    )
     tok = agent.tok
+    # The checkpoint's OWN sequence budgets + calibration (never assumed from 421m).
+    max_len = int(agent.cfg.get("max_len", 512))
+    head_max_len = int(agent.cfg.get("head_max_len", 192))
+    tables = CalibrationTables.from_cfg(agent.cfg)
+    print(f"checkpoint config: max_len={max_len} head_max_len={head_max_len} "
+          f"temperature={tables.base} fitted={tables.fitted}")
 
     print(f"opening int8 session over {model_path} ...")
     opts = ort.SessionOptions()
@@ -357,7 +414,7 @@ def main() -> int:
     records = []
     for case in CASES:
         q = case["q"]
-        ids, markers = build_sequence(tok, case["state"], q, 512, 192)
+        ids, markers = build_sequence(tok, case["state"], q, max_len, head_max_len)
         k = len(case["ids"])
         assert len(markers) == k, f"{case['id']}: {len(markers)} markers for {k} options"
         qtype = QTYPES[q["t"]]
@@ -374,7 +431,7 @@ def main() -> int:
             },
         )
         logits = [float(v) for v in out[0][0][:k]]
-        probs, temp = calibrated_probabilities(logits, qtype)
+        probs, temp = calibrated_probabilities(logits, qtype, tables)
 
         # the eager Agent's answer (drift evidence — NOT the parity target).
         # `Agent.predict` takes the USER question format ({type, instructions, criteria});
@@ -422,26 +479,33 @@ def main() -> int:
 
     fixture = {
         "schema": "navigator.laya.reference-vectors/1",
-        "gate": "PHASE_08 ss3 Gate 8.1 (max abs probability delta <= 0.01)",
+        "gate": (
+            "PHASE_08 ss3 Gate 8.1 (max abs probability delta <= 0.01)"
+            if ckpt.key == "laya-421m"
+            else f"PHASE_08C ss3 Gate 8C.2 (max abs probability delta <= 0.01; checkpoint {ckpt.key})"
+        ),
         "parityTarget": "probabilities (int8 artifact logits, calibrated exactly like "
             "navigator.app.laya.Calibration)",
         "driftEvidence": "agentProbabilities / maxAbsDeltaVsEagerAgent: the eager torch "
             "Agent on the same input — the int8-vs-eager drift is RECORDED, not gated",
         "checkpoint": {
-            "repo": HF_REPO,
-            "revision": HF_REVISION,
-            "maxLen": 512,
-            "headMaxLen": 192,
+            "repo": ckpt.repo,
+            "revision": ckpt.revision,
+            "subfolder": ckpt.subfolder or "",
+            "maxLen": max_len,
+            "headMaxLen": head_max_len,
+            "baseTemperatures": tables.base,
+            "temperatureByOptions": tables.fitted,
         },
         "artifact": {
-            "file": MODEL_NAME,
+            "file": ckpt.model_name,
             "sha256": hashlib.sha256(model_path.read_bytes()).hexdigest(),
         },
         "cases": records,
     }
     FIXTURE_DIR.mkdir(parents=True, exist_ok=True)
-    FIXTURE.write_text(json.dumps(fixture, indent=1, ensure_ascii=False), encoding="utf-8")
-    print(f"wrote {len(records)} reference vectors -> {FIXTURE}")
+    fixture_path.write_text(json.dumps(fixture, indent=1, ensure_ascii=False), encoding="utf-8")
+    print(f"wrote {len(records)} reference vectors -> {fixture_path}")
     return 0
 
 

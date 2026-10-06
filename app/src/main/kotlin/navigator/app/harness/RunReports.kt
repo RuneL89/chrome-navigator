@@ -50,6 +50,26 @@ data class RunReport(
      *  whenever the launch requested the shadow, this object is ALWAYS present (see
      *  [ShadowReport.note] for the degraded cases). */
     val shadow: ShadowReport? = null,
+    /**
+     * Phase 8C fallback-composition evidence (vision 02 §7): the composed engine's
+     * escalation count + rate over this run. Null for every single-engine mode
+     * (STUB / LIVE(jev) / LAYA) — the field's absence must never be ambiguous with
+     * "no escalations" when the owner reads the UAT comparison.
+     */
+    val escalations: EscalationStats? = null,
+)
+
+/**
+ * The fallback composition's per-run counters (from [navigator.core.decision.FallbackEngine.stats]):
+ * how many decisions the composition settled and how many consulted the fallback —
+ * the UAT comparison's escalation-rate evidence.
+ */
+@Serializable
+data class EscalationStats(
+    val decisions: Long,
+    val escalations: Long,
+    /** escalations / decisions over this run (0.0 over zero decisions). */
+    val rate: Double,
 )
 
 /**

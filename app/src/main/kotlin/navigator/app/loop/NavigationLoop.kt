@@ -5,6 +5,8 @@ import navigator.core.decision.Band
 import navigator.core.decision.ChoiceQuestion
 import navigator.core.decision.ChoiceResult
 import navigator.core.decision.DecisionEngine
+import navigator.core.decision.DecisionRecord
+import navigator.core.decision.FallbackReporting
 import navigator.core.decision.NoulQuestion
 import navigator.core.decision.Option
 import navigator.core.decision.band
@@ -31,6 +33,7 @@ import navigator.core.log.CompressedBy
 import navigator.core.log.DecisionLogRow
 import navigator.core.log.EngineIdentity
 import navigator.core.log.ExecutedAction
+import navigator.core.log.FallbackInfo
 import navigator.core.log.LoggedActionKind
 import navigator.core.log.LoggedGateDecision
 import navigator.core.log.LoggedGateEvent
@@ -74,6 +77,17 @@ class NavigationLoop(
     private val config: Config = Config(),
 ) {
 
+    /**
+     * The fallback-composition probe (vision 02 §7): when the injected engine is a
+     * [FallbackEngine] (the `laya-fb-jev` mode), its per-decision records flow into the
+     * log rows (`escalated` + `fallback`, doc 05 v1.2.0). A capability probe, not an
+     * identity branch — every other engine leaves this null and the loop is unchanged
+     * (the ART-2 law: the loop never branches on WHICH engine it holds; this reads a
+     * generic reporting surface, the same seam [UsageFeed] uses). Null also when a
+     * router wraps the composition — the laya modes run bare by design.
+     */
+    private val fallbackReporting: FallbackReporting? = engine as? FallbackReporting
+
     data class Config(
         /** Vision 03 §5: fewer meaningful nodes than this = unusable tree. */
         val minUsableNodes: Int = 5,
@@ -104,6 +118,9 @@ class NavigationLoop(
     /**
      * Runs one task to exactly one terminal state. [isCancelled] is polled between
      * steps (the harness cancel button; never true in headless runs).
+     * [fallbackIdentity] names the fallback engine of a composed engine (the `laya-fb-jev`
+     * mode) so escalated rows can carry the `fallback {engine, model}` provenance
+     * (doc 05 v1.2.0); null for every single-engine mode.
      */
     suspend fun run(
         goal: String,
@@ -111,6 +128,7 @@ class NavigationLoop(
         engineIdentity: EngineIdentity,
         clock: Clock = Clock.SYSTEM,
         isCancelled: () -> Boolean = { false },
+        fallbackIdentity: EngineIdentity? = null,
     ): RunResult {
         require(goal.isNotBlank()) { "goal must not be blank" }
         val startMs = clock.nowMs()
@@ -181,6 +199,21 @@ class NavigationLoop(
             )
         }
 
+        /**
+         * The fallback record of the decision that JUST completed (null for any
+         * single-engine mode). The strictly-sequential loop reads the composed engine's
+         * slot right after its own call; a stale/mismatched record is a wiring bug and
+         * fails loudly rather than mis-attributing an escalation.
+         */
+        fun readEscalation(question: ChoiceQuestion): DecisionRecord? {
+            val record = fallbackReporting?.lastRecord() ?: return null
+            check(record.questionName == question.name) {
+                "fallback record '${record.questionName}' does not match the question just " +
+                    "decided '${question.name}' - escalation bookkeeping is stale"
+            }
+            return record
+        }
+
         suspend fun logRow(
             stepIndex: Int,
             state: StateTextBuilder.StateText,
@@ -190,7 +223,35 @@ class NavigationLoop(
             executed: ExecutedAction,
             gateEvent: LoggedGateEvent?,
             outcome: Outcome,
+            escalation: DecisionRecord? = null,
         ) {
+            // Escalated rows (doc 05 v1.2.0): teacherAnswer stays the PRIMARY's own
+            // answer when it produced one (vision 05 §2 — the teacher is the primary of
+            // record); the fallback's answer — the one EXECUTED (vision 02 §7) — rides
+            // the fallback field. On a primary hard failure there is no primary answer:
+            // the executed (fallback) answer stands in, and escalated=true makes the
+            // provenance unambiguous.
+            val escalated = escalation?.escalated == true
+            val fallbackInfo = if (escalated) {
+                val identity = requireNotNull(fallbackIdentity) {
+                    "an escalated decision needs the fallback engine identity for its row"
+                }
+                FallbackInfo(
+                    engine = identity.configId,
+                    model = identity.model,
+                    answer = requireNotNull(escalation!!.fallback) {
+                        "an escalated record must carry the fallback's answer"
+                    },
+                )
+            } else {
+                null
+            }
+            val primaryChoice = escalation?.primary as? ChoiceResult
+            val teacherAnswer = if (escalated && primaryChoice != null) {
+                TeacherAnswer(primaryChoice.chosenId, primaryChoice.probabilities, primaryChoice.confidence)
+            } else {
+                TeacherAnswer(choice.chosenId, choice.probabilities, choice.confidence)
+            }
             val row = DecisionLogRow(
                 rowId = "$taskId-step-$stepIndex",
                 taskId = taskId,
@@ -203,7 +264,7 @@ class NavigationLoop(
                 questionPrimary = question,
                 questionShadow = shadowQuestion(candidates),
                 teacher = engineIdentity,
-                teacherAnswer = TeacherAnswer(choice.chosenId, choice.probabilities, choice.confidence),
+                teacherAnswer = teacherAnswer,
                 shadow = null, // shadowMiss: the shadow engine arrives in Phase 8 (vision 02 §4)
                 shadowAnswer = null,
                 executedAction = executed,
@@ -211,6 +272,8 @@ class NavigationLoop(
                 outcome = outcome,
                 compressedBy = if (state.compressedBy != null) CompressedBy.CODE else null,
                 shadowSampled = false,
+                escalated = escalated,
+                fallback = fallbackInfo,
             )
             logSink.write(row)
             rows += 1
@@ -313,15 +376,20 @@ class NavigationLoop(
             // -- 3. DECIDE -----------------------------------------------------------------
             val question: ChoiceQuestion
             val choice: ChoiceResult
+            // The choose escalation is captured IMMEDIATELY (the finish path's noul
+            // consult overwrites the engine's single slot); it rides this step's row.
+            val escalation: DecisionRecord?
             if (recoveryArmed) {
                 recoveryArmed = false
                 question = RECOVERY_QUESTION
                 choice = engine.choose(state.text, question)
-                line("decide: recovery set -> '${choice.chosenId}'")
+                escalation = readEscalation(question)
+                line("decide: recovery set -> '${choice.chosenId}'" + escalationSuffix(escalation))
             } else {
                 question = actionQuestion(candidates)
                 choice = engine.choose(state.text, question)
-                line("decide: action -> '${choice.chosenId}'")
+                escalation = readEscalation(question)
+                line("decide: action -> '${choice.chosenId}'" + escalationSuffix(escalation))
             }
 
             // Recovery-set answers trigger code-side recovery (vision 04 §4, level 2).
@@ -354,6 +422,7 @@ class NavigationLoop(
                             ExecutedAction(null, kind.toLoggedKind(), ActionDisposition.EXECUTED),
                             gateEvent = null,
                             outcome = outcome,
+                            escalation = escalation,
                         )
                         history.add("step $stepIndex: recovery ${recovery.serial()} -> ${serial(outcome)}")
                         stuck.record(
@@ -392,6 +461,7 @@ class NavigationLoop(
                             ExecutedAction(null, LoggedActionKind.FINISH, ActionDisposition.EXECUTED),
                             gateEvent = null,
                             outcome = Outcome.EXITED,
+                            escalation = escalation,
                         )
                         return finish(
                             TerminalState.STUCK_KILL,
@@ -438,6 +508,7 @@ class NavigationLoop(
                         ExecutedAction(null, LoggedActionKind.FINISH, ActionDisposition.EXECUTED),
                         gateEvent = null,
                         outcome = Outcome.EXITED,
+                        escalation = escalation,
                     )
                     return finish(
                         TerminalState.GOAL_ACHIEVED,
@@ -452,6 +523,7 @@ class NavigationLoop(
                     ExecutedAction(null, LoggedActionKind.FINISH, ActionDisposition.REFUSED_BY_GUARD),
                     gateEvent = null,
                     outcome = Outcome.NO_CHANGE,
+                    escalation = escalation,
                 )
                 stuck.record(
                     StuckDetector.Footprint(
@@ -576,6 +648,7 @@ class NavigationLoop(
                 ),
                 gateEvent,
                 outcome,
+                escalation = escalation,
             )
             history.add(
                 "step $stepIndex: ${kind.name.lowercase()} \"${candidate.label}\" -> ${serial(outcome)}" +
@@ -616,6 +689,10 @@ class NavigationLoop(
     }
 
     // -- helpers -------------------------------------------------------------------------
+
+    /** Step-log annotation for an escalated decision (ids only, never distributions). */
+    private fun escalationSuffix(record: DecisionRecord?): String =
+        if (record?.escalated == true) " [escalated: ${record.reason?.name?.lowercase()}]" else ""
 
     private fun usable(obs: StepObservation): Boolean =
         obs.lines.size >= config.minUsableNodes &&

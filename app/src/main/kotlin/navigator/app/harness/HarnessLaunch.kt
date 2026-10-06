@@ -23,7 +23,8 @@ data class HarnessLaunch(
     val customGoal: ScriptedGoal?,
     /** Why [customGoal] is null despite [customRequested] (logged loudly on run launches). */
     val customError: String?,
-    val live: Boolean,
+    /** The full engine mode (Phase 8C: STUB | LIVE(jev) | LAYA | LAYA_FB_JEV). */
+    val mode: HarnessEngineMode,
     val autoDeny: Boolean,
     val shadow: Boolean,
     val shadowEveryNth: Long,
@@ -36,6 +37,9 @@ data class HarnessLaunch(
     /** Whether the intent carried ANY extras (a notification tap carries none). */
     val extrasPresent: Boolean,
 ) {
+    /** The Phase-6/7 boolean view: only the LIVE Jev mode is "live". */
+    val live: Boolean get() = mode == HarnessEngineMode.LIVE
+
     /** A launch that requests no goal is a (logged) no-op on a live instance. */
     val hasRunRequest: Boolean get() = goalId != null || customGoal != null
 
@@ -149,9 +153,9 @@ data class HarnessLaunch(
                 customRequested = customRequested,
                 customGoal = customGoal,
                 customError = customError,
-                live = HarnessEngineMode.parse(
+                mode = HarnessEngineMode.parse(
                     extras.string(EXTRA_ENGINE) ?: extras.string(EXTRA_ENGINE_SHORT),
-                ) == HarnessEngineMode.LIVE,
+                ),
                 autoDeny = extras.bool(EXTRA_AUTO_DENY, extras.bool(EXTRA_AUTO_DENY_SHORT, true)),
                 shadow = shadow,
                 shadowEveryNth = extras.long(EXTRA_SHADOW_EVERY_NTH, extras.long(

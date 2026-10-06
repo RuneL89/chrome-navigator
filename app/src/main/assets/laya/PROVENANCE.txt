@@ -40,3 +40,135 @@ Machine-readable copy:
   "license": "Apache-2.0",
   "built": "by tools/fetch_laya.py (community ONNX builds audited and rejected: block-wise MatMulNBits, not the pinned per-tensor int8)"
 }
+---
+
+PROVENANCE - laya ONNX int8 PRIMARY checkpoint v32b (Phase 8C)
+
+File: laya-v32b-int8.onnx
+Source repo: https://huggingface.co/ichenney/laya-browser-v32b
+Revision: 161d54d6000913ff279b0afd1ac77faef8685a9b (subfolder v32b)
+Base lineage: cklxx/laya-browser @ 645cf366a2ae35f1086e8c20eff48f909bb49206 <- convaiinnovations/laya @ 55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851
+Tokenizer: sha256 609d8f4c067cd3950f88594c5a802616cea245823836ef5848ee4fc40aab5b6f (34363188 bytes); vocab_identical_to_phase2=False (phase2 sha256 6c8aaa9a542084f2457eab775d4eeb51f92a70c0fd9de28d5edb0ddec3c08d30); placed as tokenizer-v32b.json
+sha256: a8f7935ceadce3ccc27d86edd7f86d457010a4caabc8ff10f98ae6d8890f456c
+Bytes: 923491931
+Params: 321909191 (graph initializer count — resolves the 322M-vs-421M card claim from the exported graph)
+Quantization: int8 dynamic, per-tensor (official scripts/export_onnx.py quantize_model: MatMul-only, weight_type=QInt8, per_channel=False); per-channel forbidden (upstream issue #790)
+Export: torch.onnx.export opset 18, official dummy shapes/dynamic axes, fp32 trace (fp32 intermediate sha256 db8d36adfd8f8429160644d23d33a092a4212ca75792f55618a4e2f1ca4ae9ab)
+Graph inputs: input_ids, attention_mask, marker_pos, marker_mask, qtype
+Graph outputs: logits, act_logits
+Checkpoint config: rl_agent_config.json at the pinned revision (encoder jhu-clsp/mmBERT-base, max_len=1024, head_max_len=768, temperature [1.0,1.0,1.0], temperature_by_options {})
+Upstream export script: https://github.com/NandhaKishorM/laya/blob/c829d5ac2f0530f3c024c37cb812598ba47ceaa6/scripts/export_onnx.py
+Upstream package commit: https://github.com/NandhaKishorM/laya/blob/2e4d9c87e8b1621deb344eac7de5c7258f32f849 (the installed laya package: Agent + common.build_sequence the reference vectors run through)
+License: Apache-2.0
+Built by: tools/fetch_laya.py; build decision recorded in .state/phase-8-status.json (421m) / .state/phase-8C-status.json (v32b)
+
+Machine-readable copy:
+{
+  "checkpoint": "v32b",
+  "model": "ichenney/laya-browser-v32b",
+  "revision": "161d54d6000913ff279b0afd1ac77faef8685a9b",
+  "subfolder": "v32b",
+  "file": "laya-v32b-int8.onnx",
+  "sha256": "a8f7935ceadce3ccc27d86edd7f86d457010a4caabc8ff10f98ae6d8890f456c",
+  "bytes": 923491931,
+  "quantization": "int8 dynamic, per-tensor (official scripts/export_onnx.py quantize_model: MatMul-only, weight_type=QInt8, per_channel=False); per-channel forbidden (upstream issue #790)",
+  "export": "torch.onnx.export opset 18, official dummy shapes/dynamic axes, fp32 trace (fp32 intermediate sha256 db8d36adfd8f8429160644d23d33a092a4212ca75792f55618a4e2f1ca4ae9ab)",
+  "upstream_export_script": "https://github.com/NandhaKishorM/laya/blob/c829d5ac2f0530f3c024c37cb812598ba47ceaa6/scripts/export_onnx.py",
+  "upstream_package_commit": "https://github.com/NandhaKishorM/laya/blob/2e4d9c87e8b1621deb344eac7de5c7258f32f849 (the installed laya package: Agent + common.build_sequence the reference vectors run through)",
+  "graph_inputs": [
+    "input_ids",
+    "attention_mask",
+    "marker_pos",
+    "marker_mask",
+    "qtype"
+  ],
+  "graph_outputs": [
+    "logits",
+    "act_logits"
+  ],
+  "graph_signature": {
+    "inputs": [
+      {
+        "name": "input_ids",
+        "elem_type": 7,
+        "dims": [
+          "batch_size",
+          "seq_len"
+        ]
+      },
+      {
+        "name": "attention_mask",
+        "elem_type": 7,
+        "dims": [
+          "batch_size",
+          "seq_len"
+        ]
+      },
+      {
+        "name": "marker_pos",
+        "elem_type": 7,
+        "dims": [
+          "batch_size",
+          "num_markers"
+        ]
+      },
+      {
+        "name": "marker_mask",
+        "elem_type": 9,
+        "dims": [
+          "batch_size",
+          "num_markers"
+        ]
+      },
+      {
+        "name": "qtype",
+        "elem_type": 7,
+        "dims": [
+          "batch_size"
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "name": "logits",
+        "elem_type": 1,
+        "dims": [
+          "batch_size",
+          "num_markers"
+        ]
+      },
+      {
+        "name": "act_logits",
+        "elem_type": 1,
+        "dims": [
+          "batch_size",
+          2
+        ]
+      }
+    ],
+    "param_count": 321909191
+  },
+  "param_count": 321909191,
+  "license": "Apache-2.0",
+  "built": "by tools/fetch_laya.py (community ONNX builds audited and rejected: block-wise MatMulNBits, not the pinned per-tensor int8)",
+  "base_lineage": "cklxx/laya-browser @ 645cf366a2ae35f1086e8c20eff48f909bb49206 <- convaiinnovations/laya @ 55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851",
+  "tokenizer": {
+    "checkpoint_tokenizer_sha256": "609d8f4c067cd3950f88594c5a802616cea245823836ef5848ee4fc40aab5b6f",
+    "checkpoint_tokenizer_bytes": 34363188,
+    "phase2_tokenizer_sha256": "6c8aaa9a542084f2457eab775d4eeb51f92a70c0fd9de28d5edb0ddec3c08d30",
+    "vocab_identical_to_phase2": false,
+    "placed_file": "tokenizer-v32b.json"
+  },
+  "checkpoint_config": "rl_agent_config.json at the pinned revision (encoder jhu-clsp/mmBERT-base, max_len=1024, head_max_len=768, temperature [1.0,1.0,1.0], temperature_by_options {})"
+}
+---
+
+PROVENANCE - laya v32b tokenizer (Phase 8C)
+
+PROVENANCE - laya v32b tokenizer (Phase 8C)
+
+File: tokenizer-v32b.json
+Source repo: https://huggingface.co/ichenney/laya-browser-v32b (path tokenizer/tokenizer.json @ 161d54d6000913ff279b0afd1ac77faef8685a9b, subfolder v32b)
+sha256: 609d8f4c067cd3950f88594c5a802616cea245823836ef5848ee4fc40aab5b6f
+Bytes: 34363188
+Note: the checkpoint's REAL tokenizer. vocab_identical_to_phase2=False (the pinned Phase-2 resource sha256 6c8aaa9a542084f2457eab775d4eeb51f92a70c0fd9de28d5edb0ddec3c08d30); the model card's same-vocab claim is FALSE, verified by hash 2026-10-06. This file is the v32b engine's tokenizer data (gitignored asset, hash-pinned here); correctness is proven per-vector by the Gate 8C.2 reference fixture (inputIdsSha256).

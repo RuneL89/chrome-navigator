@@ -5,7 +5,9 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import navigator.core.decision.ChoiceQuestion
+import navigator.core.decision.ChoiceResult
 import navigator.core.decision.Option
+import navigator.core.decision.TypedResult
 import navigator.core.enumerate.Bucket
 import navigator.core.enumerate.Candidate
 import navigator.core.gate.ActionKind
@@ -295,6 +297,25 @@ enum class Outcome {
     @SerialName("exited") EXITED,
 }
 
+/**
+ * The fallback engine's answer for an escalated decision (vision 05 §2 `fallback`, doc 05
+ * v1.2.0: `{engine, model, answer}`): which fallback config answered and its full answer
+ * (choice/noul/score result + distribution — the polymorphic [TypedResult] forms). The
+ * fallback's answer is the one EXECUTED when escalated (vision 02 §7); the row's
+ * [TeacherAnswer] still carries the primary's own answer when it produced one.
+ */
+@Serializable
+data class FallbackInfo(
+    val engine: String,
+    val model: String,
+    val answer: TypedResult,
+) {
+    init {
+        require(engine.isNotBlank()) { "FallbackInfo.engine must not be blank" }
+        require(model.isNotBlank()) { "FallbackInfo.model must not be blank (pinned snapshot ID, vision 02 §5)" }
+    }
+}
+
 /** What compressed the state text this step (vision 05 §2 `compressedBy`, vision 03 §4). */
 @Serializable
 enum class CompressedBy {
@@ -310,7 +331,9 @@ enum class CompressedBy {
  * agreement fields are present exactly when both answers exist (vision 05 §3) and
  * `agreementExactMatch` must equal the stored choices' top-1. A `shadowAnswer` without
  * a [shadow] is incoherent and rejected. Null [shadow] is the explicit `shadowMiss`
- * (vision 02 §4: the answer wasn't ready before the next step).
+ * (vision 02 §4: the answer wasn't ready before the next step). `escalated` and
+ * `fallback` (doc 05 v1.2.0) are an all-or-nothing pair — an escalation always names
+ * the fallback that answered, and a fallback answer only exists for an escalation.
  */
 @Serializable
 data class DecisionLogRow(
@@ -335,6 +358,11 @@ data class DecisionLogRow(
     val outcome: Outcome,
     val compressedBy: CompressedBy? = null,
     val shadowSampled: Boolean,
+    /** True when the fallback engine was consulted for this decision (vision 02 §7);
+     *  always false in single-engine modes (doc 05 v1.2.0). */
+    val escalated: Boolean = false,
+    /** The fallback's answer when escalated, else null (doc 05 v1.2.0). */
+    val fallback: FallbackInfo? = null,
 ) {
     init {
         require(rowId.isNotBlank()) { "DecisionLogRow.rowId must not be blank" }
@@ -402,6 +430,29 @@ data class DecisionLogRow(
             }
             require(agreementKL!! >= -NORMALIZATION_TOLERANCE) {
                 "DecisionLogRow ${rowId}: agreementKL must be non-negative, was $agreementKL"
+            }
+        }
+
+        // Escalation fields are an all-or-nothing pair (doc 05 v1.2.0, vision 02 §7):
+        // an escalation always names the fallback that answered, and a fallback answer
+        // exists only for an escalation.
+        require(escalated || fallback == null) {
+            "DecisionLogRow ${rowId}: a fallback answer without escalated=true is incoherent"
+        }
+        require(!escalated || fallback != null) {
+            "DecisionLogRow ${rowId}: escalated=true without a fallback answer is incoherent"
+        }
+        if (fallback != null && fallback.answer is ChoiceResult) {
+            // The fallback answers the SAME question the primary was asked (one consult,
+            // same option space, vision 02 §7) — its choice must live on that space too.
+            val fallbackForeignKeys = fallback.answer.probabilities.keys - primaryIds
+            require(fallback.answer.chosenId in primaryIds) {
+                "DecisionLogRow ${rowId}: fallback.answer.chosen '${fallback.answer.chosenId}' is not an " +
+                    "option of questionPrimary '${questionPrimary.name}'"
+            }
+            require(fallbackForeignKeys.isEmpty()) {
+                "DecisionLogRow ${rowId}: fallback.answer distribution keys outside questionPrimary " +
+                    "option ids: $fallbackForeignKeys"
             }
         }
     }

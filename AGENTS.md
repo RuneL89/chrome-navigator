@@ -91,13 +91,24 @@ When the user requests a durable behavior change, record it here or in the relev
 * `Implementation Plan/` — phased implementation plan (Phases 0–13 to v1), master index, and agent prompts. See `Implementation Plan/AGENTS.md`
 * `.state/` — phase status files, compliance log, verification reports, eval reports; the project's durable memory. See `.state/AGENTS.md`
 * `handoff/` — source documents (handoff v1, handoff v2 Road L) and feasibility research; input material, not law
-* `core/` — `:core`, the pure-JVM decision core (DecisionEngine + JevEngine, types, banding, the systemone wire client + engine configs, golden-fixture schemas + loaders, candidate enumeration, state text builder, laya tokenizer port, risk gate: H1–H8 classifier + per-task trust state machine + gate card, DecisionLog row schema + companion shadow-result rows + RLCD export + agreement calculators incl. the joined view, the Tier-A eval harness: deterministic replay + position-bias rotation + measurement reports). See `core/AGENTS.md`
+* `core/` — `:core`, the pure-JVM decision core (DecisionEngine + JevEngine + the
+  Phase-8C FallbackEngine composition, types, banding, the systemone wire client + engine
+  configs, golden-fixture schemas + loaders, candidate enumeration, state text builder,
+  the laya tokenizer port (BOTH checkpoint families — the 421M ByteLevel BPE and the
+  Phase-8C v32b 256k Metaspace BPE), risk gate: H1–H8 classifier + per-task trust state
+  machine + gate card, DecisionLog row schema (incl. the Phase-8C escalated/fallback
+  fields) + companion shadow-result rows + RLCD export + agreement calculators incl. the
+  joined view, the Tier-A eval harness: deterministic replay + position-bias rotation +
+  measurement reports). See `core/AGENTS.md`
 * `app/` — `:app`, the Android application (a11y observation, the Phase-6 navigation
   loop + budgets/stuck-detector/completion-guards + the fixture-driven stub engine and
   headless debug harness, DecisionLog + companion-row Room persistence; Phase 8 added the on-device
-  laya shadow engine (`laya/`, gitignored ~0.5GB int8 asset rebuilt by
+  laya shadow engine (`laya/`, gitignored ~0.6GB int8 asset rebuilt by
   `tools/fetch_laya.py`, provenance-pinned in `app/src/main/assets/laya/PROVENANCE.txt`)
-  and the `ShadowRouter` (primary-sync, shadow-async, log-only); overlay/result UI
+  and the `ShadowRouter` (primary-sync, shadow-async, log-only); Phase 8C added the
+  owner-directed v32b primary checkpoint (second hash-pinned artifact + its own 256k
+  tokenizer family), the FallbackEngine wiring, and the three harness engine modes
+  `jev`/`laya`/`laya-fb-jev`; overlay/result UI
   arrive per phase). See `app/AGENTS.md`
-* `tools/` — Phase-8 model-acquisition + reference-vector scripts (uv-driven; build-time
+* `tools/` — Phase-8/8C model-acquisition + reference-vector scripts (uv-driven; build-time
   HF downloads only). See `tools/AGENTS.md`

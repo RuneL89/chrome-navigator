@@ -95,3 +95,36 @@ Wire-client rules (from documented provider caveats — these are law):
 - Post-graduation the UI counter reads "100% on-device decisions".
 - If Laya never graduates: accepted outcome (Road L risk #7) — the app remains Jev-driven;
   the corpus and agreement data still exist and cost nothing to maintain.
+
+## 7. Fallback composition & engine modes (amended 2026-10-06, owner-directed)
+
+The gateway may compose two engines into one `DecisionEngine` — a **primary** and a
+**fallback** — without violating ART-2 (both are called through the interface; no direct
+provider access anywhere else).
+
+**Composition law:**
+- **Primary:** the on-device fine-tuned Laya checkpoint (the `laya-browser-v32b` import,
+  eval-gated per doc 07 §3 before it drives anything).
+- **Fallback:** Jev via OpenRouter (existing pinned config).
+- **Escalation policy — confidence-band:** for `choose`, consult the fallback when the
+  primary's confidence is **not HIGH** (≤ 0.70); for `noul`, when the primary lands in the
+  uncertain band. The fallback's answer is executed and both answers are logged.
+- **Hard-failure escalation:** primary load/inference failure always escalates (graceful
+  degradation, never a dead task).
+- `score` follows the primary (unused in the v1 loop).
+- No answer-shopping: the fallback is consulted at most once per decision; its answer is
+  final for that step.
+
+**Engine-mode register (UAT + product):**
+
+| Mode | Primary | Fallback | Notes |
+|---|---|---|---|
+| `jev` | Jev (OpenRouter, pinned) | — | current product default |
+| `laya` | on-device fine-tuned Laya | — | pure phone-only; escalation statistics N/A |
+| `laya-fb-jev` | on-device fine-tuned Laya | Jev (confidence-band) | the phone-only setup with a safety net |
+
+These modes exist for measurement and owner choice; the product default after the UAT
+comparison is an explicit owner decision. All modes log primary identity per doc 05
+(`teacher` = primary of record); `escalated` + `fallback` fields record fallback usage.
+Text phrasing (locked decision #4) remains a generative-LLM role in all modes — typed
+secrets stay code-gated (doc 06 H8) regardless of which engine chose to type.

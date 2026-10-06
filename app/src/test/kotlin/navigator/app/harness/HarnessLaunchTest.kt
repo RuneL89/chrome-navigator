@@ -157,4 +157,24 @@ class HarnessLaunchTest {
         assertFalse(parse("engine" to "stub", "goal" to "x").live)
         assertFalse(parse("engine" to "nonsense", "goal" to "x").live, "unknown engines degrade to STUB")
     }
+
+    @Test
+    fun `the laya modes parse through the launch - full mode carried`() {
+        assertEquals(
+            HarnessEngineMode.LAYA,
+            parse("engine" to "laya", "goal" to "x").mode,
+            "the bare laya mode arrives by intent (vision 02 §7 register)",
+        )
+        assertEquals(
+            HarnessEngineMode.LAYA_FB_JEV,
+            parse("engine" to "laya-fb-jev", "goal" to "x").mode,
+        )
+        assertEquals(
+            HarnessEngineMode.STUB,
+            parse("engine" to "laya-typo", "goal" to "x").mode,
+            "unknown engines still degrade to STUB (never a silent laya run)",
+        )
+        // The alias kept its Phase-6 boolean view.
+        assertTrue(parse("engine" to "jev", "goal" to "x").live)
+    }
 }

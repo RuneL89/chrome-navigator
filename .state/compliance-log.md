@@ -466,3 +466,34 @@ a new dated entry. Format per `Implementation Plan/MASTER_IMPLEMENTATION_PROMPT.
     - Emulator smoke: showOnly front+no-run; ongoing per-step notification; terminal auto-return+buzz; shadowReport present in both pulled reports (coverage 1.0). VERIFIED by implementer evidence + orchestrator screenshot review.
   Result: COMPLIANT — tooling accepted; UAT protocol updated (per-test: ready → showOnly → run → buzz/auto-return → joint log review)
   Checked By: canon-implementer (with emulator smoke) + Main agent (screenshot evidence review, close-out)
+
+[2026-10-06] Vision amendments v1.2.0 (owner-directed): fallback composition + three engine modes
+  Changed: Project Vision/02 (v1.2.0: §7 Fallback composition — Laya primary, Jev confidence-band fallback, engine-mode register jev/laya/laya-fb-jev), 05 (v1.2.0: escalated + fallback row fields, Room v3), Implementation Plan/PHASE_08C_laya_primary_jev_fallback.md (new), master index + mapping
+  Provenance: owner directive 2026-10-06 — Jev cannot be fine-tuned (vendor-stated; FINE_TUNE_RESEARCH.md); adopt community v32b fine-tune as on-device Laya checkpoint; three UAT modes prepared; UAT runs only on explicit owner permission. Plan approved via ExitPlanMode (confidence-band + full build now).
+  Comparison:
+    - Composition stays behind the DecisionEngine interface (ART-2 intact); confidence-band policy codified; no answer-shopping (single consult); text phrasing + H8 gating unchanged; insert-only law intact (append-only schema extension). No contradictions with ART-1..11 or docs 01/03/04/06/07.
+  Result: AMENDED — law updated; Phase 08C registered
+  Checked By: Main agent (GLM-5.3 session), owner directive
+
+[2026-10-06] Phase 08C Compliance Check (implementer, build+smoke only — NO UAT per owner)
+  Changed: tools/fetch_laya.py (+--checkpoint v32b: second artifact + tokenizer placement + per-checkpoint provenance sections), tools/laya_reference.py (+--checkpoint v32b vectors), app/build.gradle.kts (verifyLayaModel per-artifact sections); core: decision/FallbackEngine.kt (NEW) + FallbackEngineTest, log/DecisionLogModels.kt (+escalated/fallback/FallbackInfo + validation), laya/Tokenizer.kt (+Metaspace byte-fallback family); app: laya/ (MarkerBuilder SequenceFormat, Calibration.Profile, LayaOnnxSession per-checkpoint assets, LayaCheckpoint NEW, LayaEngine checkpoint params), loop/ (NavigationLoop escalation wiring, FallbackEngineTest), log/ (DecisionLogDb v3 + MIGRATION_2_3, DecisionLogV3DbTest), harness/ (HarnessEngineMode register, HarnessEngineFactory laya modes, HarnessLaunch.mode, HarnessActivity modes + escalation stats in RunReport); goldens regenerated via UPDATE_GOLDENS (doc 05 v1.2.0 schema change)
+  Vision Docs Checked: 02 (v1.2.0 §7 composition + mode register; §1-§6 unchanged), 05 (v1.2.0 §2 escalated/fallback fields; §3-§6 unchanged), 07 (§3 gate rule; Tier A fixtures untouched), 01/03/04/06 (no-touch: state format, taxonomy, loop order, gate law all unchanged)
+  Sections Checked: 02 §1/§2/§4/§5/§7; 05 §2; 07 §2-§5
+  Comparison:
+    - COMPLIANT: composition stays behind DecisionEngine (ART-2); escalation policy is band-based internally (vision 02 §2 bands law); single consult / final answer (no answer-shopping); hard-failure escalates; score follows primary; teacherAnswer stays the primary's; escalated rows carry fallback provenance; insert-only law intact (v2→v3 ALTER ADD COLUMN, history survives — Robolectric-proven); $0 cloud spend (no live calls; eval runs on-device; export + vectors are build-time HF downloads)
+    - FACT MEASURED AGAINST THE SPEC: v32b's card claims the same tokenizer vocab as the pinned Phase-2 tokenizer — hash-proven FALSE (256,000-entry mmBERT/Gemma-family Metaspace BPE vs the pinned 50,280-entry NFC+ByteLevel; v32b tokenizer sha256 609d8f4c…, Phase-2 resource 6c8aaa9a…). Param count resolved from the exported graph: 321,909,191 (the ~322M model; mmBERT-base encoder — NOT the 421M ModernBERT-large). Graph signature is IDENTICAL to the Phase-8 contract (input_ids/attention_mask/marker_pos/marker_mask/qtype i64+bool → logits/act_logits f32), so no speculative adapter was needed for the graph; the REAL checkpoint tokenizer was ported per the vision 05 §6 law ("port the real checkpoint tokenizer", proven by exact-match reference vectors — Gate 8C.2 byte-exact)
+    - EXTENSION (recorded, minimal): v32b max_len=1024/head_max_len=768 parameterized as MarkerBuilder.SequenceFormat; v32b identity calibration profile (temperature [1,1,1], empty map); run reports gain an escalations block; canonical state-text format and its 480-token budget stay the Phase-2 law in ALL modes (comparability + Tier A stability)
+  Result: COMPLIANT (with the recorded tokenizer-vocab fact + minimal extensions)
+  Checked By: canon-implementer (glm-5.3-flash), Phase 08C build+smoke
+
+[2026-10-06] Phase 08C (v32b import, FallbackEngine, three engine modes) Post-Implementation Compliance Check + Close-out
+  Changed: tools/fetch_laya.py + laya_reference.py (v32b checkpoint option), assets-local laya-v32b-int8.onnx (923,491,931 bytes, sha-gated) + tokenizer-v32b.json (second family), app laya/ (checkpoint parameterization: SequenceFormat/Calibration.Profile), core decision/FallbackEngine.kt (+11 tests), core log schema v3 (escalated + fallback fields, Room migration v3), harness three modes (stub/jev/laya/laya-fb-jev) + escalation stats in reports, PROVENANCE.txt third section
+  Vision Docs Checked: 02 §7 v1.2.0; 05 v1.2.0; 07 §3 (checkpoint gate)
+  Comparison:
+    - Gates 8C.1-8C.4 all PASS on verifier re-runs (524 tests / 0 failures; Tier A byte-identical; parity v32b 4.81e-11). COMPLIANT.
+    - KEY FINDING (hash-proven): v32b card's "same vocab" claim FALSE — 256k-entry mmBERT Metaspace BPE (second tokenizer family ported, lawfully per 05 §6 "port the real checkpoint tokenizer"); §6 close-out note added. Graph signature identical; param count 321,909,191 (mmBERT-base) — the 322M/421M question resolved.
+    - On-device v32b: ~1.4s/decision on emulator (vs 421M's ~5.9s); eval measured-not-gated: TRIAGE_IMPOSSIBLE x2, STUCK_KILL x1 on loopback pages (real-site quality = the UAT's question).
+    - UAT 8C.1 NOT started (owner permission pending); $0 spend; no live calls.
+    - Unverified (non-gating): claimed on-device stub-smoke report not found in .state/phase-8C-eval (stub health covered by JVM suite); CancellationException propagation has code but no dedicated test; duplicate taskIds in eval folders (hygiene).
+  Result: COMPLIANT — Phase 08C accepted (PHASE 8C VERIFIED); UAT prepared and LOCKED pending owner permission
+  Checked By: canon-verifier (cold) + Main agent (close-out)

@@ -25,14 +25,36 @@ object MarkerBuilder {
     const val QTYPE_SCORE: Int = 1
     const val QTYPE_NOUL: Int = 2
 
-    /** The checkpoint's `rl_agent_config.json` sequence budget. */
+    /** The checkpoint's `rl_agent_config.json` sequence budget (the 421M checkpoint's). */
     const val MAX_LEN: Int = 512
 
-    /** The checkpoint's `rl_agent_config.json` question-head budget. */
+    /** The checkpoint's `rl_agent_config.json` question-head budget (the 421M checkpoint's). */
     const val HEAD_MAX_LEN: Int = 192
 
     /** Per-option token cap (upstream `build_head`: `truncation=True, max_length=48`). */
     const val OPTION_TOKEN_CAP: Int = 48
+
+    /**
+     * The per-checkpoint sequence contract (Phase 8C): the `rl_agent_config.json` budgets
+     * and the tokenizer's special-marker tokens ([CLS]/[SEP]/[MASK] for the 421M
+     * ByteLevel family; <bos>/<eos>/<mask> for the v32b Metaspace family — upstream
+     * `build_sequence` reads them off the tokenizer generically).
+     */
+    data class SequenceFormat(
+        val maxLen: Int,
+        val headMaxLen: Int,
+        val clsToken: String,
+        val sepToken: String,
+        val maskToken: String,
+    ) {
+        companion object {
+            /** convaiinnovations/laya @ 55cf4c4e… (max_len=512, head_max_len=192). */
+            val LAYA_421M = SequenceFormat(MAX_LEN, HEAD_MAX_LEN, "[CLS]", "[SEP]", "[MASK]")
+
+            /** ichenney/laya-browser-v32b @ 161d54d6… (max_len=1024, head_max_len=768). */
+            val V32B = SequenceFormat(1024, 768, "<bos>", "<eos>", "<mask>")
+        }
+    }
 
     /** One rendered laya question: the upstream `{t, ins, crit}` triple as Kotlin. */
     data class LayaQuestion(
@@ -83,26 +105,32 @@ object MarkerBuilder {
 
     /**
      * Upstream `build_sequence` for a batch-of-one: the head ([buildHead]) plus the
-     * state tokens plus the closing [SEP], clamped to [MAX_LEN]. `state` is the raw
-     * state text (the caller's canonical state text, serialized verbatim — upstream
-     * `serialize_state` passes strings through).
+     * state tokens plus the closing [SEP], clamped to [format]`s max_len`. `state` is
+     * the raw state text (the caller's canonical state text, serialized verbatim —
+     * upstream `serialize_state` passes strings through). [format] defaults to the
+     * Phase-8 checkpoint (the Gate 8.1 fixture law).
      */
-    fun buildSequence(tokenizer: Tokenizer, question: LayaQuestion, state: String): MarkerSequence {
-        val cls = tokenizerId(tokenizer, "[CLS]", "CLS")
-        val sep = tokenizerId(tokenizer, "[SEP]", "SEP")
-        val mask = tokenizerId(tokenizer, "[MASK]", "MASK")
+    fun buildSequence(
+        tokenizer: Tokenizer,
+        question: LayaQuestion,
+        state: String,
+        format: SequenceFormat = SequenceFormat.LAYA_421M,
+    ): MarkerSequence {
+        val cls = tokenizerId(tokenizer, format.clsToken, "CLS")
+        val sep = tokenizerId(tokenizer, format.sepToken, "SEP")
+        val mask = tokenizerId(tokenizer, format.maskToken, "MASK")
 
         // Upstream: the state never carries a literal [MASK]; it would be read as a marker.
         val stateIds = tokenizer.tokenIds(state.replace("[MASK]", " "))
 
-        val head = buildHead(tokenizer, question, cls, sep, mask)
-        val room = maxOf(0, MAX_LEN - head.ids.size - 1)
+        val head = buildHead(tokenizer, question, cls, sep, mask, format)
+        val room = maxOf(0, format.maxLen - head.ids.size - 1)
         val stateSlice = stateIds.take(minOf(stateIds.size, room)).toIntArray() // right-truncate
         var ids = head.ids + stateSlice + intArrayOf(sep)
         var markers = head.markers
-        if (ids.size > MAX_LEN) {
-            ids = ids.copyOf(MAX_LEN)
-            markers = markers.filter { it < MAX_LEN }.toIntArray()
+        if (ids.size > format.maxLen) {
+            ids = ids.copyOf(format.maxLen)
+            markers = markers.filter { it < format.maxLen }.toIntArray()
         }
         val attention = IntArray(ids.size) { 1 }
         return MarkerSequence(ids, attention, markers, question.qtype)
@@ -120,6 +148,7 @@ object MarkerBuilder {
         cls: Int,
         sep: Int,
         mask: Int,
+        format: SequenceFormat,
     ): Head {
         val instruction = question.instructions.replace("[MASK]", " ")
         val headText = "${question.type} question: $instruction"
@@ -131,15 +160,15 @@ object MarkerBuilder {
             intArrayOf(mask) + tokenizer.tokenIds(text).take(OPTION_TOKEN_CAP).toIntArray()
         }
 
-        val optBudget = HEAD_MAX_LEN - optIds.sumOf { it.size }
+        val optBudget = format.headMaxLen - optIds.sumOf { it.size }
         var perOption: Int? = null
         var effective = optIds
         var budget = optBudget
         if (optBudget < 16) {
-            val per = maxOf(4, (HEAD_MAX_LEN - 16) / maxOf(1, effective.size))
+            val per = maxOf(4, (format.headMaxLen - 16) / maxOf(1, effective.size))
             perOption = per
             effective = effective.map { it.copyOf(minOf(it.size, per)) }
-            budget = HEAD_MAX_LEN - effective.sumOf { it.size }
+            budget = format.headMaxLen - effective.sumOf { it.size }
         }
 
         val trimmedHead = headIds.take(minOf(headIds.size, maxOf(8, budget))).toIntArray()

@@ -13,20 +13,28 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
 
 * `src/main/kotlin/navigator/app/` — Android UI and services
   * `src/main/kotlin/navigator/app/laya/` — the on-device laya engine (Phase 8,
-    vision 05 §6): `LayaOnnxSession` (ONNX Runtime over the pinned int8 graph — CPU EP,
+    vision 05 §6): `LayaOnnxSession` (ONNX Runtime over the pinned int8 graphs — CPU EP,
     1 intra-op thread; first-run asset→files copy, direct-path session; the
     `ai.onnxruntime` API is identical on the Android AAR and the desktop JVM artifact,
-    so the laya gates run it unmodified on the JVM), `MarkerBuilder` (the upstream
-    sequence format `[CLS] <type> question [SEP] [MASK] opt … [SEP] state [SEP]`, ported
-    branch-by-branch from the pinned upstream commit), `Calibration` (fitted
-    per-`(qtype, option-bucket)` temperatures from the checkpoint's
-    `rl_agent_config.json`, clamped to [0.5, 5.0], softmax + confidences),
-    `LayaEngine` (implements `DecisionEngine`; two-stage bucketed `choose` — bucket
-    question then ≤20-element question — plus `judge`/`score` mappings), and
+    so the laya gates run it unmodified on the JVM; Phase 8C: the artifact FILE is a
+    parameter — `laya-int8.onnx` (421M) or `laya-v32b-int8.onnx`), `MarkerBuilder` (the
+    upstream sequence format `[CLS] <type> question [SEP] [MASK] opt … [SEP] state [SEP]`,
+    ported branch-by-branch from the pinned upstream commit; Phase 8C: the checkpoint's
+    budgets + marker tokens are a `SequenceFormat` — 421M: 512/192/[CLS]/[SEP]/[MASK],
+    v32b: 1024/768/<bos>/<eos>/<mask>), `Calibration` (fitted
+    per-`(qtype, option-bucket)` temperatures per checkpoint `Profile` — 421M's fitted
+    tables vs v32b's identity [1,1,1] — clamped to [0.5, 5.0], softmax + confidences),
+    `LayaCheckpoint` (Phase 8C: the exported-checkpoint registry — artifact file, REAL
+    tokenizer (421M: the Phase-2 classpath resource; v32b: the gitignored hash-pinned
+    `tokenizer-v32b.json` asset, a SECOND tokenizer family), format, calibration; the
+    harness engine modes pick the ACTIVE checkpoint by id), `LayaEngine` (implements
+    `DecisionEngine`; two-stage bucketed `choose` — bucket question then ≤20-element
+    question — plus `judge`/`score` mappings; Phase 8C: tokenizer/calibration/format
+    are constructor params defaulting to the Phase-8 checkpoint), and
     `BucketedForms` (reconstructs the shadow's bucketed question from the loop's
     `bucket=<serial>`-tagged option descriptions; untagged questions — triage, the
     recovery set — are NOT bucketable: vision 03 §3 deliberately keeps recovery out of
-    the page-bucket taxonomy). Question-text wording is fixture law: the Gate 8.1
+    the page-bucket taxonomy). Question-text wording is fixture law: the Gate 8.1/8C.2
     reference vectors (`tools/laya_reference.py` → `app/src/test/resources/laya/`)
     mirror it exactly
   * `src/main/kotlin/navigator/app/observe/` — observation layer (Phase 1,
@@ -75,7 +83,11 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     optional `fallbackBucketOrdinal`; exhausted scripts and unmatched labels fail
     loudly
   * `src/main/kotlin/navigator/app/harness/` — the headless debug harness (Phase 6,
-    NOT product UI): `HarnessActivity` (engine STUB|LIVE picker, shadow toggle +
+    NOT product UI): `HarnessActivity` (engine picker — Phase 8C mode register
+    STUB | LIVE(jev) | LAYA | LAYA_FB_JEV via `--es engine` (the UI switch covers
+    STUB↔LIVE; the laya modes arrive by intent, are shown, and disable the switch);
+    LAYA/LAYA_FB_JEV run BARE — a shadow request under them is refused loudly
+    (vision 02 §7); custom goals are refused under STUB only), shadow toggle +
     `shadow`/`shadowEveryNth` intent extras (Phase 8, plus `settleMs` — the loop's
     page-settle pacing, adb-settable so an emulator's step period can exceed the
     MEASURED shadow latency; never shadow-driven waiting), auto-deny default ON in
@@ -108,8 +120,13 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     factory resolves the OpenRouter key by priority intent extra
     (`--es openrouterKey <KEY>` — the only delivery that works inside an app process,
     which has neither an environment nor the repo's `.tools/`) > env > keys file,
-    failing loudly when LIVE is selected with no key anywhere; only the key's SOURCE
-    (`HarnessKeySource`) is ever exposed or logged — never the value.
+    failing loudly when LIVE or LAYA_FB_JEV is selected with no key anywhere; only the
+    key's SOURCE (`HarnessKeySource`) is ever exposed or logged — never the value.
+    Phase 8C modes (vision 02 §7): `laya` = bare on-device v32b primary (`LayaCheckpoint.V32B`
+    via the injectable `LayaEngineSource`; loud without the model), `laya-fb-jev` =
+    `FallbackEngine`(v32b primary, Jev confidence-band fallback riding its own
+    JevSpendRecorder — escalated consults still book spend); escalated rows carry the
+    fallback identity; run reports gain the `escalations` block (count/rate).
     Launch-note: `am start -S` force-stops the app and the platform then DROPS its
     enabled accessibility service — re-put `enabled_accessibility_services` +
     `accessibility_enabled` immediately after the launch, inside the harness's
@@ -129,8 +146,11 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
   `(taskId, stepIndex)`), `ShadowResultDao` + `ShadowResultLogger` (guarded insert-only
   companions — loud rejection of companion-for-answered-row and orphans — plus the
   decision ⋈ companion LEFT-JOIN view and the joined-view agreement with coverage),
-  and `DecisionLogDb` v2 with `MIGRATION_1_2` (adds `shadow_result`; existing
-  databases keep every row; no destructive fallback); law: `Project Vision/05` §2, §5
+  and `DecisionLogDb` v3 with `MIGRATION_1_2` (adds `shadow_result`) and
+  `MIGRATION_2_3` (Phase 8C, doc 05 v1.2.0: ALTER ADD COLUMN `escalated` (NOT NULL
+  DEFAULT 0) + `fallbackJson` (nullable) — existing databases keep every row, which
+  decode as the single-engine shape; no destructive fallback); law:
+  `Project Vision/05` §2, §5
 * `build.gradle.kts` — Android build config (minSdk 34, compile/targetSdk 36, Compose;
   Room compiler wired via KSP; kotlinx-serialization + coroutines plugins/deps)
 
@@ -153,7 +173,7 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
   are insert-only too: a UNIQUE `(taskId, stepIndex)` index ABORTs duplicates and a
   transactional guard rejects loudly a companion beside an answered decision row or an
   orphan companion (rule a); DB migrations preserve history (v1→v2 adds `shadow_result`;
-  no destructive fallback anywhere)
+  v2→v3 ALTER-adds the `escalated`/`fallbackJson` columns; no destructive fallback anywhere)
 * The loop's Android edges sit behind interfaces (`LoopObserver`, `ActionExecutor`,
   `GatePresenter`, `DecisionLogSink`, `Clock`) so Gate 6.1 runs on the plain JVM with
   fakes — Robolectric-free; Android types appear only in `GestureExecutor`,
@@ -188,11 +208,14 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
   sink, never an exception into the loop); the shadow runs on its own single thread and
   never blocks the loop; question wording of the two laya question forms is pinned by
   the Gate 8.1 reference fixtures — change the words, regenerate the fixture
-* The laya model artifact (~0.5 GB) lives OUT of git in `src/main/assets-local/`
-  (gitignored); `tools/fetch_laya.py` builds it and writes
-  `assets/laya/PROVENANCE.txt` (committed, sha256-pinned); the `verifyLayaModel`
-  gradle task (wired to `preBuild`) fails the build loudly when the artifact is
-  missing or its sha256 drifts — never ship or commit around it
+* The laya model artifacts (~0.6 GB 421M + ~0.9 GB v32b + the 34 MB v32b tokenizer)
+  live OUT of git in `src/main/assets-local/` (gitignored); `tools/fetch_laya.py`
+  builds them (`--checkpoint`) and writes `assets/laya/PROVENANCE.txt` (committed, one
+  hash-pinned section per artifact); the `verifyLayaModel` gradle task (wired to
+  `preBuild`) fails the build loudly when ANY declared artifact is missing or its
+  sha256 drifts — never ship or commit around it. The ACTIVE checkpoint is a harness
+  engine-mode choice (laya modes → v32b; the Phase-8 shadow path keeps the 421M
+  loadable for the parity tests)
 
 ## Work Guidance
 

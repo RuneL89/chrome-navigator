@@ -51,6 +51,10 @@ interface ShadowDecisions {
 class LayaEngine(
     private val session: LayaForward,
     private val tokenizer: Tokenizer = Tokenizer.loadDefault(),
+    /** The checkpoint's calibration tables (Phase 8C; default = the Phase-8 checkpoint). */
+    private val calibration: Calibration.Profile = Calibration.LAYA_421M,
+    /** The checkpoint's sequence budgets + marker tokens (Phase 8C; default = Phase-8). */
+    private val format: MarkerBuilder.SequenceFormat = MarkerBuilder.SequenceFormat.LAYA_421M,
 ) : DecisionEngine, ShadowDecisions, AutoCloseable {
 
     /** Releases the underlying session when it owns native resources (tests script no-ops). */
@@ -211,17 +215,17 @@ class LayaEngine(
 
     /**
      * Sequence build + ONNX forward + calibration: probabilities in the question's own
-     * option order. Package-visible for the Gate 8.1 parity test.
+     * option order. Package-visible for the Gate 8.1/8C.2 parity tests.
      */
     internal fun forward(state: String, question: MarkerBuilder.LayaQuestion): DoubleArray {
-        val sequence = MarkerBuilder.buildSequence(tokenizer, question, state)
+        val sequence = MarkerBuilder.buildSequence(tokenizer, question, state, format)
         require(sequence.optionCount == question.options.size) {
             "marker builder dropped markers: ${sequence.optionCount} of ${question.options.size} " +
-                "options fit in max_len=${MarkerBuilder.MAX_LEN} — reduce the state or the options"
+                "options fit in max_len=${format.maxLen} — reduce the state or the options"
         }
         val result = session.run(sequence.inputIds, sequence.markerPositions, sequence.qtype)
         val logits = DoubleArray(sequence.optionCount) { result.logits[it].toDouble() }
-        return Calibration.probabilities(logits, sequence.qtype, sequence.optionCount)
+        return Calibration.probabilities(logits, sequence.qtype, sequence.optionCount, calibration)
     }
 
     // -- the two question forms --------------------------------------------------------

@@ -17,6 +17,7 @@ import navigator.core.log.DecisionLogRow
 import navigator.core.log.DECISION_LOG_JSON
 import navigator.core.log.EngineIdentity
 import navigator.core.log.ExecutedAction
+import navigator.core.log.FallbackInfo
 import navigator.core.log.LoggedGateEvent
 import navigator.core.log.Outcome
 import navigator.core.log.ShadowAnswer
@@ -69,6 +70,10 @@ data class DecisionLogEntity(
     val outcome: String,
     val compressedBy: String?,
     val shadowSampled: Boolean,
+    /** Phase 8C (doc 05 v1.2.0): escalation + the fallback's answer. Pre-v3 rows decode
+     *  as escalated=false / fallback=null through the migration's column defaults. */
+    @ColumnInfo(defaultValue = "0") val escalated: Boolean = false,
+    val fallbackJson: String? = null,
 )
 
 /** Bidirectional mapping row ↔ entity. Decoding validates loudly (core log law). */
@@ -104,6 +109,8 @@ object DecisionLogConverters {
         outcome = serialNameOf(Outcome.serializer(), row.outcome),
         compressedBy = row.compressedBy?.let { serialNameOf(CompressedBy.serializer(), it) },
         shadowSampled = row.shadowSampled,
+        escalated = row.escalated,
+        fallbackJson = row.fallback?.let { DECISION_LOG_JSON.encodeToString(FallbackInfo.serializer(), it) },
     )
 
     fun toRow(entity: DecisionLogEntity): DecisionLogRow = DecisionLogRow(
@@ -146,6 +153,10 @@ object DecisionLogConverters {
         outcome = enumFromSerialName(Outcome.serializer(), entity.outcome),
         compressedBy = entity.compressedBy?.let { enumFromSerialName(CompressedBy.serializer(), it) },
         shadowSampled = entity.shadowSampled,
+        escalated = entity.escalated,
+        fallback = entity.fallbackJson?.let {
+            DECISION_LOG_JSON.decodeFromString(FallbackInfo.serializer(), it)
+        },
     )
 }
 
@@ -201,7 +212,7 @@ interface DecisionLogDao {
 
 @Database(
     entities = [DecisionLogEntity::class, ShadowResultEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 abstract class DecisionLogDb : RoomDatabase() {
@@ -240,10 +251,26 @@ abstract class DecisionLogDb : RoomDatabase() {
             }
         }
 
+        /**
+         * v2 → v3 (vision 05 v1.2.0, Phase 8C): adds the `escalated` flag (NOT NULL,
+         * default 0) and the `fallbackJson` column (nullable) to `decision_log` — the
+         * fallback-composition fields (doc 05 v1.2.0, vision 02 §7). ALTER ADD COLUMN
+         * only: every historical row survives, decoding as escalated=false /
+         * fallback=null (the single-engine shape), never rewritten (insert-only law).
+         * The declared defaults match the entity's @ColumnInfo defaultValue so Room's
+         * post-migration schema validation passes.
+         */
+        val MIGRATION_2_3: androidx.room.migration.Migration = object : androidx.room.migration.Migration(2, 3) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `decision_log` ADD COLUMN `escalated` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `decision_log` ADD COLUMN `fallbackJson` TEXT")
+            }
+        }
+
         /** Production: a named, on-disk database (indefinite local retention, vision 05 §5). */
         fun open(context: Context, name: String): DecisionLogDb =
             Room.databaseBuilder(context, DecisionLogDb::class.java, name)
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .build()
 
         /** In-memory variant (tests / ephemeral windows). */

@@ -49,6 +49,29 @@ object Calibration {
         "noul:2" to 1.983399510383606,
     )
 
+    /**
+     * One checkpoint's calibration tables (Phase 8C): the per-qtype base temperatures
+     * plus the fitted `(qtype, option-count)` map, exactly as [Calibration] applies them.
+     * The v32b checkpoint ships temperature [1,1,1] and an EMPTY map — the identity
+     * profile (its rl_agent_config.json, recorded in the provenance).
+     */
+    data class Profile(
+        val baseTemperatures: List<Double>,
+        val temperatureByOptions: Map<String, Double>,
+    ) {
+        init {
+            require(baseTemperatures.size == 3) {
+                "a calibration profile needs the 3 per-qtype base temperatures, got ${baseTemperatures.size}"
+            }
+        }
+    }
+
+    /** The Phase-8 checkpoint's tables (the constants above; Gate 8.1 fixture law). */
+    val LAYA_421M: Profile = Profile(BASE_TEMPERATURES, TEMPERATURE_BY_OPTIONS)
+
+    /** The Phase-8C checkpoint's tables: identity (temperature 1.0 everywhere). */
+    val V32B: Profile = Profile(listOf(1.0, 1.0, 1.0), emptyMap())
+
     /** Upstream `temp_bucket(qtype, k)`. */
     fun temperatureBucket(qtype: Int, optionCount: Int): String {
         val size = when {
@@ -69,26 +92,38 @@ object Calibration {
     fun clampTemperature(t: Double): Double =
         if (t.isNaN() || t.isInfinite()) 1.0 else min(TEMP_MAX, max(TEMP_MIN, t))
 
-    /** The effective temperature for one question row (bucket fit, else per-qtype base). */
-    fun temperatureFor(qtype: Int, optionCount: Int): Double {
-        val base = BASE_TEMPERATURES[if (qtype in 0..2) qtype else throw IllegalArgumentException(
+    /**
+     * The effective temperature for one question row (bucket fit, else per-qtype base)
+     * under [profile] — default the Phase-8 checkpoint's tables (the Gate 8.1 law).
+     */
+    fun temperatureFor(
+        qtype: Int,
+        optionCount: Int,
+        profile: Profile = LAYA_421M,
+    ): Double {
+        val base = profile.baseTemperatures[if (qtype in 0..2) qtype else throw IllegalArgumentException(
             "qtype must be 0..2, was $qtype",
         )]
-        val fitted = TEMPERATURE_BY_OPTIONS[temperatureBucket(qtype, optionCount)]
+        val fitted = profile.temperatureByOptions[temperatureBucket(qtype, optionCount)]
         return clampTemperature(fitted ?: base)
     }
 
     /**
      * Upstream decode: `z = logits / t; p = exp(z - max(z)); p /= sum(p)`. Raw logits of
      * other markers (the padded `[MASK]` slots masked to -1e4 upstream) are excluded by
-     * the caller — this takes exactly the first [optionCount] logits.
+     * the caller — this takes exactly the first [optionCount] logits, under [profile].
      */
-    fun probabilities(logits: DoubleArray, qtype: Int, optionCount: Int): DoubleArray {
+    fun probabilities(
+        logits: DoubleArray,
+        qtype: Int,
+        optionCount: Int,
+        profile: Profile = LAYA_421M,
+    ): DoubleArray {
         require(optionCount >= 1) { "optionCount must be >= 1" }
         require(logits.size >= optionCount) {
             "need $optionCount logits, got ${logits.size}"
         }
-        val t = temperatureFor(qtype, optionCount)
+        val t = temperatureFor(qtype, optionCount, profile)
         val z = DoubleArray(optionCount) { logits[it] / t }
         var maxZ = Double.NEGATIVE_INFINITY
         for (v in z) if (v > maxZ) maxZ = v

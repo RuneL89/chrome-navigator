@@ -120,47 +120,69 @@ tasks.withType<Test>().configureEach {
 }
 
 // Phase 8 (phase doc §2.1): the build must never silently lack the shadow model. The
-// gitignored asset is verified against the sha256 committed in assets/laya/PROVENANCE.txt.
+// gitignored assets are verified against the sha256s committed in assets/laya/PROVENANCE.txt.
+// Phase 8C: PROVENANCE.txt carries one section per exported checkpoint (the Phase-8 421M
+// shadow artifact AND the v32b primary) — every declared artifact is hash-gated; the
+// harness picks the active one by engine mode.
 val verifyLayaModel by tasks.registering {
     group = "verification"
-    description = "Verifies the laya int8 shadow model is present and matches its committed sha256."
+    description = "Verifies every laya int8 artifact is present and matches its committed sha256."
     doLast {
-        val model = file("src/main/assets-local/laya/laya-int8.onnx")
         val provenance = file("src/main/assets/laya/PROVENANCE.txt")
         if (!provenance.exists()) {
             throw GradleException(
-                "laya shadow model provenance missing (app/src/main/assets/laya/PROVENANCE.txt) — " +
+                "laya model provenance missing (app/src/main/assets/laya/PROVENANCE.txt) — " +
                     "run tools/fetch_laya.py (see the file header for the uv command)",
             )
         }
-        val recorded = provenance.readLines()
-            .firstOrNull { it.startsWith("sha256: ") }
-            ?.removePrefix("sha256: ")?.trim()
-            ?: throw GradleException("app/src/main/assets/laya/PROVENANCE.txt carries no 'sha256: ' line")
-        if (!model.isFile) {
-            throw GradleException(
-                "laya shadow model missing (app/src/main/assets-local/laya/laya-int8.onnx) — " +
-                    "build it with tools/fetch_laya.py (see the file header for the uv command)",
-            )
+        // Parse the per-artifact sections: a "File: <name>" line opens a record; the
+        // following "sha256: <hex>" (before the next File: line) pins it.
+        data class Artifact(val fileName: String, val sha256: String)
+        val artifacts = mutableListOf<Artifact>()
+        var current: String? = null
+        var currentSha: String? = null
+        fun flush() {
+            val name = current
+            val sha = currentSha
+            if (name != null && sha != null) artifacts.add(Artifact(name, sha))
         }
-        val digest = MessageDigest.getInstance("SHA-256")
-        model.inputStream().use { input ->
-            val buffer = ByteArray(1 shl 20)
-            while (true) {
-                val n = input.read(buffer)
-                if (n < 0) break
-                digest.update(buffer, 0, n)
+        for (rawLine in provenance.readLines()) {
+            val line = rawLine.trim()
+            when {
+                line.startsWith("File: ") -> { flush(); current = line.removePrefix("File: ").trim(); currentSha = null }
+                line.startsWith("sha256: ") -> currentSha = line.removePrefix("sha256: ").trim()
             }
         }
-        val actual = digest.digest().joinToString("") { byte: Byte -> "%02x".format(byte) }
-        if (actual != recorded) {
-            throw GradleException(
-                "laya shadow model sha256 mismatch: provenance pins $recorded, " +
-                    "app/src/main/assets-local/laya/laya-int8.onnx is $actual — " +
-                    "re-run tools/fetch_laya.py or fix the provenance",
-            )
+        flush()
+        if (artifacts.isEmpty()) {
+            throw GradleException("app/src/main/assets/laya/PROVENANCE.txt carries no 'File:' + 'sha256:' artifact sections")
         }
-        logger.lifecycle("verifyLayaModel: ${model.name} OK (sha256 ${actual.take(16)}...)")
+        for (artifact in artifacts) {
+            val model = file("src/main/assets-local/laya/${artifact.fileName}")
+            if (!model.isFile) {
+                throw GradleException(
+                    "laya model missing (app/src/main/assets-local/laya/${artifact.fileName}) — " +
+                        "build it with tools/fetch_laya.py --checkpoint (see the file header for the uv command)",
+                )
+            }
+            val digest = MessageDigest.getInstance("SHA-256")
+            model.inputStream().use { input ->
+                val buffer = ByteArray(1 shl 20)
+                while (true) {
+                    val n = input.read(buffer)
+                    if (n < 0) break
+                    digest.update(buffer, 0, n)
+                }
+            }
+            val actual = digest.digest().joinToString("") { byte: Byte -> "%02x".format(byte) }
+            if (actual != artifact.sha256) {
+                throw GradleException(
+                    "laya model sha256 mismatch for ${artifact.fileName}: provenance pins ${artifact.sha256}, " +
+                        "the file is $actual — re-run tools/fetch_laya.py or fix the provenance",
+                )
+            }
+            logger.lifecycle("verifyLayaModel: ${artifact.fileName} OK (sha256 ${actual.take(16)}...)")
+        }
     }
 }
 

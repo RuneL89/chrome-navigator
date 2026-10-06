@@ -237,6 +237,7 @@ Phase documents live in `Implementation Plan/`; vision documents live in `Projec
 | 7 | `PHASE_07_eval_tier_a.md` | `07_EVALUATION_HARNESS.md` | Tier A law |
 | 8 | `PHASE_08_laya_shadow.md` | `02` §4–§5, `05` §6 | Shadow semantics, checkpoint |
 | 8B | `PHASE_08B_shadow_companion_rows.md` | `05` §2 amendment + §3, `02` §4 | Companion rows, joined-view agreement |
+| 8C | `PHASE_08C_laya_primary_jev_fallback.md` | `02` §7, `05` v1.2.0, `07` §3 | Fallback composition, checkpoint import gate |
 | 9 | `PHASE_09_overlay_ux.md` | `01` §1, `06` §2 | Overlay law, gate card |
 | 10 | `PHASE_10_cloud_llm_roles.md` | `01` §3, `04`, `06` §4 | Role boundaries, budgets |
 | 11 | `PHASE_11_result_screen.md` | `04` §6, `05` §3 | Result presentation, agreement |

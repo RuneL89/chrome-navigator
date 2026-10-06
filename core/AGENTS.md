@@ -13,7 +13,13 @@ without a device.
   `Choice`/`Noul`/`Score` question+result types, `Bands.kt`, `JevEngine.kt` (the
   `DecisionEngine` implementation as a pure config of the wire client, plus `EngineResult`
   with the failover tag and `scoreExpectedLevel` — the ART-5 numeric mapping computed in
-  code, never taken from the model); law: `Project Vision/02` §1–§3
+  code, never taken from the model), and `FallbackEngine.kt` (Phase 8C, vision 02 §7: the
+  primary+fallback composition — escalation policy INTERNAL and band-based: `choose`
+  escalates when band(confidence) != HIGH, `noul` when pTrue is UNCERTAIN, primary
+  hard-failure always escalates (cancellation never does), `score` follows the primary;
+  at most ONE consult, the fallback's answer final, a fallback exception propagates
+  loudly; both answers surface via `FallbackReporting.lastRecord()` + `stats()` for the
+  log/run-report); law: `Project Vision/02` §1–§3, §7
 * `src/main/kotlin/navigator/core/wire/` — `SystemOneClient` (the ONE wire client for the
   systemone-family contract, in the REAL provider protocol — see Wire laws below),
   `WireTransport` + `OkHttpWireTransport` (injectable transport; only HTTP speaker in the
@@ -42,9 +48,15 @@ without a device.
   `IllegalGateTransitionException`), `GateCard` (plain-words card payload — data only,
   no UI, typed values never rendered); law: `Project Vision/06` §1–§3
 * `src/main/kotlin/navigator/core/laya/` — `Tokenizer`, the Kotlin port of the laya
-  tokenizer (GPT-2-style ByteLevel BPE over the checkpoint's real tokenizer.json), plus
-  `src/main/resources/laya/` (the verbatim tokenizer resource + `PROVENANCE.txt`,
-  revision-pinned); law: `Project Vision/05` §6
+  tokenizer families over each checkpoint's real tokenizer.json — family 1: the 421M
+  checkpoint's GPT-2-style ByteLevel BPE (the classpath resource in
+  `src/main/resources/laya/`, verbatim + `PROVENANCE.txt`, revision-pinned); family 2
+  (Phase 8C): the v32b checkpoint's 256k mmBERT/Gemma-family BPE (Replace(" "→"▁")
+  normalizer, Metaspace pre-tokenizer, byte_fallback — the checkpoint data lives as a
+  gitignored hash-pinned asset in `:app`, loaded by file); the family is declared by
+  the tokenizer.json's normalizer+pre_tokenizer pair and anything else fails loudly;
+  correctness = exact-match reference vectors per checkpoint (Gate 8.1 / Gate 8C.2);
+  law: `Project Vision/05` §6
 * `src/main/kotlin/navigator/core/eval/` — the Tier A evaluation harness (Phase 7,
   vision 07 §1 Tier A): `ReplayRunner` (deterministic replay of every golden dump through
   state build → question forms → wire parse → gate classify, with the recorded response
@@ -137,7 +149,11 @@ without a device.
   are present iff both answers exist; `trustedFromTask` only on an approved gate decision).
   Phase 6 added ONE additive `ActionDisposition` value — `refused-by-guard` (@SerialName
   "refused-by-guard"), the loop's ART-4 refusal of an engine self-reported finish
-  (vision 04 §3); earlier rows decode unchanged
+  (vision 04 §3); earlier rows decode unchanged. Phase 8C (doc 05 v1.2.0) added the
+  escalation pair — `escalated: Boolean = false` + `fallback: FallbackInfo?` (`{engine,
+  model, answer}` with the polymorphic `TypedResult`; a choice fallback answer must live
+  on the primary question's option space; escalated ⇔ fallback present) — the goldens
+  were regenerated via UPDATE_GOLDENS under the ratified amendment
 * Companion shadow-result rows (Phase 8B, vision 05 §2 amendment 2026-10-04):
   `ShadowResultRow` is the second INSERT-ONLY row type, legal only for a decision row
   logged as a shadowMiss and exactly once per `(taskId, stepIndex)` — enforced at the

@@ -133,23 +133,31 @@ class LayaOnnxSession private constructor(
     companion object {
 
         const val ASSET_DIR = "laya"
+
+        /** The Phase-8 shadow artifact (421M). Kept loadable for the parity tests. */
         const val ASSET_FILE = "laya-int8.onnx"
 
+        /** The Phase-8C primary checkpoint artifact (v32b, 322M). */
+        const val ASSET_FILE_V32B = "laya-v32b-int8.onnx"
+
+        /** The v32b checkpoint's REAL tokenizer (Phase 8C — NOT the Phase-2 vocab). */
+        const val TOKENIZER_FILE_V32B = "tokenizer-v32b.json"
+
         /** The extracted model in app-private storage (first-run copy, see class doc). */
-        fun extractedFile(context: Context): File =
-            File(context.filesDir, "$ASSET_DIR/$ASSET_FILE")
+        fun extractedFile(context: Context, assetFile: String = ASSET_FILE): File =
+            File(context.filesDir, "$ASSET_DIR/$assetFile")
 
         /**
          * Streams the asset to [extractedFile] (idempotent: a same-size file is reused;
          * a partial copy is replaced). Returns the file the session will load.
          */
-        fun ensureExtracted(context: Context): File {
-            val target = extractedFile(context)
-            val expectedSize = context.assets.open("$ASSET_DIR/$ASSET_FILE").use { it.available() }
+        fun ensureExtracted(context: Context, assetFile: String = ASSET_FILE): File {
+            val target = extractedFile(context, assetFile)
+            val expectedSize = context.assets.open("$ASSET_DIR/$assetFile").use { it.available() }
             if (target.isFile && target.length() == expectedSize.toLong()) return target
             target.parentFile?.mkdirs()
-            val tmp = File(target.parentFile, "$ASSET_FILE.tmp")
-            context.assets.open("$ASSET_DIR/$ASSET_FILE").use { input ->
+            val tmp = File(target.parentFile, "$assetFile.tmp")
+            context.assets.open("$ASSET_DIR/$assetFile").use { input ->
                 tmp.outputStream().use { output ->
                     val buf = ByteArray(1 shl 16)
                     while (true) {
@@ -173,12 +181,18 @@ class LayaOnnxSession private constructor(
         }
 
         /**
-         * Opens the session from the packaged asset (extracting first). [options] hook is
-         * for tests; production options are the documented CPU/1-thread ones.
+         * Opens the session from the packaged asset (extracting first). [assetFile]
+         * selects the checkpoint artifact (Phase 8C: the harness lays modes load the v32b
+         * file). [options] hook is for tests; production options are the documented
+         * CPU/1-thread ones.
          */
-        fun open(context: Context, options: OrtSession.SessionOptions = defaultOptions()): LayaOnnxSession {
+        fun open(
+            context: Context,
+            assetFile: String = ASSET_FILE,
+            options: OrtSession.SessionOptions = defaultOptions(),
+        ): LayaOnnxSession {
             val env = OrtEnvironment.getEnvironment()
-            val model = ensureExtracted(context)
+            val model = ensureExtracted(context, assetFile)
             return LayaOnnxSession(env, env.createSession(model.absolutePath, options))
         }
 

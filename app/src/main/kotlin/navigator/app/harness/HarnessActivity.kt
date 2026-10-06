@@ -50,6 +50,7 @@ import navigator.app.loop.GestureExecutor
 import navigator.app.loop.NavigationLoop
 import navigator.app.loop.RunResult
 import navigator.app.loop.ShadowRouter
+import navigator.app.laya.LayaCheckpoint
 import navigator.app.laya.LayaEngine
 import navigator.app.laya.LayaOnnxSession
 import navigator.app.observe.NavigatorAccessibilityService
@@ -76,10 +77,21 @@ import navigator.core.log.DecisionLogRow
  */
 class HarnessActivity : ComponentActivity() {
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    /**
+     * The PROCESS-LIFETIME run scope (Phase 8C harness fix): a run must survive the
+     * activity being destroyed under memory pressure while the browser is foreground —
+     * measured on the emulator 2026-10-06: the system destroyed the stopped harness
+     * activity during the ~100s v32b engine open (tokenizer parse + session load) and
+     * the instance-scoped scope cancelled the run mid-flight. The UI lists stay
+     * instance-bound (a recreated activity starts a fresh log pane); reports, log rows
+     * and the terminal notification are process-level and unaffected.
+     */
+    private val scope: CoroutineScope get() = runScope
     private val uiLog = mutableStateListOf<String>()
     private val running = mutableStateOf(false)
-    private val liveMode = mutableStateOf(false)
+
+    /** The full engine mode (Phase 8C: STUB | LIVE(jev) | LAYA | LAYA_FB_JEV); intent-set. */
+    private val engineMode = mutableStateOf(HarnessEngineMode.STUB)
     private val autoDeny = mutableStateOf(true)
     private val shadowOn = mutableStateOf(false)
     private val customGoals = mutableStateListOf<ScriptedGoal>()
@@ -168,7 +180,8 @@ class HarnessActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        scope.cancel()
+        // The run scope is process-lifetime now (see [scope]) — destroying the activity
+        // (memory pressure, rotation) must never cancel an in-flight run.
         if (this::pagesServer.isInitialized) pagesServer.stop()
         super.onDestroy()
     }
@@ -231,10 +244,11 @@ class HarnessActivity : ComponentActivity() {
                 log("LAUNCH REFUSED (loud): ${launch.customError}")
                 return
             }
-            if (!launch.live) {
+            if (launch.mode == HarnessEngineMode.STUB) {
                 log(
-                    "LAUNCH REFUSED (loud): a custom goal needs the LIVE engine - " +
-                        "re-launch with `--es engine live` (custom goals carry no STUB script)",
+                    "LAUNCH REFUSED (loud): a custom goal needs a non-STUB engine - " +
+                        "re-launch with `--es engine live` (or laya / laya-fb-jev); " +
+                        "custom goals carry no STUB script",
                 )
                 return
             }
@@ -246,7 +260,7 @@ class HarnessActivity : ComponentActivity() {
             )
             built
         }
-        liveMode.value = launch.live
+        engineMode.value = launch.mode
         autoDeny.value = launch.autoDeny
         shadowOn.value = launch.shadow
         shadowEveryNth = launch.shadowEveryNth
@@ -256,7 +270,7 @@ class HarnessActivity : ComponentActivity() {
         deliveredOpenRouterKey = intent.getStringExtra(HarnessLaunch.EXTRA_OPENROUTER_KEY)
             ?: intent.getStringExtra(HarnessLaunch.EXTRA_OPENROUTER_KEY_SHORT)
         log(
-            "headless run: goal=$extraGoal live=${liveMode.value} " +
+            "headless run: goal=$extraGoal engine=${engineMode.value.name.lowercase()} " +
                 "autoDeny=${autoDeny.value} shadow=${shadowOn.value} " +
                 "shadowEveryNth=$shadowEveryNth delay=${launch.startDelayMs}ms fresh=$freshInstance " +
                 "keyExtra=${launch.keyPresent}",
@@ -330,10 +344,10 @@ class HarnessActivity : ComponentActivity() {
      * launches, where show-only must stay silent).
      */
     private fun runGoal(goal: ScriptedGoal) {
-        if (goal.family == GoalCatalog.CUSTOM_FAMILY && !liveMode.value) {
+        if (goal.family == GoalCatalog.CUSTOM_FAMILY && engineMode.value == HarnessEngineMode.STUB) {
             log(
-                "RUN REFUSED (loud): custom goal ${goal.id} needs the LIVE engine - flip the LIVE Jev " +
-                    "switch (custom goals carry no STUB script)",
+                "RUN REFUSED (loud): custom goal ${goal.id} needs a non-STUB engine - flip the " +
+                    "LIVE Jev switch or launch with `--es engine laya` (custom goals carry no STUB script)",
             )
             return
         }
@@ -479,7 +493,7 @@ class HarnessActivity : ComponentActivity() {
         family = goal.family,
         goal = goal.goal,
         taskId = "failed-${System.currentTimeMillis()}",
-        engine = if (liveMode.value) "live" else "stub",
+        engine = engineMode.value.name.lowercase(),
         autoDeny = autoDeny.value,
         triage = "unknown",
         terminal = "HARNESS_ERROR",
@@ -504,7 +518,14 @@ class HarnessActivity : ComponentActivity() {
     )
 
     private suspend fun executeGoal(goal: ScriptedGoal, attempt: Int = 1): RunReport {
-        val wantShadow = shadowOn.value
+        val mode = engineMode.value
+        // The laya modes run BARE (vision 02 §7: no shadow, no shadow sampling) — a
+        // shadow request under them is refused LOUDLY and the run proceeds without it.
+        val wantShadow = shadowOn.value && !mode.isLaya
+        if (shadowOn.value && mode.isLaya) {
+            log("shadow requested under engine=${mode.name.lowercase()} - REFUSED (the laya " +
+                "modes carry no shadow; vision 02 §7) - running without it")
+        }
         currentRunWantsShadow = wantShadow
         // Registered BEFORE anything can fail so even a harness error before the loop
         // still reports a (zeroed, noted) shadow block when the shadow was requested.
@@ -538,12 +559,28 @@ class HarnessActivity : ComponentActivity() {
             delay(READINESS_POLL_MS * (READINESS_RETRY_POLL_STEPS - 1).coerceAtLeast(1))
         }
         if (attempt > 1) log("goal ${goal.id} attempt $attempt")
-        val mode = if (liveMode.value) HarnessEngineMode.LIVE else HarnessEngineMode.STUB
-        val built = HarnessEngineFactory.build(mode, goal, deliveredKey = deliveredOpenRouterKey)
+        val built = HarnessEngineFactory.build(
+            mode,
+            goal,
+            deliveredKey = deliveredOpenRouterKey,
+            laya = if (mode.isLaya) {
+                LayaEngineSource {
+                    LayaCheckpoint.V32B.engine(this@HarnessActivity).also {
+                        log("laya: v32b engine open (${LayaOnnxSession.ASSET_DIR}/" +
+                            "${LayaOnnxSession.ASSET_FILE_V32B}, cpu, 1 intra-op thread)")
+                    }
+                }
+            } else {
+                null
+            },
+        )
         log(
-            "engine: ${built.mode} (${built.identity.configId}, ${built.identity.model}); " +
-                "auto-deny=${autoDeny.value}" +
-                (built.keySource?.let { "; live key source: ${it.name.lowercase()}" } ?: ""),
+            "engine: ${built.mode} (${built.identity.configId}, ${built.identity.model})" +
+                (built.fallbackIdentity?.let {
+                    " + fallback (${it.configId}, ${it.model})"
+                } ?: "") +
+                "; auto-deny=${autoDeny.value}" +
+                (built.keySource?.let { "; key source: ${it.name.lowercase()}" } ?: ""),
         )
         // Phase 8: shadow ON wraps the primary in the ShadowRouter (vision 02 §4) — the
         // loop cannot tell (ART-2); the sink gains the shadow fields of every row.
@@ -582,6 +619,7 @@ class HarnessActivity : ComponentActivity() {
                 goalId = goal.id,
                 engineIdentity = built.identity,
                 isCancelled = { cancelRequested },
+                fallbackIdentity = built.fallbackIdentity,
             )
         } finally {
             // The shadow is fire-and-forget: settle it before the report freezes counts.
@@ -621,6 +659,14 @@ class HarnessActivity : ComponentActivity() {
                 log("shadow settle failed: ${t::class.simpleName}: ${t.message}")
             } finally {
                 shadowSession?.close()
+                // Phase 8C: the on-device laya engine is per-ATTEMPT — close it here so a
+                // starvation retry never opens a second ~1.4 GB session beside the first
+                // (measured LMK kill on the 2-4 GB emulator, 2026-10-06).
+                built.primaryCloseable?.let { closer ->
+                    runCatching { closer.close() }.onFailure {
+                        log("laya engine close failed: ${it::class.simpleName}: ${it.message}")
+                    }
+                }
             }
         }
         result.stepLog.forEach { log(it) }
@@ -664,6 +710,17 @@ class HarnessActivity : ComponentActivity() {
             flakeRetried = attempt > 1,
             stepLog = result.stepLog,
             shadow = shadowReport(wantShadow, runShadow, joinedAgreement),
+            escalations = built.fallbackEngine?.stats()?.let { stats ->
+                log(
+                    "escalations: ${stats.escalations}/${stats.decisions} decisions " +
+                        "(rate ${"%.1f".format(stats.rate * 100)}%)",
+                )
+                EscalationStats(
+                    decisions = stats.decisions,
+                    escalations = stats.escalations,
+                    rate = stats.rate,
+                )
+            },
         )
         val path = RunReportStore.write(this, "run-${goal.id}-${result.taskId}.json", RunReports.json(report))
         log("report: $path")
@@ -890,8 +947,19 @@ class HarnessActivity : ComponentActivity() {
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                Text("engine: ${engineMode.value.name.lowercase()}")
+                // The switch covers the STUB <-> LIVE(jev) pair only; the laya modes
+                // arrive via the launch intent (`--es engine laya|laya-fb-jev`) and
+                // disable the switch (they are measurement modes, vision 02 §7).
                 Text("LIVE Jev")
-                Switch(checked = liveMode.value, onCheckedChange = { liveMode.value = it })
+                Switch(
+                    checked = engineMode.value == HarnessEngineMode.LIVE,
+                    onCheckedChange = { live ->
+                        engineMode.value = if (live) HarnessEngineMode.LIVE else HarnessEngineMode.STUB
+                    },
+                    enabled = engineMode.value == HarnessEngineMode.STUB ||
+                        engineMode.value == HarnessEngineMode.LIVE,
+                )
                 Text("auto-deny (harness test mode)")
                 Switch(checked = autoDeny.value, onCheckedChange = { autoDeny.value = it })
             }
@@ -945,6 +1013,12 @@ class HarnessActivity : ComponentActivity() {
     }
 
     companion object {
+        /**
+         * The process-lifetime run scope (see [scope]); never cancelled in-process —
+         * the OS reaps it with the process.
+         */
+        private val runScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
         const val LOG_TAG = "NavigatorHarness"
         const val GOALS_ASSET = "harness/goals.json"
 

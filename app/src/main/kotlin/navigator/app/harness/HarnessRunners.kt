@@ -13,9 +13,11 @@ import navigator.app.loop.UsageFeed
 import navigator.app.log.DecisionLogDb
 import navigator.app.log.DecisionLogger
 import navigator.app.log.ShadowResultLogger
+import navigator.app.laya.LayaEngine
 import navigator.app.observe.NavigatorAccessibilityService
 import navigator.app.stub.StubEngine
 import navigator.core.decision.DecisionEngine
+import navigator.core.decision.FallbackEngine
 import navigator.core.enumerate.ObservedNode
 import navigator.core.log.DecisionLogRow
 import navigator.core.wire.DefaultEngineConfigs
@@ -74,15 +76,30 @@ class HarnessObserver(private val service: NavigatorAccessibilityService) : Loop
     }
 }
 
-/** The STUB | LIVE selection (phase doc §2.2). LIVE requires a configured key. */
+/** The harness engine selection (phase doc §2.2; Phase 8C adds the vision 02 §7 modes). */
 enum class HarnessEngineMode {
     STUB,
+
+    /** LIVE Jev — the current product default (mode register: `jev`; alias `live`). */
     LIVE,
+
+    /** Bare on-device fine-tuned Laya v32b — no shadow, no fallback (mode register: `laya`). */
+    LAYA,
+
+    /** On-device v32b primary + Jev confidence-band fallback (mode register: `laya-fb-jev`). */
+    LAYA_FB_JEV,
     ;
 
+    val isLaya: Boolean get() = this == LAYA || this == LAYA_FB_JEV
+
     companion object {
-        fun parse(raw: String?): HarnessEngineMode =
-            entries.firstOrNull { it.name.equals(raw, ignoreCase = true) } ?: STUB
+        /** Mode names are the vision 02 §7 register + the harness aliases (`live` = `jev`). */
+        fun parse(raw: String?): HarnessEngineMode = when (raw?.trim()?.lowercase()) {
+            "live", "jev" -> LIVE
+            "laya" -> LAYA
+            "laya-fb-jev", "laya_fb_jev" -> LAYA_FB_JEV
+            else -> STUB
+        }
     }
 }
 
@@ -98,21 +115,51 @@ enum class HarnessKeySource {
     KEYS_FILE,
 }
 
-/** Built engine: the loop cannot tell stub from live (ART-2); the harness knows. */
+/** Built engine: the loop cannot tell stub from live from laya (ART-2); the harness knows. */
 data class HarnessEngine(
     val engine: DecisionEngine,
     val identity: navigator.core.log.EngineIdentity,
     val spendMeter: SpendMeter,
     val mode: HarnessEngineMode,
-    /** Null for STUB. The key's SOURCE for LIVE — never the key value. */
+    /** Null for STUB/LAYA. The key's SOURCE for LIVE/LAYA_FB_JEV — never the key value. */
     val keySource: HarnessKeySource? = null,
+    /**
+     * The composed engine's fallback identity (the `laya-fb-jev` mode): escalated log
+     * rows carry it in their `fallback {engine, model}` provenance (doc 05 v1.2.0).
+     */
+    val fallbackIdentity: navigator.core.log.EngineIdentity? = null,
+    /** The composition itself when [mode] is LAYA_FB_JEV — the run report's escalation stats. */
+    val fallbackEngine: FallbackEngine? = null,
+    /**
+     * The on-device laya engine behind [engine] (laya modes only) — the harness closes it
+     * at the end of EVERY attempt: two ~1.4 GB sessions alive at once breach the
+     * emulator's low-memory watermark (measured 2026-10-06: LMK killed the run when a
+     * starvation retry opened a second engine beside the un-closed first).
+     */
+    val primaryCloseable: AutoCloseable? = null,
 )
+
+/**
+ * The v32b engine edge (Phase 8C): opening the ACTIVE on-device checkpoint is
+ * Android-context-bound (asset extraction + filesDir copy), so the factory takes it as
+ * a seam — the activity supplies [LayaCheckpoint.V32B.engine]; JVM tests script fakes.
+ * A missing/mis-hashed model file fails LOUDLY inside the source (the gradle
+ * `verifyLayaModel` task already refuses the build before it can ship).
+ */
+fun interface LayaEngineSource {
+    fun open(): LayaEngine
+}
 
 object HarnessEngineFactory {
 
     const val STUB_CONFIG_ID = "stub"
     const val STUB_MODEL = "scripted-harness-v1"
     const val LIVE_CONFIG_ID = "jev-primary"
+    const val LAYA_CONFIG_ID = "laya"
+    const val LAYA_FALLBACK_CONFIG_ID = "jev"
+
+    /** The pinned v32b snapshot (vision 02 §5: pinned IDs live in this factory only). */
+    const val LAYA_V32B_MODEL = "ichenney/laya-browser-v32b@161d54d6000913ff279b0afd1ac77faef8685a9b"
 
     /**
      * STUB: the fixture-driven [StubEngine] replaying [goal]'s script, $0 spend. LIVE:
@@ -121,9 +168,16 @@ object HarnessEngineFactory {
      * resolved with priority [deliveredKey] (the adb intent extra) > env
      * (`NAVIGATOR_OPENROUTER_KEY`) > the git-ignored keys file — an Android app process
      * has neither an environment nor the repo's `.tools/` directory, so headless live
-     * runs deliver the key by intent extra. A LIVE request without any configured key
-     * fails loudly — never a silent stub. [deliveredKey] is never logged and never
-     * stored beyond the built [EngineConfig] (whose `toString` redacts it).
+     * runs deliver the key by intent extra. A LIVE or LAYA_FB_JEV request without any
+     * configured key fails loudly — never a silent stub. [deliveredKey] is never logged
+     * and never stored beyond the built [EngineConfig] (whose `toString` redacts it).
+     *
+     * LAYA: the bare on-device v32b engine ([laya] source; loud when null or when the
+     * model file is missing). LAYA_FB_JEV: the vision 02 §7 composition — v32b primary,
+     * Jev confidence-band fallback (the fallback rides its own [JevSpendRecorder] so
+     * escalated consults still book provider-reported spend into the SAME meter the
+     * loop budgets with); the loop sees ONE engine (ART-2) and the escalation stats
+     * come off the built [FallbackEngine].
      */
     fun build(
         mode: HarnessEngineMode,
@@ -132,6 +186,7 @@ object HarnessEngineFactory {
         env: Map<String, String> = System.getenv(),
         keysFile: java.nio.file.Path = DefaultEngineConfigs.DEFAULT_KEYS_FILE,
         transport: WireTransport = OkHttpWireTransport(),
+        laya: LayaEngineSource? = null,
     ): HarnessEngine = when (mode) {
         HarnessEngineMode.STUB -> HarnessEngine(
             engine = StubEngine(goal.stubScript()),
@@ -140,40 +195,98 @@ object HarnessEngineFactory {
             mode = mode,
         )
         HarnessEngineMode.LIVE -> {
-            val envKey = env[DefaultEngineConfigs.OPENROUTER_KEY_ENV]?.trim()?.takeIf { it.isNotEmpty() }
-            val resolved: Pair<navigator.core.wire.EngineConfig, HarnessKeySource>? = when {
-                !deliveredKey.isNullOrBlank() ->
-                    DefaultEngineConfigs.jevPrimary(deliveredKey.trim()) to HarnessKeySource.INTENT_EXTRA
-                envKey != null ->
-                    DefaultEngineConfigs.jevPrimary(envKey) to HarnessKeySource.ENV
-                else ->
-                    DefaultEngineConfigs.resolveJevPrimary(env, keysFile)
-                        ?.let { it to HarnessKeySource.KEYS_FILE }
-            }
-            val (primary, keySource) = resolved ?: throw IllegalStateException(
-                "LIVE mode needs an OpenRouter key - pass it via the harness intent extra " +
-                    "(--es openrouterKey <KEY>), or set ${DefaultEngineConfigs.OPENROUTER_KEY_ENV} " +
-                    "in the environment, or add it to the git-ignored .tools/keys.env. " +
-                    "No key configured, refusing to run a silent stub.",
-            )
-            val meter = SpendMeter()
-            val usageFeed = UsageFeed()
-            val client = SystemOneClient(
-                transport = transport,
-                primary = primary,
-                fallback = DefaultEngineConfigs.resolveJevFallback(env, keysFile),
-                onUsage = usageFeed::offer,
-            )
-            val jev = JevEngine(client)
+            val wired = jevSpendRecordedEngine(deliveredKey, env, keysFile, transport)
             HarnessEngine(
-                engine = JevSpendRecorder(jev, meter, usageFeed),
+                engine = wired.clientEngine,
                 identity = navigator.core.log.EngineIdentity(LIVE_CONFIG_ID, DefaultEngineConfigs.OPENROUTER_MODEL),
-                spendMeter = meter,
+                spendMeter = wired.meter,
                 mode = mode,
-                keySource = keySource,
+                keySource = wired.keySource,
+            )
+        }
+        HarnessEngineMode.LAYA -> {
+            val layaEngine = laya?.open() ?: throw IllegalStateException(
+                "LAYA mode needs the on-device v32b engine source (no Android context is " +
+                    "available to open $LAYA_V32B_MODEL) — refusing to run a silent substitute.",
+            )
+            HarnessEngine(
+                engine = layaEngine,
+                identity = navigator.core.log.EngineIdentity(LAYA_CONFIG_ID, LAYA_V32B_MODEL),
+                spendMeter = SpendMeter(),
+                mode = mode,
+                primaryCloseable = layaEngine,
+            )
+        }
+        HarnessEngineMode.LAYA_FB_JEV -> {
+            val layaEngine = laya?.open() ?: throw IllegalStateException(
+                "LAYA_FB_JEV mode needs the on-device v32b engine source — refusing to run " +
+                    "a silent substitute.",
+            )
+            val wired = jevSpendRecordedEngine(deliveredKey, env, keysFile, transport)
+            val composed = FallbackEngine(
+                primary = layaEngine,
+                fallback = wired.clientEngine,
+            )
+            HarnessEngine(
+                engine = composed,
+                identity = navigator.core.log.EngineIdentity(LAYA_CONFIG_ID, LAYA_V32B_MODEL),
+                spendMeter = wired.meter,
+                mode = mode,
+                keySource = wired.keySource,
+                fallbackIdentity = navigator.core.log.EngineIdentity(
+                    LAYA_FALLBACK_CONFIG_ID,
+                    DefaultEngineConfigs.OPENROUTER_MODEL,
+                ),
+                fallbackEngine = composed,
+                primaryCloseable = layaEngine,
             )
         }
     }
+
+    /** The LIVE/LAYA_FB_JEV key resolution + recorded Jev engine (one wire client). */
+    private fun jevSpendRecordedEngine(
+        deliveredKey: String?,
+        env: Map<String, String>,
+        keysFile: java.nio.file.Path,
+        transport: WireTransport,
+    ): WiredJev {
+        val envKey = env[DefaultEngineConfigs.OPENROUTER_KEY_ENV]?.trim()?.takeIf { it.isNotEmpty() }
+        val resolved: Pair<navigator.core.wire.EngineConfig, HarnessKeySource>? = when {
+            !deliveredKey.isNullOrBlank() ->
+                DefaultEngineConfigs.jevPrimary(deliveredKey.trim()) to HarnessKeySource.INTENT_EXTRA
+            envKey != null ->
+                DefaultEngineConfigs.jevPrimary(envKey) to HarnessKeySource.ENV
+            else ->
+                DefaultEngineConfigs.resolveJevPrimary(env, keysFile)
+                    ?.let { it to HarnessKeySource.KEYS_FILE }
+        }
+        val (primary, keySource) = resolved ?: throw IllegalStateException(
+            "this engine mode needs an OpenRouter key - pass it via the harness intent extra " +
+                "(--es openrouterKey <KEY>), or set ${DefaultEngineConfigs.OPENROUTER_KEY_ENV} " +
+                "in the environment, or add it to the git-ignored .tools/keys.env. " +
+                "No key configured, refusing to run a silent stub.",
+        )
+        val meter = SpendMeter()
+        val usageFeed = UsageFeed()
+        val client = SystemOneClient(
+            transport = transport,
+            primary = primary,
+            fallback = DefaultEngineConfigs.resolveJevFallback(env, keysFile),
+            onUsage = usageFeed::offer,
+        )
+        val jev = JevEngine(client)
+        return WiredJev(
+            clientEngine = JevSpendRecorder(jev, meter, usageFeed),
+            meter = meter,
+            keySource = keySource,
+        )
+    }
+
+    private data class WiredJev(
+        val clientEngine: DecisionEngine,
+        val meter: SpendMeter,
+        val keySource: HarnessKeySource,
+    )
 }
 
 /** Room-backed [DecisionLogSink]: the durable, insert-only decision history. */
