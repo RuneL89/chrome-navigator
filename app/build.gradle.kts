@@ -124,6 +124,11 @@ tasks.withType<Test>().configureEach {
 // Phase 8C: PROVENANCE.txt carries one section per exported checkpoint (the Phase-8 421M
 // shadow artifact AND the v32b primary) — every declared artifact is hash-gated; the
 // harness picks the active one by engine mode.
+// 2026-10-06 demotion: the v32b artifact + tokenizer are EVAL-ONLY (owner decision after
+// UAT Tests 2-3) — their provenance sections declare "Packaging: eval-only" and the files
+// live OUT of the APK in the gitignored .tools/laya-v32b/. verifyLayaModel checks them
+// only when present (absent → a loud skip note, never a build failure; wrong hash when
+// present → still loud).
 val verifyLayaModel by tasks.registering {
     group = "verification"
     description = "Verifies every laya int8 artifact is present and matches its committed sha256."
@@ -136,35 +141,33 @@ val verifyLayaModel by tasks.registering {
             )
         }
         // Parse the per-artifact sections: a "File: <name>" line opens a record; the
-        // following "sha256: <hex>" (before the next File: line) pins it.
-        data class Artifact(val fileName: String, val sha256: String)
+        // following "sha256: <hex>" (before the next File: line) pins it, and an optional
+        // "Packaging: eval-only" line marks it NOT packaged (checked at the eval-only path).
+        data class Artifact(val fileName: String, val sha256: String, val evalOnly: Boolean)
         val artifacts = mutableListOf<Artifact>()
         var current: String? = null
         var currentSha: String? = null
+        var currentEvalOnly = false
         fun flush() {
             val name = current
             val sha = currentSha
-            if (name != null && sha != null) artifacts.add(Artifact(name, sha))
+            if (name != null && sha != null) artifacts.add(Artifact(name, sha, currentEvalOnly))
         }
         for (rawLine in provenance.readLines()) {
             val line = rawLine.trim()
             when {
-                line.startsWith("File: ") -> { flush(); current = line.removePrefix("File: ").trim(); currentSha = null }
+                line.startsWith("File: ") -> {
+                    flush(); current = line.removePrefix("File: ").trim(); currentSha = null; currentEvalOnly = false
+                }
                 line.startsWith("sha256: ") -> currentSha = line.removePrefix("sha256: ").trim()
+                line.startsWith("Packaging: ") -> currentEvalOnly = line.contains("eval-only", ignoreCase = true)
             }
         }
         flush()
         if (artifacts.isEmpty()) {
             throw GradleException("app/src/main/assets/laya/PROVENANCE.txt carries no 'File:' + 'sha256:' artifact sections")
         }
-        for (artifact in artifacts) {
-            val model = file("src/main/assets-local/laya/${artifact.fileName}")
-            if (!model.isFile) {
-                throw GradleException(
-                    "laya model missing (app/src/main/assets-local/laya/${artifact.fileName}) — " +
-                        "build it with tools/fetch_laya.py --checkpoint (see the file header for the uv command)",
-                )
-            }
+        fun sha256Of(model: File): String {
             val digest = MessageDigest.getInstance("SHA-256")
             model.inputStream().use { input ->
                 val buffer = ByteArray(1 shl 20)
@@ -174,7 +177,31 @@ val verifyLayaModel by tasks.registering {
                     digest.update(buffer, 0, n)
                 }
             }
-            val actual = digest.digest().joinToString("") { byte: Byte -> "%02x".format(byte) }
+            return digest.digest().joinToString("") { byte: Byte -> "%02x".format(byte) }
+        }
+        for (artifact in artifacts) {
+            val model = if (artifact.evalOnly) {
+                val evalFile = rootDir.resolve(".tools/laya-v32b/${artifact.fileName}")
+                if (!evalFile.isFile) {
+                    logger.lifecycle(
+                        "verifyLayaModel: ${artifact.fileName} SKIPPED — eval-only (demoted " +
+                            "2026-10-06, not packaged) and absent from .tools/laya-v32b/ (restore " +
+                            "with tools/fetch_laya.py --checkpoint v32b)",
+                    )
+                    continue
+                }
+                evalFile
+            } else {
+                val packaged = file("src/main/assets-local/laya/${artifact.fileName}")
+                if (!packaged.isFile) {
+                    throw GradleException(
+                        "laya model missing (app/src/main/assets-local/laya/${artifact.fileName}) — " +
+                            "build it with tools/fetch_laya.py --checkpoint (see the file header for the uv command)",
+                    )
+                }
+                packaged
+            }
+            val actual = sha256Of(model)
             if (actual != artifact.sha256) {
                 throw GradleException(
                     "laya model sha256 mismatch for ${artifact.fileName}: provenance pins ${artifact.sha256}, " +

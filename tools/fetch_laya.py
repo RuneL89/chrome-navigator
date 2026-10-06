@@ -24,6 +24,12 @@ Artifact layout (the model is ~0.5 GB and stays OUT of git):
   app/src/main/assets/laya/PROVENANCE.txt         provenance (committed)
   .tools/laya-fp32/laya.onnx                      intermediate fp32 export (gitignored)
 
+Demotion (2026-10-06, owner decision): the v32b checkpoint is EVAL-ONLY — disqualified
+as primary by UAT Tests 2-3 (inverted exit calibration + poor navigation transfer). Its
+artifacts are NOT packaged: `--checkpoint v32b` places them in `.tools/laya-v32b/`
+(gitignored) and its provenance sections carry `Packaging: eval-only`, which both
+verifiers (`--check`, gradle verifyLayaModel) treat as check-if-present / skip-if-absent.
+
 Usage (uv is in .tools/, gitignored; no python on PATH):
   .tools/uv.exe run --no-project \\
       --with "git+https://github.com/NandhaKishorM/laya@2e4d9c87e8b1621deb344eac7de5c7258f32f849" \\
@@ -97,17 +103,35 @@ ASSETS_LOCAL = PROJECT_ROOT / "app" / "src" / "main" / "assets-local" / "laya"
 ASSETS_COMMITTED = PROJECT_ROOT / "app" / "src" / "main" / "assets" / "laya"
 FP32_DIR = PROJECT_ROOT / ".tools" / "laya-fp32"
 UPSTREAM_CACHE = PROJECT_ROOT / ".tools" / "laya-upstream"
+# Eval-only storage for demoted checkpoints (gitignored; NOT packaged into the APK).
+EVAL_DIR_V32B = PROJECT_ROOT / ".tools" / "laya-v32b"
 
 MODEL_NAME = "laya-int8.onnx"
 MODEL_NAME_V32B = "laya-v32b-int8.onnx"
 V32B_TOKENIZER_NAME = "tokenizer-v32b.json"
 
+# The 2026-10-06 owner demotion (recorded in .state/phase-8C-status.json + the
+# compliance log): provenance sections carrying "Packaging: eval-only" verify only if
+# the file is present in the eval-only dir (absent -> skipped with a note, never a
+# packaging failure; wrong hash when present -> still loud).
+V32B_PACKAGING = "eval-only"
+V32B_DEMOTION = (
+    "2026-10-06 - disqualified as primary by UAT Tests 2-3 (inverted exit calibration "
+    "+ poor navigation transfer); retained eval-only"
+)
+
 
 class Checkpoint:
     """One exportable checkpoint (Phase 8 kept this file single-checkpoint; 8C adds
-    v32b as a second — the old 421M artifact stays loadable for the parity tests)."""
+    v32b as a second — the old 421M artifact stays loadable for the parity tests).
 
-    def __init__(self, key, repo, revision, subfolder, model_name, fp32_name, lineage):
+    `packaging=None` packages the artifact into the APK (assets-local); a "packaging"
+    string marks it eval-only: the export lands in the checkpoint's eval dir and the
+    provenance section declares `Packaging: eval-only` so neither verifier gates
+    packaging on it.
+    """
+
+    def __init__(self, key, repo, revision, subfolder, model_name, fp32_name, lineage, packaging=None, demotion=None):
         self.key = key
         self.repo = repo
         self.revision = revision
@@ -115,6 +139,13 @@ class Checkpoint:
         self.model_name = model_name
         self.fp32_name = fp32_name
         self.lineage = lineage  # human-readable base lineage ("" for the root checkpoint)
+        self.packaging = packaging  # None = packaged; "eval-only" = NOT packaged
+        self.demotion = demotion  # the recorded demotion reason (eval-only checkpoints)
+
+
+def checkpoint_dir(ckpt: Checkpoint) -> Path:
+    """Where this checkpoint's artifacts live: assets-local (packaged) or the eval dir."""
+    return ASSETS_LOCAL if ckpt.packaging is None else EVAL_DIR_V32B
 
 
 LAYA_421M = Checkpoint(
@@ -134,6 +165,8 @@ LAYA_V32B = Checkpoint(
     model_name=MODEL_NAME_V32B,
     fp32_name="laya-v32b.onnx",
     lineage=f"{V32B_BASE_REPO} @ {V32B_BASE_REVISION} <- {HF_REPO} @ {HF_REVISION}",
+    packaging=V32B_PACKAGING,
+    demotion=V32B_DEMOTION,
 )
 
 CHECKPOINTS = {c.key: c for c in (LAYA_421M, LAYA_V32B)}
@@ -455,8 +488,9 @@ def tokenizer_vocab_facts(ckpt: Checkpoint) -> dict:
 
     Downloads the checkpoint's tokenizer.json (at the pinned revision), hashes it against
     the pinned Phase-2 tokenizer resource, RECORDS the verdict, and places the file in
-    assets-local (gitignored) as the v32b engine's tokenizer data — hash-pinned in its
-    own PROVENANCE.txt section. A mismatch is NOT fatal to the export (the export is of
+    the checkpoint's artifact dir (gitignored; EVAL-ONLY for v32b since the 2026-10-06
+    demotion) as the v32b engine's tokenizer data — hash-pinned in its own
+    PROVENANCE.txt section. A mismatch is NOT fatal to the export (the export is of
     the real checkpoint either way); the card's "same vocab" claim measuring FALSE is a
     recorded, owner-visible fact (.state/phase-8C-status.json).
     """
@@ -471,8 +505,9 @@ def tokenizer_vocab_facts(ckpt: Checkpoint) -> dict:
         subfolder=ckpt.subfolder,
     )
     data = Path(downloaded).read_bytes()
-    ASSETS_LOCAL.mkdir(parents=True, exist_ok=True)
-    local = ASSETS_LOCAL / V32B_TOKENIZER_NAME
+    out_dir = checkpoint_dir(ckpt)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    local = out_dir / V32B_TOKENIZER_NAME
     if not local.is_file() or sha256_of(local) != hashlib.sha256(data).hexdigest():
         shutil.copyfile(downloaded, local)
 
@@ -537,6 +572,11 @@ def provenance_meta(ckpt: Checkpoint, int8_path: Path, fp32_path: Path, signatur
     }
     if ckpt.lineage:
         meta["base_lineage"] = ckpt.lineage
+    if ckpt.packaging is not None:
+        meta["packaging"] = ckpt.packaging
+        meta["artifact_dir"] = str(checkpoint_dir(ckpt).relative_to(PROJECT_ROOT))
+    if ckpt.demotion is not None:
+        meta["demotion"] = ckpt.demotion
     if ckpt.key == "v32b":
         meta["tokenizer"] = tokenizer_vocab_facts(ckpt)
         meta["checkpoint_config"] = (
@@ -579,6 +619,13 @@ def write_provenance(ckpt: Checkpoint, int8_path: Path, fp32_path: Path, signatu
             f"(path tokenizer/tokenizer.json @ {ckpt.revision}, subfolder {ckpt.subfolder})",
             f"sha256: {tok['checkpoint_tokenizer_sha256']}",
             f"Bytes: {tok['checkpoint_tokenizer_bytes']}",
+        ]
+        if ckpt.packaging is not None:
+            tok_lines.append(
+                f"Packaging: {ckpt.packaging} - NOT packaged into the APK (kept at "
+                f"{checkpoint_dir(ckpt).relative_to(PROJECT_ROOT)})"
+            )
+        tok_lines += [
             "Note: the checkpoint's REAL tokenizer. vocab_identical_to_phase2="
             f"{tok['vocab_identical_to_phase2']} (the pinned Phase-2 resource sha256 "
             f"{tok['phase2_tokenizer_sha256']}); the model card's same-vocab claim is "
@@ -611,10 +658,11 @@ def write_provenance(ckpt: Checkpoint, int8_path: Path, fp32_path: Path, signatu
             out_sections.append(render(title_line, lines).rstrip("\n"))
         sections = out_sections
     prov_path.write_text(("\n---\n\n").join(sections) + "\n", encoding="utf-8")
-    (ASSETS_LOCAL / "provenance.json").write_text(
+    out_dir = checkpoint_dir(ckpt)
+    (out_dir / "provenance.json").write_text(
         json.dumps(meta, indent=2), encoding="utf-8"
     )
-    (ASSETS_LOCAL / f"provenance-{ckpt.key}.json").write_text(
+    (out_dir / f"provenance-{ckpt.key}.json").write_text(
         json.dumps(meta, indent=2), encoding="utf-8"
     )
 
@@ -630,6 +678,13 @@ def section_lines(ckpt: Checkpoint, meta: dict) -> list:
     ]
     if ckpt.lineage:
         lines.append(f"Base lineage: {ckpt.lineage}")
+    if ckpt.packaging is not None:
+        lines.append(
+            f"Packaging: {ckpt.packaging} - NOT packaged into the APK (kept at "
+            f"{meta['artifact_dir']}; the verifiers skip it when absent)"
+        )
+    if ckpt.demotion is not None:
+        lines.append(f"Demotion: {ckpt.demotion}")
     if "tokenizer" in meta:
         tok = meta["tokenizer"]
         lines.append(
@@ -662,7 +717,7 @@ def section_lines(ckpt: Checkpoint, meta: dict) -> list:
 
 
 def provenance_sections() -> "dict[str, dict]":
-    """Parses PROVENANCE.txt into {file_name: {sha256, bytes}} per artifact section."""
+    """Parses PROVENANCE.txt into {file_name: {sha256, bytes, packaging?}} per artifact section."""
     prov = ASSETS_COMMITTED / "PROVENANCE.txt"
     if not prov.exists():
         return {}
@@ -682,6 +737,9 @@ def provenance_sections() -> "dict[str, dict]":
                     out[current]["bytes"] = int(raw)
                 except ValueError:
                     pass
+            elif stripped.startswith("Packaging: "):
+                packaging = stripped.removeprefix("Packaging: ").strip()
+                out[current]["packaging"] = packaging.split(" ")[0].strip()
     return out
 
 
@@ -692,8 +750,16 @@ def check() -> int:
         return 1
     failed = False
     for file_name, record in sorted(sections.items()):
-        model = ASSETS_LOCAL / file_name
+        eval_only = record.get("packaging") == "eval-only"
+        model = (EVAL_DIR_V32B if eval_only else ASSETS_LOCAL) / file_name
         if not model.exists():
+            if eval_only:
+                print(
+                    f"SKIP: {file_name} is eval-only (demoted 2026-10-06, NOT packaged into "
+                    f"the APK) and not present at {EVAL_DIR_V32B} - restore it for eval with "
+                    "tools/fetch_laya.py --checkpoint v32b"
+                )
+                continue
             print(f"FAIL: {model} is missing - run tools/fetch_laya.py (build mode) first")
             failed = True
             continue
@@ -706,7 +772,8 @@ def check() -> int:
             print(f"FAIL: sha256 mismatch for {model}: provenance says {recorded}, file is {actual}")
             failed = True
         else:
-            print(f"OK: {model.name} present, sha256 matches provenance ({actual[:16]}...)")
+            label = "OK (eval-only)" if eval_only else "OK"
+            print(f"{label}: {model.name} present, sha256 matches provenance ({actual[:16]}...)")
     return 1 if failed else 0
 
 
@@ -729,12 +796,13 @@ def main() -> int:
         return check()
     ensure_windows_crt()
     ckpt = CHECKPOINTS[args.checkpoint]
-    model = ASSETS_LOCAL / ckpt.model_name
+    out_dir = checkpoint_dir(ckpt)
+    model = out_dir / ckpt.model_name
     fp32_path = FP32_DIR / ckpt.fp32_name
     if args.skip_export_if_present and model.exists():
         print(f"int8 artifact already present: {model}")
     else:
-        export_and_quantize(ASSETS_LOCAL, ckpt)
+        export_and_quantize(out_dir, ckpt)
     # Graph facts are read from the PRODUCED artifact either way (fresh or cached).
     signature = inspect_graph(model)
     print(

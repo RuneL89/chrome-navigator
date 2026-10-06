@@ -13,22 +13,29 @@ the app itself never fetches a model.
 * `fetch_laya.py` — builds the pinned laya ONNX int8 **per-tensor** artifacts
   (`--checkpoint laya-421m` (default): checkpoint `convaiinnovations/laya` at the
   project-pinned HF revision, the SAME pin as the Phase-2 tokenizer resource;
-  `--checkpoint v32b`: the owner-directed primary `ichenney/laya-browser-v32b` @
-  `161d54d6…` subfolder `v32b`) via the OFFICIAL upstream `scripts/export_onnx.py`
+  `--checkpoint v32b`: `ichenney/laya-browser-v32b` @
+  `161d54d6…` subfolder `v32b` — EVAL-ONLY since the owner demotion of 2026-10-06
+  (disqualified as primary by UAT Tests 2-3)) via the OFFICIAL upstream
+  `scripts/export_onnx.py`
   code (fetched verbatim at a pinned commit, imported, not re-typed), and writes
-  `app/src/main/assets-local/laya/laya-int8.onnx` / `laya-v32b-int8.onnx` (gitignored)
-  + `app/src/main/assets/laya/PROVENANCE.txt` (committed, ONE SECTION PER ARTIFACT,
+  `app/src/main/assets-local/laya/laya-int8.onnx` (packaged) or, for the demoted v32b,
+  `.tools/laya-v32b/laya-v32b-int8.onnx` + `tokenizer-v32b.json` (gitignored, NOT
+  packaged into the APK) + `app/src/main/assets/laya/PROVENANCE.txt` (committed, ONE
+  SECTION PER ARTIFACT,
   each hash-pinned; the v32b section also records base lineage
   `cklxx/laya-browser ← convaiinnovations/laya`, the graph param count that resolved
-  the 322M-vs-421M question at 321,909,191, and the tokenizer hash fact). The v32b
-  export also places the checkpoint's REAL tokenizer as
-  `assets-local/laya/tokenizer-v32b.json` (gitignored, own provenance section — the
+  the 322M-vs-421M question at 321,909,191, the tokenizer hash fact, and the demotion
+  — its `Packaging: eval-only` line is the marker both verifiers read). The v32b
+  export also places the checkpoint's REAL tokenizer beside it in
+  `.tools/laya-v32b/tokenizer-v32b.json` (own provenance section — the
   card's "same vocab" claim measured FALSE: a 256k Metaspace BPE, not the Phase-2
   50,280-entry NFC+ByteLevel tokenizer). Also contains the Windows CRT/MKL bootstrap
   (torch 2.5.1 on this box needs app-local msvcp140/vcruntime140/vcomp140 + the uv-env
   `Library/bin` registration — no admin, no system change). `--check` verifies
-  presence + sha256 of EVERY provenance section (the gradle `verifyLayaModel` task
-  enforces the same per-artifact check in every build)
+  presence + sha256 of EVERY provenance section — packaged sections in
+  `assets-local/laya/` (missing = FAIL), `Packaging: eval-only` sections in
+  `.tools/laya-v32b/` (absent = SKIP with a loud note; wrong hash when present =
+  FAIL); the gradle `verifyLayaModel` task enforces the same semantics in every build
 * `laya_reference.py` — records the Gate 8.1 / Gate 8C.2 reference vectors: ≥10
   (state + question → distribution) pairs built with the UPSTREAM
   `laya.common.build_sequence` over the checkpoint tokenizer, answered by (a) the
@@ -51,6 +58,11 @@ the app itself never fetches a model.
   and REJECTED (block-wise MatMulNBits, not the pinned per-tensor int8) — the decision
   is recorded in `.state/phase-8-status.json`; do not swap the artifact without
   re-recording it
+* The v32b checkpoint is EVAL-ONLY (demoted 2026-10-06: disqualified as primary by UAT
+  Tests 2-3 — inverted exit calibration + poor navigation transfer; recorded in
+  `.state/phase-8C-status.json` + the compliance log): its artifacts are NOT packaged
+  (`.tools/laya-v32b/`, gitignored) and its provenance sections carry
+  `Packaging: eval-only`; do not re-package them without a new owner decision
 * The v32b checkpoint's tokenizer is NOT the Phase-2 vocab (hash-proven 2026-10-06):
   the tokenizer file + hash live in the provenance so the Kotlin pipeline's tokenizer
   data stays pinned; never regenerate or "fix" the tokenizer silently

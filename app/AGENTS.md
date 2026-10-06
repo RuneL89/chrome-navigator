@@ -25,9 +25,12 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     per-`(qtype, option-bucket)` temperatures per checkpoint `Profile` — 421M's fitted
     tables vs v32b's identity [1,1,1] — clamped to [0.5, 5.0], softmax + confidences),
     `LayaCheckpoint` (Phase 8C: the exported-checkpoint registry — artifact file, REAL
-    tokenizer (421M: the Phase-2 classpath resource; v32b: the gitignored hash-pinned
-    `tokenizer-v32b.json` asset, a SECOND tokenizer family), format, calibration; the
-    harness engine modes pick the ACTIVE checkpoint by id), `LayaEngine` (implements
+    tokenizer (421M: the Phase-2 classpath resource; v32b: the hash-pinned
+    `tokenizer-v32b.json` in the eval-only dir, a SECOND tokenizer family), format,
+    calibration; the harness engine modes pick the ACTIVE checkpoint by id — since the
+    2026-10-06 owner demotion `laya`/`laya-fb-jev` load `LAYA_421M`; `V32B` stays
+    registered EVAL-ONLY (not packaged; engine construction fails loudly without the
+    `.tools/laya-v32b/` eval artifacts — acceptable)), `LayaEngine` (implements
     `DecisionEngine`; two-stage bucketed `choose` — bucket question then ≤20-element
     question — plus `judge`/`score` mappings; Phase 8C: tokenizer/calibration/format
     are constructor params defaulting to the Phase-8 checkpoint), and
@@ -148,9 +151,11 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     which has neither an environment nor the repo's `.tools/`) > env > keys file,
     failing loudly when LIVE or LAYA_FB_JEV is selected with no key anywhere; only the
     key's SOURCE (`HarnessKeySource`) is ever exposed or logged — never the value.
-    Phase 8C modes (vision 02 §7): `laya` = bare on-device v32b primary (`LayaCheckpoint.V32B`
-    via the injectable `LayaEngineSource`; loud without the model), `laya-fb-jev` =
-    `FallbackEngine`(v32b primary, Jev confidence-band fallback riding its own
+    Phase 8C modes (vision 02 §7): `laya` = bare on-device laya primary (the ACTIVE
+    checkpoint `LayaCheckpoint.LAYA_421M` via the injectable `LayaEngineSource`; loud
+    without the model — since the 2026-10-06 owner demotion v32b is EVAL-ONLY and NOT
+    the laya-mode checkpoint), `laya-fb-jev` =
+    `FallbackEngine`(laya primary, Jev confidence-band fallback riding its own
     JevSpendRecorder — escalated consults still book spend); escalated rows carry the
     fallback identity; run reports gain the `escalations` block (count/rate).
     Launch-note: `am start -S` force-stops the app and the platform then DROPS its
@@ -237,14 +242,19 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
   sink, never an exception into the loop); the shadow runs on its own single thread and
   never blocks the loop; question wording of the two laya question forms is pinned by
   the Gate 8.1 reference fixtures — change the words, regenerate the fixture
-* The laya model artifacts (~0.6 GB 421M + ~0.9 GB v32b + the 34 MB v32b tokenizer)
-  live OUT of git in `src/main/assets-local/` (gitignored); `tools/fetch_laya.py`
-  builds them (`--checkpoint`) and writes `assets/laya/PROVENANCE.txt` (committed, one
-  hash-pinned section per artifact); the `verifyLayaModel` gradle task (wired to
-  `preBuild`) fails the build loudly when ANY declared artifact is missing or its
-  sha256 drifts — never ship or commit around it. The ACTIVE checkpoint is a harness
-  engine-mode choice (laya modes → v32b; the Phase-8 shadow path keeps the 421M
-  loadable for the parity tests)
+* The packaged laya model artifact (the ~0.6 GB 421M int8) lives OUT of git in
+  `src/main/assets-local/` (gitignored); `tools/fetch_laya.py` builds it and writes
+  `assets/laya/PROVENANCE.txt` (committed, one hash-pinned section per artifact). The
+  demoted v32b artifact + its 34 MB tokenizer are EVAL-ONLY: NOT packaged — they live
+  in the gitignored `.tools/laya-v32b/` (demotion + reason recorded in their
+  provenance sections' `Packaging: eval-only` / `Demotion:` lines). The
+  `verifyLayaModel` gradle task (wired to `preBuild`) fails the build loudly when any
+  PACKAGED declared artifact is missing or its sha256 drifts; eval-only sections are
+  hash-checked at the eval path when present and skipped with a loud note when absent —
+  never ship or commit around it. The ACTIVE checkpoint is a harness engine-mode
+  choice (laya modes → `LAYA_421M` since the 2026-10-06 demotion; `V32B` stays
+  registered eval-only for the parity path — `LayaCheckpoint.V32B.engine` fails loudly
+  without the eval artifacts, which is acceptable)
 
 ## Work Guidance
 
@@ -279,8 +289,11 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
   `ExitCalibrationFamilyTest` Gate 8J.5: terminal fixtures <=5 checks, decoys never,
   per engine mode, report written to `.state/eval/exit-calibration-report.json`;
   `DecisionLogV4DbTest` Room v4 exit round-trips + the v3→v4 migration) —
-  plain JVM, Robolectric-free; the laya gates need the model artifact (verifyLayaModel
-  fails the build loudly when it is missing)
+  plain JVM, Robolectric-free; the laya gates need the 421M model artifact
+  (verifyLayaModel fails the build loudly when it is missing); the v32b parity gate
+  (`LayaEngineV32bReferenceParityTest`) is EVAL-ONLY since the 2026-10-06 demotion — it
+  runs from `.tools/laya-v32b/` when the artifacts are there and assumes away with a
+  loud message when they are not (never a build failure)
 * Gate 8J (on-device smoke): the `exit-reliability-1` harness goal (stub engine, auto
   keep-going) runs the scripted finish path end-to-end on the emulator — refusals with
   the anti-oscillation window, one completion card answered keep-going, then the

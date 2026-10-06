@@ -39,11 +39,11 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "tools"))
 from fetch_laya import (  # noqa: E402
-    ASSETS_LOCAL,
     CHECKPOINTS,
     HF_REPO,
     HF_REVISION,
     MODEL_NAME,
+    checkpoint_dir,
     ensure_windows_crt,
 )
 
@@ -376,7 +376,7 @@ def main() -> int:
         "reference-vectors.json" if ckpt.key == "laya-421m" else f"reference-vectors-{ckpt.key}.json"
     )
     fixture_path = FIXTURE_DIR / fixture_name
-    model_path = ASSETS_LOCAL / ckpt.model_name
+    model_path = checkpoint_dir(ckpt) / ckpt.model_name
     if not model_path.exists():
         raise SystemExit(f"{model_path} missing - run tools/fetch_laya.py --checkpoint {ckpt.key} first")
 

@@ -107,7 +107,9 @@ When the user requests a durable behavior change, record it here or in the relev
   `tools/fetch_laya.py`, provenance-pinned in `app/src/main/assets/laya/PROVENANCE.txt`)
   and the `ShadowRouter` (primary-sync, shadow-async, log-only); Phase 8C added the
   owner-directed v32b primary checkpoint (second hash-pinned artifact + its own 256k
-  tokenizer family), the FallbackEngine wiring, and the three harness engine modes
+  tokenizer family; demoted EVAL-ONLY 2026-10-06 after UAT Tests 2-3 — not packaged,
+  artifacts in the gitignored `.tools/laya-v32b/`, laya modes load the 421M checkpoint),
+  the FallbackEngine wiring, and the three harness engine modes
   `jev`/`laya`/`laya-fb-jev`; overlay/result UI
   arrive per phase). See `app/AGENTS.md`
 * `tools/` — Phase-8/8C model-acquisition + reference-vector scripts (uv-driven; build-time

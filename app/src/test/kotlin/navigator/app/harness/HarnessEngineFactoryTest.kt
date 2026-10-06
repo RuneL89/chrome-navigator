@@ -171,18 +171,19 @@ class HarnessEngineFactoryTest {
     }
 
     // ---- Phase 8C: the laya modes (vision 02 §7 mode register) --------------------------
+    // The ACTIVE checkpoint is the Phase-8 421M base (v32b demoted eval-only 2026-10-06).
 
     /** The factory tests never decide; the engine's forward is never reached. */
     private val noForward = LayaForward { _, _, _ -> error("no forward expected in factory tests") }
 
-    /** A scripted v32b engine source; [error] reproduces the model-missing loud shape. */
+    /** A scripted laya engine source; [error] reproduces the model-missing loud shape. */
     private fun layaSource(error: String? = null) = LayaEngineSource {
         if (error != null) throw IllegalStateException(error)
         LayaEngine(noForward)
     }
 
     @Test
-    fun `LAYA mode builds the bare v32b engine - no fallback, no key needed`() {
+    fun `LAYA mode builds the bare laya engine over the ACTIVE checkpoint - no fallback, no key needed`() {
         val built = HarnessEngineFactory.build(
             HarnessEngineMode.LAYA,
             goal,
@@ -195,14 +196,14 @@ class HarnessEngineFactoryTest {
 
         assertEquals(HarnessEngineMode.LAYA, built.mode)
         assertEquals(HarnessEngineFactory.LAYA_CONFIG_ID, built.identity.configId)
-        assertEquals(HarnessEngineFactory.LAYA_V32B_MODEL, built.identity.model)
+        assertEquals(HarnessEngineFactory.LAYA_421M_MODEL, built.identity.model)
         assertNull(built.fallbackIdentity, "bare laya has no fallback (vision 02 §7)")
         assertNull(built.fallbackEngine)
         assertNull(built.keySource, "pure phone-only: no key involved")
     }
 
     @Test
-    fun `LAYA_FB_JEV composes v32b primary with the Jev fallback and its identity`() {
+    fun `LAYA_FB_JEV composes the laya primary with the Jev fallback and its identity`() {
         val built = HarnessEngineFactory.build(
             HarnessEngineMode.LAYA_FB_JEV,
             goal,
@@ -217,7 +218,7 @@ class HarnessEngineFactoryTest {
         val composed = built.engine
         assertTrue(composed is FallbackEngine, "the loop sees ONE composed engine (ART-2)")
         assertEquals(HarnessEngineFactory.LAYA_CONFIG_ID, built.identity.configId)
-        assertEquals(HarnessEngineFactory.LAYA_V32B_MODEL, built.identity.model)
+        assertEquals(HarnessEngineFactory.LAYA_421M_MODEL, built.identity.model)
         val fallbackIdentity = requireNotNull(built.fallbackIdentity)
         assertEquals(HarnessEngineFactory.LAYA_FALLBACK_CONFIG_ID, fallbackIdentity.configId)
         assertEquals("typesafe/jev-1.13-20260917", fallbackIdentity.model)
@@ -226,7 +227,7 @@ class HarnessEngineFactoryTest {
     }
 
     @Test
-    fun `LAYA mode without the v32b engine source fails loudly (no silent substitute)`() {
+    fun `LAYA mode without the laya engine source fails loudly (no silent substitute)`() {
         val e = assertThrows<IllegalStateException> {
             HarnessEngineFactory.build(
                 HarnessEngineMode.LAYA,

@@ -134,13 +134,20 @@ class LayaOnnxSession private constructor(
 
         const val ASSET_DIR = "laya"
 
-        /** The Phase-8 shadow artifact (421M). Kept loadable for the parity tests. */
+        /** The Phase-8 shadow artifact (421M) — the ACTIVE laya checkpoint artifact. */
         const val ASSET_FILE = "laya-int8.onnx"
 
-        /** The Phase-8C primary checkpoint artifact (v32b, 322M). */
+        /**
+         * The Phase-8C v32b checkpoint artifact (322M) — EVAL-ONLY since the 2026-10-06
+         * demotion (UAT Tests 2-3): NOT packaged; the file lives in the gitignored
+         * `.tools/laya-v32b/` (`LayaCheckpoint.EVAL_ASSET_DIR_V32B`).
+         */
         const val ASSET_FILE_V32B = "laya-v32b-int8.onnx"
 
-        /** The v32b checkpoint's REAL tokenizer (Phase 8C — NOT the Phase-2 vocab). */
+        /**
+         * The v32b checkpoint's REAL tokenizer (Phase 8C — NOT the Phase-2 vocab);
+         * eval-only, stored beside the model in `.tools/laya-v32b/`.
+         */
         const val TOKENIZER_FILE_V32B = "tokenizer-v32b.json"
 
         /** The extracted model in app-private storage (first-run copy, see class doc). */
@@ -182,9 +189,10 @@ class LayaOnnxSession private constructor(
 
         /**
          * Opens the session from the packaged asset (extracting first). [assetFile]
-         * selects the checkpoint artifact (Phase 8C: the harness lays modes load the v32b
-         * file). [options] hook is for tests; production options are the documented
-         * CPU/1-thread ones.
+         * selects the checkpoint artifact (the packaged file is [ASSET_FILE]; the demoted
+         * v32b artifact is eval-only and not packaged — `LayaCheckpoint.V32B` construction
+         * fails loudly without its `.tools/laya-v32b/` copy). [options] hook is for tests;
+         * production options are the documented CPU/1-thread ones.
          */
         fun open(
             context: Context,

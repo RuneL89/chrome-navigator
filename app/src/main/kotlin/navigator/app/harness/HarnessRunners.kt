@@ -83,10 +83,11 @@ enum class HarnessEngineMode {
     /** LIVE Jev — the current product default (mode register: `jev`; alias `live`). */
     LIVE,
 
-    /** Bare on-device fine-tuned Laya v32b — no shadow, no fallback (mode register: `laya`). */
+    /** Bare on-device fine-tuned Laya (the ACTIVE checkpoint, [HarnessEngineFactory.LAYA_421M_MODEL]) —
+     * no shadow, no fallback (mode register: `laya`). */
     LAYA,
 
-    /** On-device v32b primary + Jev confidence-band fallback (mode register: `laya-fb-jev`). */
+    /** On-device laya primary + Jev confidence-band fallback (mode register: `laya-fb-jev`). */
     LAYA_FB_JEV,
     ;
 
@@ -140,10 +141,11 @@ data class HarnessEngine(
 )
 
 /**
- * The v32b engine edge (Phase 8C): opening the ACTIVE on-device checkpoint is
+ * The laya engine edge (Phase 8C): opening the ACTIVE on-device checkpoint is
  * Android-context-bound (asset extraction + filesDir copy), so the factory takes it as
- * a seam — the activity supplies [LayaCheckpoint.V32B.engine]; JVM tests script fakes.
- * A missing/mis-hashed model file fails LOUDLY inside the source (the gradle
+ * a seam — the activity supplies [LayaCheckpoint.LAYA_421M.engine] (the ACTIVE
+ * checkpoint since the owner demoted v32b to eval-only, 2026-10-06); JVM tests script
+ * fakes. A missing/mis-hashed model file fails LOUDLY inside the source (the gradle
  * `verifyLayaModel` task already refuses the build before it can ship).
  */
 fun interface LayaEngineSource {
@@ -158,7 +160,15 @@ object HarnessEngineFactory {
     const val LAYA_CONFIG_ID = "laya"
     const val LAYA_FALLBACK_CONFIG_ID = "jev"
 
-    /** The pinned v32b snapshot (vision 02 §5: pinned IDs live in this factory only). */
+    /**
+     * The pinned ACTIVE laya snapshot — the Phase-8 421M checkpoint (vision 02 §5: pinned
+     * IDs live in this factory only). The laya modes load it since the owner demoted v32b
+     * to eval-only (2026-10-06, UAT Tests 2-3: inverted exit calibration + poor
+     * navigation transfer — an eval-gated config decision per vision 02 §5 / 07 §3a).
+     */
+    const val LAYA_421M_MODEL = "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851"
+
+    /** The pinned v32b snapshot — EVAL-ONLY (demoted 2026-10-06; not packaged). */
     const val LAYA_V32B_MODEL = "ichenney/laya-browser-v32b@161d54d6000913ff279b0afd1ac77faef8685a9b"
 
     /**
@@ -172,8 +182,9 @@ object HarnessEngineFactory {
      * configured key fails loudly — never a silent stub. [deliveredKey] is never logged
      * and never stored beyond the built [EngineConfig] (whose `toString` redacts it).
      *
-     * LAYA: the bare on-device v32b engine ([laya] source; loud when null or when the
-     * model file is missing). LAYA_FB_JEV: the vision 02 §7 composition — v32b primary,
+     * LAYA: the bare on-device laya engine over the ACTIVE checkpoint ([laya] source;
+     * loud when null or when the model file is missing). LAYA_FB_JEV: the vision 02 §7
+     * composition — laya primary,
      * Jev confidence-band fallback (the fallback rides its own [JevSpendRecorder] so
      * escalated consults still book provider-reported spend into the SAME meter the
      * loop budgets with); the loop sees ONE engine (ART-2) and the escalation stats
@@ -206,12 +217,12 @@ object HarnessEngineFactory {
         }
         HarnessEngineMode.LAYA -> {
             val layaEngine = laya?.open() ?: throw IllegalStateException(
-                "LAYA mode needs the on-device v32b engine source (no Android context is " +
-                    "available to open $LAYA_V32B_MODEL) — refusing to run a silent substitute.",
+                "LAYA mode needs the on-device laya engine source (no Android context is " +
+                    "available to open $LAYA_421M_MODEL) — refusing to run a silent substitute.",
             )
             HarnessEngine(
                 engine = layaEngine,
-                identity = navigator.core.log.EngineIdentity(LAYA_CONFIG_ID, LAYA_V32B_MODEL),
+                identity = navigator.core.log.EngineIdentity(LAYA_CONFIG_ID, LAYA_421M_MODEL),
                 spendMeter = SpendMeter(),
                 mode = mode,
                 primaryCloseable = layaEngine,
@@ -219,7 +230,7 @@ object HarnessEngineFactory {
         }
         HarnessEngineMode.LAYA_FB_JEV -> {
             val layaEngine = laya?.open() ?: throw IllegalStateException(
-                "LAYA_FB_JEV mode needs the on-device v32b engine source — refusing to run " +
+                "LAYA_FB_JEV mode needs the on-device laya engine source — refusing to run " +
                     "a silent substitute.",
             )
             val wired = jevSpendRecordedEngine(deliveredKey, env, keysFile, transport)
@@ -229,7 +240,7 @@ object HarnessEngineFactory {
             )
             HarnessEngine(
                 engine = composed,
-                identity = navigator.core.log.EngineIdentity(LAYA_CONFIG_ID, LAYA_V32B_MODEL),
+                identity = navigator.core.log.EngineIdentity(LAYA_CONFIG_ID, LAYA_421M_MODEL),
                 spendMeter = wired.meter,
                 mode = mode,
                 keySource = wired.keySource,

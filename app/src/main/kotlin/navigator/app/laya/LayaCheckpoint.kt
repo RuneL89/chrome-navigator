@@ -9,14 +9,16 @@ import java.io.File
  * which sequence format and calibration tables. The provenance pins both artifacts
  * (`app/src/main/assets/laya/PROVENANCE.txt` — one section per file, hash-gated by the
  * gradle `verifyLayaModel` task); the harness engine modes pick the ACTIVE checkpoint
- * by id — `laya`/`laya-fb-jev` load [V32B], the Phase-8 shadow path keeps [LAYA_421M]
- * loadable for the parity tests.
+ * by id — `laya`/`laya-fb-jev` load [LAYA_421M] (the Phase-8 base). [V32B] is
+ * EVAL-ONLY since the owner demotion of 2026-10-06 (disqualified as primary by UAT
+ * Tests 2-3): its artifacts are NOT packaged — they live in the gitignored
+ * [EVAL_ASSET_DIR_V32B] — so [V32B.engine] fails loudly without them (acceptable:
+ * the registry entry stays for the eval/parity path only).
  *
  * Tokenizers: the 421M checkpoint's tokenizer IS the Phase-2 classpath resource; the
  * v32b checkpoint's REAL tokenizer is a second family (256k Metaspace BPE — the card's
- * "same vocab" claim measured FALSE, hash-proven 2026-10-06), shipped as a gitignored
- * asset (`tokenizer-v32b.json`) extracted beside the model on first run, hash-pinned
- * in its own provenance section.
+ * "same vocab" claim measured FALSE, hash-proven 2026-10-06), stored beside the model
+ * in [EVAL_ASSET_DIR_V32B], hash-pinned in its own provenance section.
  */
 class LayaCheckpoint(
     val id: String,
@@ -45,11 +47,11 @@ class LayaCheckpoint(
         }
     }
 
-    /** The v32b tokenizer for PATH-based loads (JVM tests; no Android runtime). */
+    /** The v32b tokenizer for PATH-based loads (JVM eval/tests; no Android runtime). */
     fun tokenizerFile(projectRoot: String): Tokenizer {
         check(tokenizerAsset != null) { "checkpoint $id uses the classpath tokenizer resource" }
         return Tokenizer.fromJsonFile(
-            java.nio.file.Path.of(projectRoot, "app/src/main/assets-local/laya", tokenizerAsset),
+            java.nio.file.Path.of(projectRoot, EVAL_ASSET_DIR_V32B, tokenizerAsset),
         )
     }
 
@@ -70,7 +72,14 @@ class LayaCheckpoint(
 
     companion object {
 
-        /** The Phase-8 shadow checkpoint (convaiinnovations/laya @ 55cf4c4e…). */
+        /**
+         * The eval-only artifact directory (repo-relative, gitignored, NOT packaged):
+         * where the demoted [V32B] model + tokenizer live (`.tools/laya-v32b/`; rebuilt
+         * by `tools/fetch_laya.py --checkpoint v32b`).
+         */
+        const val EVAL_ASSET_DIR_V32B = ".tools/laya-v32b"
+
+        /** The Phase-8 shadow checkpoint (convaiinnovations/laya @ 55cf4c4e…) — the ACTIVE laya checkpoint. */
         val LAYA_421M = LayaCheckpoint(
             id = "laya-421m",
             modelAsset = LayaOnnxSession.ASSET_FILE,
@@ -79,7 +88,13 @@ class LayaCheckpoint(
             calibration = Calibration.LAYA_421M,
         )
 
-        /** The Phase-8C primary checkpoint (ichenney/laya-browser-v32b @ 161d54d6…). */
+        /**
+         * The Phase-8C v32b checkpoint (ichenney/laya-browser-v32b @ 161d54d6…) —
+         * EVAL-ONLY since the 2026-10-06 demotion (disqualified as primary by UAT
+         * Tests 2-3: inverted exit calibration + poor navigation transfer). NOT
+         * packaged: the engine reads the artifact from the APK assets, so construction
+         * fails loudly without the eval-only copy in [EVAL_ASSET_DIR_V32B] — acceptable.
+         */
         val V32B = LayaCheckpoint(
             id = "v32b",
             modelAsset = LayaOnnxSession.ASSET_FILE_V32B,

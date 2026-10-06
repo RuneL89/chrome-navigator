@@ -3,7 +3,9 @@
 build/
 
 # Wrapper bootstrap: the one-time Gradle dist used to generate the wrapper
-# (the wrapper jar itself under gradle/wrapper/ IS committed)
+# (the wrapper jar itself under gradle/wrapper/ IS committed).
+# Also carries the EVAL-ONLY laya storage (.tools/laya-v32b/ — the demoted v32b
+# checkpoint + tokenizer, NOT packaged into the APK; see PROVENANCE.txt)
 .tools/
 
 # Local config

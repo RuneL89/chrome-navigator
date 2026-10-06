@@ -48,6 +48,8 @@ File: laya-v32b-int8.onnx
 Source repo: https://huggingface.co/ichenney/laya-browser-v32b
 Revision: 161d54d6000913ff279b0afd1ac77faef8685a9b (subfolder v32b)
 Base lineage: cklxx/laya-browser @ 645cf366a2ae35f1086e8c20eff48f909bb49206 <- convaiinnovations/laya @ 55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851
+Packaging: eval-only - NOT packaged into the APK (kept at .tools/laya-v32b/; the verifiers skip it when absent)
+Demotion: 2026-10-06 - disqualified as primary by UAT Tests 2-3 (inverted exit calibration + poor navigation transfer); retained eval-only
 Tokenizer: sha256 609d8f4c067cd3950f88594c5a802616cea245823836ef5848ee4fc40aab5b6f (34363188 bytes); vocab_identical_to_phase2=False (phase2 sha256 6c8aaa9a542084f2457eab775d4eeb51f92a70c0fd9de28d5edb0ddec3c08d30); placed as tokenizer-v32b.json
 sha256: a8f7935ceadce3ccc27d86edd7f86d457010a4caabc8ff10f98ae6d8890f456c
 Bytes: 923491931
@@ -171,4 +173,5 @@ File: tokenizer-v32b.json
 Source repo: https://huggingface.co/ichenney/laya-browser-v32b (path tokenizer/tokenizer.json @ 161d54d6000913ff279b0afd1ac77faef8685a9b, subfolder v32b)
 sha256: 609d8f4c067cd3950f88594c5a802616cea245823836ef5848ee4fc40aab5b6f
 Bytes: 34363188
+Packaging: eval-only - NOT packaged into the APK (kept at .tools/laya-v32b/)
 Note: the checkpoint's REAL tokenizer. vocab_identical_to_phase2=False (the pinned Phase-2 resource sha256 6c8aaa9a542084f2457eab775d4eeb51f92a70c0fd9de28d5edb0ddec3c08d30); the model card's same-vocab claim is FALSE, verified by hash 2026-10-06. This file is the v32b engine's tokenizer data (gitignored asset, hash-pinned here); correctness is proven per-vector by the Gate 8C.2 reference fixture (inputIdsSha256).

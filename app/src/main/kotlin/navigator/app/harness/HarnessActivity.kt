@@ -567,9 +567,14 @@ class HarnessActivity : ComponentActivity() {
             deliveredKey = deliveredOpenRouterKey,
             laya = if (mode.isLaya) {
                 LayaEngineSource {
-                    LayaCheckpoint.V32B.engine(this@HarnessActivity).also {
-                        log("laya: v32b engine open (${LayaOnnxSession.ASSET_DIR}/" +
-                            "${LayaOnnxSession.ASSET_FILE_V32B}, cpu, 1 intra-op thread)")
+                    // The ACTIVE checkpoint is the Phase-8 421M base: the owner demoted
+                    // v32b to eval-only on 2026-10-06 (UAT Tests 2-3 measured it
+                    // disqualifying as primary — inverted exit calibration + poor
+                    // navigation transfer; an eval-gated config decision, vision 02 §5).
+                    LayaCheckpoint.LAYA_421M.engine(this@HarnessActivity).also {
+                        log("laya: ${LayaCheckpoint.LAYA_421M.id} engine open " +
+                            "(${LayaOnnxSession.ASSET_DIR}/${LayaCheckpoint.LAYA_421M.modelAsset}, " +
+                            "cpu, 1 intra-op thread)")
                     }
                 }
             } else {

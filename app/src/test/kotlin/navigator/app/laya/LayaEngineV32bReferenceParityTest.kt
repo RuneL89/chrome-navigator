@@ -6,6 +6,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import navigator.core.laya.Tokenizer
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import java.security.MessageDigest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -14,12 +15,16 @@ import kotlin.test.assertTrue
 /**
  * Gate 8C.2 (PHASE_08C §3) — v32b reference-vector parity: >=10 (state + question ->
  * distribution) pairs recorded from the REAL `ichenney/laya-browser-v32b` checkpoint and
- * the REAL shipped `laya-v32b-int8.onnx` artifact (tools/laya_reference.py --checkpoint
- * v32b); the full Kotlin chain — the checkpoint's REAL tokenizer (the 256k Metaspace
- * family, loaded from the gitignored hash-pinned asset) + [MarkerBuilder] (the v32b
- * sequence format) + the ONNX forward through [LayaOnnxSession] (the desktop JVM ONNX
- * Runtime) + [Calibration] (the v32b identity profile) — must reproduce them with
- * max |Δp| <= 0.01.
+ * the REAL `laya-v32b-int8.onnx` artifact (tools/laya_reference.py --checkpoint v32b);
+ * the full Kotlin chain — the checkpoint's REAL tokenizer (the 256k Metaspace family,
+ * loaded from the gitignored hash-pinned asset) + [MarkerBuilder] (the v32b sequence
+ * format) + the ONNX forward through [LayaOnnxSession] (the desktop JVM ONNX Runtime) +
+ * [Calibration] (the v32b identity profile) — must reproduce them with max |Δp| <= 0.01.
+ *
+ * EVAL-ONLY since the 2026-10-06 demotion (owner decision after UAT Tests 2-3): the v32b
+ * artifacts are NOT packaged — they live in the gitignored [LayaCheckpoint.EVAL_ASSET_DIR_V32B].
+ * The test runs whenever they are present and assumes away (with a loud message) when
+ * they are not — it never gates the build on an unpackaged eval artifact.
  *
  * Token-id EXACTNESS is the tokenizer port's proof: inputIdsSha256 + marker positions
  * must match byte-for-byte. The int8-vs-eager-agent drift is RECORDED evidence, not a
@@ -31,16 +36,25 @@ class LayaEngineV32bReferenceParityTest {
         "navigator.project.root must be set (the :app test task sets it)"
     }
 
+    private fun evalArtifact(name: String): java.nio.file.Path =
+        java.nio.file.Path.of(root, LayaCheckpoint.EVAL_ASSET_DIR_V32B, name)
+
     private fun modelPath(): String =
-        "$root/app/src/main/assets-local/laya/${LayaOnnxSession.ASSET_FILE_V32B}"
+        evalArtifact(LayaOnnxSession.ASSET_FILE_V32B).toString()
 
     private fun tokenizer(): Tokenizer =
-        Tokenizer.fromJsonFile(
-            java.nio.file.Path.of(root, "app/src/main/assets-local/laya", LayaOnnxSession.TOKENIZER_FILE_V32B),
-        )
+        Tokenizer.fromJsonFile(evalArtifact(LayaOnnxSession.TOKENIZER_FILE_V32B))
 
     @Test
     fun `gate 8C-2 - kotlin pipeline matches the recorded v32b reference vectors`() {
+        val model = evalArtifact(LayaOnnxSession.ASSET_FILE_V32B).toFile()
+        val tokenizerFile = evalArtifact(LayaOnnxSession.TOKENIZER_FILE_V32B).toFile()
+        assumeTrue(
+            model.isFile && tokenizerFile.isFile,
+            "the v32b artifacts are EVAL-ONLY since the 2026-10-06 demotion (not packaged) " +
+                "and are absent from ${LayaCheckpoint.EVAL_ASSET_DIR_V32B}/ — the Gate 8C.2 " +
+                "parity check needs them; restore with tools/fetch_laya.py --checkpoint v32b",
+        )
         val fixture = javaClass.getResourceAsStream("/laya/reference-vectors-v32b.json")
             ?.readBytes()?.decodeToString()
             ?: throw AssertionError("reference-vectors-v32b.json fixture missing from test resources")
