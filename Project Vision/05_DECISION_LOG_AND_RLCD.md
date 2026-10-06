@@ -1,7 +1,9 @@
+
+
 # Decision Log & RLCD Corpus
 
 **Document ID:** `NAVIGATOR-VISION-005`
-**Version:** 1.2.0 *(amended 2026-10-06: `escalated` + `fallback` row fields for the fallback composition, doc 02 §7)*
+**Version:** 1.3.0 *(amended 2026-10-06: escalated+fallback fields; then action triage values, H9, secret-redaction, plan field — owner-ratified via plan v4)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-04, 2026-10-06)
 **Date:** 2026-10-03
 **Implements:** ART-3 (everything logs), ART-8 (privacy boundary)
@@ -20,8 +22,9 @@ It exists from v1 day one in its final shape — retrofitting is explicitly reje
 |---|---|
 | `rowId`, `taskId`, `goal`, `stepIndex` | identity |
 | `timestamp` | wall clock |
-| `stateText`, `stateFormatVersion` | the canonical state text (≤480 tokens) + its version (ART-7) |
-| `triageClass` | lookup / research-multi-step / form-fill |
+| `stateText`, `stateFormatVersion` | the canonical state text (v2: ≤960 tokens) + its version (ART-7) |
+| `triageClass` | lookup / research-multi-step / form-fill / action / action-multi |
+| `plan` | `null`, or `{version, subgoals: [..]}` — plan-proposal provenance for replay/RLCD (doc 04 §1; writer-LLM plans carry their PROMPT_VERSION) |
 | `questionPrimary` / `questionShadow` | the exact question payloads (flat vs bucketed form) |
 | `teacher` | `{engine: config-id, model: pinned-id}` — the primary that answered |
 | `teacherAnswer` | chosen option + **full probability distribution** + confidence |
@@ -30,7 +33,8 @@ It exists from v1 day one in its final shape — retrofitting is explicitly reje
 | `agreementExactMatch` | shadow top-1 == teacher top-1 (bool, when both present) |
 | `agreementKL` | KL(teacher ∥ shadow) over the shared option space |
 | `executedAction` | what code actually did (incl. `refusal`, gate outcomes) |
-| `gateEvent` | `null`, or `{class: H1–H8, decision: approved \| denied \| timeout, trustedFromTask: bool}` (doc 06) |
+| `gateEvent` | `null`, or `{class: H1–H9, decision: approved \| denied \| timeout, trustedFromTask: bool}` (doc 06) |
+| `typedSecret` | `false`, or `true` when this step's typed text was a credential supplied via the gate card (doc 06 §2a) — the value itself is NEVER stored: step log and rows render `[credential-redacted]` |
 | `escalated` | `false`, or `true` when the fallback engine was consulted for this decision (doc 02 §7; always `false` in single-engine modes) |
 | `fallback` | `null`, or `{engine, model, answer (choice/noul/score result + distribution)}` — the fallback engine's answer when escalated; its answer is the one executed |
 | `outcome` | post-step label from observation diff: `progressed / no-change / error / exited` |

@@ -39,6 +39,12 @@ human-verifiable steps), a hard sign-off checklist, and integration notes.
 | 8 | [PHASE_08_laya_shadow.md](PHASE_08_laya_shadow.md) | ONNX LayaEngine + tokenizer chain + ShadowRouter | $0 | 6-9h |
 | 8B | [PHASE_08B_shadow_companion_rows.md](PHASE_08B_shadow_companion_rows.md) | Companion shadow-result rows (amended law 2026-10-04): late shadow answers as immutable companions; joined-view agreement + coverage | $0 | 2-3h |
 | 8C | [PHASE_08C_laya_primary_jev_fallback.md](PHASE_08C_laya_primary_jev_fallback.md) | v32b fine-tune import (eval-gated), FallbackEngine (Laya primary + Jev confidence-band fallback), three UAT engine modes | $0 | 5-8h |
+| 8D | [PHASE_08D_action_triage_coldstart_budgets.md](PHASE_08D_action_triage_coldstart_budgets.md) | action/action-multi triage, cold-start step, per-class budget profiles | $0 | 3-4h |
+| 8E | [PHASE_08E_h9_general_gate.md](PHASE_08E_h9_general_gate.md) | H9 persistent-state mutation class: broad code net + additive-only engine triggering | $0 | 4-6h |
+| 8F | [PHASE_08F_credential_entry_redaction.md](PHASE_08F_credential_entry_redaction.md) | credential entry law: local secret input, TextSource, redaction everywhere | $0 | 3-4h |
+| 8G | [PHASE_08G_working_memory_guard_plansource.md](PHASE_08G_working_memory_guard_plansource.md) | target tracker, action completion guards, PlanSource (deterministic default) | $0 | 3-4h |
+| 8H | [PHASE_08H_state_format_v2.md](PHASE_08H_state_format_v2.md) | STATE_FORMAT_VERSION=2: content excerpt + PLAN + TASK PROGRESS, ≤960 tokens, Tier A re-pin | $0 | 4-6h |
+| 8I | [PHASE_08I_eval_fixture_goals.md](PHASE_08I_eval_fixture_goals.md) | fixture pages + 3 new suite goals (multi-action, H9 bait, cheapest-compare) → 16-goal suite | $0 | 2-3h |
 | 9 | [PHASE_09_overlay_ux.md](PHASE_09_overlay_ux.md) | Overlay UX: goal input (blur), live log, gate card, setup wizard | $0.50 | 5-7h |
 | 10 | [PHASE_10_cloud_llm_roles.md](PHASE_10_cloud_llm_roles.md) | Generative roles (compressor/phrasing/extraction/rescue) + budget integration | $3.00 | 4-6h |
 | 11 | [PHASE_11_result_screen.md](PHASE_11_result_screen.md) | Result screen: replay log, counters, agreement bar | $1.00 | 3-5h |

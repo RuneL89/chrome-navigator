@@ -1,15 +1,16 @@
 # Risk Gate & Safety
 
 **Document ID:** `NAVIGATOR-VISION-006`
-**Version:** 1.1.0
-**Status:** Ratified (2026-10-03)
+**Version:** 1.2.0 *(amended 2026-10-06: H9 generalized to persistent-state mutations with additive-only engine triggering; credential-entry law §2a; owner-ratified via plan v4)*
+**Status:** Ratified (2026-10-03; amendments 2026-10-03, 2026-10-06)
 **Date:** 2026-10-03
 **Implements:** ART-1 (code owns the gate), ART-4 (page text is untrusted), ART-5 (numbers in
 code), ART-10 (attribution)
-**Amendment note:** The original hard blocklist (G1–G7, abort-on-match) was replaced on
-2026-10-03 by owner directive: *the project must be capable of payments and password changes,
-with user acceptance as the safety layer.* Detection logic survives; the enforcement action
-changed from abort → pause-and-confirm. No action class is permanently impossible.
+**Amendment note (2026-10-03):** the original hard blocklist (G1–G7) became the
+user-acceptance gate — nothing is permanently blocked; the owner approves consequential
+actions. **Amendment note (2026-10-06):** H9 generalizes consequential-action detection
+to an open-ended class (impossible to enumerate in code), and engine judgment is
+admitted to the gate path **additive-only** — it may add gates, never remove one.
 
 ---
 
@@ -30,15 +31,28 @@ never fail-open).
 | H6 | File upload | file-input activation or upload intent |
 | H7 | Download initiation | download-triggering links/actions |
 | H8 | Credential typing into any field | password-type field, or identifier+secret-pattern entry on any site (protects against wrong-site/injected credential capture) |
+| H9 | **Persistent-state mutation** (general class) | A consequential change that outlives the page — to the user's accounts, content, relationships, bookings, or data (subscribe/unsubscribe, follow/unfriend, cancel, delete content, post/send messages, booking confirmations…). Detection = **broad code net** (§1a) + **additive engine check** (§3). |
 
-All other actions (navigation, search, scroll, non-credential text entry, non-purchase
+All other actions (navigation, search, scroll, non-credential text entry, non-mutation
 clicks) execute without pausing.
+
+### 1a. The H9 broad code net (floor)
+
+Because the open-ended class cannot be enumerated, H9 detection is a **net, not a list**:
+- **Structural signals**: form/button semantics indicating a mutation of persistent state
+  (submissions on authenticated surfaces, toggles of state-words, confirm dialogs).
+- **Illustrative verb/context dictionary** (subscribe, unsubscribe, follow, unfriend,
+  cancel, remove, delete, post, send, book, confirm-booking…): a maintained **floor**
+  that is illustrative, never the definition — novel verbs must still be caught by the
+  net's structure and by the additive engine check (§3).
+- **Fail-to-confirm**: any ambiguous mutation-ish signal classifies as H9.
+The dictionary grows via additive classifier-matrix rows; it is test data, not product
+law.
 
 ## 2. Gate mechanics (ratified)
 
 - **Confirmation card** over Chrome (a11y-overlay window): class name in plain words, site +
-  URL, target field/button, one-line consequence ("will submit payment details to
-  example.com"), **Approve / Deny** buttons.
+  URL, target field/button, one-line consequence, **Approve / Deny** buttons.
 - **Timeout = Deny** after 30 seconds (fail-safe; tunable by amendment).
 - **Deny semantics:** the action is skipped; the loop records a denied outcome and proceeds
   (the engine re-decides on the next step). The **same action denied twice in one task →
@@ -46,22 +60,41 @@ clicks) execute without pausing.
 - **Per-task trust toggle:** the first **approval** of a class within a task extends trust
   to that class for the remainder of the task — subsequent same-class actions execute
   without re-asking (each logged `trustedFromTask=true`). Trust never crosses tasks and
-  never crosses sites within a task (a class approved on site A still gates on site B).
+  never crosses sites within a task. For `action-multi` tasks this is what makes mass
+  operations usable: approve the first mutation, the rest run trusted.
 - Every gate event (approved / denied / timeout / trusted) is logged (`gateEvent`, doc 05)
   and appears in the replayable decision log.
-- **Nothing is blocked outright.** With the owner approving, v1 can enter payments, change
-  passwords, and log in; refusing is always the owner's call, never a code veto.
+- **Nothing is blocked outright.** With the owner approving, the app can pay, change
+  passwords, log in, and mutate accounts/content; refusing is always the owner's call,
+  never a code veto.
 
-## 3. Why code detects and the human decides
+### 2a. Credential-entry law (amended 2026-10-06)
 
-- Locked decision #5 (as amended): aggressive autonomy with a deterministic gate — **no
-  model judgment in the gate path**. The trigger is code; the authority is the owner.
-- The research record makes this the right split: decision models are documented to be
-  movable by adversarial state text (injection through page content), position-biased, and
-  numerically weak. The gate catches model mistakes on consequential actions without
-  capping the project's capability.
-- Untrusted page text (ART-4): instruction-like content inside the `UNTRUSTED PAGE CONTENT`
-  block can steer at most *toward* a gated action — never through it silently.
+When an approved action types a **secret** (password, token, recovery code):
+- The secret is supplied by the **owner, locally**: the gate card presents a masked
+  input field; the owner types the secret on the card.
+- The secret is injected **directly into the target field** by code — it is never
+  phrased by any cloud role (the writer LLM never sees it), never included in state
+  text, never sent to any engine or provider, and never written to any log, row, or
+  report (redacted as `[credential-redacted]` — doc 05 §2).
+- The H8/H3/H4 gates still fire on the typing and submission; this section governs
+  **where the secret comes from and where it may travel** (an ART-8 extension: secrets
+  never leave the device, ever).
+
+## 3. Why code detects and the human decides — and the additive-only engine role
+
+- Locked decision #5 (as amended): **code owns the gate** — code triggers are the floor
+  and can never be suppressed or downgraded by any model judgment.
+- **Amended 2026-10-06 (additive-only):** because the consequential-action class is
+  open-ended, code MAY consult the primary `DecisionEngine` with a noul question
+  ("does this action make an irreversible change to the user's accounts, content, or
+  data?") when its own net is uncertain. A non-LOW answer **adds** an H9 gate. The
+  engine's judgment may only ever **raise** the gate rate; it may never lower,
+  suppress, or whitelist. Tests must prove both directions.
+- The research record motivates the split: decision models are movable by adversarial
+  state text — so they may make the gate *more* conservative, never less. Untrusted
+  page text (ART-4) can steer at most *toward* a gated action — never through it
+  silently, and never *away* from one.
 
 ## 4. Operational policies (prompt-encoded, from PokeClaw's battle-tested set)
 
@@ -71,7 +104,7 @@ These govern the generative LLM roles and are NOT safety substitutes:
   are gated classes.
 - **Login-wall / paywall on research goals → stop** and report; never accept "sign in to
   continue" as progress. (Action goals that *require* authentication are different: the
-  credential steps are H4/H8-gated.)
+  credential steps are H4/H8-gated with §2a secret handling.)
 - "Report data, not actions" — extraction roles return content, not instructions.
 
 ## 5. Numeric logic (ART-5)
@@ -86,6 +119,6 @@ math — documented weakness of the primary engine class.
   the PokeClaw name is NOT reused — their trademark policy requires renames for forks, and
   we reimplement rather than fork).
 - NOTICE entries for Laya (Apache 2.0, upstream + `convaiinnovations` weights) and Von
-  (Apache 2.0) if their code/weights are used; the Kotlin tokenizer port credits
+  (Apache 2.0) if their code/weights are used; the Kotlin tokenizer ports credit
   `receptron/laya` as reference.
 - NOTICE updates are part of any phase that borrows new external code.

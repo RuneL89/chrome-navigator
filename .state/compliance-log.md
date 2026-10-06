@@ -497,3 +497,12 @@ a new dated entry. Format per `Implementation Plan/MASTER_IMPLEMENTATION_PROMPT.
     - Unverified (non-gating): claimed on-device stub-smoke report not found in .state/phase-8C-eval (stub health covered by JVM suite); CancellationException propagation has code but no dedicated test; duplicate taskIds in eval folders (hygiene).
   Result: COMPLIANT — Phase 08C accepted (PHASE 8C VERIFIED); UAT prepared and LOCKED pending owner permission
   Checked By: canon-verifier (cold) + Main agent (close-out)
+
+[2026-10-06] Vision law batch v4 (open-ended goal foundations) — owner-ratified via plan approval
+  Changed: Project Vision/01 (v1.3.0: cold-start+plan diagram, component table += plan-proposer + semantic-routing rule, §5 action-goal CLASS definition + no-scenario-specific-code design law, glossary += H9/PLAN/working-memory/state-v2), 03 (v2.0.0: STATE_FORMAT_VERSION=2 — content excerpt + PLAN + TASK PROGRESS, <=960 tokens (v32b ctx law), compression incl. excerpt), 04 (v1.1.0: action/action-multi triage, LLM-proposes/engines-execute plan law, cold-start, working memory, BudgetProfile table, action guards), 05 (v1.3.0: triage values, plan field, H1-H9, typedSecret + [credential-redacted] law), 06 (v1.2.0: H9 general class + broad-net floor + illustrative-dictionary note, additive-only engine triggering §3, credential-entry law §2a), 07 (v1.1.0: 16-goal suite); Implementation Plan/PHASE_08D..08I (six new phase docs); PHASE_09/10/12 amended; master index + master-prompt §4 mapping rows
+  Provenance: owner plan-v4 approval 2026-10-06 (after 3 review rounds + clarifying questions): decomposition = LLM proposes / engines execute; state budget <=960 (v32b ctx); gate = broad code net + engine ADDS gates never suppresses; sequencing = Tarte Tatin UAT (Stage 0) BEFORE implementation (Stage 2). Standing design law: no site/scenario-specific product code, ever — examples only as fixtures/UAT scripts. GLM-5.3 session (vision-law model gate satisfied).
+  Comparison:
+    - All amendments additive to ART-1..11 (H9 extends ART-1's list via its own amendment mechanism; additive-only triggering preserves "code owns the gate"; credential law extends ART-8; plan-as-context preserves ART-2). No contradictions found across docs 01-07 (cross-checked).
+    - Implementation (Stage 2, phases 08D-08I) intentionally NOT started: Stage 0 (Tarte Tatin tests 1-3, owner-gated) precedes it per owner sequencing decision.
+  Result: AMENDED — law recorded; roadmap registered; awaiting Stage 0
+  Checked By: Main agent (GLM-5.3 session), owner plan-v4 ratification

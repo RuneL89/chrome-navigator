@@ -27,7 +27,7 @@ prompt-encoded operational policies (doc 06 §4). NOT in scope: decision-engine 
 - OpenRouter `/api/v1/chat/completions`; pinned generative model id in `EngineConfig`-
   style config (same pinning law as doc 02 §5 — upgrades gate on eval harness).
 - Every role = one function with a versioned prompt constant (`PROMPT_VERSION` logged):
-  - `compress(pageText): stateBlock` — only when code-compression can't fit 480 tokens;
+  - `compress(pageText): stateBlock` — and (amended 2026-10-06) `proposePlan(goal): subgoals` (versioned; context-only per doc 04 §1; **never phrases secrets** per doc 06 §2a; may suggest canonical URLs) — only when code-compression can't fit 480 tokens;
     output goes inside the UNTRUSTED block only (ART-4); `compressedBy=llm` logged.
   - `phrase(goal, field): typedText` — for text entry (locked #4).
   - `extract(goal, finalState): answer` — result phrasing; reports content, not

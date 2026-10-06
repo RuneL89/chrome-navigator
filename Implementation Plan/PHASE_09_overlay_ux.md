@@ -33,7 +33,7 @@ screen (Phase 11), generative roles (Phase 10).
 - **Live log viewer:** small bottom-right non-focusable window streaming step lines
   ("#12 tap 'Apple Pie — Allrecipes' · Jev 0.81 · gate: —"); tap to expand/collapse;
   never obscures the center of the screen.
-- **Gate card:** renders `GateCard` verbatim + Approve/Deny + 30s countdown ring →
+- **Gate card:** renders `GateCard` verbatim + Approve/Deny + 30s countdown ring; **credential variant** (amended 2026-10-06): masked local secret input per doc 06 §2a, injected directly, never phrased/logged; **PLAN display** (amended 2026-10-06): the overlay/result surface shows the active subgoal plan (context transparency) →
   returns event to `TaskGate`; blocks loop while visible; no auto modes in product UI.
 - **Thinking state:** within 1s of a decision round-trip the viewer shows a spinner line
   (perf law b).

@@ -1,23 +1,47 @@
 # Navigation Loop
 
 **Document ID:** `NAVIGATOR-VISION-004`
-**Version:** 1.0.0
-**Status:** Ratified (2026-10-03)
+**Version:** 1.1.0 *(amended 2026-10-06: open-ended goal foundations — action triage, LLM-proposed plans, cold-start, task working memory, per-class budgets; owner-ratified via plan v4)*
+**Status:** Ratified (2026-10-03; amendment 2026-10-06)
 **Date:** 2026-10-03
 **Implements:** ART-4 (no self-report completion), ART-5 (numbers in code), ART-9 (bounded
-tasks)
+tasks), ART-2 (one decision gateway)
 
 ---
 
 ## 1. Task lifecycle
 
 ```
-goal → TRIAGE → step loop → EXIT → result extraction
+goal → COLD-START (code) → TRIAGE → [PLAN PROPOSAL] → step loop → EXIT → result extraction
 ```
 
+**Cold-start (code, deterministic)** — if the goal names a site (or the task needs one)
+and Chrome is absent or on an unrelated page, the loop issues a VIEW intent for the
+goal-derived start URL before the first OBSERVE. No engine is consulted for opening the
+browser; the start-URL derivation is deterministic code (with extraction helpers where
+needed) and is logged.
+
 **Triage** — one `DecisionEngine.choose` over the goal text:
-`lookup | research-multi-step | form-fill | impossible`. `impossible` (or anything outside
-v1 scope) → explain and abort before any navigation. Triage result is logged.
+`lookup | research-multi-step | form-fill | action | action-multi | impossible`.
+- `action` — a single consequential operation on the user's accounts/content/data
+  (payment, login, one unsubscribe, one booking…).
+- `action-multi` — one operation applied to a **set of targets** enumerated from a page
+  ("unsubscribe from all food channels", "unfriend every X") — targets are discovered
+  from the UI at run time, never assumed.
+- `impossible` (or anything outside scope) → explain and abort before any navigation.
+Triage result is logged.
+
+**Plan proposal (LLM proposes, engines execute)** — for multi-step goals, the generative
+LLM may draft a **subgoal plan** at triage (versioned prompt surface; logged with its own
+provenance). The plan rides the state text as the `PLAN:` section — **context, never
+executor**: every step's action is still chosen by the primary `DecisionEngine` (ART-2
+intact; the plan may only inform, like the L3 rescue-coach precedent). Until the writer
+role ships (Phase 10), a deterministic `PlanSource` default supplies no plan.
+
+**Task working memory (code)** — for `action-multi` tasks, a code-owned tracker
+enumerates target rows from the page, records processed/pending, and survives scrolls
+and navigation; the guard (§3) and the `TASK PROGRESS` state section (doc 03 v2) read
+from it. The 3-line HISTORY digest is never the memory of record for multi-target work.
 
 ## 2. The step (strict order)
 
@@ -27,18 +51,19 @@ v1 scope) → explain and abort before any navigation. Triage result is logged.
 3. **DECIDE** — `ShadowRouter`: primary chooses the action (flat list); shadow answers the
    bucketed form asynchronously (doc 02 §4).
 4. **GATE** (code) — risk-gate check against the chosen action **before any execution**
-   (doc 06): if the action matches a high-stakes class (H1–H8) and the task holds no trust
-   for that class, the loop pauses and shows the confirmation card (action class, site/URL,
-   target, one-line consequence). Approve → execute; Deny or 30s timeout → skip the action
-   (denied); the same action denied twice in one task → clean task abort. The first
-   approval of a class extends **per-task trust**: later same-class actions in that task
-   execute without re-asking (logged `trustedFromTask=true`). Every gate outcome is logged
-   as `gateEvent` (doc 05).
-5. **EXECUTE** (code) — `dispatchGesture` tap/scroll/back at the node's coordinates, or text
-   entry via focus-first SET_TEXT (+paste fallback). If typing, the generative LLM phrases
-   the text first (locked decision #4) — one call, logged.
+   (doc 06): high-stakes class (H1–H9) without task trust → confirmation card (with the
+   credential-secret variant per doc 06 §2a when the action types a secret). Approve →
+   execute; Deny or 30s timeout → skip; same action denied twice → clean abort; first
+   approval of a class grants per-task trust (same-site). The **additive engine check**
+   (doc 06 §3) may raise additional gates; it can never suppress one. Every gate outcome
+   is logged (`gateEvent`, doc 05).
+5. **EXECUTE** (code) — `dispatchGesture` tap/scroll/back at the node's coordinates, or
+   text entry via focus-first SET_TEXT (+paste fallback). Typed text comes from a
+   `TextSource`: writer-LLM phrasing for ordinary text (locked decision #4), or a
+   gate-supplied credential for secrets (redacted everywhere — doc 05 §2). One call,
+   logged.
 6. **LOG** (code) — the DecisionLog row (doc 05), including guard outcomes, execution
-   result, and both engines' answers.
+   result, both engines' answers, and plan/progress provenance.
 
 ## 3. Exit conditions
 
@@ -47,45 +72,43 @@ A task ends by exactly one of: **goal-achieved**, **budget exhausted**, **stuck-
 
 **Goal-achieved** requires BOTH:
 - Primary `noul` "is the goal achieved?" in the high band (`> 0.70`), **and**
-- A **code completion guard** confirming task-type-specific preconditions — e.g. a
-  search-and-read goal must have read a non-empty content region after results loaded
-  (generalizes PokeClaw's `InAppSearchGuard`: never trust self-report — ART-4).
+- A **code completion guard** confirming task-type-specific preconditions:
+  - lookup/research: a non-empty content region was read after results loaded;
+  - form-fill: the form actually submitted (post-submission state observed);
+  - **action: the single target operation completed** (post-action state observed —
+    e.g. the button now reads the opposite state);
+  - **action-multi: the working-memory tracker is drained** (every enumerated target
+    processed or explicitly skipped; none pending).
+  (Generalizes PokeClaw's `InAppSearchGuard`: never trust self-report — ART-4.)
 
 Guard predicates live in `:app` code as a per-triage-class state machine and are unit-tested.
 
 ## 4. StuckDetector (code, deterministic)
 
-Near-verbatim reimplementation of PokeClaw's design (attributed), model-agnostic:
+Unchanged: 5 signals over the last 8 steps (any 3 trip escalation): same action 3× ·
+screen hash unchanged 3× · zero text diff 3× · high repetition · repeated errors.
+**L1** hint into HISTORY; **L2** primary chooses from recovery (`back · scroll · rephrase
+· give-up`); **L3** one rescue-coach call (generative LLM), then kill with partial
+results. For `action-multi` tasks, the tracker's progress lines ride the L1 hint so the
+engine re-orients to pending targets.
 
-- Window: last 8 steps. Signals (any 3 trip escalation):
-  same action 3× · screen hash unchanged 3× · zero text diff 3× · high repetition score ·
-  repeated error outcomes.
-- **Level 1 (hint):** inject a hint line into the HISTORY section.
-- **Level 2 (strategy switch):** primary chooses from the recovery set
-  (`back · scroll · rephrase · give-up`) — the engine picks; code triggers.
-- **Level 3 (auto-kill):** one rescue-coach call to the generative LLM (reads the last
-  states, proposes one recovery action); if that fails too, kill the task with partial
-  results. The rescue call is capped at one per task.
+## 5. TaskBudget (code) — per-class profiles
 
-## 5. TaskBudget (code)
+Budgets scale by triage class (**BudgetProfile**, initial values; tunable by amendment):
 
-Per-task limits (initial values; tunable by amendment):
+| Profile | Classes | Steps soft/hard | Wall clock soft/hard | Cloud spend soft/hard |
+|---|---|---|---|---|
+| Standard | lookup · research · form-fill | 40 / 60 | 5 / 10 min | $0.20 / $0.25 |
+| Action | action | 60 / 100 | 10 / 15 min | $0.20 / $0.25 |
+| Multi | action-multi | 150 / 300 | 15 / 30 min | $0.50 / $0.75 |
 
-| Dimension | Soft (warn) | Hard (stop) | On hard stop |
-|---|---|---|---|
-| Steps | 40 | 60 | clean stop, partial results, everything logged |
-| Wall clock | 5 min | 10 min | same |
-| Cloud spend (Jev + generative) | $0.20 | $0.25 | same — "budget exhausted" message |
-
-- All arithmetic and enforcement in code (ART-5). Laya shadow calls are free and unbudgeted
-  (they cannot exhaust anything; they can only be dropped).
-- Spend is computed from recorded token counts × the pinned config's prices; no provider
-  billing API is required.
+- All arithmetic and enforcement in code (ART-5); on any hard stop: clean stop, partial
+  results, everything logged. Shadow calls remain free and unbudgeted.
 
 ## 6. Result presentation
 
 The result screen shows: the extracted answer (generative LLM reads the final page — one
-call), the **replayable decision log** (every step: state digest, candidates, both engines'
-choices + confidences, executed action, outcome, and any gate event), the **counter** ("local decisions: N ·
-cloud: M" — post-graduation "100% on-device decisions"), and the **Laya agreement metric**
-(doc 05 §3).
+call), the **replayable decision log** (every step: state digest, candidates, both
+engines' choices + confidences, executed action, outcome, gate events, plan/progress),
+the **counter** ("local decisions: N · cloud: M" — post-graduation "100% on-device
+decisions"), and the **Laya agreement metric** (doc 05 §3).

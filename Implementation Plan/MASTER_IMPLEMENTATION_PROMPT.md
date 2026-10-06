@@ -238,6 +238,12 @@ Phase documents live in `Implementation Plan/`; vision documents live in `Projec
 | 8 | `PHASE_08_laya_shadow.md` | `02` §4–§5, `05` §6 | Shadow semantics, checkpoint |
 | 8B | `PHASE_08B_shadow_companion_rows.md` | `05` §2 amendment + §3, `02` §4 | Companion rows, joined-view agreement |
 | 8C | `PHASE_08C_laya_primary_jev_fallback.md` | `02` §7, `05` v1.2.0, `07` §3 | Fallback composition, checkpoint import gate |
+| 8D | `PHASE_08D_action_triage_coldstart_budgets.md` | `04` v1.1.0 | Triage classes, cold-start, budgets |
+| 8E | `PHASE_08E_h9_general_gate.md` | `06` v1.2.0 §1, §3 | H9 net + additive-only law |
+| 8F | `PHASE_08F_credential_entry_redaction.md` | `06` §2a, `05` v1.3.0 | Credential law, redaction |
+| 8G | `PHASE_08G_working_memory_guard_plansource.md` | `04` §1, §3 | Memory, guards, plan source |
+| 8H | `PHASE_08H_state_format_v2.md` | `03` v2.0.0, ART-7 | Format v2 + eval gate |
+| 8I | `PHASE_08I_eval_fixture_goals.md` | `07` v1.1.0 | 16-goal suite completion |
 | 9 | `PHASE_09_overlay_ux.md` | `01` §1, `06` §2 | Overlay law, gate card |
 | 10 | `PHASE_10_cloud_llm_roles.md` | `01` §3, `04`, `06` §4 | Role boundaries, budgets |
 | 11 | `PHASE_11_result_screen.md` | `04` §6, `05` §3 | Result presentation, agreement |

@@ -1,8 +1,8 @@
 # Chrome Navigator (working title) — Product Vision and Architecture
 
 **Document ID:** `NAVIGATOR-VISION-001`
-**Version:** 1.0.0
-**Status:** Ratified (2026-10-03)
+**Version:** 1.3.0 *(amended 2026-10-06: open-ended goal foundations — action triage, plans, cold-start, H9, state v2; owner-ratified via plan v4)*
+**Status:** Ratified (2026-10-03; amendments 2026-10-03, 2026-10-06)
 **Date:** 2026-10-03
 
 > Working title per locked decision #9 ("naming deferred; 'Navigator' is a placeholder").
@@ -85,16 +85,25 @@ Ratified Round 3 (+ article 11). Each article is citable as `ART-n` in complianc
 GOAL typed in overlay (a11y-overlay window)
    │
    ▼
-TASK TRIAGE — DecisionEngine.choose: lookup / research-multi-step / form-fill / impossible
+COLD-START (code) — goal names a site + Chrome absent → VIEW intent (no engine consulted)
+   ▼
+TASK TRIAGE — DecisionEngine.choose: lookup / research-multi-step / form-fill / action /
+               action-multi / impossible
+   ▼
+PLAN PROPOSAL (optional) — writer LLM drafts subgoals; PLAN rides the state as CONTEXT;
+               engines still decide every step (ART-2)
    ▼
 NAVIGATION LOOP (per step):
-   1. OBSERVE        (code) AccessibilityService reads Chrome a11y tree + URL bar
+   1. OBSERVE        (code) AccessibilityService reads Chrome a11y tree + URL bar + content excerpt
    2. ENUMERATE      (code) bucket candidates, ≤20/bucket, deterministic order
-   3. DECIDE         ShadowRouter → Jev primary (flat list, ≤255 opts)
+   3. DECIDE         ShadowRouter → primary (flat list, ≤255 opts)
                                 → Laya shadow (bucketed two-stage, async, logged only)
-   4. GATE           (code) risk-gate check — high-stakes action? pause for user acceptance
-   5. EXECUTE        (code) gestures / text entry (LLM phrases typed text)
-   6. LOG            DecisionLog row (RLCD-compatible)
+   4. GATE           (code) risk-gate check — H1–H9 detection (broad net; engine may ADD
+                     gates, never suppress) → user acceptance; credential secrets typed
+                     locally on the card (doc 06 §2a)
+   5. EXECUTE        (code) gestures / text entry (writer LLM phrases ordinary text;
+                     gate-supplied secrets are redacted everywhere)
+   6. LOG            DecisionLog row (RLCD-compatible; plan/progress provenance)
    ▼
 RESULT SCREEN: answer + replayable decision log + local/cloud counter + agreement metric
 ```
@@ -109,10 +118,12 @@ RESULT SCREEN: answer + replayable decision log + local/cloud counter + agreemen
 | Goal-achieved judgment | DecisionEngine `noul` **+ code completion guards** | ART-4: never self-report alone |
 | Stuck detection | Code (5 signals / 8-step window / 3 levels) | Deterministic trigger; engine only picks the recovery |
 | Recovery-strategy choice | DecisionEngine (`choice` over recovery set) | Model chooses within code-defined options |
-| Text phrasing (what to type) | Cloud LLM (generative) | Locked decision #4 |
+| Text phrasing (what to type — ordinary text only; NEVER secrets, doc 06 §2a) | Cloud LLM (generative) | Locked decision #4 |
+| Plan proposal (subgoal drafts for complex goals — context only) | Cloud LLM (generative, versioned); engines decide every step | Owner decision 2026-10-06: LLM proposes, engines execute |
 | Page compression (oversized trees) | Cloud LLM (generative) | Perception assist only |
 | Final answer extraction | Cloud LLM (generative) | Reads result page, phrases answer |
 | Rescue coach | Cloud LLM (generative, level-3 stuck only) | Last resort |
+| Per-item semantic judgments ("is X food-related?") | DecisionEngine ladder (primary → fallback engine) — NOT the writer LLM | ART-2: only DecisionEngines decide; the writer only writes |
 | Risk gate (H-class detection + confirmation flow), budgets, numeric logic | Code | ART-1, ART-5, ART-9; the *decision to proceed* is the owner's |
 | Logging + agreement metrics | Code | ART-3 |
 
@@ -174,10 +185,16 @@ chrome navigator/
   runtime path).
 - No offline decision-making until graduation (Jev is primary; ART-11 keeps the path open).
 
-**In scope for v1 (amended 2026-10-03 — supersedes the handoff's deferral):** action goals —
-payment entry, password change, login — each behind the user-acceptance risk gate (doc 06).
-Eval-harness action cases run exclusively against owner-designated test sites with dummy
-credentials; the harness never touches real accounts or real payments (doc 07).
+**In scope for v1 (amended 2026-10-03; redefined 2026-10-06):** action goals — defined as
+a **class**, not a list: *any consequential operation on the user's accounts, content,
+relationships, bookings, or data* (payments and logins are instances, not the definition) —
+each behind the user-acceptance risk gate (doc 06, H1–H9), with per-target semantic
+judgments routed through the DecisionEngine ladder and mass operations enabled by
+per-task class trust. Concrete goal examples (recipe lookups, channel unsubscribes,
+bookings, unfriending) are handled by this general machinery and appear in the repo only
+as fixtures/UAT scripts — **no site- or scenario-specific product code, ever**.
+Eval-harness action cases run exclusively against owner-designated test fixtures with
+dummy credentials; the harness never touches real accounts or real payments (doc 07).
 
 ## 6. Glossary
 
@@ -201,10 +218,17 @@ credentials; the harness never touches real accounts or real payments (doc 07).
 - **Bucket** — candidate category in the enumeration taxonomy (nav-links, form-fields,
   buttons, scroll, back, finish; plus recovery: back, scroll, rephrase, give-up); ≤20 options
   each, deterministic order.
-- **State text** — the single canonical, version-controlled (≤480-token) text representation
-  of a navigation step fed to every engine and the RLCD corpus.
+- **State text** — the single canonical, version-controlled text representation
+  of a navigation step fed to every engine and the RLCD corpus (v2 since 2026-10-06:
+  ≤960 tokens, content excerpt + PLAN + TASK PROGRESS sections — doc 03 §4).
 - **Risk gate** — the code-level pre-execute detector of high-stakes action classes
-  (H1–H8) plus the user-acceptance confirmation card and per-task class trust (doc 06).
+  (H1–H9, incl. the general persistent-state-mutation class H9 with additive-only engine
+  triggering) plus the user-acceptance confirmation card, per-task class trust, and the
+  credential-secret local-input law (doc 06).
+- **PLAN** — an optional subgoal list drafted by the writer LLM at triage; rides the state
+  text as context; engines decide every step (owner decision 2026-10-06).
+- **Task working memory** — the code-owned target/progress tracker for action-multi tasks
+  (doc 04 §1); the guard and TASK PROGRESS section read from it.
 - **StuckDetector** — deterministic 5-signal/8-step-window detector with 3 escalation levels.
 - **TaskBudget** — per-task step/time/cost limits with clean-stop exhaustion behavior.
 - **Golden fixture** — immutable recorded a11y dump or wire transcript; never edited after

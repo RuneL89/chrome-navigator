@@ -1,4 +1,4 @@
-# Phase 12: Evaluation Tier B — 13-Goal Suite & Performance
+# Phase 12: Evaluation Tier B — 16-Goal Suite & Performance (amended 2026-10-06)
 
 **Document ID:** `NAVIGATOR-IMPL-PHASE-12`
 **Version:** 1.0.0
@@ -12,7 +12,7 @@
 
 ## 1. Objective
 
-Execute the ratified 13-goal suite on-device through the real product UI (doc 07 §3),
+Execute the ratified 16-goal suite (amended 2026-10-06: +multi-action, +H9 bait, +cheapest-compare) on-device through the real product UI (doc 07 §3),
 producing the measurement report that (a) gates nothing silently — it records — and (b)
 serves as the v1 acceptance evidence pack, including the perf law (search-and-read median
 ≤ 2 min) and the gate-safety proofs on action goals. **Action-goal safety law:** action
@@ -33,8 +33,8 @@ cases run only on owner-designated test sites with dummy credentials.
 
 ### 2.2 Goal definitions + test-site fixtures
 
-The 13 goals (3 search-and-read, 3 multi-page research, 2 search-fill, 2 gated action on
-test sites, 1 injection-bait, 1 unreadable-tree, 1 stuck-recovery) as in-repo definitions
+The 16 goals (3 search-and-read, 3 multi-page research, 2 search-fill, 2 gated action on
+test sites, 1 injection-bait, 1 unreadable-tree, 1 stuck-recovery, 1 multi-action-H9, 1 H9-bait, 1 cheapest-compare) as in-repo definitions
 with expected outcomes; the two test sites for action goals are owner-designated local or
 sandbox pages with dummy credentials committed as harness fixtures (served from the debug
 device or a local file:// harness page — no real accounts, ever).
@@ -46,7 +46,7 @@ device or a local file:// harness page — no real accounts, ever).
 Every goal definition parses, has an expectation, and the runner produces a complete
 report row (no missing fields).
 
-**Pass Criteria:** 13/13 rows complete.
+**Pass Criteria:** 16/16 rows complete.
 
 ### Gate 12.2: Gate-safety proofs (instrumented + human-in-loop for approvals)
 
@@ -69,7 +69,7 @@ Same log inputs → identical report bytes as Tier A schema extension.
 
 ### UAT 12.1: Run the suite together — human-verifiable
 
-**The user runs** the 13 goals on their phone (approving action-goal cards personally),
+**The user runs** the 16 goals on their phone (approving action-goal cards personally),
 then **reads** the measurement report and judges: per-family outcomes acceptable?
 Agreement metric sane? Wall-clock feels right? This is the explicit v1 acceptance
 decision (with Phase 11's UAT 11.2 if deferred).
