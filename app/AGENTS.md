@@ -88,7 +88,12 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     (`ActionExecutor` interface + `GestureExecutor` dispatchGesture impl +
     `phraseStub`), `GatePresenter` (interface; `AutoDenyGatePresenter` = harness
     test mode, `DebugGatePresenter` = overlay dialog with 30s countdown,
-    `ScriptedGatePresenter`; Phase 8J mirrors it for the completion card:
+    `ScriptedGatePresenter`; card visibility (2026-10-07 S25+ UAT defect fix, both Debug
+    presenters): overlay window when "display over other apps" is granted, otherwise the
+    harness activity is brought to the FRONT before the dialog shows (the
+    `HarnessActivity` auto-return pattern — an activity-local dialog behind a STOPPED
+    activity is never seen), chosen path logged loudly on `NavigatorHarness`, decision
+    JVM-tested as pure `shouldBringToFront`; Phase 8J mirrors it for the completion card:
     `CompletionCardPresenter` with `AutoKeepGoingCompletionPresenter` (unattended =
     keep going, fail-safe), `ScriptedCompletionCardPresenter` (JVM tests; a second
     ask fails loudly — once-per-task), `DebugCompletionCardPresenter` ("Goal appears

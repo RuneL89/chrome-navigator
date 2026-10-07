@@ -2,7 +2,9 @@ package navigator.app.loop
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.Intent
 import android.os.CountDownTimer
+import android.util.Log
 import android.widget.TextView
 import navigator.core.gate.GateCard
 import navigator.core.gate.HClass
@@ -39,13 +41,48 @@ class ScriptedGatePresenter(private vararg val resolutions: GateResolution) : Ga
     }
 }
 
+/** The runbook's greppable harness tag — same value as `HarnessActivity.LOG_TAG`. */
+private const val HARNESS_LOG_TAG = "NavigatorHarness"
+
+/**
+ * The harness-card front decision (2026-10-07 S25+ UAT defect): with the overlay
+ * permission granted the card's dialog window is TYPE_APPLICATION_OVERLAY and draws
+ * over Chrome; WITHOUT it an activity-local dialog is invisible while the harness
+ * activity is STOPPED behind the browser — the card triggered and timed out unseen.
+ * So when the overlay is absent the harness activity must be brought to the front
+ * before the dialog shows. Pure so it stays JVM-testable without Robolectric.
+ */
+internal fun shouldBringToFront(overlayGranted: Boolean): Boolean = !overlayGranted
+
+/**
+ * The `HarnessActivity` auto-return pattern verbatim: a relaunch carrying NO extras is
+ * a silent bring-to-front (`handleLaunchIntent` returns before any run starts or is
+ * refused), so this must never start or refuse a run. Best-effort: a failure never
+ * touches the run.
+ */
+private fun bringToFront(activity: Activity) {
+    runCatching {
+        activity.startActivity(
+            Intent(activity, activity.javaClass).addFlags(
+                Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                    Intent.FLAG_ACTIVITY_REORDER_TO_FRONT,
+            ),
+        )
+    }.onFailure {
+        Log.w(HARNESS_LOG_TAG, "card bring-to-front failed: ${it::class.simpleName}: ${it.message}")
+    }
+}
+
 /**
  * The harness gate stand-in (phase doc §2.1): an always-on-top debug dialog rendering
  * the [GateCard] verbatim — class in plain words, site + URL, target, one-line
  * consequence — with Approve/Deny and a live 30s countdown. Timeout = deny (vision 06
  * §2, fail-safe). The dialog window is TYPE_APPLICATION_OVERLAY when the owner granted
- * "display over other apps" (it must sit over Chrome during a run); otherwise it falls
- * back to an activity-local dialog. The product overlay (Phase 9) replaces this;
+ * "display over other apps" (it must sit over Chrome during a run); otherwise the
+ * harness activity is brought to the FRONT first ([shouldBringToFront] /
+ * [bringToFront]) — an activity-local dialog behind a stopped activity is never seen
+ * (the 2026-10-07 S25+ UAT defect). The product overlay (Phase 9) replaces this;
  * nothing here is product UI and no auto mode exists in Phase 9.
  */
 class DebugGatePresenter(private val activity: Activity) : GatePresenter {
@@ -63,6 +100,21 @@ class DebugGatePresenter(private val activity: Activity) : GatePresenter {
                 append(card.target).append('\n')
                 append(card.consequenceLine)
             }
+            // Card visibility over Chrome (2026-10-07 S25+ defect): the overlay window
+            // draws over the browser; without the permission an activity-local dialog is
+            // invisible behind Chrome, so the harness comes to the front FIRST and the
+            // dialog shows on a resumed activity.
+            val overlayGranted = android.provider.Settings.canDrawOverlays(activity)
+            if (shouldBringToFront(overlayGranted)) {
+                Log.d(
+                    HARNESS_LOG_TAG,
+                    "gate card: overlay permission absent - bringing the harness to the front " +
+                        "(grant Display-over-other-apps for no-switch cards)",
+                )
+                bringToFront(activity)
+            } else {
+                Log.d(HARNESS_LOG_TAG, "gate card: overlay window over Chrome")
+            }
             val dialog = AlertDialog.Builder(activity)
                 .setTitle("Navigator confirmation")
                 .setMessage(text)
@@ -79,7 +131,7 @@ class DebugGatePresenter(private val activity: Activity) : GatePresenter {
             dialog.window?.let { window ->
                 // Always-on-top over Chrome (product overlay is Phase 9; this is the
                 // harness stand-in the phase doc names).
-                if (android.provider.Settings.canDrawOverlays(activity)) {
+                if (overlayGranted) {
                     window.setType(android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)
                 }
             }
@@ -166,8 +218,9 @@ class ScriptedCompletionCardPresenter(private vararg val resolutions: Completion
 /**
  * The harness completion-card stand-in: the law's card verbatim — "Goal appears
  * complete" with Confirm done / Keep going and a live 30s countdown; timeout = keep
- * going (vision 04 §3 Path C). Overlay window when the owner granted it, activity-local
- * dialog otherwise; harness-only, never product UI.
+ * going (vision 04 §3 Path C). Overlay window when the owner granted it; otherwise the
+ * harness activity is brought to the front first (the gate-card fix — an
+ * activity-local dialog behind Chrome is never seen). Harness-only, never product UI.
  */
 class DebugCompletionCardPresenter(private val activity: Activity) : CompletionCardPresenter {
 
@@ -184,6 +237,20 @@ class DebugCompletionCardPresenter(private val activity: Activity) : CompletionC
                 append("evidence: guard=${card.guardLevel}, noul=${card.noul}, " +
                     "refused checks=${card.refusedChecks}")
             }
+            // Card visibility over Chrome (2026-10-07 S25+ defect, same as the gate
+            // card): overlay window when granted, otherwise the harness comes to the
+            // front FIRST and the dialog shows on a resumed activity.
+            val overlayGranted = android.provider.Settings.canDrawOverlays(activity)
+            if (shouldBringToFront(overlayGranted)) {
+                Log.d(
+                    HARNESS_LOG_TAG,
+                    "completion card: overlay permission absent - bringing the harness to the " +
+                        "front (grant Display-over-other-apps for no-switch cards)",
+                )
+                bringToFront(activity)
+            } else {
+                Log.d(HARNESS_LOG_TAG, "completion card: overlay window over Chrome")
+            }
             val dialog = AlertDialog.Builder(activity)
                 .setTitle("Navigator completion")
                 .setMessage(text)
@@ -198,7 +265,7 @@ class DebugCompletionCardPresenter(private val activity: Activity) : CompletionC
                 }
                 .create()
             dialog.window?.let { window ->
-                if (android.provider.Settings.canDrawOverlays(activity)) {
+                if (overlayGranted) {
                     window.setType(android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)
                 }
             }
