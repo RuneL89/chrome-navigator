@@ -8,7 +8,7 @@ import kotlin.test.assertTrue
 
 /**
  * Gate 7.1 (part 1): the golden replay. Every fixture replays through the full pipeline
- * (state text v1 -> questions -> wire parse -> gate classify) and must match its recorded
+ * (state text v2 -> questions -> wire parse -> gate classify) and must match its recorded
  * expectation — chosen node id AND gate class, exactly. A code change that alters an
  * outcome fails here naming the fixture (vision 07 §2: if a test fails, the code is wrong).
  * Pass criteria also include coverage: every fixture has an expectation entry and a
@@ -17,7 +17,7 @@ import kotlin.test.assertTrue
 class ReplayGoldenTest {
 
     @Test
-    fun `every fixture has a pairing and an expectation entry (coverage)`() {
+    fun `every fixture has a pairing and an ACTIVE expectation entry (coverage)`() {
         val names = EvalHarness.dumps.map { it.first }
         assertEquals(
             names.sorted(),
@@ -26,8 +26,9 @@ class ReplayGoldenTest {
         )
         assertEquals(
             names.sorted(),
-            EvalHarness.expectations.expectations.map { it.fixture }.sorted(),
-            "replay-expectations.json must cover exactly the committed a11y-dump fixtures",
+            EvalHarness.expectations.active.map { it.fixture }.sorted(),
+            "replay-expectations.json must cover exactly the committed a11y-dump fixtures " +
+                "(active entries; retired v1 pins are provenance only)",
         )
     }
 

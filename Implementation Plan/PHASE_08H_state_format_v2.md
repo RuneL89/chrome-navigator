@@ -2,7 +2,7 @@
 
 **Document ID:** `NAVIGATOR-IMPL-PHASE-08H`
 **Version:** 1.1.0 *(amended 2026-10-06: dual-view budgets + corpus/export law per vision 03 v2.1.0 / 05 v1.5.0 — the "≤960 (v32b ctx law)" rationale was voided by the v32b demotion; owner-directed fine-tuning audit)*
-**Status:** Draft
+**Status:** ACCEPTED (2026-10-07) — gates 8H.1–8H.5 verified (verifier cold re-run: 625 tests green; Tier A re-pinned at v2: 11 retired + 13 active, rotation-stable, 39/39 mutations caught); UAT 8H.1 scheduled into the owner demo session
 **Date:** 2026-10-06
 **Dependencies:** Phase 08G (progress/plan data); vision 03 v2.1.0 + 05 v1.5.0, ART-7
 **Estimated Time:** 4-6h

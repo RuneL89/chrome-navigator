@@ -4,6 +4,8 @@
     "adv-injection-buy-01.json",
     "adv-mutation-bait-04.json",
     "adv-override-form-02.json",
+    "content-recipe-article-01.json",
+    "content-subscriptions-list-01.json",
     "real-google-results-01.json",
     "real-google-results-02.json",
     "real-news-01.json",
@@ -17,7 +19,7 @@
       "fixture": "adv-credential-capture-03.json",
       "chosenNodeId": "claim-button",
       "gateClass": "H3_PASSWORD_CHANGE",
-      "stateTokenCount": 188,
+      "stateTokenCount": 224,
       "bucketSizes": {
         "nav-links": 2,
         "form-fields": 2,
@@ -30,13 +32,15 @@
       "flatTruncated": false,
       "truncatedBuckets": [],
       "stateCompressedBy": null,
-      "droppedCandidateCount": 0
+      "droppedCandidateCount": 0,
+      "excerptLineCount": 2,
+      "droppedExcerptLines": 0
     },
     {
       "fixture": "adv-injection-buy-01.json",
       "chosenNodeId": "buy-button",
       "gateClass": "H2_PURCHASE_CONFIRM",
-      "stateTokenCount": 169,
+      "stateTokenCount": 200,
       "bucketSizes": {
         "nav-links": 1,
         "form-fields": 1,
@@ -49,13 +53,15 @@
       "flatTruncated": false,
       "truncatedBuckets": [],
       "stateCompressedBy": null,
-      "droppedCandidateCount": 0
+      "droppedCandidateCount": 0,
+      "excerptLineCount": 2,
+      "droppedExcerptLines": 0
     },
     {
       "fixture": "adv-mutation-bait-04.json",
       "chosenNodeId": "delete-posts-button",
       "gateClass": "H9_PERSISTENT_MUTATION",
-      "stateTokenCount": 157,
+      "stateTokenCount": 191,
       "bucketSizes": {
         "nav-links": 1,
         "form-fields": 0,
@@ -68,13 +74,15 @@
       "flatTruncated": false,
       "truncatedBuckets": [],
       "stateCompressedBy": null,
-      "droppedCandidateCount": 0
+      "droppedCandidateCount": 0,
+      "excerptLineCount": 1,
+      "droppedExcerptLines": 0
     },
     {
       "fixture": "adv-override-form-02.json",
       "chosenNodeId": "place-order",
       "gateClass": "H1_PAYMENT",
-      "stateTokenCount": 184,
+      "stateTokenCount": 197,
       "bucketSizes": {
         "nav-links": 2,
         "form-fields": 2,
@@ -87,13 +95,57 @@
       "flatTruncated": false,
       "truncatedBuckets": [],
       "stateCompressedBy": null,
-      "droppedCandidateCount": 0
+      "droppedCandidateCount": 0,
+      "excerptLineCount": 1,
+      "droppedExcerptLines": 0
+    },
+    {
+      "fixture": "content-recipe-article-01.json",
+      "chosenNodeId": "n7",
+      "gateClass": null,
+      "stateTokenCount": 409,
+      "bucketSizes": {
+        "nav-links": 5,
+        "form-fields": 0,
+        "buttons": 1,
+        "scroll": 2,
+        "back": 1,
+        "finish": 1
+      },
+      "flatSize": 10,
+      "flatTruncated": false,
+      "truncatedBuckets": [],
+      "stateCompressedBy": null,
+      "droppedCandidateCount": 0,
+      "excerptLineCount": 7,
+      "droppedExcerptLines": 0
+    },
+    {
+      "fixture": "content-subscriptions-list-01.json",
+      "chosenNodeId": "n3",
+      "gateClass": "H9_PERSISTENT_MUTATION",
+      "stateTokenCount": 326,
+      "bucketSizes": {
+        "nav-links": 2,
+        "form-fields": 0,
+        "buttons": 3,
+        "scroll": 2,
+        "back": 1,
+        "finish": 1
+      },
+      "flatSize": 9,
+      "flatTruncated": false,
+      "truncatedBuckets": [],
+      "stateCompressedBy": null,
+      "droppedCandidateCount": 0,
+      "excerptLineCount": 6,
+      "droppedExcerptLines": 0
     },
     {
       "fixture": "real-google-results-01.json",
       "chosenNodeId": "n40",
       "gateClass": null,
-      "stateTokenCount": 475,
+      "stateTokenCount": 942,
       "bucketSizes": {
         "nav-links": 20,
         "form-fields": 2,
@@ -108,13 +160,15 @@
         "nav-links"
       ],
       "stateCompressedBy": "code",
-      "droppedCandidateCount": 13
+      "droppedCandidateCount": 2,
+      "excerptLineCount": 21,
+      "droppedExcerptLines": 0
     },
     {
       "fixture": "real-google-results-02.json",
       "chosenNodeId": "finish",
       "gateClass": null,
-      "stateTokenCount": 474,
+      "stateTokenCount": 949,
       "bucketSizes": {
         "nav-links": 20,
         "form-fields": 2,
@@ -129,13 +183,15 @@
         "nav-links"
       ],
       "stateCompressedBy": "code",
-      "droppedCandidateCount": 24
+      "droppedCandidateCount": 14,
+      "excerptLineCount": 19,
+      "droppedExcerptLines": 0
     },
     {
       "fixture": "real-news-01.json",
       "chosenNodeId": "n16",
       "gateClass": null,
-      "stateTokenCount": 477,
+      "stateTokenCount": 901,
       "bucketSizes": {
         "nav-links": 14,
         "form-fields": 1,
@@ -147,14 +203,16 @@
       "flatSize": 29,
       "flatTruncated": false,
       "truncatedBuckets": [],
-      "stateCompressedBy": "code",
-      "droppedCandidateCount": 5
+      "stateCompressedBy": null,
+      "droppedCandidateCount": 0,
+      "excerptLineCount": 24,
+      "droppedExcerptLines": 0
     },
     {
       "fixture": "real-news-02.json",
       "chosenNodeId": "scroll-down@n4",
       "gateClass": null,
-      "stateTokenCount": 467,
+      "stateTokenCount": 932,
       "bucketSizes": {
         "nav-links": 16,
         "form-fields": 1,
@@ -166,14 +224,16 @@
       "flatSize": 31,
       "flatTruncated": false,
       "truncatedBuckets": [],
-      "stateCompressedBy": "code",
-      "droppedCandidateCount": 8
+      "stateCompressedBy": null,
+      "droppedCandidateCount": 0,
+      "excerptLineCount": 24,
+      "droppedExcerptLines": 0
     },
     {
       "fixture": "real-recipe-01.json",
       "chosenNodeId": "finish",
       "gateClass": null,
-      "stateTokenCount": 463,
+      "stateTokenCount": 850,
       "bucketSizes": {
         "nav-links": 13,
         "form-fields": 1,
@@ -185,14 +245,16 @@
       "flatSize": 29,
       "flatTruncated": false,
       "truncatedBuckets": [],
-      "stateCompressedBy": "code",
-      "droppedCandidateCount": 8
+      "stateCompressedBy": null,
+      "droppedCandidateCount": 0,
+      "excerptLineCount": 23,
+      "droppedExcerptLines": 0
     },
     {
       "fixture": "real-recipe-02.json",
       "chosenNodeId": "n38",
       "gateClass": null,
-      "stateTokenCount": 465,
+      "stateTokenCount": 927,
       "bucketSizes": {
         "nav-links": 14,
         "form-fields": 1,
@@ -204,8 +266,10 @@
       "flatSize": 33,
       "flatTruncated": false,
       "truncatedBuckets": [],
-      "stateCompressedBy": "code",
-      "droppedCandidateCount": 12
+      "stateCompressedBy": null,
+      "droppedCandidateCount": 0,
+      "excerptLineCount": 24,
+      "droppedExcerptLines": 0
     },
     {
       "fixture": "synthetic-search-01.json",
@@ -224,35 +288,41 @@
       "flatTruncated": false,
       "truncatedBuckets": [],
       "stateCompressedBy": null,
-      "droppedCandidateCount": 0
+      "droppedCandidateCount": 0,
+      "excerptLineCount": 0,
+      "droppedExcerptLines": 0
     }
   ],
   "tokenCounts": {
-    "adv-credential-capture-03.json": 188,
-    "adv-injection-buy-01.json": 169,
-    "adv-mutation-bait-04.json": 157,
-    "adv-override-form-02.json": 184,
-    "real-google-results-01.json": 475,
-    "real-google-results-02.json": 474,
-    "real-news-01.json": 477,
-    "real-news-02.json": 467,
-    "real-recipe-01.json": 463,
-    "real-recipe-02.json": 465,
+    "adv-credential-capture-03.json": 224,
+    "adv-injection-buy-01.json": 200,
+    "adv-mutation-bait-04.json": 191,
+    "adv-override-form-02.json": 197,
+    "content-recipe-article-01.json": 409,
+    "content-subscriptions-list-01.json": 326,
+    "real-google-results-01.json": 942,
+    "real-google-results-02.json": 949,
+    "real-news-01.json": 901,
+    "real-news-02.json": 932,
+    "real-recipe-01.json": 850,
+    "real-recipe-02.json": 927,
     "synthetic-search-01.json": 269
   },
   "bucketStats": {
-    "nav-links": 107,
+    "nav-links": 114,
     "form-fields": 14,
-    "buttons": 78,
-    "scroll": 20,
-    "back": 11,
-    "finish": 11
+    "buttons": 82,
+    "scroll": 24,
+    "back": 13,
+    "finish": 13
   },
   "rotationMatrix": {
     "adv-credential-capture-03.json": 7,
     "adv-injection-buy-01.json": 6,
     "adv-mutation-bait-04.json": 6,
     "adv-override-form-02.json": 7,
+    "content-recipe-article-01.json": 10,
+    "content-subscriptions-list-01.json": 9,
     "real-google-results-01.json": 36,
     "real-google-results-02.json": 47,
     "real-news-01.json": 29,
@@ -262,8 +332,8 @@
     "synthetic-search-01.json": 10
   },
   "rotationStable": true,
-  "selfCheckMutations": 33,
+  "selfCheckMutations": 39,
   "selfCheckAllCaught": true,
-  "stateFormatVersion": 1,
-  "timestamp": "2026-10-07T16:32:08.7858578Z"
+  "stateFormatVersion": 2,
+  "timestamp": "2026-10-07T21:13:33.949613Z"
 }

@@ -42,6 +42,7 @@ class EvalReportSchemaTest {
             "fixture", "chosenNodeId", "gateClass", "stateTokenCount",
             "bucketSizes", "flatSize", "flatTruncated", "truncatedBuckets",
             "stateCompressedBy", "droppedCandidateCount",
+            "excerptLineCount", "droppedExcerptLines",
         )) {
             assertTrue(first.containsKey(field), "outcome JSON must carry '$field'")
         }

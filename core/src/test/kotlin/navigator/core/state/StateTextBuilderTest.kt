@@ -14,10 +14,14 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * Gate 2.3: the state-text law (isolation, vision 03 §4). For every fixture the rendered
- * state text is ≤480 tokens with exact section order; app-authored lines never contain
- * page text; a deliberately oversized input compresses legally — whole-candidate drops,
- * lowest rank first, valid bucket headers, drops recorded, never a corrupted mid-line.
+ * Gate 2.3 / Gate 8H.2: the state-text law (isolation, vision 03 §4 v2.1.0). For every
+ * fixture the rendered state text is ≤960 tokens with the exact v2 section order
+ * (GOAL/URL/TITLE/PLAN/TASK PROGRESS/HISTORY/UNTRUSTED PAGE CONTENT); app-authored
+ * lines never contain page text; the content excerpt rides the untrusted block ahead
+ * of the candidate lines; a deliberately oversized input compresses legally —
+ * whole-candidate drops lowest rank first, then head-anchored excerpt shrinking —
+ * valid bucket headers, drops recorded, never a corrupted mid-line; PLAN and TASK
+ * PROGRESS render from the 08G sources (and are omitted without them).
  */
 class StateTextBuilderTest {
 
@@ -35,6 +39,8 @@ class StateTextBuilderTest {
     }
 
     private fun lines(text: String): List<String> = text.split("\n").dropLast(1)
+
+    private val bucketHeaders = setOf("nav-links:", "form-fields:", "buttons:", "scroll:", "back:", "finish:")
 
     // ---- the loud secret rejection (vision 03 §4 / doc 06 §2a, Phase 08F) ----
 
@@ -77,6 +83,23 @@ class StateTextBuilderTest {
     }
 
     @Test
+    fun `a secret echoed into the content excerpt fails loudly (the v2 excerpt path)`() {
+        val dump = TestFixtures.loadAll().first().second
+        val candidates = CandidateEnumerator.enumerate(dump.observedNodes())
+        assertFailsWith<IllegalStateException> {
+            builder.build(
+                "goal",
+                dump.url,
+                dump.title,
+                emptyList(),
+                candidates,
+                excerpt = listOf("page prose", "echoes $fixtureSecret back"),
+                secrets = listOf(fixtureSecret),
+            )
+        }
+    }
+
+    @Test
     fun `clean text builds normally with the secrets parameter supplied`() {
         val dump = TestFixtures.loadAll().first().second
         val candidates = CandidateEnumerator.enumerate(dump.observedNodes())
@@ -104,7 +127,7 @@ class StateTextBuilderTest {
     // -- budget + structure over every fixture -----------------------------------------
 
     @Test
-    fun `every fixture renders within the 480-token budget`() {
+    fun `every fixture renders within the 960-token canonical budget under format v2`() {
         for ((name, _) in TestFixtures.loadAll()) {
             val state = buildFor(name)
             assertTrue(
@@ -112,6 +135,7 @@ class StateTextBuilderTest {
                 "$name: state text is ${state.tokenCount} tokens > ${StateTextBuilder.TOKEN_BUDGET}",
             )
             assertEquals(tokenizer.count(state.text), state.tokenCount, "$name")
+            assertEquals(2, state.formatVersion, "$name: the v2 format is the current law")
             assertEquals(STATE_FORMAT_VERSION, state.formatVersion, "$name")
         }
     }
@@ -137,9 +161,116 @@ class StateTextBuilderTest {
         }
     }
 
+    // -- PLAN / TASK PROGRESS (the 08G sources render; omitted without them) -----------
+
+    @Test
+    fun `PLAN renders one flattened line per subgoal between TITLE and HISTORY`() {
+        val dump = TestFixtures.loadAll().first { it.first == "synthetic-search-01.json" }.second
+        val candidates = CandidateEnumerator.enumerate(dump.observedNodes())
+        val state = builder.build(
+            "g", dump.url, dump.title, emptyList(), candidates,
+            plan = listOf("open the search page", "type\nthe  query", "open the first result"),
+        )
+        val got = lines(state.text)
+        assertEquals(
+            listOf(
+                "GOAL: g",
+                "URL: " + dump.url,
+                "TITLE: " + dump.title,
+                "PLAN: open the search page",
+                "PLAN: type the query",
+                "PLAN: open the first result",
+                "HISTORY: (none)",
+            ),
+            got.take(7),
+            "PLAN lines are app-authored, flattened, one line each, before HISTORY",
+        )
+    }
+
+    @Test
+    fun `no plan means no PLAN section (omitted, not an empty block)`() {
+        val dump = TestFixtures.loadAll().first { it.first == "synthetic-search-01.json" }.second
+        val candidates = CandidateEnumerator.enumerate(dump.observedNodes())
+        val state = builder.build("g", dump.url, dump.title, emptyList(), candidates, plan = null)
+        assertTrue("PLAN:" !in state.text, "a null plan must omit the section entirely")
+    }
+
+    @Test
+    fun `TASK PROGRESS renders the tracker's working-memory lines - absent tracker omits the section`() {
+        val dump = TestFixtures.loadAll().first { it.first == "synthetic-search-01.json" }.second
+        val candidates = CandidateEnumerator.enumerate(dump.observedNodes())
+        val with = builder.build(
+            "g", dump.url, dump.title, emptyList(), candidates,
+            progress = listOf(
+                "2 processed, 3 pending, 0 skipped of 5 tracked targets (drained=false)",
+                "pending target: \"weekly digest\"",
+            ),
+        )
+        val got = lines(with.text)
+        assertEquals("TASK PROGRESS: 2 processed, 3 pending, 0 skipped of 5 tracked targets (drained=false)", got[3])
+        assertEquals("TASK PROGRESS: pending target: \"weekly digest\"", got[4])
+        assertTrue(got[5].startsWith("HISTORY:"), "TASK PROGRESS sits between TITLE and HISTORY")
+        val without = builder.build("g", dump.url, dump.title, emptyList(), candidates, progress = null)
+        assertTrue("TASK PROGRESS:" !in without.text, "no tracker -> no section")
+    }
+
+    @Test
+    fun `PLAN and TASK PROGRESS are bounded (re-authored by code, flattened, capped)`() {
+        val dump = TestFixtures.loadAll().first { it.first == "synthetic-search-01.json" }.second
+        val candidates = CandidateEnumerator.enumerate(dump.observedNodes())
+        val state = builder.build(
+            "g", dump.url, dump.title, emptyList(), candidates,
+            plan = (1..20).map { "subgoal $it" },
+            progress = (1..20).map { "progress line $it" },
+        )
+        assertEquals(StateTextBuilder.MAX_PLAN_LINES, lines(state.text).count { it.startsWith("PLAN:") })
+        assertEquals(
+            StateTextBuilder.MAX_PROGRESS_LINES,
+            lines(state.text).count { it.startsWith("TASK PROGRESS:") },
+        )
+    }
+
+    // -- the content excerpt (vision 03 §1/§4, Phase 08H) -------------------------------
+
+    @Test
+    fun `the excerpt rides the untrusted block ahead of the candidate lines`() {
+        val dump = TestFixtures.loadAll().first { it.first == "real-recipe-01.json" }.second
+        val candidates = CandidateEnumerator.enumerate(dump.observedNodes())
+        val state = builder.build(
+            "g", dump.url, dump.title, emptyList(), candidates,
+            excerpt = listOf("first paragraph", "second paragraph"),
+        )
+        val content = lines(state.text).dropWhile { it != StateTextBuilder.UNTRUSTED_HEADER }.drop(1)
+        assertEquals(listOf("first paragraph", "second paragraph"), content.take(2), "excerpt lines come first")
+        assertTrue(content.drop(2).all { it in bucketHeaders || it.startsWith("[") }, "candidate lines follow")
+    }
+
+    @Test
+    fun `excerpt lines are flattened to one line each`() {
+        val dump = TestFixtures.loadAll().first().second
+        val candidates = CandidateEnumerator.enumerate(dump.observedNodes())
+        val state = builder.build(
+            "g", dump.url, dump.title, emptyList(), candidates,
+            excerpt = listOf("prose\nwith  newlines\tand   runs"),
+        )
+        assertTrue("prose with newlines and runs" in state.text)
+        assertTrue("\nwith" !in state.text)
+    }
+
+    @Test
+    fun `without an excerpt the untrusted block is exactly the candidate lines`() {
+        val dump = TestFixtures.loadAll().first { it.first == "synthetic-search-01.json" }.second
+        val candidates = CandidateEnumerator.enumerate(dump.observedNodes())
+        val state = builder.build("g", dump.url, dump.title, emptyList(), candidates)
+        val content = lines(state.text).dropWhile { it != StateTextBuilder.UNTRUSTED_HEADER }.drop(1)
+        assertTrue(content.isNotEmpty())
+        assertTrue(content.first() in bucketHeaders, "no excerpt lines before the first bucket header")
+    }
+
+    // -- untrusted labeling --------------------------------------------------------------
+
     @Test
     fun `content block uses only bucket headers and well-formed candidate lines`() {
-        val headerNames = setOf("nav-links:", "form-fields:", "buttons:", "scroll:", "back:", "finish:")
         val candidateLine = Regex("""^\[[^\]]+\] "[^"]*"( [a-z]+)* \(-?\d+,-?\d+\)$""")
         for ((name, _) in TestFixtures.loadAll()) {
             val state = buildFor(name)
@@ -147,7 +278,7 @@ class StateTextBuilderTest {
             assertTrue(content.isNotEmpty(), "$name: empty content block")
             content.forEach { line ->
                 assertTrue(
-                    line in headerNames || candidateLine.matches(line),
+                    line in bucketHeaders || candidateLine.matches(line),
                     "$name: illegal content line: \"$line\"",
                 )
             }
@@ -204,15 +335,24 @@ class StateTextBuilderTest {
 
     // -- compression ------------------------------------------------------------------
 
-    private fun oversizedNodes(count: Int = 60) = (0 until count).map { i ->
-        TestFixtures.node(
-            id = "big" + i.toString().padStart(3, '0'),
-            top = 100 + i * 90,
-            // URL/punctuation-dense labels tokenize heavily (~25+ tokens per rendered
-            // line), so the 20-candidate capped bucket still blows the 480-token budget
-            text = "R$i www.t$i.example.com/p?qa=$i&qb=$i path",
-        )
-    }
+    /**
+     * A v2-oversized tree: three 20-capped buckets of URL-dense labels (~25+ tokens per
+     * rendered line) — 60+ candidate lines blow the 960-token canonical budget, and a
+     * fat excerpt forces the second (head-anchored excerpt) stage too.
+     */
+    private fun oversizedNodes(count: Int = 60): List<navigator.core.enumerate.ObservedNode> =
+        (0 until count).map { i ->
+            TestFixtures.node(
+                id = "big" + i.toString().padStart(3, '0'),
+                top = 100 + i * 90,
+                clickable = true,
+                editable = i % 3 == 1, // spreads candidates across buckets (each still ≤20)
+                text = "R$i www.t$i.example.com/p?qa=$i&qb=$i path",
+            )
+        }
+
+    private fun oversizedExcerpt(): List<String> =
+        (0 until 100).map { i -> "Excerpt paragraph $i carries about a dozen tokens of page prose for the reader." }
 
     private val oracleOrder: Comparator<Candidate> = compareBy(
         { it.synthetic },
@@ -278,11 +418,36 @@ class StateTextBuilderTest {
     }
 
     @Test
+    fun `excerpt shrinking is stage two - head-anchored, whole lines, after candidate drops`() {
+        val candidates = CandidateEnumerator.enumerate(oversizedNodes())
+        val excerpt = oversizedExcerpt()
+        val state = builder.build(
+            "find a thing", "www.example.com", "Example", emptyList(), candidates, excerpt,
+        )
+        assertTrue(state.tokenCount <= StateTextBuilder.TOKEN_BUDGET, "did not fit: ${state.tokenCount}")
+        assertTrue(state.droppedExcerptLines > 0, "the excerpt stage must have engaged")
+        assertEquals("code", state.compressedBy)
+        // head-anchored: the surviving excerpt is the input's head, in order
+        val content = lines(state.text).dropWhile { it != StateTextBuilder.UNTRUSTED_HEADER }.drop(1)
+        val keptExcerpt = content.takeWhile { it !in bucketHeaders }
+        assertEquals(
+            excerpt.take(keptExcerpt.size),
+            keptExcerpt,
+            "excerpt shrink must keep the ranking's head and drop the tail",
+        )
+        // no mid-line corruption: excerpt lines are whole, candidate lines well-formed
+        val candidateLine = Regex("""^\[[^\]]+\] "[^"]*"( [a-z]+)* \(-?\d+,-?\d+\)$""")
+        content.drop(keptExcerpt.size).forEach { line ->
+            assertTrue(line in bucketHeaders || candidateLine.matches(line), "corrupted line: \"$line\"")
+        }
+    }
+
+    @Test
     fun `state text can never exceed the budget - pathological app lines fail loudly`() {
         val candidates = CandidateEnumerator.enumerate(
             listOf(TestFixtures.node(id = "quiet", top = 0, clickable = false, text = "just text")),
         )
-        val huge = "filler ".repeat(600).trim()
+        val huge = "filler ".repeat(1200).trim()
         assertFailsWith<IllegalStateException> {
             builder.build(huge, huge, huge, emptyList(), candidates)
         }

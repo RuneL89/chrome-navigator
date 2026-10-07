@@ -513,6 +513,18 @@ class NavigationLoop(
                 title = obs.title,
                 history = history + hints,
                 candidates = candidates,
+                // Phase 08H (vision 03 §1/§4): the bounded non-candidate prose excerpt
+                // rides the untrusted block — the read-goal substrate.
+                excerpt = obs.excerpt,
+                // The 08G plan source's subgoals re-authored as bounded app-authored
+                // PLAN lines (context, never executor — ART-2); null = section omitted.
+                plan = plan?.subgoals,
+                // The tracker's working-memory lines (counts + recent pending), the
+                // TASK PROGRESS section of action-multi tasks; null = section omitted.
+                progress = tracker
+                    ?.takeIf { triageClass == TriageClass.ACTION_MULTI }
+                    ?.progressLines()
+                    ?.map { it.removePrefix("TASK PROGRESS: ") },
                 // doc 06 §2a via vision 03 §4: a card secret that would ever reach the
                 // state text (e.g. a page-side echo in a candidate label) fails LOUDLY.
                 secrets = cardSecrets,
@@ -1336,6 +1348,13 @@ data class StepObservation(
      * not make a canvas-only page look readable.
      */
     val pageNodeCount: Int? = null,
+    /**
+     * The bounded non-candidate page prose (Phase 08H, vision 03 §1 content extraction):
+     * [navigator.core.state.ContentExtractor]'s deterministic product over [nodes],
+     * rendered inside the state text's `UNTRUSTED PAGE CONTENT` block. Empty when the
+     * observer supplies none (fakes default to it).
+     */
+    val excerpt: List<String> = emptyList(),
 ) {
     /** Non-interactive, non-blank text nodes — the completion guards' content measure. */
     val contentTextNodes: Int

@@ -1,0 +1,149 @@
+{
+  "capturedAt": "2026-10-06T09:00:00Z",
+  "site": "content-fixture.test",
+  "url": "https://content-fixture.test/recipes/classic-apple-pie",
+  "title": "Classic Apple Pie - The Baking Pages",
+  "device": "Phase 08H synthetic capture (content-rich v2 fixture; generic page, no real site)",
+  "nodes": [
+    {
+      "id": "n0",
+      "text": "Classic Apple Pie",
+      "desc": "",
+      "clickable": false,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,120,1025,190",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n1",
+      "text": "This is the pie our test kitchen bakes every autumn: a flaky butter crust, cinnamon-scented filling, and a lattice top baked to deep gold.",
+      "desc": "",
+      "clickable": false,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,200,1025,320",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n2",
+      "text": "Recipes",
+      "desc": "Section index",
+      "clickable": true,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,330,300,390",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n3",
+      "text": "Techniques",
+      "desc": "Section index",
+      "clickable": true,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "310,330,560,390",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n4",
+      "text": "Seasonal",
+      "desc": "Section index",
+      "clickable": true,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "570,330,820,390",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n5",
+      "text": "The filling thickens as it cools, so let the pie rest a full two hours before the first slice.",
+      "desc": "",
+      "clickable": false,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,400,1025,500",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n6",
+      "text": "Toss the apples with lemon juice, sugar, cinnamon, and a pinch of nutmeg; macerate for thirty minutes.",
+      "desc": "",
+      "clickable": false,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,510,1025,610",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n7",
+      "text": "Reviews (34)",
+      "desc": "Reader reviews of this recipe",
+      "clickable": true,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,620,400,680",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n8",
+      "text": "Save recipe",
+      "desc": "",
+      "clickable": true,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "410,620,760,680",
+      "className": "android.widget.Button"
+    },
+    {
+      "id": "n9",
+      "text": "",
+      "desc": "",
+      "clickable": false,
+      "editable": false,
+      "scrollable": true,
+      "bounds": "0,700,1080,2200",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n10",
+      "text": "Ingredients: 900 g baking apples, one double crust, 60 g sugar, 5 g cinnamon, 15 g lemon juice.",
+      "desc": "",
+      "clickable": false,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,760,1025,880",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n11",
+      "text": "Bake at 200 degrees Celsius on the lower rack for twenty minutes, then lower the heat to 180 for forty more.",
+      "desc": "",
+      "clickable": false,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,890,1025,1010",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n12",
+      "text": "Reader note: a handful of fresh thyme in the filling divides the room; we tried it and now swear by it.",
+      "desc": "",
+      "clickable": false,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,1020,1025,1140",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n13",
+      "text": "Next article: Cherry Galette",
+      "desc": "Follows this article",
+      "clickable": true,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,1150,1025,1210",
+      "className": "android.view.View"
+    }
+  ]
+}

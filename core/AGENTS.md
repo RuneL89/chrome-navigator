@@ -34,11 +34,26 @@ without a device.
   separate `Recovery` set), `Candidate`/`CandidateList`, `CandidateEnumerator`
   (deterministic ART-6 ranking, ≤20/bucket + ≤255 flat caps with recorded truncation);
   law: `Project Vision/03` §3
-* `src/main/kotlin/navigator/core/state/` — `StateTextBuilder`: the canonical state text
-  v1 (vision 03 §4 template, ≤480 tokens enforced with the laya tokenizer,
-  deterministic in-code compression; Phase 8F: the `secrets` parameter — a card-secret
-  string that would reach the emitted text fails LOUDLY, never truncation or masking,
-  doc 06 §2a); law: `Project Vision/03` §4
+* `src/main/kotlin/navigator/core/state/` — the state-text family (vision 03 §4 v2.1.0,
+  STATE_FORMAT_VERSION = 2): `StateTextBuilder` — the canonical state text v2 (sections in
+  order GOAL/URL/TITLE/PLAN/TASK PROGRESS/HISTORY/UNTRUSTED PAGE CONTENT; dual budget
+  ≤960 tokens enforced with the real laya tokenizer; PLAN lines from the 08G plan source
+  re-authored by code — flattened, bounded, omitted when no plan; TASK PROGRESS from the
+  08G tracker, omitted without one; the content excerpt rides the untrusted block ahead
+  of the candidate lines; deterministic-first compression — lowest-rank candidate drops,
+  then head-anchored whole-line excerpt shrinking — with `compressedBy=code` logging, the
+  cloud page-compressor LLM role is Phase 10's seam; Phase 8F: the `secrets` parameter —
+  a card-secret string that would reach the emitted text fails LOUDLY, never truncation
+  or masking, doc 06 §2a), `ContentExtractor` — the bounded non-candidate prose excerpt
+  (deterministic read-order selection, ≤24 lines × 200 chars, dedupe keeping first,
+  TEXT only — ART-8), and `LayaStateView` (`LAYA_STATE_VIEW_VERSION = 1` — the dual-view
+  law: a pure deterministic derivation of the canonical text, same sections/order,
+  candidate lines then excerpt shrunk head-anchored by whole lines, within the
+  checkpoint's `maxLen − headMaxLen − 1` budget passed by the caller (the FORMULA lives
+  beside the app marker ceilings, ART-5); identity when the canonical fits; LOUD failure
+  when nothing lawful remains to shrink — silent marker-layer truncation is unlawful);
+  the token counter is injectable (`deriveWith`) — the cross-language parity seam vs
+  `tools/laya_reference.py --state-view-parity`; law: `Project Vision/03` §1, §4
 * `src/main/kotlin/navigator/core/gate/` — the risk gate (ART-1: code owns the gate,
   no model judgment in the gate path): `RiskGate` (deterministic H1–H9 classifier over
   (action, context); ambiguous classification fails to the stricter class — never
@@ -105,7 +120,11 @@ without a device.
   2026-10-04, provenance in each file's `note`); the
   `a11y-dumps/adv-*.json` trees are the adversarial fixtures — injected instruction-like
   page text, vision 07 §2; Phase 8E added `adv-mutation-bait-04.json`, the mutation
-  bait: untrusted text steering at most TOWARD a gated control (ART-4))
+  bait: untrusted text steering at most TOWARD a gated control (ART-4); Phase 8H added
+  `content-recipe-article-01.json` + `content-subscriptions-list-01.json`, the
+  content-rich v2 fixtures (generic pages, no site names — prose-heavy trees exercising
+  the content-excerpt path; the subscriptions page's Unsubscribe control is the
+  prose-adjacent H9 case))
 * `src/test/resources/eval/` — Tier A replay inputs, reviewable data (NOT fixtures):
   `replay-pairings.json` (each dump's gold decision: goal + chosen node + optional explicit
   action kind + note) and `replay-expectations.json` (golden chosen node id + gate class
@@ -240,18 +259,23 @@ without a device.
   `WIRE_ROUNDING_TOLERANCE` 0.02 renormalized — the provider emits 2-decimal
   probabilities whose sum can be e.g. 0.99, measured live; beyond that, loud failure),
   identical distributions give exactly 0.0
-* The RLCD export (vision 05 §4 v1.5.0) copies state text verbatim and emits TWO case
-  kinds: `choose` (from decision rows — `questions` is the bucketed shadow form and
-  `gold` the full distribution, never a bare label) and `noul` (from exit-check rows —
-  `question` is the anchored `NoulQuestion` payload with its `anchoredNoulVersion`,
-  `gold` the authoritative pTrue). AUTHORITATIVE-GOLD LAW: gold is always the EXECUTED
-  answer — the fallback's when `escalated=true`, the primary's otherwise; a student
-  engine is never its own gold. FORMAT SCOPING: only rows of the current
-  `STATE_FORMAT_VERSION` export (pre-08H the canonical text is the noul `state`; the
-  manifest's `layaStateViewVersion` is null until the dual-view builder exists); rows
-  of other versions are excluded and counted by version in the manifest (loudly, never
-  silently dropped). Mixed-teacher corpora are flagged when more than one pinned
-  teacher model appears in the window
+* The RLCD export (vision 05 §4 v1.5.0) emits TWO case kinds: `choose` (from decision
+  rows — `questions` is the bucketed shadow form and `gold` the full distribution, never
+  a bare label) and `noul` (from exit-check rows — `question` is the anchored
+  `NoulQuestion` payload with its `anchoredNoulVersion`, `gold` the authoritative pTrue).
+  AUTHORITATIVE-GOLD LAW: gold is always the EXECUTED answer — the fallback's when
+  `escalated=true`, the primary's otherwise; a student engine is never its own gold.
+  FORMAT SCOPING: only rows of the current `STATE_FORMAT_VERSION` export (since the 08H
+  bump the retired v1 rows are the excluded ones); rows of other versions are excluded
+  and counted by version in the manifest (loudly, never silently dropped) — the
+  manifest's `rowCount` IS the Road L accumulation counter and restarts at every bump
+  (doc 01 Road L Phase 3). STATE VIEW (Phase 08H): the canonical export (default) copies
+  the rows' state text verbatim; the on-device lineage (`RlcdStateView.LAYA_VIEW`) derives
+  the LAYA STATE VIEW through the same versioned builder ([LayaStateView.derive] within
+  the caller checkpoint's view budget) and the manifest carries
+  `layaStateViewVersion = LAYA_STATE_VIEW_VERSION` — byte-for-byte what the graduated
+  checkpoint sees at serve time; the export never rewrites state text. Mixed-teacher
+  corpora are flagged when more than one pinned teacher model appears in the window
 
 ## Work Guidance
 
@@ -262,9 +286,13 @@ without a device.
 
 * `./gradlew :core:test` — banding boundaries, type serialization round-trips, fixture
   accept/reject tests, enumeration determinism + taxonomy gates (2.1), tokenizer reference
-  vectors (2.2), state-text law (2.3, since Phase 8F incl. the loud secret rejection —
-  an echoed card-secret value is a loud failure, the default `secrets` parameter keeps
-  non-credential output byte-identical), the wire gates (3.1 transcript round-trips incl.
+  vectors (2.2), state-text law (2.3, v2 since Phase 8H: section order, ≤960 canonical,
+  excerpt rendering + head-anchored shrink, PLAN/TASK-PROGRESS rendering + omission,
+  `ContentExtractorTest` Gate 8H.1, `LayaStateViewTest` Gate 8H.2 core half — the ≤319
+  dual-view derivation with the REAL tokenizer, loud unfittable views; since Phase 8F
+  incl. the loud secret rejection — an echoed card-secret value is a loud failure, the
+  default `secrets` parameter keeps non-credential output byte-identical), the
+  wire gates (3.1 transcript round-trips incl.
   the live goldens, 3.2 failover + retry law, 3.3 name-indexing + banding — all keyless;
   real request bytes/statuses via MockWebServer, transport-failure simulations
   deterministic via the in-memory `CountingWireTransport`, never a live provider), the
@@ -293,7 +321,11 @@ shapes + the typedSecret and plan loud-incoherence proofs, 5.2 RLCD export vs a
   replay vs `eval/replay-expectations.json` + byte-identical consecutive runs + committed
   `.state/eval/` artifact drift detection, 7.2 injected-regression self-check, 7.3 rotation
   stability, report schema) must all pass; the standard regression command for any later
-  change to state format, wire parsing, taxonomy, or gate classes
+  change to state format, wire parsing, taxonomy, or gate classes. Since the Phase-08H
+  bump the table runs retire-and-add: 11 retired v1 pins (`retired: true`, provenance
+  only) + 13 active v2 pins (the 11 re-pins + the 2 content-rich fixtures); the drift
+  detector is re-armed at the v2 baseline (`.state/eval/tier-a-report.{md,json}`,
+  stateFormatVersion=2, 260 rotations stable, 39/39 mutations caught, tokens 191–949 ≤ 960)
 
 ## Child DOX Index
 

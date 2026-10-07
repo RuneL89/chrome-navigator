@@ -5,6 +5,8 @@ import kotlinx.serialization.Serializable
 import navigator.core.decision.ChoiceResult
 import navigator.core.decision.NoulQuestion
 import navigator.core.STATE_FORMAT_VERSION
+import navigator.core.laya.Tokenizer
+import navigator.core.state.LayaStateView
 
 /**
  * The training-case kind of one exported RLCD row (vision 05 §4 v1.5.0): a graduated
@@ -56,6 +58,21 @@ data class RlcdTeacherPin(
 )
 
 /**
+ * Which state text an export's cases carry (vision 05 §4 "State view"):
+ * [CANONICAL] exports the rows' canonical state text verbatim (the corpus-of-record
+ * view); [LAYA_VIEW] exports the **laya state view** — the deterministic derivation
+ * through the same versioned builder ([LayaStateView], `LAYA_STATE_VIEW_VERSION` in the
+ * manifest) — byte-for-byte what a graduated on-device checkpoint sees at serve time.
+ * The canonical text stays verbatim in the rows either way; the export never rewrites
+ * state text, it derives the view.
+ */
+@Serializable
+enum class RlcdStateView {
+    @SerialName("canonical") CANONICAL,
+    @SerialName("laya-state-view") LAYA_VIEW,
+}
+
+/**
  * The export manifest (vision 05 §4): teacher pin(s) seen in the window, the
  * mixed-teacher flag, row count, and the state-format versions present. A
  * mixed-teacher corpus (any teacher bump mid-window, vision 02 §5) is flagged so
@@ -69,8 +86,13 @@ data class RlcdTeacherPin(
  * kind; [excludedRowCount]/[excludedByStateFormatVersion] count rows of other format
  * versions LOUDLY (format scoping — never silently dropped); [anchoredNoulVersion] is
  * the noul cases' question-schema version; [layaStateViewVersion] names the state view
- * the noul `state` carries — null pre-08H, where the canonical text is exported
- * verbatim and no laya-view builder exists yet (vision 05 §4 "State view").
+ * the cases carry — null for a canonical export, [LAYA_STATE_VIEW_VERSION] when the
+ * export is of the on-device lineage (vision 05 §4 "State view").
+ *
+ * Road L Phase 3 accumulation law (doc 01): [rowCount] IS the export-eligible
+ * accumulation counter — it counts only rows of the current serve shape, so it
+ * RESTARTS at every state-format/view/question-version bump (older rows cannot train
+ * the newer serve shape). Historical rows remain for replay and diagnostics.
  */
 @Serializable
 data class RlcdExportManifest(
@@ -93,14 +115,17 @@ data class RlcdExportManifest(
  * [RlcdNoulCase] per exit-check row.
  *
  * Laws:
- * - the state text is copied verbatim — the export never rewrites it;
+ * - the canonical state text is copied verbatim — the export never rewrites it; the
+ *   on-device lineage's [RlcdStateView.LAYA_VIEW] mode instead DERIVES the laya state
+ *   view through the same versioned builder ([LayaStateView]), per vision 05 §4;
  * - **authoritative gold**: gold is always the EXECUTED answer — the fallback's when
  *   `escalated=true`, the primary's otherwise. A student engine is never its own gold:
  *   in laya-primary modes an escalated row's primary answer is the mistake the
  *   fallback corrected, and training on it would teach the mistake (vision 05 §4);
  * - **format scoping**: only rows whose `stateFormatVersion` matches the current serve
  *   shape export; rows of other versions are excluded and counted by version in the
- *   [manifest] (loudly, never silently dropped);
+ *   [manifest] (loudly, never silently dropped) — the Road L accumulation counter
+ *   restarts at the bump (doc 01 Road L Phase 3);
  * - `gold` distributions are key-sorted so exports are byte-canonical;
  * - the [manifest] travels alongside the cases (caller writes it as a sidecar or last
  *   line of its choosing) — the cases themselves stay strictly upstream-shaped;
@@ -115,7 +140,35 @@ class RlcdExporter(
     private val now: () -> Long = System::currentTimeMillis,
     /** The current serve shape (vision 05 §4 format scoping, ART-7). */
     private val serveStateFormatVersion: Int = STATE_FORMAT_VERSION,
+    /** Which state text the cases carry (vision 05 §4 "State view"; canonical default). */
+    private val stateView: RlcdStateView = RlcdStateView.CANONICAL,
+    /** The laya view budget (`maxLen - headMaxLen - 1`, ART-5); required iff [stateView] is [RlcdStateView.LAYA_VIEW]. */
+    private val layaViewBudgetTokens: Int? = null,
+    /** The real tokenizer the view derivation counts with; required iff [stateView] is [RlcdStateView.LAYA_VIEW]. */
+    private val tokenizer: Tokenizer? = null,
 ) {
+    init {
+        if (stateView == RlcdStateView.LAYA_VIEW) {
+            require(layaViewBudgetTokens != null && layaViewBudgetTokens > 0) {
+                "a laya-state-view export needs its checkpoint's view budget " +
+                    "(maxLen - headMaxLen - 1, vision 03 §4) — got $layaViewBudgetTokens"
+            }
+            require(tokenizer != null) {
+                "a laya-state-view export derives the view through the versioned builder " +
+                    "and needs the real tokenizer (vision 05 §4)"
+            }
+        }
+    }
+
+    /** The derived state text for one row's stored canonical text (the view law's seam). */
+    private fun stateFor(canonical: String): String = when (stateView) {
+        RlcdStateView.CANONICAL -> canonical // verbatim: never rewritten (vision 05 §4)
+        RlcdStateView.LAYA_VIEW -> LayaStateView.derive(
+            canonical,
+            requireNotNull(tokenizer),
+            requireNotNull(layaViewBudgetTokens),
+        )
+    }
 
     /** Exports [decisionRows] + [exitChecks] as JSONL — choose cases first (row order),
      *  then noul cases (row order); one case per format-matching row. */
@@ -147,7 +200,7 @@ class RlcdExporter(
             row.teacherAnswer
         }
         return RlcdChooseCase(
-            state = row.stateText, // verbatim: never rewritten (vision 05 §4)
+            state = stateFor(row.stateText),
             stateFormatVersion = row.stateFormatVersion,
             questions = row.questionShadow,
             gold = goldAnswer.probabilities.entries
@@ -158,7 +211,7 @@ class RlcdExporter(
 
     /** Maps one exit-check row to its exported `noul` case (authoritative-gold law applied). */
     fun toCase(check: ExitCheckRow): RlcdNoulCase = RlcdNoulCase(
-        state = check.stateText, // verbatim: never rewritten (vision 05 §4)
+        state = stateFor(check.stateText),
         stateFormatVersion = check.stateFormatVersion,
         question = check.question,
         anchoredNoulVersion = check.anchoredNoulVersion,
@@ -212,7 +265,11 @@ class RlcdExporter(
             excludedRowCount = excludedDecisions.size + excludedChecks.size,
             excludedByStateFormatVersion = excludedByVersion,
             anchoredNoulVersion = checkVersions.singleOrNull(),
-            layaStateViewVersion = null, // pre-08H: canonical state text, no laya view yet
+            layaStateViewVersion = if (stateView == RlcdStateView.LAYA_VIEW) {
+                LayaStateView.LAYA_STATE_VIEW_VERSION
+            } else {
+                null // canonical export: the rows' state text is the corpus view of record
+            },
         )
     }
 

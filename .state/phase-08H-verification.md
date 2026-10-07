@@ -1,0 +1,32 @@
+# Phase 08H — Independent Verification Report
+
+**Phase:** 08H (state-format v2: content excerpt + PLAN + TASK PROGRESS, dual-view budgets, corpus law, Tier A re-pin)
+**Verified by:** canon-verifier (deepseek-v4-pro, cold run, agent 06a7db76-68ad-459b-a81d-759b8886822a), 2026-10-07
+**Overall verdict: PASS** — all five gates pass on independent re-run; no contradiction with vision law. One environment limitation (no Python in the verifier sandbox; parity generator not re-executed) is covered by the checked-in parity fixture plus the green byte-for-byte JVM parity test.
+**Provenance note:** orchestrator transcription of the verifier's final report (returned inline); verdicts, counts, and law anchors preserved; load-bearing file:line citations re-verified by the verifier itself.
+
+---
+
+## Independent suite re-run
+
+`./gradlew test --rerun-tasks` → **BUILD SUCCESSFUL in 8m 21s**, exit 0. XML totals: `:core` **292** tests / 0 failures, `:app` **333** / 0 — total **625**, matching the claim. Foreground probes also green. Key classes: ContentExtractorTest 8, LayaStateViewTest 6, StateTextBuilderTest 24, RlcdExportTest 22, ReplayGoldenTest 4, LayaStateViewParityTest 2, LayaStateViewEngineTest 4, Phase08HLoopTest 4, LayaEngineReferenceParityTest 1/1, LayaEngineV32bReferenceParityTest 1/1 (v32b eval artifacts present, not assumed away).
+
+## Per-gate evidence
+
+- **8H.1 PASS** — `ContentExtractor.kt`: non-candidate scope only, deterministic read-order subsequence, bounded 24×200, first-occurrence dedupe, text only (ART-8). Live path in `HarnessRunners.kt` extracts from the same fresh-walk nodes — no second source of truth.
+- **8H.2 PASS** — `StateTextBuilder.kt` (order confirmed at lines 104-112, pinned by tests): GOAL/URL/TITLE/PLAN/TASK PROGRESS/HISTORY/UNTRUSTED PAGE CONTENT exactly; third-party text (excerpt AND candidate labels) confined below the untrusted marker (code inspection + the leak test); canonical ≤960 enforced with the REAL tokenizer (`Tokenizer.loadDefault()` BPE — every-fixture test asserts `tokenizer.count == tokenCount`); compression deterministic-first, `compressedBy=code`, the LLM half exists only as the Phase-10 enum seam (never called); PLAN bounded 8 / TASK PROGRESS bounded 8, both omitted on null; secrets fail loudly on candidate, app-authored, and excerpt paths (error message proven not to carry the value). `LayaStateView.kt`: ≤319 = maxLen − headMaxLen − 1 with `SequenceFormat.layaStateViewBudget` living beside the marker ceilings in `MarkerBuilder.kt` (pinned 319 for the 421M, 255 for v32b — a checkpoint-config change moves the budget by construction, ART-5); pure derivation of the canonical; head-anchored whole-line shrink; loud unfittable failure. **Marker truncation check:** the old silent clamp (`stateIds.take(minOf(size, room)) // right-truncate`) is REMOVED, replaced by `require(stateIds.size <= room)` naming "silent marker-layer truncation is unlawful (vision 03 §4)"; test-pinned in `LayaStateViewEngineTest`; a surviving post-require filter is unreachable defensive code, not a silent path. **Skew check (zero train/serve by construction):** serve — `LayaEngine.forward` derives the view and builds markers from it while caller-side recorded state stays canonical verbatim (both choose and judge paths, captured inputIds proven equal to the view-built sequence); train — `RlcdExporter.stateFor` derives through the SAME `LayaStateView.derive` for `LAYA_VIEW` (test asserts equality with the derivation, difference from canonical on the oversized fixture, budget fit, app block byte-identical, noul coverage); rows keep canonical verbatim.
+- **8H.3 PASS — Tier A LAWFUL retire-and-add.** Existing fixtures untouched (`git diff HEAD --name-only -- core/src/test/resources/fixtures/` empty for tracked files; 2 new content-rich dumps added). Expectations: 24 entries, 11 with `"retired": true`, 13 active (11 re-pins + 2 new). The `retired` schema (`ReplayInputs.kt`) enforces active-uniqueness, no duplicate retired entries, and LOUD orphan failure (a retired pin without an active replacement fails load); retired pins are excluded from drift — a structural retirement record, not a silent weakening. Baseline: `.state/eval/tier-a-report.json` — stateFormatVersion 2, rotationStable true (260 rotations / 13 fixtures), selfCheck 39 mutations allCaught, tokens 191–949 ≤ 960. Drift detector re-armed at the committed v2 bytes.
+- **8H.4 PASS** — full suite green (counts above).
+- **8H.5 PASS** — `RlcdExport.kt`: v1 rows now excluded, counted loudly per version (`excludedByStateFormatVersion`); authoritative gold both kinds; laya-view export derives through the versioned builder (manifest `layaStateViewVersion=1`, rows canonical); Road L counter restart documented at the seam (`RlcdExportManifest` KDoc + `StateFormat.kt`).
+
+## Note verdicts
+
+(a) `retired` flag — lawful (above). (b) MarkerBuilder loud-fail vs upstream's silent clamp — accept, and REQUIRED: vision 03 v2.1.0 outlaws silent marker truncation; KDoc records the deliberate deviation. (c) Engine derives the view at its serve boundary, loop passes canonical — accept; ART-2 unchanged, rows verbatim, export uses the same derivation. (d) ReplayOutcome +2 additive fields (`excerptLineCount`, `droppedExcerptLines`) — accept, re-baseline covers the JSON change. (e) 421M reference vectors not regenerated — within eval law, no gap: checkpoint + config unchanged, Gate 8.1 parity green in this re-run, short canonicals derive identity views. (f) LiveSmoke stale v1 template refreshed — accept, harness-only, no wire-law change.
+
+## Change set + hygiene
+
+`Project Vision/` untouched (status + diff empty). No new site names in product code (new pages use `.test` domains; remaining `allrecipes`/`google.com` hits are pre-existing doc comments / test-only noul fixture data / the untouched reference-vector corpus). Log goldens: 9 regenerated, each diff exactly the `stateFormatVersion` echo + v2 sample state (authorized UPDATE_GOLDENS path). Defects: evidence-text only (status said ContentExtractorTest 7, actual 8 — all passing); benign out-of-scope hygiene (`__pycache__` removal, `.zcodeignore`).
+
+## Unverified item
+
+The parity GENERATOR (`python tools/laya_reference.py --state-view-parity`) was not re-executed (no Python in the verifier sandbox). Evidence stands on the checked-in `app/src/test/resources/laya/state-view-parity.json` (5 cases: 2 identity + 3 shrunk incl. header collapse and excerpt-stage shrink) + the green byte-for-byte `LayaStateViewParityTest`.

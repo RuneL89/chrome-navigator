@@ -89,6 +89,7 @@ class TierAHarness(
                     "records '${expectation.gateClass ?: "none"}'"
             }
         }
+        // a retired entry must still name a real fixture (provenance stays reviewable)
         val unknown = expectations.expectations.map { it.fixture } - dumpNames.toSet()
         unknown.forEach { problems += "$it: expectation references a fixture that does not exist" }
         return problems

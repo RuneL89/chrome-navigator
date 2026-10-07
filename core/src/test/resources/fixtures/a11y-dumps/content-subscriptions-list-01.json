@@ -1,0 +1,129 @@
+{
+  "capturedAt": "2026-10-06T09:10:00Z",
+  "site": "content-fixture.test",
+  "url": "https://content-fixture.test/account/subscriptions",
+  "title": "Your Subscriptions",
+  "device": "Phase 08H synthetic capture (content-rich v2 fixture; generic page, no real site)",
+  "nodes": [
+    {
+      "id": "n0",
+      "text": "Your subscriptions",
+      "desc": "",
+      "clickable": false,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,120,1025,190",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n1",
+      "text": "You are subscribed to six mailing lists. Each list below can be paused or removed independently, and the change applies immediately.",
+      "desc": "",
+      "clickable": false,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,200,1025,320",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n2",
+      "text": "Weekly digest - one email every Monday with the week's saved articles and the editors' notes.",
+      "desc": "",
+      "clickable": false,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,330,760,450",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n3",
+      "text": "Unsubscribe",
+      "desc": "Weekly digest",
+      "clickable": true,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "780,330,1025,450",
+      "className": "android.widget.Button"
+    },
+    {
+      "id": "n4",
+      "text": "Product updates - occasional announcements about new features on the reading platform.",
+      "desc": "",
+      "clickable": false,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,460,760,580",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n5",
+      "text": "Unsubscribe",
+      "desc": "Product updates",
+      "clickable": true,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "780,460,1025,580",
+      "className": "android.widget.Button"
+    },
+    {
+      "id": "n6",
+      "text": "Partner offers - curated deals from selected shops. We never share your address.",
+      "desc": "",
+      "clickable": false,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,590,760,710",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n7",
+      "text": "Unsubscribe",
+      "desc": "Partner offers",
+      "clickable": true,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "780,590,1025,710",
+      "className": "android.widget.Button"
+    },
+    {
+      "id": "n8",
+      "text": "",
+      "desc": "",
+      "clickable": false,
+      "editable": false,
+      "scrollable": true,
+      "bounds": "0,720,1080,2200",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n9",
+      "text": "Account settings",
+      "desc": "Manage your profile and address",
+      "clickable": true,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,780,560,840",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n10",
+      "text": "Contact support",
+      "desc": "Help with your account",
+      "clickable": true,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "570,780,1025,840",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n11",
+      "text": "Prefer a pause to a removal? The pause link in each email holds a list for ninety days before it unsubscribes you for good.",
+      "desc": "",
+      "clickable": false,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,850,1025,970",
+      "className": "android.view.View"
+    }
+  ]
+}

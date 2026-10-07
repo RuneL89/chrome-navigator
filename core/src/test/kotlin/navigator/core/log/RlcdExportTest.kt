@@ -183,25 +183,27 @@ class RlcdExportTest {
     fun `format scoping - foreign-format rows are excluded and counted loudly in the manifest`() {
         // vision 05 §4: an export includes only rows whose stateFormatVersion matches
         // the current serve shape; rows of other versions are excluded and counted by
-        // version — never silently dropped.
+        // version — never silently dropped. Since the Phase-08H bump the retired v1
+        // rows are the foreign ones (the Road L accumulation counter restarts at the
+        // bump, doc 01 Road L Phase 3).
         val current = LogRowFixtures.complete()
-        val foreign = LogRowFixtures.complete(rowId = "row-v2").copy(stateFormatVersion = 2)
+        val foreign = LogRowFixtures.complete(rowId = "row-v1").copy(stateFormatVersion = 1)
         val jsonl = exporter.export(listOf(current, foreign))
         val lines = jsonl.split("\n")
         assertEquals(1, lines.size, "only the current-format row exports")
-        assertTrue("row-v2" !in lines.single())
-        assertTrue("\"open-first-result\"" in lines.single(), "the surviving case is the v1 choose case")
+        assertTrue("row-v1" !in lines.single())
+        assertTrue("\"open-first-result\"" in lines.single(), "the surviving case is the v2 choose case")
         val manifest = exporter.manifest(listOf(current, foreign))
         assertEquals(1, manifest.rowCount)
-        assertEquals(listOf(1), manifest.stateFormatVersions)
+        assertEquals(listOf(2), manifest.stateFormatVersions)
         assertEquals(1, manifest.excludedRowCount)
-        assertEquals(mapOf(2 to 1), manifest.excludedByStateFormatVersion)
+        assertEquals(mapOf(1 to 1), manifest.excludedByStateFormatVersion)
     }
 
     @Test
     fun `manifest serializes and records state format versions of the exported rows`() {
         val manifest = exporter.manifest(listOf(LogRowFixtures.complete(), LogRowFixtures.denied()))
-        assertEquals(listOf(1), manifest.stateFormatVersions)
+        assertEquals(listOf(navigator.core.STATE_FORMAT_VERSION), manifest.stateFormatVersions)
         val encoded = exporter.encodeManifest(manifest)
         val decoded = strict.decodeFromString(RlcdExportManifest.serializer(), encoded)
         assertEquals(manifest, decoded)
@@ -244,8 +246,14 @@ class RlcdExportTest {
         taskId = "task-apple-pie",
         stepIndex = 9,
         timestamp = 1_760_250_000_000,
-        stateText = "GOAL find an apple pie recipe\nSTEP 9\nURL https://www.allrecipes.com/recipe/15896/classic-apple-pie",
-        stateFormatVersion = 1,
+        stateText = "GOAL: find an apple pie recipe\n" +
+            "URL: https://www.allrecipes.com/recipe/15896/classic-apple-pie\n" +
+            "TITLE: Classic Apple Pie Recipe\n" +
+            "HISTORY: (none)\n" +
+            "UNTRUSTED PAGE CONTENT:\n" +
+            "back:\n" +
+            "[back] \"Back\" (0,0)",
+        stateFormatVersion = navigator.core.STATE_FORMAT_VERSION,
         question = NoulQuestion(
             name = "goal-achieved",
             proposition = "The target page about \"Apple Pie\" is currently displayed.\n" +
@@ -334,7 +342,10 @@ class RlcdExportTest {
         assertEquals(4, manifest.rowCount)
         assertEquals(mapOf("choose" to 2, "noul" to 2), manifest.caseKinds)
         assertEquals(2, manifest.anchoredNoulVersion)
-        assertNull(manifest.layaStateViewVersion, "pre-08H: canonical state text, no laya view yet")
+        assertNull(
+            manifest.layaStateViewVersion,
+            "canonical export (the default): the rows' state text is the corpus view of record",
+        )
         assertEquals(0, manifest.excludedRowCount)
         // the JSONL itself: choose lines first, then noul lines
         val lines = exporter.export(decisionRows, exitChecks).split("\n")
@@ -350,5 +361,98 @@ class RlcdExportTest {
         assertFailsWith<IllegalArgumentException> {
             exporter.manifest(emptyList(), listOf(older, newer))
         }
+    }
+
+    // ---- the on-device lineage: the laya state view export (vision 05 §4, Phase 08H) ----
+
+    private val tokenizer by lazy { navigator.core.laya.Tokenizer.loadDefault() }
+
+    /** The pinned 421M checkpoint's view budget (maxLen - headMaxLen - 1 = 319). */
+    private val viewBudget = 512 - 192 - 1
+
+    private val viewExporter by lazy {
+        RlcdExporter(
+            now = { exportedAt },
+            stateView = RlcdStateView.LAYA_VIEW,
+            layaViewBudgetTokens = viewBudget,
+            tokenizer = tokenizer,
+        )
+    }
+
+    /** A row whose canonical state carries an untrusted block far over the view budget. */
+    private fun oversizedRow(): DecisionLogRow {
+        val excerpt = (0 until 60).map { i -> "Excerpt paragraph $i carries a dozen tokens of page prose." }
+        val buckets = (0 until 20).joinToString("\n") { i ->
+            "[n$i] \"Result $i www.example.test/item?query=$i\" tap (540,${300 + 60 * i})"
+        }
+        val state = "GOAL: find the featured article\n" +
+            "URL: https://news.example.test/featured\n" +
+            "TITLE: Today's Featured Article\n" +
+            "HISTORY: (none)\n" +
+            "UNTRUSTED PAGE CONTENT:\n" +
+            excerpt.joinToString("\n", postfix = "\n") +
+            "nav-links:\n" + buckets
+        return LogRowFixtures.complete(stateText = state)
+    }
+
+    @Test
+    fun `the laya-view export derives the view through the versioned builder - rows keep the canonical`() {
+        val row = oversizedRow()
+        val case = viewExporter.toCase(row)
+        // the ROW keeps the canonical text verbatim; the exported CASE state is the view
+        val expectedView = navigator.core.state.LayaStateView.derive(row.stateText, tokenizer, viewBudget)
+        assertEquals(expectedView, case.state, "the case carries the derived laya state view")
+        assertTrue(case.state != row.stateText, "the fixture must exercise real shrinking")
+        // the app-authored block is never rewritten: the view's pre-content lines are the row's
+        val canonicalLines = row.stateText.split("\n")
+        val viewLines = case.state.split("\n")
+        val headerIndex = canonicalLines.indexOf("UNTRUSTED PAGE CONTENT:")
+        assertEquals(canonicalLines.take(headerIndex + 1), viewLines.take(headerIndex + 1))
+        assertTrue(tokenizer.count(case.state) <= viewBudget, "the exported view fits the checkpoint budget")
+        assertEquals(row.stateFormatVersion, case.stateFormatVersion)
+    }
+
+    @Test
+    fun `the laya-view manifest names the view version and keeps the loud exclusion counts`() {
+        val current = oversizedRow()
+        val foreign = LogRowFixtures.complete(rowId = "row-v1").copy(stateFormatVersion = 1)
+        val manifest = viewExporter.manifest(listOf(current, foreign))
+        assertEquals(1, manifest.layaStateViewVersion, "LAYA_STATE_VIEW_VERSION rides the manifest")
+        assertEquals(1, manifest.rowCount)
+        assertEquals(mapOf(1 to 1), manifest.excludedByStateFormatVersion, "v1 rows stay excluded, counted loudly")
+        // the manifest round-trips through the strict decoder with the view version set
+        val decoded = strict.decodeFromString(RlcdExportManifest.serializer(), viewExporter.encodeManifest(manifest))
+        assertEquals(manifest, decoded)
+    }
+
+    @Test
+    fun `noul cases carry the derived view too (zero train-serve skew per view)`() {
+        val check = exitCheck()
+        val parsed = strict.decodeFromString(
+            RlcdNoulCase.serializer(),
+            viewExporter.export(emptyList(), listOf(check)),
+        )
+        assertEquals(
+            navigator.core.state.LayaStateView.derive(check.stateText, tokenizer, viewBudget),
+            parsed.state,
+            "the noul case's state is the same derivation the serve path feeds the checkpoint",
+        )
+        assertEquals(check.stateText, parsed.state, "this fixture's state fits the budget: identity view")
+    }
+
+    @Test
+    fun `a laya-view export without its budget or tokenizer fails loudly`() {
+        assertFailsWith<IllegalArgumentException> {
+            RlcdExporter(now = { exportedAt }, stateView = RlcdStateView.LAYA_VIEW)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            RlcdExporter(now = { exportedAt }, stateView = RlcdStateView.LAYA_VIEW, layaViewBudgetTokens = viewBudget)
+        }
+    }
+
+    @Test
+    fun `the laya-view export is byte-stable and deterministic`() {
+        val rows = listOf(oversizedRow(), LogRowFixtures.complete(rowId = "row-2"))
+        assertEquals(viewExporter.export(rows), viewExporter.export(rows))
     }
 }

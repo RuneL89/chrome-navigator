@@ -22,6 +22,7 @@ import navigator.core.gate.PageContext
 import navigator.core.gate.RiskGate
 import navigator.core.log.BucketedQuestion
 import navigator.core.log.serialName
+import navigator.core.state.ContentExtractor
 import navigator.core.state.StateTextBuilder
 import navigator.core.wire.DefaultEngineConfigs
 import navigator.core.wire.EngineConfig
@@ -30,7 +31,7 @@ import navigator.core.wire.WireProtocolException
 
 /**
  * One deterministic Tier A replay of a golden fixture (vision 07 §1 Tier A; PHASE_07 §2.1):
- * state text v1 built from the dump's enumerated candidates, the flat primary question and
+ * state text v2 built from the dump's enumerated candidates, the flat primary question and
  * the bucketed shadow question built over them, the recorded response parsed by the real
  * wire parser, the chosen action resolved name-keyed, and the gate classification of that
  * action. Every number in here is measurable (the report's raw material).
@@ -57,6 +58,10 @@ data class ReplayOutcome(
     val stateCompressedBy: String?,
     /** candidates dropped by deterministic in-code compression. */
     val droppedCandidateCount: Int,
+    /** excerpt lines the state carried into the untrusted block (Phase 08H, vision 03 §1). */
+    val excerptLineCount: Int = 0,
+    /** excerpt lines dropped by head-anchored shrinking (Phase 08H compression stage 2). */
+    val droppedExcerptLines: Int = 0,
 ) {
     init {
         require(bucketSizes.keys.toList() == Bucket.entries.map { it.serialName }) {
@@ -73,7 +78,7 @@ data class ReplayOutcome(
  *
  * Pipeline per fixture, exactly the production decision path:
  *  1. enumerate candidates (`CandidateEnumerator`, ART-6 deterministic ranking);
- *  2. build state text v1 (`StateTextBuilder`, ≤480 laya tokens);
+ *  2. build the canonical state text v2 (`StateTextBuilder`, ≤960 laya tokens);
  *  3. build the questions: the flat primary form (one `choice` over ≤255 candidates,
  *     name [PRIMARY_QUESTION_NAME]) and the bucketed shadow form ([BucketedQuestion]);
  *  4. parse the recorded response through the REAL wire parser
@@ -116,6 +121,9 @@ class ReplayRunner(
             title = dump.title,
             history = pairing.history,
             candidates = candidates,
+            // Phase 08H (vision 03 §1): the bounded non-candidate prose excerpt rides
+            // the untrusted block — the content substrate of the read/compare goals.
+            excerpt = ContentExtractor.extract(observed),
         )
         val flatQuestion = flatQuestion(candidates)
         val shadowQuestion = bucketedQuestion(candidates)
@@ -156,6 +164,8 @@ class ReplayRunner(
                 truncatedBuckets = candidates.truncatedBuckets.map { it.serialName },
                 stateCompressedBy = state.compressedBy,
                 droppedCandidateCount = state.droppedCandidateIds.size,
+                excerptLineCount = excerptLineCount(state),
+                droppedExcerptLines = state.droppedExcerptLines,
             ),
             chosen = chosen,
             gateClass = gate,
@@ -231,12 +241,24 @@ class ReplayRunner(
             else -> ActionKind.TAP
         }
 
-        /** Per-bucket counts of the shadow form — every taxonomy bucket, fixed order. */
-        fun bucketSizes(shadowQuestion: BucketedQuestion): Map<String, Int> = buildMap {
-            for (bucket in Bucket.entries) {
-                put(bucket.serialName, shadowQuestion.buckets[bucket].orEmpty().size)
-            }
+    /** Per-bucket counts of the shadow form — every taxonomy bucket, fixed order. */
+    fun bucketSizes(shadowQuestion: BucketedQuestion): Map<String, Int> = buildMap {
+        for (bucket in Bucket.entries) {
+            put(bucket.serialName, shadowQuestion.buckets[bucket].orEmpty().size)
         }
+    }
+
+    /** Excerpt lines that survived into the built state's untrusted block. */
+    private fun excerptLineCount(state: StateTextBuilder.StateText): Int {
+        val lines = state.text.split("\n")
+        val start = lines.indexOf(StateTextBuilder.UNTRUSTED_HEADER)
+        if (start < 0) return 0
+        return lines.drop(start + 1).takeWhile { it !in BUCKET_HEADER_LINES }.count { it.isNotEmpty() }
+    }
+
+    private val BUCKET_HEADER_LINES: Set<String> = setOf(
+        "nav-links:", "form-fields:", "buttons:", "scroll:", "back:", "finish:",
+    )
 
         private fun Candidate.option(): Option = Option(
             id = id,

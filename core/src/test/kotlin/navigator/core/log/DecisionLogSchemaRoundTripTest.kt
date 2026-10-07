@@ -41,7 +41,7 @@ class DecisionLogSchemaRoundTripTest {
         assertEquals(row.stepIndex, decoded.stepIndex)
         assertEquals(row.timestamp, decoded.timestamp)
         assertEquals(row.stateText, decoded.stateText)
-        assertEquals(1, decoded.stateFormatVersion)
+        assertEquals(navigator.core.STATE_FORMAT_VERSION, decoded.stateFormatVersion)
         assertEquals(TriageClass.RESEARCH_MULTI_STEP, decoded.triageClass)
         assertEquals(row.questionPrimary, decoded.questionPrimary)
         assertEquals(row.questionShadow, decoded.questionShadow)

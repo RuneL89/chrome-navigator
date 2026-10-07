@@ -117,7 +117,7 @@ class ExitCheckRowLoopTest {
         assertTrue(check.question.proposition.contains("PAGE IDENTITY"), "v2: arrival is judged against identity")
         assertTrue(check.question.proposition.contains("http://m0.test/tarte-tatin"), "the current page's URL")
         assertTrue(check.stateText.startsWith("GOAL: Open Wikipedia article Tarte Tatin"), "canonical state, verbatim")
-        assertEquals(1, check.stateFormatVersion)
+        assertEquals(navigator.core.STATE_FORMAT_VERSION, check.stateFormatVersion)
     }
 
     @Test

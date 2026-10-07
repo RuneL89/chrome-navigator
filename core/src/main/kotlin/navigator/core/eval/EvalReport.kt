@@ -27,7 +27,7 @@ data class EvalReport(
     val fixtures: List<String>,
     /** one outcome per fixture, same order as [fixtures]. */
     val outcomes: List<ReplayOutcome>,
-    /** fixture → state-text token count (the ≤480 budget measurement, vision 03 §4). */
+    /** fixture → state-text token count (the ≤960 canonical budget measurement, vision 03 §4). */
     val tokenCounts: Map<String, Int>,
     /** bucket serial name → total shadow-form candidates summed over fixtures (taxonomy order). */
     val bucketStats: Map<String, Int>,

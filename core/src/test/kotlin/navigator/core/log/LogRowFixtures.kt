@@ -1,5 +1,6 @@
 package navigator.core.log
 
+import navigator.core.STATE_FORMAT_VERSION
 import navigator.core.decision.ChoiceQuestion
 import navigator.core.decision.Option
 import navigator.core.enumerate.Bucket
@@ -99,9 +100,13 @@ internal object LogRowFixtures {
         outcome: Outcome = Outcome.PROGRESSED,
         compressedBy: CompressedBy? = CompressedBy.CODE,
         shadowSampled: Boolean = true,
-        stateText: String = "GOAL find an apple pie recipe\nSTEP 3\nURL https://www.google.com/search?q=apple+pie\n" +
-            "LINKS [12] \"Apple pie recipe - Allrecipes\" (540,320) [nN]\n" +
-            "FORM [1] \"Search bar\" (360,96) [E] value \"apple pie\"",
+        stateText: String = "GOAL: find an apple pie recipe\n" +
+            "URL: https://www.google.com/search?q=apple+pie\n" +
+            "TITLE: apple pie - Google Search\n" +
+            "HISTORY: (none)\n" +
+            "UNTRUSTED PAGE CONTENT:\n" +
+            "nav-links:\n" +
+            "[n12] \"Apple pie recipe - Allrecipes\" tap (540,320)",
     ): DecisionLogRow = DecisionLogRow(
         rowId = rowId,
         taskId = taskId,
@@ -109,7 +114,7 @@ internal object LogRowFixtures {
         stepIndex = stepIndex,
         timestamp = 1_760_200_000_000 + stepIndex,
         stateText = stateText,
-        stateFormatVersion = 1,
+        stateFormatVersion = STATE_FORMAT_VERSION,
         triageClass = TriageClass.RESEARCH_MULTI_STEP,
         questionPrimary = primaryQuestion,
         questionShadow = shadowQuestion,

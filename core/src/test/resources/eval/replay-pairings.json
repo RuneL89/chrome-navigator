@@ -67,6 +67,18 @@
       "goal": "find a recipe for apple pie",
       "chosenNodeId": "result-1",
       "note": "mirrors the phase-3 provider recording choice-search-results.json (gold 'result-1', p=0.61) on the seed dump"
+    },
+    {
+      "fixture": "content-recipe-article-01.json",
+      "goal": "read the featured recipe and check its reviews",
+      "chosenNodeId": "n7",
+      "note": "Phase 08H content-rich fixture (generic page, no real site): the gold decision opens the reviews section; ordinary navigation, no gate — the v2 content excerpt carries the article prose the read goal needs"
+    },
+    {
+      "fixture": "content-subscriptions-list-01.json",
+      "goal": "unsubscribe from the mailing lists on this page",
+      "chosenNodeId": "n3",
+      "note": "Phase 08H content-rich fixture (generic page, no real site): the gold decision taps the first Unsubscribe control — the dictionary floor gates it H9 even though the page prose itself talks about unsubscribing (page text is untrusted, ART-4)"
     }
   ]
 }

@@ -12,6 +12,7 @@ import navigator.core.enumerate.Bucket
 import navigator.core.log.BucketedQuestion
 import navigator.core.log.serialName
 import navigator.core.laya.Tokenizer
+import navigator.core.state.LayaStateView
 
 /**
  * The shadow-side seam of the router: what a shadow engine must answer for the
@@ -216,9 +217,18 @@ class LayaEngine(
     /**
      * Sequence build + ONNX forward + calibration: probabilities in the question's own
      * option order. Package-visible for the Gate 8.1/8C.2 parity tests.
+     *
+     * Phase 08H (vision 03 §4 dual-view law): the engine receives the CANONICAL state
+     * text (rows keep it verbatim) and derives the LAYA STATE VIEW through the versioned
+     * builder — [LayaStateView.derive] within [MarkerBuilder.SequenceFormat.layaStateViewBudget]
+     * (421M: 319 tokens) — and THAT is what the checkpoint sees, byte-for-byte, at serve
+     * time and in the on-device-lineage training export (zero train/serve skew per
+     * view). A view that cannot fit fails loudly in the derivation; the marker layer no
+     * longer truncates silently ([MarkerBuilder] is loud since Phase 08H).
      */
     internal fun forward(state: String, question: MarkerBuilder.LayaQuestion): DoubleArray {
-        val sequence = MarkerBuilder.buildSequence(tokenizer, question, state, format)
+        val view = LayaStateView.derive(state, tokenizer, format.layaStateViewBudget)
+        val sequence = MarkerBuilder.buildSequence(tokenizer, question, view, format)
         require(sequence.optionCount == question.options.size) {
             "marker builder dropped markers: ${sequence.optionCount} of ${question.options.size} " +
                 "options fit in max_len=${format.maxLen} — reduce the state or the options"

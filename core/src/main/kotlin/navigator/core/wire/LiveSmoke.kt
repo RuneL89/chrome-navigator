@@ -25,16 +25,22 @@ import kotlin.system.measureTimeMillis
  * `./gradlew :core:liveSmoke`. Cost: 2 calls at the measured ~$0.00002/call (~$0.00005).
  */
 private val state = """
-    STATE_FORMAT_VERSION=1
     GOAL: find a recipe for apple pie
-    PAGE: allrecipes.com — search results for 'apple pie' (recipe list, page 1)
-    CANDIDATES:
-    1. n3 Apple Pie From a Brown Paper Bag — 'Apple Pie From a Brown Paper Bag' (link)
-    2. n7 Classic Apple Pie — 'Classic Apple Pie' (link)
-    3. n9 Jump to Recipe — 'Jump to Recipe' (link)
-    4. scroll-down — 'Scroll down for more results' (scroll)
-    5. back — 'Back to the previous page' (back)
-    6. finish — 'Declare the goal achieved' (finish)
+    URL: https://www.recipes.example.test/search?q=apple+pie
+    TITLE: apple pie - Search Recipes
+    HISTORY: (none)
+    UNTRUSTED PAGE CONTENT:
+    Search results for 'apple pie' (recipe list, page 1).
+    nav-links:
+    [n3] "Apple Pie From a Brown Paper Bag" tap (540,300)
+    [n7] "Classic Apple Pie" tap (540,410)
+    [n9] "Jump to Recipe" tap (540,520)
+    scroll:
+    [scroll-down] "Scroll down for more results" scroll (540,1100)
+    back:
+    [back] "Back to the previous page" (0,0)
+    finish:
+    [finish] "Declare the goal achieved" (0,0)
 """.trimIndent()
 
 /** The combined choice+noul questions of call 1 (the live-golden scenario). */

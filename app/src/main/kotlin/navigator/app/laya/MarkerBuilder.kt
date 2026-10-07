@@ -13,8 +13,10 @@ import navigator.core.laya.Tokenizer
  *
  * Each option rides the input as a `[MASK]` marker followed by (at most) the option
  * text's first 48 tokens; the marker POSITIONS are what the decision head scores. The
- * state is clamped to the room left after the head (`max_len` 512, `head_max_len` 192 —
- * the checkpoint's `rl_agent_config.json` values). Deviation from upstream is a
+ * state rides the room left after the head (`max_len` 512, `head_max_len` 192 — the
+ * checkpoint's `rl_agent_config.json` values); since Phase 08H a state that does not
+ * fit that room fails LOUDLY — upstream's silent right-truncation is outlawed by the
+ * vision 03 §4 dual-view law (the caller feeds the ≤319-token laya state view). Deviation from upstream is a
  * Gate 8.1 failure by construction, so the port mirrors the reference branch by branch
  * (including the `max(8, opt_budget)` head clamp and the ≤16-token-per-option squeeze).
  */
@@ -47,6 +49,17 @@ object MarkerBuilder {
         val sepToken: String,
         val maskToken: String,
     ) {
+        /**
+         * The laya state-view budget (vision 03 §4 dual-view law, ART-5 — the derivation
+         * formula lives in code beside these marker ceilings and re-derives when an
+         * eval-gated checkpoint change moves them): `maxLen - headMaxLen - 1` — the
+         * state room left by the LARGEST lawful head, minus the closing SEP. The 421M
+         * checkpoint: 512 - 192 - 1 = 319; v32b: 1024 - 768 - 1 = 255. The
+         * [navigator.core.state.LayaStateView] derivation takes this number.
+         */
+        val layaStateViewBudget: Int
+            get() = maxLen - headMaxLen - 1
+
         companion object {
             /** convaiinnovations/laya @ 55cf4c4e… (max_len=512, head_max_len=192). */
             val LAYA_421M = SequenceFormat(MAX_LEN, HEAD_MAX_LEN, "[CLS]", "[SEP]", "[MASK]")
@@ -125,7 +138,19 @@ object MarkerBuilder {
 
         val head = buildHead(tokenizer, question, cls, sep, mask, format)
         val room = maxOf(0, format.maxLen - head.ids.size - 1)
-        val stateSlice = stateIds.take(minOf(stateIds.size, room)).toIntArray() // right-truncate
+        // Phase 08H (vision 03 §4 dual-view law): silent state truncation at the marker
+        // layer is UNLAWFUL — it was the v1 shadow's hidden train/serve skew. The caller
+        // feeds a state within the view budget ([layaStateViewBudget]); a state that
+        // still does not fit the room this question's head left is a loud failure, never
+        // a right-truncation. (Deliberate deviation from upstream's silent clamp.)
+        require(stateIds.size <= room) {
+            "laya state does not fit: ${stateIds.size} state tokens but only $room tokens of room " +
+                "(max_len=${format.maxLen}, the question's head used ${head.ids.size}) — the caller " +
+                "must feed a state within the laya state-view budget " +
+                "(${format.layaStateViewBudget} tokens for this checkpoint); silent marker-layer " +
+                "truncation is unlawful (vision 03 §4)"
+        }
+        val stateSlice = stateIds.toIntArray()
         var ids = head.ids + stateSlice + intArrayOf(sep)
         var markers = head.markers
         if (ids.size > format.maxLen) {

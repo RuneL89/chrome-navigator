@@ -33,13 +33,23 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     `.tools/laya-v32b/` eval artifacts — acceptable)), `LayaEngine` (implements
     `DecisionEngine`; two-stage bucketed `choose` — bucket question then ≤20-element
     question — plus `judge`/`score` mappings; Phase 8C: tokenizer/calibration/format
-    are constructor params defaulting to the Phase-8 checkpoint), and
+    are constructor params defaulting to the Phase-8 checkpoint; Phase 08H dual-view:
+    the caller passes the CANONICAL text (rows keep it verbatim) and the engine derives
+    the LAYA STATE VIEW through `LayaStateView` within the format's `layaStateViewBudget`
+    (421M: 319) before every marker build — zero train/serve skew per view), and
     `BucketedForms` (reconstructs the shadow's bucketed question from the loop's
     `bucket=<serial>`-tagged option descriptions; untagged questions — triage, the
     recovery set — are NOT bucketable: vision 03 §3 deliberately keeps recovery out of
-    the page-bucket taxonomy). Question-text wording is fixture law: the Gate 8.1/8C.2
+    the page-bucket taxonomy); `MarkerBuilder` (Phase 08H: the checkpoint's
+    `SequenceFormat.layaStateViewBudget = maxLen − headMaxLen − 1` formula lives beside
+    the ceilings (ART-5), and a state that does not fit the room a question's head left
+    fails LOUDLY — the upstream silent right-truncation is outlawed by the vision 03 §4
+    dual-view law; the port is otherwise branch-by-branch).
+    Question-text wording is fixture law: the Gate 8.1/8C.2
     reference vectors (`tools/laya_reference.py` → `app/src/test/resources/laya/`)
-    mirror it exactly
+    mirror it exactly; the script's stdlib-only `--state-view-parity` mode generates
+    `state-view-parity.json`, the cross-language derivation fixture the
+    `LayaStateViewParityTest` must match byte-for-byte
   * `src/main/kotlin/navigator/app/observe/` — observation layer (Phase 1,
     vision 03): `NavigatorAccessibilityService` (fresh-root reads of the
     `PACKAGE_ALLOWLIST` browsers; Phase 6 added `observeForLoop()` = the same fresh
@@ -80,9 +90,12 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     at triage (rows + run report carry the plan provenance; the default is silent and
     byte-identical), builds the `TargetTracker` for action-multi tasks (fed once per
     OBSERVE, resolved after EXECUTE), injects the tracker's progress lines into the L1
-    stuck hint (vision 04 §4 — the only state-adjacent text this phase; the state
-    builder and STATE_FORMAT_VERSION are untouched, 08H owns the PLAN/TASK-PROGRESS
-    sections), passes the guard's `refusalDetail()` into the exit check, and
+    stuck hint (vision 04 §4) and, since Phase 08H, rides the SAME lines to the state
+    builder's TASK PROGRESS section (STATE_FORMAT_VERSION = 2; the loop passes the
+    observation's content excerpt, the triage plan's subgoals, and the action-multi
+    tracker's progress lines into the v2 `StateTextBuilder`; the default path — no plan,
+    not action-multi, empty excerpt — renders the pre-08H layout), passes the guard's
+    `refusalDetail()` into the exit check, and
     `RunResult` carries `targets` (tracker summary) + `plan` (provenance)),
     `Triage` (one choose over `{lookup, research-multi-step, form-fill, action,
     action-multi, impossible}`; Phase 8D added the two action classes per vision 04
@@ -229,7 +242,11 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     `RunReportStore` does the file export; Phase 8G additive blocks — `targets`
     (`TargetTrackerReport`: tracked/processed/pending/skipped/drained, action-multi
     runs only) and `plan` (`PlanReport`: version + subgoals provenance); both null
-    (and JSON-omitted) elsewhere),
+    (and JSON-omitted) elsewhere); `HarnessObserver` (Phase 08H: maps the live walk and
+    computes the bounded content excerpt via the `:core` `ContentExtractor` over the same
+    fresh nodes — the excerpt rides every `StepObservation` the loop sees; on-device
+    lineage note: the loop's canonical rows + the engine's view derivation keep the
+    export/serve views identical by construction),
     `HarnessPagesServer` (loopback-only static server over
     `assets/harness/pages/` — Phase 8F added the clearly-dummy `login.html`
     credential fixture form (test-only, no real endpoint) for scripted credential
@@ -472,7 +489,16 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
   (verifyLayaModel fails the build loudly when it is missing); the v32b parity gate
   (`LayaEngineV32bReferenceParityTest`) is EVAL-ONLY since the 2026-10-06 demotion — it
   runs from `.tools/laya-v32b/` when the artifacts are there and assumes away with a
-  loud message when they are not (never a build failure)
+  loud message when they are not (never a build failure)) +
+  the Phase-8H dual-view gates (`LayaStateViewParityTest` Gate 8H.2: the Kotlin
+  `LayaStateView` derivation reproduces `tools/laya_reference.py --state-view-parity`
+  byte-for-byte over the generated corpus; `LayaStateViewEngineTest` Gate 8H.2 (app
+  half): the engine feeds the derived ≤319-token view to the checkpoint while the
+  caller's canonical rides unchanged, a state that cannot fit the marker room fails
+  loudly (never a silent right-truncation), the ART-5 budget formula pins for both
+  checkpoints; `Phase08HLoopTest` Gate 8H.2 (loop half): the content excerpt inside the
+  untrusted block, bounded PLAN lines from a proposed plan, the tracker's TASK PROGRESS
+  counts on action-multi, and the default path's pre-08H layout)
 * Gate 8J (on-device smoke): the `exit-reliability-1` harness goal (stub engine, auto
   keep-going) runs the scripted finish path end-to-end on the emulator — refusals with
   the anti-oscillation window, one completion card answered keep-going, then the

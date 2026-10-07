@@ -109,6 +109,13 @@ data class ReplayExpectation(
     val gateClass: String? = null,
     /** provenance/revision note — expectation fixes are NEW additive entries, never silent edits. */
     val note: String? = null,
+    /**
+     * A RETIRED entry is provenance only (vision 07 §2 retire-and-add): the pin a
+     * superseding builder recorded against, never consulted. The Phase-08H state-format
+     * bump retired the v1 pins and re-pinned every fixture under the v2 builder by
+     * ADDITION — the retired rows stay so the drift history is reviewable.
+     */
+    val retired: Boolean = false,
 ) {
     init {
         require(fixture.endsWith(".json")) { "ReplayExpectation.fixture must be a .json dump name: '$fixture'" }
@@ -121,23 +128,42 @@ data class ReplayExpectation(
     }
 }
 
-/** The expectation table: exactly one entry per committed a11y-dump fixture. */
+/** The expectation table: exactly one ACTIVE entry per committed a11y-dump fixture. */
 @Serializable
 data class ReplayExpectations(val expectations: List<ReplayExpectation>) {
     init {
         require(expectations.isNotEmpty()) { "ReplayExpectations must not be empty" }
-        val fixtures = expectations.map { it.fixture }
+        val active = expectations.filterNot { it.retired }
+        require(active.isNotEmpty()) { "ReplayExpectations must carry at least one active entry" }
+        val fixtures = active.map { it.fixture }
         require(fixtures.size == fixtures.toSet().size) {
-            "ReplayExpectations has duplicate fixture entries: ${fixtures.groupBy { it }.filterValues { v -> v.size > 1 }.keys}"
+            "ReplayExpectations has duplicate active fixture entries: " +
+                "${fixtures.groupBy { it }.filterValues { v -> v.size > 1 }.keys}"
+        }
+        // a retired entry documents a SUPERSEDED pin: some active entry for the same
+        // fixture must exist, and a fixture must never carry two retired entries.
+        val retired = expectations.filter { it.retired }
+        val retiredNames = retired.map { it.fixture }
+        require(retiredNames.size == retiredNames.toSet().size) {
+            "ReplayExpectations has duplicate retired entries: " +
+                "${retiredNames.groupBy { it }.filterValues { v -> v.size > 1 }.keys}"
+        }
+        val orphaned = retiredNames.toSet() - fixtures.toSet()
+        require(orphaned.isEmpty()) {
+            "ReplayExpectations: retired entries without an active replacement for $orphaned — " +
+                "retire-and-add means the replacement is added in the same change (vision 07 §2)"
         }
     }
 
-    /** The expectation for [fixture], or a loud failure naming it (Gate 7.1 coverage). */
+    /** The ACTIVE expectation for [fixture], or a loud failure naming it (Gate 7.1 coverage). */
     fun forFixture(fixture: String): ReplayExpectation =
-        expectations.firstOrNull { it.fixture == fixture }
+        expectations.firstOrNull { it.fixture == fixture && !it.retired }
             ?: throw FixtureValidationException(
-                "no replay expectation for fixture '$fixture' — Gate 7.1 requires an entry per fixture",
+                "no active replay expectation for fixture '$fixture' — Gate 7.1 requires an entry per fixture",
             )
+
+    /** The active entries (the coverage law counts these; retired rows are provenance). */
+    val active: List<ReplayExpectation> get() = expectations.filterNot { it.retired }
 }
 
 /** HClass enum names — the gate-class vocabulary the expectation files may use. */

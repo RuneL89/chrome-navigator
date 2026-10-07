@@ -20,6 +20,7 @@ import navigator.app.stub.StubEngine
 import navigator.core.decision.DecisionEngine
 import navigator.core.decision.FallbackEngine
 import navigator.core.enumerate.ObservedNode
+import navigator.core.state.ContentExtractor
 import navigator.core.log.DecisionLogRow
 import navigator.core.log.ExitCheckRow
 import navigator.core.wire.DefaultEngineConfigs
@@ -40,6 +41,23 @@ class HarnessObserver(private val service: NavigatorAccessibilityService) : Loop
 
     override suspend fun observe(): navigator.app.loop.StepObservation {
         val observation = service.observeForLoop()
+        val nodes = observation.nodes.map { emitted ->
+            val snapshot = emitted.snapshot
+            ObservedNode(
+                id = "n${emitted.index}",
+                text = snapshot.text,
+                desc = snapshot.desc,
+                clickable = snapshot.clickable,
+                editable = snapshot.editable,
+                scrollable = snapshot.scrollable,
+                left = snapshot.bounds.left,
+                top = snapshot.bounds.top,
+                right = snapshot.bounds.right,
+                bottom = snapshot.bounds.bottom,
+                className = snapshot.className,
+                sourceOrder = emitted.index,
+            )
+        }
         return navigator.app.loop.StepObservation(
             url = when (val url = observation.url) {
                 is navigator.app.observe.UrlBarReader.Url.Value -> url.text
@@ -48,24 +66,11 @@ class HarnessObserver(private val service: NavigatorAccessibilityService) : Loop
             },
             title = "",
             lines = observation.lines,
-            nodes = observation.nodes.map { emitted ->
-                val snapshot = emitted.snapshot
-                ObservedNode(
-                    id = "n${emitted.index}",
-                    text = snapshot.text,
-                    desc = snapshot.desc,
-                    clickable = snapshot.clickable,
-                    editable = snapshot.editable,
-                    scrollable = snapshot.scrollable,
-                    left = snapshot.bounds.left,
-                    top = snapshot.bounds.top,
-                    right = snapshot.bounds.right,
-                    bottom = snapshot.bounds.bottom,
-                    className = snapshot.className,
-                    sourceOrder = emitted.index,
-                )
-            },
+            nodes = nodes,
             pageNodeCount = observation.pageNodeCount,
+            // Phase 08H (vision 03 §1 content extraction): the bounded non-candidate
+            // prose excerpt, deterministically extracted from the same fresh walk.
+            excerpt = ContentExtractor.extract(nodes),
         )
     }
 
