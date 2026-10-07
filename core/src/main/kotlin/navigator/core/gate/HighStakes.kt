@@ -39,6 +39,16 @@ enum class HClass(val plainLabel: String) {
      * wrong-site/injected credential capture (vision 06 §1).
      */
     H8_CREDENTIAL_TYPING("Credential entry"),
+
+    /**
+     * Persistent-state mutation — the GENERAL consequential-action class (vision 06 §1
+     * + §1a, Phase 8E): a change that outlives the page (accounts, content,
+     * relationships, bookings, data). Detection is a broad code net (structural
+     * signals + an illustrative dictionary floor + fail-to-confirm, [RiskGate]) plus
+     * the ADDITIVE-ONLY engine check ([AdditiveEngineCheck]): the engine may add this
+     * class, never remove or downgrade one.
+     */
+    H9_PERSISTENT_MUTATION("Persistent change"),
     ;
 
     /**
@@ -48,10 +58,12 @@ enum class HClass(val plainLabel: String) {
      * Ordering rationale (documented, deterministic — ART-5 numbers in code): money
      * consequences rank first (H1 > H2), persistent credential mutations next (H3),
      * then account lifecycle (H5 — create/delete outranks login), account access (H4),
-     * data leaving the device (H6), content entering it (H7). [H8_CREDENTIAL_TYPING]
-     * ranks strictly last and is resolved residually ([RiskGate]): it is the broadest
-     * class, and resolving an ambiguity to it would grant the widest trust from the
-     * weakest signal — the opposite of fail-to-confirm.
+     * data leaving the device (H6), content entering it (H7). [H9_PERSISTENT_MUTATION]
+     * and [H8_CREDENTIAL_TYPING] rank below every specific class: both are the BROAD
+     * classes, and resolving an ambiguity to a broad class would grant the widest
+     * trust from the weakest signal — the opposite of fail-to-confirm. H9 ranks just
+     * above H8 because H8 stays the residual class of last resort (resolved only when
+     * nothing else matches, [RiskGate]); a mutation signal anywhere outranks it.
      */
     internal val strictness: Int
         get() = when (this) {
@@ -62,6 +74,7 @@ enum class HClass(val plainLabel: String) {
             H4_LOGIN -> 6
             H6_UPLOAD -> 5
             H7_DOWNLOAD -> 4
+            H9_PERSISTENT_MUTATION -> 1
             H8_CREDENTIAL_TYPING -> 0
         }
 }

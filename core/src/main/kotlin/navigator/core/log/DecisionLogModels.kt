@@ -182,7 +182,7 @@ data class BucketedQuestion(
 
 /**
  * The high-stakes class a logged gate event resolved to (vision 05 §2 `gateEvent`:
- * `class: H1–H8`). A log-side echo of [HClass] — the log owns its serialization
+ * `class: H1–H9`). A log-side echo of [HClass] — the log owns its serialization
  * vocabulary; the mapping is exhaustive so a new gate class fails compilation here.
  */
 @Serializable
@@ -195,6 +195,7 @@ enum class LoggedHClass {
     @SerialName("H6") H6,
     @SerialName("H7") H7,
     @SerialName("H8") H8,
+    @SerialName("H9") H9,
 }
 
 fun HClass.toLoggedHClass(): LoggedHClass = when (this) {
@@ -206,6 +207,7 @@ fun HClass.toLoggedHClass(): LoggedHClass = when (this) {
     HClass.H6_UPLOAD -> LoggedHClass.H6
     HClass.H7_DOWNLOAD -> LoggedHClass.H7
     HClass.H8_CREDENTIAL_TYPING -> LoggedHClass.H8
+    HClass.H9_PERSISTENT_MUTATION -> LoggedHClass.H9
 }
 
 /** Action-kind echo for the log (`executedAction.kind`); maps [ActionKind] exhaustively. */

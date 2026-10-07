@@ -94,9 +94,15 @@ class RiskGateClassifierTest {
         assertTrue(rows.size >= 8 + 6 + 3, "matrix must cover 8 happy + >=6 negative + >=3 fail-to-confirm, had ${rows.size}")
         assertEquals(rows.map { it.id }.size, rows.map { it.id }.toSet().size, "duplicate row ids")
         for (row in rows) {
-            assertTrue(row.tag in setOf("happy", "negative", "fail-to-confirm"), "${row.id}: bad tag ${row.tag}")
+            assertTrue(
+                row.tag in setOf("happy", "negative", "fail-to-confirm", "additive"),
+                "${row.id}: bad tag ${row.tag}",
+            )
             assertTrue(row.note.isNotBlank(), "${row.id}: every row carries a reviewable note")
             if (row.expect != null) HClass.valueOf(row.expect) // unknown class name = loud failure
+            if (row.tag == "additive") {
+                assertEquals(null, row.expect, "${row.id}: additive rows are code-net nulls — the engine check owns them")
+            }
         }
         for (hclass in HClass.entries) {
             assertTrue(
@@ -106,6 +112,10 @@ class RiskGateClassifierTest {
         }
         assertTrue(rows.count { it.tag == "negative" } >= 6, "Gate 4.1 requires >=6 negatives")
         assertTrue(rows.count { it.tag == "fail-to-confirm" } >= 3, "Gate 4.1 requires >=3 fail-to-confirm cases")
+        assertTrue(
+            rows.count { it.tag == "additive" } >= 3,
+            "Gate 8E.1 requires >=3 additive rows (novel/unlisted actions the engine check owns)",
+        )
     }
 
     // -- one test per H-class happy path -------------------------------------------------
@@ -134,6 +144,9 @@ class RiskGateClassifierTest {
     @Test
     fun `H8 credential typing into any field classifies H8`() = assertHappy("H8_CREDENTIAL_TYPING")
 
+    @Test
+    fun `H9 persistent-state mutation classifies H9`() = assertHappy("H9_PERSISTENT_MUTATION")
+
     private fun assertHappy(expect: String) {
         val rows = matrix.rows.filter { it.tag == "happy" && it.expect == expect }
         assertTrue(rows.isNotEmpty(), "no happy rows for $expect")
@@ -148,6 +161,14 @@ class RiskGateClassifierTest {
     fun `negative rows are NOT gated (search submit, nav link, scroll, back, finish, typing, popup, consent)`() {
         for (row in matrix.rows.filter { it.tag == "negative" }) {
             assertEquals(null, classify(row), "${row.id} must not gate: ${row.note}")
+            // and never even SUSPICIOUS: confidently ordinary actions are never
+            // engine-consulted (vision 06 §3 — deterministic negatives stay ungated
+            // regardless of what any engine would answer).
+            assertEquals(
+                RiskGate.MutationNet.ORDINARY,
+                RiskGate.mutationNet(row.toGateAction(), row.toPageContext()),
+                "${row.id} must be confidently ordinary, never engine-consulted: ${row.note}",
+            )
         }
     }
 
@@ -159,6 +180,20 @@ class RiskGateClassifierTest {
             val got = classify(row)
             assertEquals(HClass.valueOf(row.expect!!), got, "${row.id} must fail to the stricter class: ${row.note}")
             assertTrue(got != null, "${row.id} resolved null — fail-open")
+        }
+    }
+
+    // -- additive rows: the H9 net's uncertain tier (Phase 8E, vision 06 §1a + §3) ----------
+
+    @Test
+    fun `additive rows classify null but leave the mutation net SUSPICIOUS - the engine check owns them`() {
+        for (row in matrix.rows.filter { it.tag == "additive" }) {
+            assertEquals(null, classify(row), "${row.id}: the code net is not confident: ${row.note}")
+            assertEquals(
+                RiskGate.MutationNet.SUSPICIOUS,
+                RiskGate.mutationNet(row.toGateAction(), row.toPageContext()),
+                "${row.id} must be SUSPICIOUS — never silently ordinary: ${row.note}",
+            )
         }
     }
 }

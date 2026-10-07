@@ -53,7 +53,14 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     non-debuggable builds)
   * `src/main/kotlin/navigator/app/loop/` — the navigation loop (Phase 6,
     vision 04): `NavigationLoop` (STRICT step order OBSERVE → ENUMERATE → DECIDE →
-    GATE → EXECUTE → LOG; preceded by the Phase-8D cold-start pre-step (vision 04 §1)
+    GATE → EXECUTE → LOG; the GATE step classifies with `RiskGate` and — Phase 8E,
+    vision 06 §3 — when the code net is UNCERTAIN (`mutationNet` SUSPICIOUS: no
+    confident H-class) consults the injected engine ADDITIVELY via
+    `AdditiveEngineCheck` (the §3 noul question; a non-LOW band ADDS H9; a confident
+    code class is never consulted, so the engine can never lower/suppress/whitelist)
+    and logs the trigger source (code-net vs additive-engine) on the step log; H9 then
+    rides the ordinary gate mechanics unchanged; preceded by the Phase-8D cold-start
+    pre-step (vision 04 §1)
     when its `BrowserProbe`/`BrowserLauncher` seams are wired, and by ONE triage
     choose; exits goal-achieved / budget-exhausted / stuck-kill /
     guard-abort / user-cancel + the documented REFUSED and TRIAGE_IMPOSSIBLE;
@@ -327,6 +334,15 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
   forClass selection, per-class clean stops in the real loop at steps (60/100/300),
   wall clock (6/9/18 steps at 100k ms/step) and cloud spend (multi tolerates $0.70 where
   standard hard-stops), Standard defaults byte-identical to the pre-08D constants) +
+  the Phase-8E gates (`H9GateLoopTest` Gate 8E.3: the code-net H9 card fires without
+  task trust and the first approval grants per-task same-site trust (card shows
+  "Persistent change"); the additive engine check gates an unlisted action on an
+  authenticated surface with the trigger source logged (code-net vs additive-engine,
+  engine non-LOW: "H9 ADDED"); a confident engine LOW leaves the suspicious action
+  ungated with the clear logged; the engine is NEVER consulted for a code-confident
+  class (an unscripted additive answer would fail the stub loudly — suppression cannot
+  even be attempted); an additive H9 denied twice aborts the task like any gated
+  class) +
   the Phase-8 laya gates (`LayaEngineTwoStageTest`
   Gate 8.2 scripted two-stage correctness, `LayaEngineReferenceParityTest` Gate 8.1
   reference-vector parity over the REAL int8 graph on the desktop JVM ONNX Runtime,

@@ -151,6 +151,7 @@ val HCLASS_NAMES: List<String> =
         "H6_UPLOAD",
         "H7_DOWNLOAD",
         "H8_CREDENTIAL_TYPING",
+        "H9_PERSISTENT_MUTATION",
     )
 
 /** Loading + discovery for the Tier A inputs (strict; loud failures, never defaults). */

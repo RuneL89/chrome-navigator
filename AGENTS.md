@@ -95,7 +95,8 @@ When the user requests a durable behavior change, record it here or in the relev
   Phase-8C FallbackEngine composition, types, banding, the systemone wire client + engine
   configs, golden-fixture schemas + loaders, candidate enumeration, state text builder,
   the laya tokenizer port (BOTH checkpoint families — the 421M ByteLevel BPE and the
-  Phase-8C v32b 256k Metaspace BPE), risk gate: H1–H8 classifier + per-task trust state
+  Phase-8C v32b 256k Metaspace BPE), risk gate: H1–H9 classifier (Phase 8E added H9
+  persistent-state mutation: broad code net + the additive-only engine check) + per-task trust state
   machine + gate card, DecisionLog row schema (incl. the Phase-8C escalated/fallback
   fields) + companion shadow-result rows + RLCD export + agreement calculators incl. the
   joined view, the Tier-A eval harness: deterministic replay + position-bias rotation +

@@ -2,7 +2,7 @@
 
 **Document ID:** `NAVIGATOR-IMPL-PHASE-08E`
 **Version:** 1.0.0
-**Status:** Draft
+**Status:** ACCEPTED (2026-10-07) — gates 8E.1–8E.3 verified (verifier cold re-run: 527 tests green); Tier A re-pinned per the gate-change law; UAT owner-covered per standing directive (live card feel joins 08I's demo)
 **Date:** 2026-10-06
 **Dependencies:** Phase 4 (risk gate); vision 06 v1.2.0
 **Estimated Time:** 4-6h

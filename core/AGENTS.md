@@ -38,13 +38,23 @@ without a device.
   v1 (vision 03 §4 template, ≤480 tokens enforced with the laya tokenizer,
   deterministic in-code compression); law: `Project Vision/03` §4
 * `src/main/kotlin/navigator/core/gate/` — the risk gate (ART-1: code owns the gate,
-  no model judgment in the gate path): `RiskGate` (deterministic H1–H8 classifier over
+  no model judgment in the gate path): `RiskGate` (deterministic H1–H9 classifier over
   (action, context); ambiguous classification fails to the stricter class — never
-  fail-open), `HighStakes.kt` types (`HClass`, `ActionKind`, `GateAction`,
-  `FieldDescriptor` with derived isPassword/isCardLike, `PageContext`), `TaskGate`
-  (per-task trust state machine: approve → execute + (class, site) trust;
-  timeout(30s) = deny; same (class, site) refused twice in a task → `ABORT_TASK`;
-  trust never crosses tasks, sites, or classes; illegal transitions throw
+  fail-open; Phase 8E added the H9 persistent-state mutation arm — the broad code net
+  per vision 06 §1a: illustrative dictionary floor + structural signals
+  (state-word flips, confirm-dialog semantics) + fail-to-confirm, with link-bucket
+  candidates needing mutation-context corroboration (ART-4) — plus `mutationNet`, the
+  three-valued probe (GATED / SUSPICIOUS / ORDINARY) behind the additive engine check),
+  `AdditiveEngineCheck.kt` (Phase 8E, vision 06 §3: the ADDITIVE-ONLY engine consult —
+  when the net is SUSPICIOUS the loop asks the §3 question verbatim; a non-LOW band
+  ADDS H9; the sealed Verdict {AddH9, None} + the Elvis-based `resolve` make suppression
+  unrepresentable, and a confident code class means the judge is never consulted),
+  `HighStakes.kt` types (`HClass` incl. `H9_PERSISTENT_MUTATION` (strictness just above
+  the residual H8 — broad classes never win ambiguity against specific ones),
+  `ActionKind`, `GateAction`, `FieldDescriptor` with derived isPassword/isCardLike,
+  `PageContext`), `TaskGate` (per-task trust state machine: approve → execute +
+  (class, site) trust; timeout(30s) = deny; same (class, site) refused twice in a task →
+  `ABORT_TASK`; trust never crosses tasks, sites, or classes; illegal transitions throw
   `IllegalGateTransitionException`), `GateCard` (plain-words card payload — data only,
   no UI, typed values never rendered); law: `Project Vision/06` §1–§3
 * `src/main/kotlin/navigator/core/laya/` — `Tokenizer`, the Kotlin port of the laya
@@ -89,7 +99,8 @@ without a device.
   two LIVE GOLDENS (`live-*.json`, response bodies captured verbatim from the provider
   2026-10-04, provenance in each file's `note`); the
   `a11y-dumps/adv-*.json` trees are the adversarial fixtures — injected instruction-like
-  page text, vision 07 §2)
+  page text, vision 07 §2; Phase 8E added `adv-mutation-bait-04.json`, the mutation
+  bait: untrusted text steering at most TOWARD a gated control (ART-4))
 * `src/test/resources/eval/` — Tier A replay inputs, reviewable data (NOT fixtures):
   `replay-pairings.json` (each dump's gold decision: goal + chosen node + optional explicit
   action kind + note) and `replay-expectations.json` (golden chosen node id + gate class
@@ -98,9 +109,10 @@ without a device.
 * `src/test/resources/log/goldens/` — byte-stable JSON snapshots of the DecisionLog row
   schema (Gate 5.1); immutable once accepted — regenerate only with `UPDATE_GOLDENS=true`
   after a reviewed, vision-level schema change
-* `src/test/resources/gate/` — `classifier-matrix.json`, the reviewable H1–H8 classifier
-  matrix the Gate 4.1 test consumes (UAT 4.1: the owner reads this table; new rows are
-  additive only)
+* `src/test/resources/gate/` — `classifier-matrix.json`, the reviewable H1–H9 classifier
+  matrix the Gate 4.1/8E.1 test consumes (UAT 4.1: the owner reads this table; new rows
+  are additive only; the Phase-8E `additive` tag pins the net's SUSPICIOUS tier —
+  classify null + `mutationNet` SUSPICIOUS, the additive engine check's territory)
 * `src/test/resources/tokenizer/` — tokenizer correctness fixtures (real reference
   vectors, vocab sample)
 * `src/test/resources/exit/` — Phase-8J exit fixtures (reviewable data): the Test-1
@@ -185,7 +197,11 @@ without a device.
   `action` + `action-multi` (@SerialName "action"/"action-multi": one consequential
   operation on the user's accounts/content/data; one such operation over a run-time
   target set) — the three original entries, their serial names, and the goldens are
-  untouched; earlier rows decode unchanged
+  untouched; earlier rows decode unchanged. Phase 8E (vision 06 v1.2.0 — doc 05 §2's
+  gateEvent class is now `H1–H9`) added `LoggedHClass.H9` (@SerialName "H9") ADDITIVELY
+  — the two exhaustive `HClass → LoggedHClass` mappers force every new gate class into
+  the log vocabulary at compile time; the goldens are untouched, earlier rows decode
+  unchanged
 * Companion shadow-result rows (Phase 8B, vision 05 §2 amendment 2026-10-04):
   `ShadowResultRow` is the second INSERT-ONLY row type, legal only for a decision row
   logged as a shadowMiss and exactly once per `(taskId, stepIndex)` — enforced at the
@@ -234,8 +250,14 @@ without a device.
   the live goldens, 3.2 failover + retry law, 3.3 name-indexing + banding — all keyless;
   real request bytes/statuses via MockWebServer, transport-failure simulations
   deterministic via the in-memory `CountingWireTransport`, never a live provider), the
-  risk-gate gates (4.1 classifier matrix vs `gate/classifier-matrix.json`, 4.2 trust
-  state machine, 4.3 adversarial injection fixtures), and the DecisionLog gates
+  risk-gate gates (4.1 classifier matrix vs `gate/classifier-matrix.json` — since
+  Phase 8E incl. the H9 happy/negative/fail-to-confirm rows and the `additive`
+  SUSPICIOUS tier, 4.2 trust state machine, 4.3 adversarial injection fixtures — since
+  Phase 8E four, incl. the mutation bait; `AdditiveEngineCheckTest` Gate 8E.2: the
+  additive-only law BOTH directions — a non-LOW engine answer ADDS H9 on an unlisted
+  action; no engine answer can un-gate or replace a code-triggered class (Elvis
+  resolve, and a confident class means the judge is never consulted — the
+  hostile-judge loud-failure proof)), and the DecisionLog gates
   (5.1 schema round-trip + byte-stable `log/goldens/` snapshots, 5.2 RLCD export vs a
   strict finetune-row validator + mixed-teacher manifest + the two case kinds with
   authoritative-gold selection and loud format-scoping counts, 5.3 agreement math with

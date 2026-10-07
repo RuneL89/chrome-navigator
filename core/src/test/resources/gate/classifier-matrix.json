@@ -1,5 +1,5 @@
 {
-  "law": "NAVIGATOR-VISION-006 §1 (H1–H8 detection table) + PHASE_04 Gate 4.1. One row per matrix case: the classifier MUST return exactly `expect` for (action, context). `tag`: happy (one per H-class minimum), negative (NOT gated — must classify null), fail-to-confirm (ambiguous/uncertain resolves to the stricter matching class, never null). Field descriptors are given as RAW observed attributes (id/label/value/className) — the test derives isPassword/isCardLike through FieldDescriptor.fromObserved so the derivation itself is under test. This file is a reviewable table: UAT 4.1 has the owner read it and name missing site/form patterns (new rows are additive).",
+  "law": "NAVIGATOR-VISION-006 §1 (H1–H9 detection table, v1.2.0) + PHASE_04 Gate 4.1 + PHASE_08E Gate 8E.1. One row per matrix case: the classifier MUST return exactly `expect` for (action, context). `tag`: happy (one per H-class minimum), negative (NOT gated — must classify null AND the mutation net must read ORDINARY, i.e. never even engine-consulted), fail-to-confirm (ambiguous/uncertain resolves to the stricter matching class, never null), additive (the H9 net is SUSPICIOUS: classify is null but RiskGate.mutationNet = SUSPICIOUS — the loop's ADDITIVE-ONLY engine check owns it; a non-LOW answer adds H9, vision 06 §3). H9 detection is a broad net: the verb dictionary here is the illustrative FLOOR (test data, not product law) — novel verbs gate via structure (confirm/flip wording) or via the additive engine check, never by dictionary growth alone. Field descriptors are given as RAW observed attributes (id/label/value/className) — the test derives isPassword/isCardLike through FieldDescriptor.fromObserved so the derivation itself is under test. This file is a reviewable table: UAT 4.1 has the owner read it and name missing site/form patterns (new rows are additive).",
   "rows": [
     {
       "id": "h1-type-into-card-field",
@@ -467,6 +467,176 @@
           { "id": "pass", "label": "Password", "className": "android.widget.EditText" }
         ]
       }
+    },
+    {
+      "id": "h9-unsubscribe-button",
+      "tag": "happy",
+      "expect": "H9_PERSISTENT_MUTATION",
+      "note": "Phase 8E: the dictionary floor — an unsubscribe control is a persistent relationship mutation (vision 06 §1 H9).",
+      "action": {
+        "kind": "TAP",
+        "target": { "id": "unsub-button", "label": "Unsubscribe from this newsletter", "bucket": "buttons", "className": "android.widget.Button" }
+      },
+      "context": { "url": "https://lists.example.com/issue-42", "fields": [] }
+    },
+    {
+      "id": "h9-book-table",
+      "tag": "happy",
+      "expect": "H9_PERSISTENT_MUTATION",
+      "note": "Booking confirmation — 'book' from the illustrative dictionary; a reservation outlives the page.",
+      "action": {
+        "kind": "TAP",
+        "target": { "id": "book-button", "label": "Book a table", "bucket": "buttons", "className": "android.widget.Button" }
+      },
+      "context": { "url": "https://dining.example.com/menu", "fields": [] }
+    },
+    {
+      "id": "h9-send-message-submit",
+      "tag": "happy",
+      "expect": "H9_PERSISTENT_MUTATION",
+      "note": "'Send' from the dictionary: posting/sending a message is persistent content mutation.",
+      "action": {
+        "kind": "SUBMIT",
+        "target": { "id": "send-message", "label": "Send message", "bucket": "buttons", "className": "android.widget.Button" }
+      },
+      "context": { "url": "https://forum.example.com/thread/9", "fields": [] }
+    },
+    {
+      "id": "h9-state-flip-optout",
+      "tag": "happy",
+      "expect": "H9_PERSISTENT_MUTATION",
+      "note": "Structural signal: a state-word flip (opt out) — mutation-worded toggle, vision 06 §1a.",
+      "action": {
+        "kind": "TAP",
+        "target": { "id": "optout-toggle", "label": "Opt out of personalized ads", "bucket": "buttons", "className": "android.widget.Button" }
+      },
+      "context": { "url": "https://portal.example.com/home", "fields": [] }
+    },
+    {
+      "id": "h9-confirm-dialog-novel-verb",
+      "tag": "happy",
+      "expect": "H9_PERSISTENT_MUTATION",
+      "note": "NOVEL verb ('vanish' is in NO dictionary list) caught by STRUCTURE: confirm-dialog semantics ('cannot be undone') on a real control — the net is not a list (vision 06 §1a).",
+      "action": {
+        "kind": "TAP",
+        "target": { "id": "vanish-button", "label": "Vanish this draft — it cannot be undone", "bucket": "buttons", "className": "android.widget.Button" }
+      },
+      "context": { "url": "https://notes.example.com/clean", "fields": [] }
+    },
+    {
+      "id": "h9-cancel-booking",
+      "tag": "happy",
+      "expect": "H9_PERSISTENT_MUTATION",
+      "note": "'Cancel' from the dictionary on a reservation — cancels of persistent state gate (fail-safe; the popup ladder's dismissals word differently).",
+      "action": {
+        "kind": "TAP",
+        "target": { "id": "cancel-reservation", "label": "Cancel reservation", "bucket": "buttons", "className": "android.widget.Button" }
+      },
+      "context": { "url": "https://dining.example.com/reservations", "fields": [] }
+    },
+    {
+      "id": "h9-mutation-link-corroborated",
+      "tag": "happy",
+      "expect": "H9_PERSISTENT_MUTATION",
+      "note": "Link-bucket candidate with mutation wording needs host/path corroboration (the H2 pattern, ART-4): on /account/settings it is a confident H9.",
+      "action": {
+        "kind": "TAP",
+        "target": { "id": "unsub-link", "label": "Unsubscribe now", "bucket": "nav-links", "className": "android.view.View" }
+      },
+      "context": { "url": "https://mail.example.com/account/settings", "fields": [] }
+    },
+    {
+      "id": "n9-player-pause",
+      "tag": "negative",
+      "expect": null,
+      "note": "H9 scope: ephemeral player controls stay ungated — the state-flip list deliberately excludes pause/hide (they belong to no persistent state).",
+      "action": {
+        "kind": "TAP",
+        "target": { "id": "pause-button", "label": "Pause", "bucket": "buttons", "className": "android.widget.Button" }
+      },
+      "context": { "url": "https://media.example.com/watch/42", "fields": [] }
+    },
+    {
+      "id": "n9-read-more",
+      "tag": "negative",
+      "expect": null,
+      "note": "Ordinary content controls stay ungated — no mutation wording, no auth surface.",
+      "action": {
+        "kind": "TAP",
+        "target": { "id": "read-more", "label": "Read more", "bucket": "buttons", "className": "android.widget.Button" }
+      },
+      "context": { "url": "https://blog.example.com/post/9", "fields": [] }
+    },
+    {
+      "id": "ftc9-delete-account-beats-h9",
+      "tag": "fail-to-confirm",
+      "expect": "H5_ACCOUNT",
+      "note": "Ambiguity between H5 and H9 ('delete my account' matches both): the stricter H5 wins — ambiguity never widens the per-task trust grant (vision 06 §1 fail-to-confirm).",
+      "action": {
+        "kind": "TAP",
+        "target": { "id": "delete-account", "label": "Delete my account", "bucket": "buttons", "className": "android.widget.Button" }
+      },
+      "context": { "url": "https://social.example.net/settings/danger", "fields": [] }
+    },
+    {
+      "id": "ftc9-card-form-cancellation-beats-h9",
+      "tag": "fail-to-confirm",
+      "expect": "H1_PAYMENT",
+      "note": "Ambiguity between H1 and H9 (cancellation over a card-bearing form): the stricter H1 wins — money consequences rank first.",
+      "action": {
+        "kind": "SUBMIT",
+        "target": { "id": "cancel-plan", "label": "Cancel subscription", "bucket": "buttons", "className": "android.widget.Button" }
+      },
+      "context": {
+        "url": "https://shop.example/billing/cancel",
+        "fields": [
+          { "id": "card-number", "label": "Card number", "className": "android.widget.EditText" }
+        ]
+      }
+    },
+    {
+      "id": "add9-novel-verb-my-data",
+      "tag": "additive",
+      "expect": null,
+      "note": "The NOVEL-verb additive case: 'vanish' is in no list, but the possessive data shape ('my data') makes the net SUSPICIOUS — classify stays null and RiskGate.mutationNet = SUSPICIOUS; the loop asks the engine the §3 question and a non-LOW answer ADDS H9 (vision 06 §3).",
+      "action": {
+        "kind": "TAP",
+        "target": { "id": "vanish-data", "label": "Vanish my data", "bucket": "buttons", "className": "android.widget.Button" }
+      },
+      "context": { "url": "https://notes.example.com/clean", "fields": [] }
+    },
+    {
+      "id": "add9-save-settings-submit",
+      "tag": "additive",
+      "expect": null,
+      "note": "Submissions/activations on authenticated surfaces (vision 06 §1a structural signal) sit at the engine-consult tier: a bare 'Save' on /account/preferences is SUSPICIOUS — the engine separates the preference save from the mutation.",
+      "action": {
+        "kind": "SUBMIT",
+        "target": { "id": "save", "label": "Save", "bucket": "buttons", "className": "android.widget.Button" }
+      },
+      "context": { "url": "https://portal.example.com/account/preferences", "fields": [] }
+    },
+    {
+      "id": "add9-unsub-link-uncorroborated",
+      "tag": "additive",
+      "expect": null,
+      "note": "Mutation wording on an UNCORROBORATED link is not silently ordinary: classify null, mutationNet SUSPICIOUS — the engine consult separates the article from the real control (ART-4: page text steers at most toward a gated action).",
+      "action": {
+        "kind": "TAP",
+        "target": { "id": "unsub-article-link", "label": "Unsubscribe from our newsletter", "bucket": "nav-links", "className": "android.view.View" }
+      },
+      "context": { "url": "https://blog.example.com/issue-42", "fields": [] }
+    },
+    {
+      "id": "add9-draft-save-tap",
+      "tag": "additive",
+      "expect": null,
+      "note": "Weak mutation wording ('save' — harmless as often as not, e.g. Save-draft) consults instead of gating: SUSPICIOUS, and a confident engine LOW leaves it ungated — the only non-gate exit, and the engine's alone to give.",
+      "action": {
+        "kind": "TAP",
+        "target": { "id": "save-draft", "label": "Save draft", "bucket": "buttons", "className": "android.widget.Button" }
+      },
+      "context": { "url": "https://notes.example.com/compose", "fields": [] }
     }
   ]
 }

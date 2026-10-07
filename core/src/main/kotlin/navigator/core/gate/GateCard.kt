@@ -44,6 +44,7 @@ data class GateCard(
             HClass.H6_UPLOAD -> "Will upload a file from this device to $site."
             HClass.H7_DOWNLOAD -> "Will start a download from $site."
             HClass.H8_CREDENTIAL_TYPING -> "Will type a credential into a field on $site."
+            HClass.H9_PERSISTENT_MUTATION -> "Will make a persistent change (account, content, or data) on $site."
         }
     }
 }

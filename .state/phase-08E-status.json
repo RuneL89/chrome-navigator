@@ -1,0 +1,41 @@
+{
+  "phase": "08E",
+  "status": "accepted",
+  "goal": "Gates 8E.1-8E.3 pass (H9 general consequential-action gate: broad code net + additive-only engine check), full ./gradlew test green, $0 spend, no scenario-specific code",
+  "lastAction": "PHASE 08E ACCEPTED: verifier cold-check PASS (.state/phase-08E-verification.md, verifier-written) \u2014 gates 8E.1-8E.3 pass on independent re-run (:core 249 + :app 278 = 527, 0 failures); Tier A regeneration LAWFUL per the core/AGENTS.md replay law for gate-class changes (rotationStable=true, selfCheck 33 allCaught, fixtures append-only); all four implementation notes ruled lawful EXTENSION/COMPLIANT. UAT owner-covered per standing directive (matrix read covered-pending; live card feel joins 08I demo).",
+  "gatesPassed": [
+    {
+      "gate": "8E.1",
+      "evidence": "RiskGateClassifierTest (core/src/test/kotlin/navigator/core/gate/) over the additive matrix rows in core/src/test/resources/gate/classifier-matrix.json: H9 happy rows (h9-unsubscribe-button dictionary floor, h9-book-table, h9-send-message-submit, h9-state-flip-optout structural flip, h9-confirm-dialog-novel-verb NOVEL verb 'vanish' caught by confirm-dialog STRUCTURE, h9-cancel-booking, h9-mutation-link-corroborated ART-4 link+context) via assertHappy('H9_PERSISTENT_MUTATION') + the per-class hygiene loop (every HClass.entries needs a happy row \u2014 H9 included, test-forced); negatives strengthened to assert classify==null AND RiskGate.mutationNet==ORDINARY (nav taps, search submit, scroll, back, finish, plain typing, popup close, cookie consent, player Pause, Read more \u2014 never even engine-consulted); new 'additive' rows (add9-novel-verb-my-data, add9-save-settings-submit, add9-unsub-link-uncorroborated, add9-draft-save-tap) pinned by the new additive runner: classify null AND mutationNet SUSPICIOUS (never silently ordinary); fail-to-confirm rows incl. ftc9-delete-account-beats-h9 (H5>H9) and ftc9-card-form-cancellation-beats-h9 (H1>H9). AdversarialInjectionTest extended for adv-mutation-bait-04.json: the steer target classifies H9, the bait's neutral 'Continue' is SUSPICIOUS (engine-owned), the injected banner text is not selectable."
+    },
+    {
+      "gate": "8E.2",
+      "evidence": "AdditiveEngineCheckTest (core/src/test/kotlin/navigator/core/gate/, Gate 8E.2) \u2014 BOTH directions: (a) engine HIGH on an unlisted action ADDS H9 (novel-verb 'Vanish my data': classify null, mutationNet SUSPICIOUS, resolve(null,AddH9)=H9) and engine UNCERTAIN also adds (fail-to-confirm: only a confident LOW clears); (b) suppression impossible: resolve(H1/H9/H7, any verdict) keeps the code class (Elvis union \u2014 the verdict can only fill a null; the sealed Verdict set {AddH9,None} has no 'clear' shape = compile-time unrepresentable), plus the hostile-judge proof: the loop's consult guard (classify==null && mutationNet==SUSPICIOUS) never invokes the judge for a code-confident class (a judge wired to throw survives), while on a SUSPICIOUS action it IS invoked and its explosion is the loud runtime failure; the app-side mirror: H9GateLoopTest 'the engine is never consulted for a code-confident H9' runs with NO additive answer scripted \u2014 any consult would fail the stub engine loudly, and the green run proves the code-net class stands."
+    },
+    {
+      "gate": "8E.3",
+      "evidence": "H9GateLoopTest (app/src/test/kotlin/navigator/app/loop/, real NavigationLoop + stub engine): 'code-net H9 fires the card without trust and the approval carries the rest of the task' \u2014 card 'Persistent change on m0.test' exactly once, rows[0].gateEvent={H9, APPROVED, trustedFromTask=false}, rows[1]={H9, APPROVED, true} (per-task same-site trust, existing TaskGate mechanics unchanged), stepLog carries '(trigger: code-net)'; 'additive engine check - a non-LOW answer ADDS the H9 card' \u2014 engineCalls [choose:triage, choose:action, judge:h9-additive-check], stepLog 'engine non-LOW: H9 ADDED' + '(trigger: additive-engine)', row gateEvent {H9, APPROVED}; 'a confident LOW leaves the suspicious action ungated' \u2014 gateEvent null, action executed, stepLog 'engine LOW: no gate' (the clear logged for the audit trail); 'an additive H9 card denied twice aborts the task like any gated class' \u2014 GUARD_ABORT after two DENIED {H9} events, nothing executed; gate events logged via the existing LoggedGateEvent (vision 05 \u00a72 gateEvent schema untouched \u2014 the trigger source rides the durable step log/run report since the row schema is vision-law-final)."
+    },
+    {
+      "gate": "full ./gradlew test",
+      "evidence": "BUILD SUCCESSFUL: :core:test = 249 tests, 0 failed (was 240; +6 AdditiveEngineCheckTest, +1 H9 happy, +1 additive runner, +1 bait fixture); :app:testDebugUnitTest = 278 tests, 0 failed (was 272; +6 H9GateLoopTest); :app:assembleDebug produces app-debug.apk."
+    },
+    {
+      "gate": "Tier A re-run green (gate-class change)",
+      "evidence": "core/AGENTS.md Tier A law: any change to gate classes must re-run Tier A green with regenerated committed artifacts. :core:generateTierAReport re-ran .state/eval/tier-a-report.{md,json}: 11 fixtures (new adv-mutation-bait-04.json with pairing+expectation entries added to the reviewable replay inputs, notes included), gate classes H9_PERSISTENT_MUTATION/H3/H2/H1/6x null exactly as pinned, rotationStable=true (241 rotations), selfCheckMutations=33 allCaught=true, token budget respected (max 477 <= 480). All pre-existing pins unchanged."
+    },
+    {
+      "gate": "no site names in product code",
+      "evidence": "grep over core/src/main + app/src/main for owner-example/site names: clean (matrix/fixture/test wording uses generic example.com/.test hosts only; the one site-name example in a new KDoc was reworded before close-out)."
+    }
+  ],
+  "gatesFailed": [],
+  "gatesPending": [],
+  "llmCost": "$0.00",
+  "tokenBudgetRemaining": "n/a (deterministic phase; $0 budget respected \u2014 the judge is the scripted stub engine, no live calls)",
+  "blocker": null,
+  "deviations": [
+    "NONE from the phase doc or vision. Implementation notes for the verifier: (1) The LoggedGateEvent row schema (vision 05 \u00a72, law-final) has no trigger-source field, so the code-net vs additive-engine trigger rides the durable step log / run report (asserted in H9GateLoopTest); 'both triggers' is unrepresentable by construction \u2014 the loop consults the engine ONLY when the code net has no confident class (vision 06 \u00a73 'when its own net is uncertain'), so a gate event is either code-net or additive-engine, never both. (2) The mutation net's uncertain tier (RiskGate.mutationNet SUSPICIOUS) implements 'fail-to-confirm territory, no confident H-class': weak mutation wording on real controls (save/update/apply/manage/sync/import/merge/connect/archive/restore/transfer), the novel-verb possessive-data shape ('my data/feed/...'), control activation (tap OR submit) on authenticated surfaces (account/settings/profile/preferences/subscriptions/billing/membership/admin/security/privacy/danger/deactivate in host/path, query stripped per ART-4), and mutation-worded uncorroborated links \u2014 these consult the engine instead of auto-gating; the CONFIDENT tier (dictionary floor incl. the vision-listed verbs + destructive family, state-word flips, confirm-dialog semantics) classifies H9 code-only. (3) AdditiveEngineCheck.evaluate's judge is `suspend (String) -> Band` (the loop binds the engine's suspend judge; plain lambdas coerce) \u2014 the phase doc's 'judge: (proposition) -> Band' shape otherwise verbatim, proposition carries the \u00a73 question text verbatim (pinned by test). (4) The suspension-coercion fix was required by the loop wiring; core tests wrap evaluate in runBlocking. (5) Tier A artifacts were regenerated (drift detector fired) because a committed fixture + gate class changed \u2014 the reviewed-change path per core/AGENTS.md; replay-pairings.json + replay-expectations.json gained the new fixture's entries with notes (reviewable inputs, not golden fixtures; no existing fixture was edited or retired)."
+  ],
+  "nextAction": "Phase 08F (credential entry redaction) per the master index ordering."
+}

@@ -7,6 +7,7 @@ import navigator.core.decision.DecisionEngine
 import navigator.core.decision.DecisionRecord
 import navigator.core.decision.FallbackReporting
 import navigator.core.decision.Option
+import navigator.core.decision.NoulQuestion
 import navigator.core.decision.band
 import navigator.core.enumerate.Bucket
 import navigator.core.enumerate.Candidate
@@ -16,6 +17,7 @@ import navigator.core.enumerate.CandidateSource
 import navigator.core.enumerate.ObservedNode
 import navigator.core.enumerate.Recovery
 import navigator.core.gate.ActionKind
+import navigator.core.gate.AdditiveEngineCheck
 import navigator.core.gate.FieldDescriptor
 import navigator.core.gate.GateAction
 import navigator.core.gate.GateCard
@@ -58,8 +60,9 @@ import navigator.core.state.StateTextBuilder
  *   OBSERVE (fresh a11y read + URL bar; unusable tree -> graceful refusal, doc 03 §5)
  *   -> ENUMERATE (deterministic bucket taxonomy, doc 03 §3)
  *   -> DECIDE (the injected [DecisionEngine]; STUB or Jev — the loop cannot tell, ART-2)
- *   -> GATE ([RiskGate.classify] -> [TaskGate]; card events via [GatePresenter]) BEFORE
- *      any execution
+ *   -> GATE ([RiskGate.classify]; uncertain mutation risk -> the ADDITIVE-ONLY engine
+ *      check [AdditiveEngineCheck] (vision 06 §3, Phase 8E); then [TaskGate]; card
+ *      events via [GatePresenter]) BEFORE any execution
  *   -> EXECUTE (gestures at node-map coordinates; text entry focus-first + paste)
  *   -> LOG (exactly one [DecisionLogRow] per navigation decision)
  *
@@ -740,14 +743,47 @@ class NavigationLoop(
             val textToType = if (kind == ActionKind.TYPE) phraseStub(goalText, candidate.label) else null
             val gateAction = GateAction(candidate, kind, textToType)
             val pageContext = PageContext(obs.url, FieldDescriptor.fromNodes(obs.nodes))
-            val hclass: HClass? = RiskGate.classify(gateAction, pageContext)
+            val codeClass: HClass? = RiskGate.classify(gateAction, pageContext)
+
+            // Phase 8E (vision 06 §3, additive-only): when the code net is UNCERTAIN —
+            // no confident H-class, fail-to-confirm territory — the loop consults the
+            // primary engine with the §3 question. The verdict can only ADD H9
+            // ([AdditiveEngineCheck]: suppression is unrepresentable); a confident code
+            // class means the engine is never even asked. Both outcomes are logged with
+            // the trigger source (code-net vs additive-engine); H9 then rides the
+            // ordinary gate mechanics unchanged (card, 30s=deny, per-task same-site
+            // trust).
+            var hclass: HClass? = codeClass
+            var gateTrigger = GATE_TRIGGER_CODE_NET
+            if (codeClass == null &&
+                RiskGate.mutationNet(gateAction, pageContext) == RiskGate.MutationNet.SUSPICIOUS
+            ) {
+                val verdict = AdditiveEngineCheck.evaluate(gateAction, pageContext.site) { proposition ->
+                    band(
+                        engine.judge(
+                            state.text,
+                            NoulQuestion(AdditiveEngineCheck.QUESTION_NAME, proposition),
+                        ).pTrue,
+                    )
+                }
+                hclass = AdditiveEngineCheck.resolve(codeClass, verdict)
+                gateTrigger = GATE_TRIGGER_ADDITIVE_ENGINE
+                line(
+                    "gate: additive engine check on ${pageContext.site} -> " +
+                        if (verdict == AdditiveEngineCheck.Verdict.AddH9) {
+                            "engine non-LOW: H9 ADDED (gate rate raised, vision 06 §3)"
+                        } else {
+                            "engine LOW: no gate (logged for the audit trail)"
+                        },
+                )
+            }
 
             var proceed = true
             var taskAborted = false
             var gateEvent: LoggedGateEvent? = null
             var disposition = ActionDisposition.EXECUTED
             if (hclass != null) {
-                line("gate: ${hclass.name} on ${pageContext.site} - checking per-task trust")
+                line("gate: ${hclass.name} on ${pageContext.site} (trigger: $gateTrigger) - checking per-task trust")
                 when (val gateDecision = taskGate.decide(GateEvent.REQUEST(hclass, pageContext.site))) {
                     is GateDecision.EXECUTE -> {
                         gateEvent = LoggedGateEvent(
@@ -966,6 +1002,7 @@ class NavigationLoop(
         HClass.H6_UPLOAD -> navigator.core.log.LoggedHClass.H6
         HClass.H7_DOWNLOAD -> navigator.core.log.LoggedHClass.H7
         HClass.H8_CREDENTIAL_TYPING -> navigator.core.log.LoggedHClass.H8
+        HClass.H9_PERSISTENT_MUTATION -> navigator.core.log.LoggedHClass.H9
     }
 
     private fun serial(outcome: Outcome): String = serialNameOf(Outcome.serializer(), outcome)
@@ -980,6 +1017,13 @@ class NavigationLoop(
         const val PARTIAL_RESULT_MAX_LINES = 5
         const val PARTIAL_RESULT_MAX_CHARS = 300
         const val SCROLL_DOWN_PREFIX = "${CandidateEnumerator.SCROLL_DOWN_ID}@"
+
+        /** The gate-event trigger sources logged on the step log (Phase 8E, vision 06 §3):
+         *  which part of the broad net fired — the code net alone, or the additive engine
+         *  check (the engine may only add, and is consulted only when the code net is
+         *  uncertain, so "both" is unrepresentable by construction). */
+        const val GATE_TRIGGER_CODE_NET = "code-net"
+        const val GATE_TRIGGER_ADDITIVE_ENGINE = "additive-engine"
 
         /** Taps that read as submissions (the gate's SUBMIT path: H1/H3/H4 submissions). */
         internal val SUBMIT_TRAP = Regex("submit|\\bsearch\\b|^go\\b|\\bgo\\b|\\bsend\\b")
