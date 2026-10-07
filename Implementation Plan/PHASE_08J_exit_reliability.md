@@ -2,7 +2,7 @@
 
 **Document ID:** `NAVIGATOR-IMPL-PHASE-08J`
 **Version:** 1.1.0 *(round 2 added 2026-10-06 — owner-directed after the base-421M Test-2′ false positive; vision 05 v1.5.0 exit-check rows + export kinds)*
-**Status:** Round 1 verified (Gates 8J.1–8J.5, 2026-10-06); Round 2 built + verified (Gates 8J.6–8J.9, 2026-10-07, after the owner-ratified 04 §3 v1.3.0 amendment); UAT 8J.1/8J.2 owner-gated (not started)
+**Status:** ACCEPTED (2026-10-07) — Rounds 1+2 verified (Gates 8J.1–8J.9) + card-visibility fix (414b18b); UAT passed on-device in the owner-re-scoped jev mode (OWNER_CONFIRM with a live CONFIRM_DONE tap, $0.10, mention page never exited); laya legs owner-descoped as eval-only
 **Date:** 2026-10-06
 **Dependencies:** none hard (deliberately executes FIRST in Stage 2, before 08D — owner
 directive after the 2026-10-06 Test-1 specimen: fix exit reliability, then redo the UAT).
