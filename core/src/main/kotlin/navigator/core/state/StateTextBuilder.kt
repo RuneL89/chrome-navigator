@@ -30,6 +30,11 @@ import navigator.core.laya.Tokenizer
  *   any drop happened (vision 03 §4; the `llm` compressor role is Phase 10's).
  * - Never-exceed: if even an empty content block cannot fit the budget the builder fails
  *   loudly — an oversized state text is never emitted.
+ * - Secrets never appear in any section (vision 03 §4, doc 06 §2a redaction law): the
+ *   caller passes the credentials supplied so far this task in [build]'s `secrets`, and
+ *   a secret string that would reach the emitted text is a LOUD error — never silent
+ *   truncation, never a mask. Reports and logs render `[credential-redacted]` instead
+ *   (doc 05 §2); state text refuses to exist.
  *
  * The ≤480-token count is measured with the real laya tokenizer port (vision 05 §6),
  * not an approximation.
@@ -58,6 +63,11 @@ class StateTextBuilder(private val tokenizer: Tokenizer = Tokenizer.loadDefault(
      * @param history digest lines of prior steps this task — at most the last
      *   [MAX_HISTORY_LINES] are kept, each flattened to one app-authored line
      * @param candidates this step's deterministic candidate list
+     * @param secrets the credential values supplied via gate cards so far this task
+     *   (doc 06 §2a; empty for every non-credential task — the default keeps every
+     *   pre-08F call site unchanged). A secret string that would appear anywhere in
+     *   the emitted text (a page-side echo in a candidate label, an app-authored line)
+     *   fails LOUDLY — never silent truncation, never a mask.
      */
     fun build(
         goal: String,
@@ -65,6 +75,7 @@ class StateTextBuilder(private val tokenizer: Tokenizer = Tokenizer.loadDefault(
         title: String,
         history: List<String>,
         candidates: CandidateList,
+        secrets: List<String> = emptyList(),
     ): StateText {
         val appLines = buildList {
             add("GOAL: " + flatten(goal))
@@ -89,6 +100,18 @@ class StateTextBuilder(private val tokenizer: Tokenizer = Tokenizer.loadDefault(
             kept.removeLast()
             dropped += lowest
             text = render(appLines, groupByBucket(kept))
+        }
+        // Emission-boundary secret check (doc 06 §2a via vision 03 §4): the state text
+        // is the corpus of record, so a secret that would reach it must fail loudly —
+        // redaction here can never be silent, and masking is not an option.
+        for (secret in secrets) {
+            if (secret.isNotEmpty() && text.contains(secret)) {
+                throw IllegalStateException(
+                    "state text would carry a credential-secret value (vision 03 §4 / doc 06 §2a " +
+                        "redaction law) — refusing to emit; secrets never appear in any section, " +
+                        "and this is a loud error, never a silent truncation or a mask",
+                )
+            }
         }
         return StateText(
             text = text,

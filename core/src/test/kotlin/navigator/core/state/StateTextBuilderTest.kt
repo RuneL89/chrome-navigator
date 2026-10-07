@@ -36,6 +36,71 @@ class StateTextBuilderTest {
 
     private fun lines(text: String): List<String> = text.split("\n").dropLast(1)
 
+    // ---- the loud secret rejection (vision 03 §4 / doc 06 §2a, Phase 08F) ----
+
+    private val fixtureSecret = "fixture-secret-DO-NOT-USE"
+
+    @Test
+    fun `a secret echoed into a candidate label fails loudly - never truncation, never a mask`() {
+        val dump = TestFixtures.loadAll().first { it.first == "real-recipe-01.json" }.second
+        val nodes = dump.observedNodes().toMutableList()
+        // A page-side echo: the typed value shows up in a node's visible text.
+        nodes[nodes.size / 2] = nodes[nodes.size / 2].copy(text = fixtureSecret)
+        val candidates = CandidateEnumerator.enumerate(nodes)
+        val error = assertFailsWith<IllegalStateException> {
+            builder.build("goal", dump.url, dump.title, emptyList(), candidates, secrets = listOf(fixtureSecret))
+        }
+        assertTrue(
+            error.message!!.contains("credential-secret value"),
+            "the builder must name the secret law: ${error.message}",
+        )
+        assertTrue(
+            !error.message!!.contains(fixtureSecret),
+            "even the error must not carry the value: ${error.message}",
+        )
+    }
+
+    @Test
+    fun `a secret in an app-authored line fails loudly too`() {
+        val dump = TestFixtures.loadAll().first().second
+        val candidates = CandidateEnumerator.enumerate(dump.observedNodes())
+        assertFailsWith<IllegalStateException> {
+            builder.build(
+                "paste $fixtureSecret into the field",
+                dump.url,
+                dump.title,
+                emptyList(),
+                candidates,
+                secrets = listOf(fixtureSecret),
+            )
+        }
+    }
+
+    @Test
+    fun `clean text builds normally with the secrets parameter supplied`() {
+        val dump = TestFixtures.loadAll().first().second
+        val candidates = CandidateEnumerator.enumerate(dump.observedNodes())
+        val state = builder.build(
+            "goal",
+            dump.url,
+            dump.title,
+            emptyList(),
+            candidates,
+            secrets = listOf(fixtureSecret, "another-unused-value"),
+        )
+        assertTrue(state.tokenCount <= StateTextBuilder.TOKEN_BUDGET)
+        assertTrue(!state.text.contains(fixtureSecret))
+    }
+
+    @Test
+    fun `the secrets default keeps the pre-08F behavior byte-identical`() {
+        val dump = TestFixtures.loadAll().first().second
+        val candidates = CandidateEnumerator.enumerate(dump.observedNodes())
+        val without = builder.build("goal", dump.url, dump.title, emptyList(), candidates)
+        val explicit = builder.build("goal", dump.url, dump.title, emptyList(), candidates, secrets = emptyList())
+        assertEquals(without, explicit)
+    }
+
     // -- budget + structure over every fixture -----------------------------------------
 
     @Test

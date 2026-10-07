@@ -59,7 +59,17 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     `AdditiveEngineCheck` (the §3 noul question; a non-LOW band ADDS H9; a confident
     code class is never consulted, so the engine can never lower/suppress/whitelist)
     and logs the trigger source (code-net vs additive-engine) on the step log; H9 then
-    rides the ordinary gate mechanics unchanged; preceded by the Phase-8D cold-start
+    rides the ordinary gate mechanics unchanged; Phase 8F (vision 06 §2a): a
+    credential-typing action (H3/H4/H8 on a TYPE action) takes its text from a
+    `TextSource` — the card is presented for EVERY such action (per-task trust cannot
+    supply a secret; the resolution still flows the TaskGate's legal transitions, so
+    trustedFromTask logging and the double-refusal abort are intact), the approved
+    secret is injected DIRECTLY into the target field and kept in memory only
+    (`cardSecrets` feeds the state builder's loud rejection and a render-boundary scrub
+    of the run report's stepLog/partialResult), the step log renders
+    `[credential-redacted]`, the row carries `typedSecret=true`, and wrong-source in
+    either direction (plain approve on a credential card; secret on any other card)
+    fails loudly — never a fall-through; preceded by the Phase-8D cold-start
     pre-step (vision 04 §1)
     when its `BrowserProbe`/`BrowserLauncher` seams are wired, and by ONE triage
     choose; exits goal-achieved / budget-exhausted / stuck-kill /
@@ -122,7 +132,13 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     harness activity is brought to the FRONT before the dialog shows (the
     `HarnessActivity` auto-return pattern — an activity-local dialog behind a STOPPED
     activity is never seen), chosen path logged loudly on `NavigatorHarness`, decision
-    JVM-tested as pure `shouldBringToFront`; Phase 8J mirrors it for the completion card:
+    JVM-tested as pure `shouldBringToFront`; Phase 8F: `GateResolution` is SEALED —
+    `ApproveWithSecret(secret)` carries the credential typed on the card's masked input
+    (the value lives in memory only for the injection call; a blank input resolves deny),
+    and `DebugGatePresenter` shows that masked input ONLY on
+    `GateCard.credentialTyping` cards (doc 06 §2a); `TextSource` (own file:
+    `StubPhrase` vs `GateSuppliedSecret` + the `[credential-redacted]` marker) is the
+    ONLY lawful typed-text payload; Phase 8J mirrors it for the completion card:
     `CompletionCardPresenter` with `AutoKeepGoingCompletionPresenter` (unattended =
     keep going, fail-safe), `ScriptedCompletionCardPresenter` (JVM tests; a second
     ask fails loudly — once-per-task), `DebugCompletionCardPresenter` ("Goal appears
@@ -179,7 +195,9 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     defaulted — null only when triage never resolved);
     `RunReportStore` does the file export),
     `HarnessPagesServer` (loopback-only static server over
-    `assets/harness/pages/`), `GoalCatalog` (`assets/harness/goals.json` — the M0
+    `assets/harness/pages/` — Phase 8F added the clearly-dummy `login.html`
+    credential fixture form (test-only, no real endpoint) for scripted credential
+    runs and UAT 8F.1), `GoalCatalog` (`assets/harness/goals.json` — the M0
     scripted goal families + the Phase-8J `exit-reliability-1` fixture goal (drives
     `pages/zenith.html` through refusals, one keep-going card, and a SUSTAINED accept;
     harness-only); `GoalCatalog.customGoal(...)` builds a ONE-OFF custom goal
@@ -234,7 +252,10 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
   IS the check's identity), `ExitCheckConverters` (loud decode), `ExitCheckDao` +
   `ExitCheckLogger` (insert-only + by-task/time-window queries for the noul-kind
   export), and `DecisionLogDb` v5 with `MIGRATION_4_5` (CREATE TABLE `exit_check`
-  + indices only — both existing tables untouched); law:
+  + indices only — both existing tables untouched); Phase 8F (doc 05 §2, doc 06 §2a)
+  added `DecisionLogDb` v6 with `MIGRATION_5_6` (ALTER ADD COLUMN `typedSecret`
+  NOT NULL DEFAULT 0 — the FLAG only: the credential value itself is never stored
+  anywhere; pre-v6 rows decode typedSecret=false); law:
   `Project Vision/05` §2, §5
 * `build.gradle.kts` — Android build config (minSdk 34, compile/targetSdk 36, Compose;
   Room compiler wired via KSP; kotlinx-serialization + coroutines plugins/deps)
@@ -343,6 +364,18 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
   class (an unscripted additive answer would fail the stub loudly — suppression cannot
   even be attempted); an additive H9 denied twice aborts the task like any gated
   class) +
+  the Phase-8F credential gates (`CredentialEntryLoopTest` 8F.1–8F.3: the card secret
+  is injected directly and the stub phrase never runs on a credential path; wrong-source
+  is loud in BOTH directions — a plain approve on a credential card, a secret on any
+  other card; 8F.2 SECRET-ABSENCE — after a scripted credential run an exhaustive grep
+  over the step log, decision rows (full JSON), exit-check rows, and the report strings
+  finds ZERO hits of the fixture values while `[credential-redacted]` renders on both
+  typing steps and `typedSecret=true` rides exactly those rows; a page-side echo of the
+  typed value is a LOUD state-text failure; the card flow matrix — approve-with-secret,
+  deny, timeout, double-deny abort, and the trusted-decline (a trusted credential card
+  still asks; declining skips it every time); `DecisionLogV6DbTest` Room v6: the
+  typedSecret flag round-trips, plain rows decode false, and the hand-built v5 database
+  survives `MIGRATION_5_6`) +
   the Phase-8 laya gates (`LayaEngineTwoStageTest`
   Gate 8.2 scripted two-stage correctness, `LayaEngineReferenceParityTest` Gate 8.1
   reference-vector parity over the REAL int8 graph on the desktop JVM ONNX Runtime,
@@ -375,7 +408,8 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
   `anchoredNoulVersion`);
   `DecisionLogV4DbTest` Room v4 exit round-trips + the v3→v4 migration;
   `DecisionLogV5DbTest` Room v5 exit-check round-trips + duplicate-key ABORT + the
-  v3→v4→v5 migration chain) —
+  v3→v4→v5 migration chain — its chain, like every migration-chain test's, now runs
+  through `MIGRATION_5_6` (Phase 8F)) —
   plain JVM, Robolectric-free; the laya gates need the 421M model artifact
   (verifyLayaModel fails the build loudly when it is missing); the v32b parity gate
   (`LayaEngineV32bReferenceParityTest`) is EVAL-ONLY since the 2026-10-06 demotion — it

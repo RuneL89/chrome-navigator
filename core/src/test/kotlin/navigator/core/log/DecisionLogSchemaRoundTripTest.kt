@@ -93,6 +93,47 @@ class DecisionLogSchemaRoundTripTest {
         }
     }
 
+    // ---- typedSecret (doc 05 §2, doc 06 §2a — Phase 08F) ----
+
+    @Test
+    fun `typedSecret round-trips on a credential-typing row`() {
+        val row = LogRowFixtures.typedSecretCredential()
+        val decoded = json.decodeFromString<DecisionLogRow>(json.encodeToString(row))
+        assertEquals(row, decoded)
+        assertEquals(true, decoded.typedSecret)
+        assertEquals(LoggedActionKind.TYPE, decoded.executedAction.kind)
+        assertEquals(ActionDisposition.EXECUTED, decoded.executedAction.disposition)
+        assertEquals(LoggedHClass.H8, decoded.gateEvent?.hclass)
+    }
+
+    @Test
+    fun `every pre-08F row decodes with typedSecret false`() {
+        val row = LogRowFixtures.complete()
+        val decoded = json.decodeFromString<DecisionLogRow>(json.encodeToString(row))
+        assertEquals(false, decoded.typedSecret)
+        assertNull(decoded.exit)
+    }
+
+    @Test
+    fun `typedSecret=true on a non-type action fails loudly`() {
+        assertLoudFailure("typedSecret on a non-type action must be rejected") {
+            LogRowFixtures.complete().copy(typedSecret = true)
+        }
+    }
+
+    @Test
+    fun `typedSecret=true on a refused disposition fails loudly`() {
+        assertLoudFailure("typedSecret on a refused credential step must be rejected") {
+            LogRowFixtures.typedSecretCredential().copy(
+                executedAction = ExecutedAction(
+                    candidateId = "pw-field",
+                    kind = LoggedActionKind.TYPE,
+                    disposition = ActionDisposition.REFUSED_BY_OWNER,
+                ),
+            )
+        }
+    }
+
     // ---- gateEvent variants (vision 05 §2: class H1–H8, approved|denied|timeout, trustedFromTask) ----
 
     @Test
@@ -284,6 +325,7 @@ class DecisionLogSchemaRoundTripTest {
         "row-shadow-miss" to LogRowFixtures.shadowMiss(),
         "row-exited-after-abort" to LogRowFixtures.exitedAfterAbort(),
         "row-goal-achieved-exit" to LogRowFixtures.goalAchievedSustainedExit(),
+        "row-typed-secret" to LogRowFixtures.typedSecretCredential(),
     )
 
     private fun goldenDir(): Path =

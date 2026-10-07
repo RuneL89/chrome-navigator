@@ -78,6 +78,11 @@ data class DecisionLogEntity(
     /** Phase 8J (doc 05 v1.4.0): exit provenance on the terminal row. Pre-v4 rows decode
      *  as exit=null through the migration's nullable column (additive only). */
     val exitJson: String? = null,
+    /** Phase 08F (doc 05 §2 `typedSecret`, doc 06 §2a): the step typed a card-supplied
+     *  credential — the VALUE is never stored anywhere; logs and rows render
+     *  `[credential-redacted]`. Pre-v6 rows decode as typedSecret=false through the
+     *  migration's column default. */
+    @ColumnInfo(defaultValue = "0") val typedSecret: Boolean = false,
 )
 
 /** Bidirectional mapping row ↔ entity. Decoding validates loudly (core log law). */
@@ -116,6 +121,7 @@ object DecisionLogConverters {
         escalated = row.escalated,
         fallbackJson = row.fallback?.let { DECISION_LOG_JSON.encodeToString(FallbackInfo.serializer(), it) },
         exitJson = row.exit?.let { DECISION_LOG_JSON.encodeToString(ExitProvenance.serializer(), it) },
+        typedSecret = row.typedSecret,
     )
 
     fun toRow(entity: DecisionLogEntity): DecisionLogRow = DecisionLogRow(
@@ -165,6 +171,7 @@ object DecisionLogConverters {
         exit = entity.exitJson?.let {
             DECISION_LOG_JSON.decodeFromString(ExitProvenance.serializer(), it)
         },
+        typedSecret = entity.typedSecret,
     )
 }
 
@@ -220,7 +227,7 @@ interface DecisionLogDao {
 
 @Database(
     entities = [DecisionLogEntity::class, ShadowResultEntity::class, ExitCheckEntity::class],
-    version = 5,
+    version = 6,
     exportSchema = false,
 )
 abstract class DecisionLogDb : RoomDatabase() {
@@ -330,10 +337,24 @@ abstract class DecisionLogDb : RoomDatabase() {
             }
         }
 
+        /**
+         * v5 → v6 (doc 05 §2 `typedSecret`, Phase 08F / doc 06 §2a): adds the
+         * `typedSecret` flag (NOT NULL, default 0) to `decision_log` — the step typed a
+         * card-supplied credential (the value itself is never stored). ALTER ADD COLUMN
+         * only: every historical row survives, decoding as typedSecret=false, never
+         * rewritten (insert-only law). The declared default matches the entity's
+         * @ColumnInfo defaultValue so Room's post-migration schema validation passes.
+         */
+        val MIGRATION_5_6: androidx.room.migration.Migration = object : androidx.room.migration.Migration(5, 6) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `decision_log` ADD COLUMN `typedSecret` INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         /** Production: a named, on-disk database (indefinite local retention, vision 05 §5). */
         fun open(context: Context, name: String): DecisionLogDb =
             Room.databaseBuilder(context, DecisionLogDb::class.java, name)
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                 .build()
 
         /** In-memory variant (tests / ephemeral windows). */

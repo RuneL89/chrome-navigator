@@ -4,6 +4,13 @@ package navigator.core.gate
  * The confirmation-card payload (vision 06 §2): class name in plain words, site + URL,
  * target field/button, one-line consequence. Pure data + builder — NO UI code here; the
  * overlay (Phase 9) renders these strings verbatim over Chrome.
+ *
+ * @param credentialTyping the credential-secret card variant (vision 04 §2 step 4 /
+ *   doc 06 §2a): true when the gated action TYPES a credential (a
+ *   [CREDENTIAL_TYPING_CLASSES] class on a TYPE action) — the presenter shows the
+ *   masked secret input and the owner types the secret on the card. The value itself
+ *   never renders here (the same discipline as every other field: typed values are
+ *   never part of the card).
  */
 data class GateCard(
     val classLabel: String,
@@ -11,6 +18,7 @@ data class GateCard(
     val url: String,
     val target: String,
     val consequenceLine: String,
+    val credentialTyping: Boolean = false,
 ) {
     companion object {
         /**
@@ -25,6 +33,8 @@ data class GateCard(
                 url = context.url,
                 target = targetDescription(action),
                 consequenceLine = consequence(hclass, site),
+                credentialTyping = action.kind == ActionKind.TYPE &&
+                    hclass in CREDENTIAL_TYPING_CLASSES,
             )
         }
 

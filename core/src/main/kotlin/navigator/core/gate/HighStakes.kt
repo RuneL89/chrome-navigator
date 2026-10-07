@@ -80,6 +80,19 @@ enum class HClass(val plainLabel: String) {
 }
 
 /**
+ * The credential-typing classes (vision 06 §2a): a [ActionKind.TYPE] action resolved to
+ * one of these is a credential-typing action — its card carries the credential-secret
+ * variant ([GateCard.credentialTyping], the masked input) and its text comes from the
+ * card approval ([navigator.app.loop.TextSource.GateSuppliedSecret]), never from the
+ * engine's phrasing. Submissions (SUBMIT) and every other class ride the ordinary card.
+ */
+val CREDENTIAL_TYPING_CLASSES: Set<HClass> = setOf(
+    HClass.H3_PASSWORD_CHANGE,
+    HClass.H4_LOGIN,
+    HClass.H8_CREDENTIAL_TYPING,
+)
+
+/**
  * The execution shape of an action (vision 04 §2 step 4 consumes these before execute).
  * SCROLL/BACK/FINISH are never gated (vision 06 §1: navigation and scroll execute
  * without pausing).

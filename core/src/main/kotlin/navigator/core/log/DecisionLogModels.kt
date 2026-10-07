@@ -419,6 +419,13 @@ data class DecisionLogRow(
     val fallback: FallbackInfo? = null,
     /** Exit provenance on the terminal row (doc 05 v1.4.0): null on every other row. */
     val exit: ExitProvenance? = null,
+    /**
+     * True when this step typed a credential supplied via the gate card (doc 05 §2
+     * `typedSecret`, doc 06 §2a). The VALUE itself is NEVER stored anywhere — the step
+     * log and rows render `[credential-redacted]`. Additive 2026-10-06 amendment:
+     * earlier rows decode unchanged with typedSecret=false.
+     */
+    val typedSecret: Boolean = false,
 ) {
     init {
         require(rowId.isNotBlank()) { "DecisionLogRow.rowId must not be blank" }
@@ -510,6 +517,18 @@ data class DecisionLogRow(
                 "DecisionLogRow ${rowId}: fallback.answer distribution keys outside questionPrimary " +
                     "option ids: $fallbackForeignKeys"
             }
+        }
+
+        // typedSecret marks a step that TYPED a card-supplied credential (doc 05 §2,
+        // doc 06 §2a): only an executed type action can carry it — a denied/timeout
+        // row or a non-typing action with the flag is incoherent and rejected loudly.
+        require(
+            !typedSecret ||
+                (executedAction.kind == LoggedActionKind.TYPE &&
+                    executedAction.disposition == ActionDisposition.EXECUTED),
+        ) {
+            "DecisionLogRow ${rowId}: typedSecret=true is only coherent for an EXECUTED type " +
+                "action, was kind=${executedAction.kind} disposition=${executedAction.disposition}"
         }
     }
 

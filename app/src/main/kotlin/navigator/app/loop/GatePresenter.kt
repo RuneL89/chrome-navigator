@@ -21,7 +21,25 @@ fun interface GatePresenter {
     suspend fun present(card: GateCard): GateResolution
 }
 
-enum class GateResolution { APPROVED, DENIED, TIMEOUT }
+/**
+ * The owner's card resolution (vision 06 §2). Sealed because doc 06 §2a adds the
+ * credential variant: an approval of a credential-typing card CARRIES the secret the
+ * owner typed on the card's masked input — the value lives in memory only for the
+ * injection call and is never rendered, logged, or persisted ([TextSource.REDACTED]
+ * is its only lawful rendering). A plain [APPROVED] on a credential card is a
+ * wrong-source and fails closed in the loop.
+ */
+sealed interface GateResolution {
+    /** Plain approve (non-credential cards). */
+    data object APPROVED : GateResolution
+
+    /** Approve WITH the card-supplied secret (credential-typing cards only, doc 06 §2a). */
+    data class ApproveWithSecret(val secret: String) : GateResolution
+
+    data object DENIED : GateResolution
+
+    data object TIMEOUT : GateResolution
+}
 
 /** Harness test mode: denies immediately (timeout = deny semantics, fail-safe). */
 data object AutoDenyGatePresenter : GatePresenter {
@@ -78,7 +96,11 @@ private fun bringToFront(activity: Activity) {
  * The harness gate stand-in (phase doc §2.1): an always-on-top debug dialog rendering
  * the [GateCard] verbatim — class in plain words, site + URL, target, one-line
  * consequence — with Approve/Deny and a live 30s countdown. Timeout = deny (vision 06
- * §2, fail-safe). The dialog window is TYPE_APPLICATION_OVERLAY when the owner granted
+ * §2, fail-safe). Credential-typing cards ([GateCard.credentialTyping], doc 06 §2a)
+ * additionally show a MASKED text input: the owner types the secret on the card and
+ * approval resolves [GateResolution.ApproveWithSecret]; the value lives in memory only
+ * for the injection call. An empty masked input resolves DENY (fail-safe: nothing was
+ * supplied). The dialog window is TYPE_APPLICATION_OVERLAY when the owner granted
  * "display over other apps" (it must sit over Chrome during a run); otherwise the
  * harness activity is brought to the FRONT first ([shouldBringToFront] /
  * [bringToFront]) — an activity-local dialog behind a stopped activity is never seen
@@ -100,6 +122,19 @@ class DebugGatePresenter(private val activity: Activity) : GatePresenter {
                 append(card.target).append('\n')
                 append(card.consequenceLine)
             }
+            // Credential-secret variant (doc 06 §2a): the masked input ONLY on
+            // credential-typing cards — the owner types the secret here and it is
+            // injected straight into the target field, never logged or rendered.
+            val secretInput = if (card.credentialTyping) {
+                android.widget.EditText(activity).apply {
+                    transformationMethod = android.text.method.PasswordTransformationMethod.getInstance()
+                    hint = "Type the secret (stays on this device)"
+                    setSingleLine(true)
+                    setPadding(48, 24, 48, 8)
+                }
+            } else {
+                null
+            }
             // Card visibility over Chrome (2026-10-07 S25+ defect): the overlay window
             // draws over the browser; without the permission an activity-local dialog is
             // invisible behind Chrome, so the harness comes to the front FIRST and the
@@ -115,12 +150,28 @@ class DebugGatePresenter(private val activity: Activity) : GatePresenter {
             } else {
                 Log.d(HARNESS_LOG_TAG, "gate card: overlay window over Chrome")
             }
-            val dialog = AlertDialog.Builder(activity)
+            val builder = AlertDialog.Builder(activity)
                 .setTitle("Navigator confirmation")
                 .setMessage(text)
                 .setCancelable(false)
+            secretInput?.let { builder.setView(it) }
+            val dialog = builder
                 .setPositiveButton("Approve") { d, _ ->
-                    resolution = GateResolution.APPROVED
+                    resolution = if (card.credentialTyping) {
+                        val secret = secretInput?.text?.toString().orEmpty()
+                        if (secret.isBlank()) {
+                            // Nothing supplied: the action has no lawful TextSource — deny.
+                            Log.w(
+                                HARNESS_LOG_TAG,
+                                "credential card approved with an EMPTY secret input - resolving deny (fail-safe)",
+                            )
+                            GateResolution.DENIED
+                        } else {
+                            GateResolution.ApproveWithSecret(secret)
+                        }
+                    } else {
+                        GateResolution.APPROVED
+                    }
                     d.dismiss()
                 }
                 .setNegativeButton("Deny") { d, _ ->

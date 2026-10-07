@@ -201,14 +201,15 @@ class DecisionLogV5DbTest {
         v3.version = 3
         v3.close()
 
-        // Open through Room: MIGRATION_3_4 → MIGRATION_4_5 must run in the chain,
-        // validate, and keep the history.
+        // Open through Room: MIGRATION_3_4 → MIGRATION_4_5 → MIGRATION_5_6 must run in
+        // the chain, validate, and keep the history.
         val migrated = Room.databaseBuilder(context, DecisionLogDb::class.java, name)
             .addMigrations(
                 DecisionLogDb.MIGRATION_1_2,
                 DecisionLogDb.MIGRATION_2_3,
                 DecisionLogDb.MIGRATION_3_4,
                 DecisionLogDb.MIGRATION_4_5,
+                DecisionLogDb.MIGRATION_5_6,
             )
             .allowMainThreadQueries()
             .build()

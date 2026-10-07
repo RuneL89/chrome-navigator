@@ -36,7 +36,9 @@ without a device.
   law: `Project Vision/03` §3
 * `src/main/kotlin/navigator/core/state/` — `StateTextBuilder`: the canonical state text
   v1 (vision 03 §4 template, ≤480 tokens enforced with the laya tokenizer,
-  deterministic in-code compression); law: `Project Vision/03` §4
+  deterministic in-code compression; Phase 8F: the `secrets` parameter — a card-secret
+  string that would reach the emitted text fails LOUDLY, never truncation or masking,
+  doc 06 §2a); law: `Project Vision/03` §4
 * `src/main/kotlin/navigator/core/gate/` — the risk gate (ART-1: code owns the gate,
   no model judgment in the gate path): `RiskGate` (deterministic H1–H9 classifier over
   (action, context); ambiguous classification fails to the stricter class — never
@@ -56,7 +58,10 @@ without a device.
   (class, site) trust; timeout(30s) = deny; same (class, site) refused twice in a task →
   `ABORT_TASK`; trust never crosses tasks, sites, or classes; illegal transitions throw
   `IllegalGateTransitionException`), `GateCard` (plain-words card payload — data only,
-  no UI, typed values never rendered); law: `Project Vision/06` §1–§3
+  no UI, typed values never rendered; Phase 8F: the `credentialTyping` variant flag —
+  true iff a `CREDENTIAL_TYPING_CLASSES` class (H3/H4/H8) rides a TYPE action (doc 06
+  §2a): the presenter shows the masked secret input, the value itself never renders));
+  law: `Project Vision/06` §1–§3
 * `src/main/kotlin/navigator/core/laya/` — `Tokenizer`, the Kotlin port of the laya
   tokenizer families over each checkpoint's real tokenizer.json — family 1: the 421M
   checkpoint's GPT-2-style ByteLevel BPE (the classpath resource in
@@ -201,7 +206,13 @@ without a device.
   gateEvent class is now `H1–H9`) added `LoggedHClass.H9` (@SerialName "H9") ADDITIVELY
   — the two exhaustive `HClass → LoggedHClass` mappers force every new gate class into
   the log vocabulary at compile time; the goldens are untouched, earlier rows decode
-  unchanged
+  unchanged. Phase 8F (doc 05 §2, doc 06 §2a) added `typedSecret: Boolean = false`
+  ADDITIVELY — true only on an EXECUTED type action that typed a gate-card credential
+  (any other shape fails loudly in `init`); the VALUE itself is never stored anywhere
+  (step log and rows render `[credential-redacted]`); the goldens were regenerated via
+  UPDATE_GOLDENS under the ratified amendment — every row now encodes
+  `"typedSecret": false`, and the new `row-typed-secret.json` golden pins the populated
+  shape; earlier rows decode unchanged
 * Companion shadow-result rows (Phase 8B, vision 05 §2 amendment 2026-10-04):
   `ShadowResultRow` is the second INSERT-ONLY row type, legal only for a decision row
   logged as a shadowMiss and exactly once per `(taskId, stepIndex)` — enforced at the
@@ -246,7 +257,9 @@ without a device.
 
 * `./gradlew :core:test` — banding boundaries, type serialization round-trips, fixture
   accept/reject tests, enumeration determinism + taxonomy gates (2.1), tokenizer reference
-  vectors (2.2), state-text law (2.3), the wire gates (3.1 transcript round-trips incl.
+  vectors (2.2), state-text law (2.3, since Phase 8F incl. the loud secret rejection —
+  an echoed card-secret value is a loud failure, the default `secrets` parameter keeps
+  non-credential output byte-identical), the wire gates (3.1 transcript round-trips incl.
   the live goldens, 3.2 failover + retry law, 3.3 name-indexing + banding — all keyless;
   real request bytes/statuses via MockWebServer, transport-failure simulations
   deterministic via the in-memory `CountingWireTransport`, never a live provider), the
@@ -257,8 +270,12 @@ without a device.
   additive-only law BOTH directions — a non-LOW engine answer ADDS H9 on an unlisted
   action; no engine answer can un-gate or replace a code-triggered class (Elvis
   resolve, and a confident class means the judge is never consulted — the
-  hostile-judge loud-failure proof)), and the DecisionLog gates
-  (5.1 schema round-trip + byte-stable `log/goldens/` snapshots, 5.2 RLCD export vs a
+  hostile-judge loud-failure proof; `GateCardTest` since Phase 8F also pins the
+  `credentialTyping` variant matrix — credential classes on TYPE only)), and the
+  DecisionLog gates
+  (5.1 schema round-trip + byte-stable `log/goldens/` snapshots — since Phase 8F incl.
+  the regenerated goldens and the `row-typed-secret.json` populated shape + the
+  typedSecret loud-incoherence proofs, 5.2 RLCD export vs a
   strict finetune-row validator + mixed-teacher manifest + the two case kinds with
   authoritative-gold selection and loud format-scoping counts, 5.3 agreement math with
   hand-computed KL values, the Phase-8J-Round-2 `ExitCheckRowTest` schema round-trips

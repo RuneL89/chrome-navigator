@@ -2,7 +2,7 @@
 
 **Document ID:** `NAVIGATOR-IMPL-PHASE-08F`
 **Version:** 1.0.0
-**Status:** Draft
+**Status:** Gates verified (2026-10-07 — verifier cold re-run: 549 tests green; secret-absence proven across all channels); UAT 8F.1 owner-gated, PENDING (now on the S25+ or bundled with the 08I demo)
 **Date:** 2026-10-06
 **Dependencies:** Phase 08E (gate context); vision 06 §2a, 05 v1.3.0
 **Estimated Time:** 3-4h

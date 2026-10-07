@@ -59,4 +59,42 @@ class GateCardTest {
             assertFalse(card.consequenceLine.contains("\n"), "$hclass: consequence is ONE line")
         }
     }
+
+    // ---- the credential-secret card variant (vision 06 §2a, Phase 08F) ----
+
+    @Test
+    fun `credential-typing classes on a TYPE action carry the masked-input variant`() {
+        val context = PageContext("https://blog.example.com/signin")
+        for (hclass in CREDENTIAL_TYPING_CLASSES) {
+            val card = GateCard.build(
+                hclass,
+                GateAction(candidate("pw", "Password"), ActionKind.TYPE),
+                context,
+            )
+            assertTrue(
+                card.credentialTyping,
+                "$hclass typing must build the credential card variant (doc 06 §2a)",
+            )
+        }
+    }
+
+    @Test
+    fun `submissions and non-credential classes ride the ordinary card`() {
+        val context = PageContext("https://blog.example.com/signin")
+        // A SUBMIT of the very same login form is submission, not typing.
+        assertFalse(
+            GateCard.build(HClass.H4_LOGIN, GateAction(candidate("go", "Sign in"), ActionKind.SUBMIT), context)
+                .credentialTyping,
+            "the masked input is only for typing actions",
+        )
+        // Non-credential classes never carry the variant, even when typing.
+        assertFalse(
+            GateCard.build(HClass.H2_PURCHASE_CONFIRM, GateAction(candidate("q", "Search"), ActionKind.TYPE), context)
+                .credentialTyping,
+        )
+        assertFalse(
+            GateCard.build(HClass.H9_PERSISTENT_MUTATION, GateAction(candidate("c", "Save"), ActionKind.TYPE), context)
+                .credentialTyping,
+        )
+    }
 }

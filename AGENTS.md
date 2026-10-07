@@ -97,7 +97,9 @@ When the user requests a durable behavior change, record it here or in the relev
   the laya tokenizer port (BOTH checkpoint families — the 421M ByteLevel BPE and the
   Phase-8C v32b 256k Metaspace BPE), risk gate: H1–H9 classifier (Phase 8E added H9
   persistent-state mutation: broad code net + the additive-only engine check) + per-task trust state
-  machine + gate card, DecisionLog row schema (incl. the Phase-8C escalated/fallback
+  machine + gate card (Phase 8F: the credential-secret card variant per vision 06 §2a),
+  DecisionLog row schema (incl. the Phase-8C escalated/fallback fields + the Phase-8F
+  typedSecret redaction flag — the credential value itself is never stored)
   fields) + companion shadow-result rows + RLCD export + agreement calculators incl. the
   joined view, the Tier-A eval harness: deterministic replay + position-bias rotation +
   measurement reports). See `core/AGENTS.md`
@@ -111,7 +113,9 @@ When the user requests a durable behavior change, record it here or in the relev
   tokenizer family; demoted EVAL-ONLY 2026-10-06 after UAT Tests 2-3 — not packaged,
   artifacts in the gitignored `.tools/laya-v32b/`, laya modes load the 421M checkpoint),
   the FallbackEngine wiring, and the three harness engine modes
-  `jev`/`laya`/`laya-fb-jev`; overlay/result UI
+  `jev`/`laya`/`laya-fb-jev`; Phase 8F added the credential-entry path (the loop's
+  `TextSource` + the card's masked-secret variant — the owner-typed secret is injected
+  directly and rendered `[credential-redacted]` everywhere, never stored); overlay/result UI
   arrive per phase). See `app/AGENTS.md`
 * `tools/` — Phase-8/8C model-acquisition + reference-vector scripts (uv-driven; build-time
   HF downloads only). See `tools/AGENTS.md`

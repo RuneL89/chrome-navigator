@@ -18,6 +18,7 @@ import navigator.core.enumerate.ObservedNode
 import navigator.core.enumerate.Recovery
 import navigator.core.gate.ActionKind
 import navigator.core.gate.AdditiveEngineCheck
+import navigator.core.gate.CREDENTIAL_TYPING_CLASSES
 import navigator.core.gate.FieldDescriptor
 import navigator.core.gate.GateAction
 import navigator.core.gate.GateCard
@@ -63,7 +64,9 @@ import navigator.core.state.StateTextBuilder
  *   -> GATE ([RiskGate.classify]; uncertain mutation risk -> the ADDITIVE-ONLY engine
  *      check [AdditiveEngineCheck] (vision 06 §3, Phase 8E); then [TaskGate]; card
  *      events via [GatePresenter]) BEFORE any execution
- *   -> EXECUTE (gestures at node-map coordinates; text entry focus-first + paste)
+ *   -> EXECUTE (gestures at node-map coordinates; text entry focus-first + paste, the
+ *      text taken from a [TextSource]: the stub phrase, or — doc 06 §2a — the secret
+ *      typed on the credential card, injected directly and never logged)
  *   -> LOG (exactly one [DecisionLogRow] per navigation decision)
  *
  * Exits (vision 04 §3): exactly one of goal-achieved (engine noul HIGH **AND** the code
@@ -177,6 +180,10 @@ class NavigationLoop(
         val exitPolicy = ExitPolicy()
         val history = mutableListOf<String>()
         val hints = mutableListOf<String>()
+        // The credential values this task has received from gate cards (doc 06 §2a).
+        // MEMORY ONLY: they feed the state builder's loud-rejection check and the run
+        // report's redaction pass — never any engine call, never a log, row, or report.
+        val cardSecrets = mutableListOf<String>()
         var goalText = goal
         var recoveryArmed = false
         var rows = 0
@@ -202,6 +209,15 @@ class NavigationLoop(
 
         fun finish(terminal: TerminalState, detail: String, steps: Int): RunResult {
             line("terminal: $terminal - $detail")
+            // doc 06 §2a render law (via doc 05 §2): reports render credential-sourced
+            // text as [credential-redacted]. Construction keeps the value out of every
+            // line; this render-boundary pass guarantees it even if a PAGE echoes the
+            // secret back into content text (partialResult) — the one place page text
+            // lands verbatim in a report.
+            fun scrub(text: String): String =
+                cardSecrets.fold(text) { acc, secret ->
+                    if (secret.isNotEmpty()) acc.replace(secret, TextSource.REDACTED) else acc
+                }
             return RunResult(
                 goalId = goalId,
                 goal = goal,
@@ -223,8 +239,8 @@ class NavigationLoop(
                 spendMicroUsd = spendMeter.spentMicroUsd,
                 elapsedMs = clock.nowMs() - startMs,
                 softWarnings = softWarnings.distinct(),
-                stepLog = stepLog.toList(),
-                partialResult = partialResult(),
+                stepLog = stepLog.map(::scrub),
+                partialResult = scrub(partialResult()),
                 exit = exitSummary,
             )
         }
@@ -255,6 +271,7 @@ class NavigationLoop(
             outcome: Outcome,
             escalation: DecisionRecord? = null,
             exit: ExitProvenance? = null,
+            typedSecret: Boolean = false,
         ) {
             // Escalated rows (doc 05 v1.2.0): teacherAnswer stays the PRIMARY's own
             // answer when it produced one (vision 05 §2 — the teacher is the primary of
@@ -306,6 +323,7 @@ class NavigationLoop(
                 escalated = escalated,
                 fallback = fallbackInfo,
                 exit = exit,
+                typedSecret = typedSecret,
             )
             logSink.write(row)
             rows += 1
@@ -446,6 +464,9 @@ class NavigationLoop(
                 title = obs.title,
                 history = history + hints,
                 candidates = candidates,
+                // doc 06 §2a via vision 03 §4: a card secret that would ever reach the
+                // state text (e.g. a page-side echo in a candidate label) fails LOUDLY.
+                secrets = cardSecrets,
             )
             hints.clear() // the L1 hint rode this step's HISTORY block
 
@@ -740,8 +761,13 @@ class NavigationLoop(
 
             // -- 4. GATE (before any execution, vision 06 §1-2) -----------------------------
             val kind = actionKindFor(candidate)
-            val textToType = if (kind == ActionKind.TYPE) phraseStub(goalText, candidate.label) else null
-            val gateAction = GateAction(candidate, kind, textToType)
+            // Classification input for TYPE actions (the pre-08F behavior): the stub
+            // phrase. On the credential-typing path (doc 06 §2a) the REAL payload is the
+            // card secret and is not known until the card resolves — the stub phrase
+            // classifies the action but NEVER executes there (the secret is injected
+            // instead; a fall-through to the phrase is a loud failure).
+            val stubPhrase = if (kind == ActionKind.TYPE) phraseStub(goalText, candidate.label) else null
+            val gateAction = GateAction(candidate, kind, stubPhrase)
             val pageContext = PageContext(obs.url, FieldDescriptor.fromNodes(obs.nodes))
             val codeClass: HClass? = RiskGate.classify(gateAction, pageContext)
 
@@ -782,7 +808,83 @@ class NavigationLoop(
             var taskAborted = false
             var gateEvent: LoggedGateEvent? = null
             var disposition = ActionDisposition.EXECUTED
-            if (hclass != null) {
+            // The typed-text source (vision 04 §2 step 5, Phase 08F): the stub phrase
+            // for ordinary typing; the credential path REPLACES it with the card secret
+            // ([TextSource.GateSuppliedSecret]) — or refuses loudly. Null for every
+            // non-typing action.
+            var textSource: TextSource? = stubPhrase?.let { TextSource.StubPhrase(it) }
+            // doc 06 §2a: a TYPE action the gate resolved to a credential class types a
+            // credential — the card's masked input is the secret's ONLY lawful source.
+            val credentialTyping = hclass != null &&
+                kind == ActionKind.TYPE &&
+                hclass in CREDENTIAL_TYPING_CLASSES
+
+            if (credentialTyping) {
+                // Phase 08F (doc 06 §2a): the secret comes from the card, so the card is
+                // presented for EVERY credential-typing action — per-task trust cannot
+                // supply a secret (a trusted execution has no card, hence no lawful
+                // TextSource). The resolution still flows through the TaskGate's legal
+                // transitions below, so trust bookkeeping, the double-refusal abort, and
+                // the gate logging are the gate's own — nothing bypasses or duplicates it.
+                val h = hclass!!
+                val card = GateCard.build(h, gateAction, pageContext)
+                check(card.credentialTyping) {
+                    "credential-typing action (${h.name}) must build the credential card variant"
+                }
+                when (val resolution = gatePresenter.present(card)) {
+                    is GateResolution.ApproveWithSecret -> {
+                        when (val request = taskGate.decide(GateEvent.REQUEST(h, pageContext.site))) {
+                            is GateDecision.EXECUTE -> {
+                                gateEvent = LoggedGateEvent(
+                                    h.toLoggedHClass(),
+                                    LoggedGateDecision.APPROVED,
+                                    request.trustedFromTask,
+                                )
+                            }
+                            GateDecision.ASK -> {
+                                val approved = taskGate.decide(GateEvent.APPROVE)
+                                val trusted = approved is GateDecision.EXECUTE && approved.trustedFromTask
+                                gateEvent = LoggedGateEvent(
+                                    h.toLoggedHClass(), LoggedGateDecision.APPROVED, trusted,
+                                )
+                            }
+                            else -> throw IllegalStateException(
+                                "gate REQUEST behind a secret-approved credential card resolved to " +
+                                    "$request - TaskGate state machine misuse",
+                            )
+                        }
+                        line(
+                            "gate: owner APPROVED \"${card.classLabel}\" on ${card.site} - secret typed " +
+                                "on the card (${TextSource.REDACTED}, never logged)",
+                        )
+                        cardSecrets.add(resolution.secret)
+                        textSource = TextSource.GateSuppliedSecret(resolution.secret)
+                    }
+                    GateResolution.APPROVED -> throw IllegalStateException(
+                        "credential card for ${h.name} on ${pageContext.site} approved WITHOUT the " +
+                            "card-supplied secret - wrong TextSource; failing closed, never falling " +
+                            "through to the stub phrase",
+                    )
+                    GateResolution.DENIED -> {
+                        val (d, e, abort) = resolveCredentialRefusal(taskGate, h, pageContext.site, timedOut = false)
+                        disposition = d
+                        gateEvent = e
+                        taskAborted = abort
+                        proceed = false
+                        line("gate: owner DENIED the credential card - action skipped" +
+                            if (abort) " (second refusal - task abort)" else "")
+                    }
+                    GateResolution.TIMEOUT -> {
+                        val (d, e, abort) = resolveCredentialRefusal(taskGate, h, pageContext.site, timedOut = true)
+                        disposition = d
+                        gateEvent = e
+                        taskAborted = abort
+                        proceed = false
+                        line("gate: credential card TIMED OUT (= deny, fail-safe)" +
+                            if (abort) " (second refusal - task abort)" else "")
+                    }
+                }
+            } else if (hclass != null) {
                 line("gate: ${hclass.name} on ${pageContext.site} (trigger: $gateTrigger) - checking per-task trust")
                 when (val gateDecision = taskGate.decide(GateEvent.REQUEST(hclass, pageContext.site))) {
                     is GateDecision.EXECUTE -> {
@@ -805,6 +907,11 @@ class NavigationLoop(
                                 )
                                 line("gate: owner APPROVED \"${card.classLabel}\" on ${card.site}")
                             }
+                            is GateResolution.ApproveWithSecret -> throw IllegalStateException(
+                                "non-credential card for ${hclass.name} on ${pageContext.site} resolved " +
+                                    "ApproveWithSecret - a secret was offered where the TextSource " +
+                                    "expects a phrase; failing closed, never executing or falling through",
+                            )
                             GateResolution.DENIED -> {
                                 val (d, abort) = refusalOutcome(taskGate.decide(GateEvent.DENY), ActionDisposition.REFUSED_BY_OWNER)
                                 disposition = d
@@ -839,7 +946,27 @@ class NavigationLoop(
             if (proceed) {
                 execOk = when (kind) {
                     ActionKind.TAP, ActionKind.SUBMIT -> executor.tap(candidate.cx, candidate.cy)
-                    ActionKind.TYPE -> executor.enterText(candidate.cx, candidate.cy, textToType!!)
+                    ActionKind.TYPE -> {
+                        // Phase 08F (vision 04 §2 step 5): the TextSource is the ONLY
+                        // lawful payload. A TYPE action without one, a secret on a
+                        // non-credential action, or a credential action that somehow
+                        // kept the stub phrase is a wiring bug — fail loudly, never
+                        // fall through. The secret value is passed straight to the
+                        // injection call and bound nowhere else (doc 06 §2a).
+                        val source = requireNotNull(textSource) {
+                            "TYPE action ${candidate.id} has no TextSource - the typed-text seam is unwired"
+                        }
+                        val text = when (source) {
+                            is TextSource.StubPhrase -> source.text
+                            is TextSource.GateSuppliedSecret -> {
+                                check(credentialTyping) {
+                                    "a gate-supplied secret reached a non-credential typing action - wrong TextSource"
+                                }
+                                source.value
+                            }
+                        }
+                        executor.enterText(candidate.cx, candidate.cy, text)
+                    }
                     ActionKind.SCROLL -> executor.scroll(
                         candidate.cx,
                         candidate.cy,
@@ -848,9 +975,18 @@ class NavigationLoop(
                     ActionKind.BACK -> executor.back()
                     ActionKind.FINISH -> true
                 }
+                // Credential-sourced text renders [credential-redacted] in the step log
+                // (doc 05 §2); the stub-phrase path keeps its pre-08F line unchanged.
+                val typedMarker =
+                    if (kind == ActionKind.TYPE && textSource is TextSource.GateSuppliedSecret) {
+                        " text=${TextSource.REDACTED}"
+                    } else {
+                        ""
+                    }
                 line(
                     "execute: ${kind.name.lowercase()} \"${candidate.label}\" at " +
-                        "(${candidate.cx},${candidate.cy}) -> ${if (execOk) "dispatched" else "FAILED"}",
+                        "(${candidate.cx},${candidate.cy})$typedMarker -> " +
+                        "${if (execOk) "dispatched" else "FAILED"}",
                 )
             }
 
@@ -876,6 +1012,10 @@ class NavigationLoop(
                 gateEvent,
                 outcome,
                 escalation = escalation,
+                // doc 05 §2 `typedSecret`: true when this step typed a credential
+                // supplied via the gate card — the VALUE is never stored (the row
+                // carries the flag, the step log renders [credential-redacted]).
+                typedSecret = proceed && textSource is TextSource.GateSuppliedSecret,
             )
             history.add(
                 "step $stepIndex: ${kind.name.lowercase()} \"${candidate.label}\" -> ${serial(outcome)}" +
@@ -935,6 +1075,43 @@ class NavigationLoop(
                 "a gate refusal must resolve to SKIP or ABORT_TASK, got $decision",
             )
         }
+
+    /**
+     * A DENIED/TIMEOUT credential-card resolution (Phase 08F, doc 06 §2a) fed through
+     * the gate's legal transitions. Untrusted: REQUEST → ASK, then the refusal event —
+     * SKIP, or ABORT_TASK on the second same-(class, site) refusal. Trusted: the
+     * REQUEST already auto-executes (no pending card), and the owner declined to type
+     * the secret — there is no lawful [TextSource], so the action skips locally and the
+     * refusal logs with `trustedFromTask=false` (the TaskGate records nothing because
+     * nothing was pending; the next credential action asks again).
+     */
+    private fun resolveCredentialRefusal(
+        taskGate: TaskGate,
+        hclass: HClass,
+        site: String,
+        timedOut: Boolean,
+    ): Triple<ActionDisposition, LoggedGateEvent, Boolean> {
+        val loggedDecision = if (timedOut) LoggedGateDecision.TIMEOUT else LoggedGateDecision.DENIED
+        val skipDisposition = if (timedOut) ActionDisposition.GATE_TIMEOUT else ActionDisposition.REFUSED_BY_OWNER
+        return when (val request = taskGate.decide(GateEvent.REQUEST(hclass, site))) {
+            is GateDecision.EXECUTE -> Triple(
+                skipDisposition,
+                LoggedGateEvent(hclass.toLoggedHClass(), loggedDecision, false),
+                false,
+            )
+            GateDecision.ASK -> {
+                val (d, abort) = refusalOutcome(
+                    taskGate.decide(if (timedOut) GateEvent.TIMEOUT else GateEvent.DENY),
+                    skipDisposition,
+                )
+                Triple(d, LoggedGateEvent(hclass.toLoggedHClass(), loggedDecision), abort)
+            }
+            else -> throw IllegalStateException(
+                "gate REQUEST behind a refused credential card resolved to $request - " +
+                    "TaskGate state machine misuse",
+            )
+        }
+    }
 
     /** The action kind the executor will perform for this candidate (the gate's input). */
     private fun actionKindFor(candidate: Candidate): ActionKind = when {

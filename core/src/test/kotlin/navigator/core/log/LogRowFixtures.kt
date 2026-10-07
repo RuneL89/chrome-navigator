@@ -215,4 +215,30 @@ internal object LogRowFixtures {
             noul = 0.61,
         ),
     )
+
+    /**
+     * A step that typed a gate-card-supplied credential (doc 05 §2 `typedSecret`, doc 06
+     * §2a, Phase 08F): the flag rides the row; the VALUE itself is never stored anywhere
+     * (logs and rows render `[credential-redacted]`).
+     */
+    fun typedSecretCredential(): DecisionLogRow = complete(
+        rowId = "row-0008",
+        stepIndex = 10,
+        shadowAnswer = null,
+        gateEvent = LoggedGateEvent(
+            hclass = LoggedHClass.H8,
+            decision = LoggedGateDecision.APPROVED,
+            trustedFromTask = false,
+        ),
+        outcome = Outcome.PROGRESSED,
+        compressedBy = null,
+        shadowSampled = false,
+    ).copy(
+        executedAction = ExecutedAction(
+            candidateId = "pw-field",
+            kind = LoggedActionKind.TYPE,
+            disposition = ActionDisposition.EXECUTED,
+        ),
+        typedSecret = true,
+    )
 }
