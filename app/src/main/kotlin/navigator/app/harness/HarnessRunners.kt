@@ -75,6 +75,29 @@ class HarnessObserver(private val service: NavigatorAccessibilityService) : Loop
             NavigatorAccessibilityService.PACKAGE_ALLOWLIST.firstOrNull { pkg ->
                 runCatching { context.packageManager.getPackageInfo(pkg, 0) }.isSuccess
             }
+
+        /**
+         * The Phase-8D cold-start probe (vision 04 §1): the allowlisted browser's
+         * current state, or null when none is installed (browser absent). A browser
+         * whose URL bar is hidden/unreadable reports a null URL — an unreadable page
+         * cannot prove same-site, so the cold-start decision treats it as unrelated.
+         * Best-effort by design: a starving a11y bridge degrades to "unrelated", and
+         * the resulting VIEW intent at the derived start URL is what the readiness
+         * machinery would fire anyway.
+         */
+        fun browserState(
+            service: NavigatorAccessibilityService,
+            context: Context,
+        ): navigator.app.loop.BrowserState? {
+            val browser = installedBrowser(context) ?: return null
+            val url = runCatching {
+                when (val read = service.observeForLoop().url) {
+                    is navigator.app.observe.UrlBarReader.Url.Value -> read.text
+                    else -> null
+                }
+            }.getOrNull()
+            return navigator.app.loop.BrowserState(packageName = browser, url = url)
+        }
     }
 }
 

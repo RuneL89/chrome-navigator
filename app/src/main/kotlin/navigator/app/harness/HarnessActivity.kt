@@ -626,6 +626,14 @@ class HarnessActivity : ComponentActivity() {
             // vision 02 §4.3). adb-settable so a slow emulator can run Gate 8.4 with a step
             // period above the MEASURED shadow latency; default mirrors the loop default.
             config = NavigationLoop.Config(settleMs = settleMs),
+            // Phase 8D cold-start (vision 04 §1): the loop's deterministic pre-step, run
+            // BEFORE triage and the first OBSERVE — derive the goal's start URL in code,
+            // probe the browser, fire the VIEW intent only when the browser is absent or
+            // on an unrelated page. NO engine is consulted.
+            browserProbe = navigator.app.loop.BrowserProbe {
+                HarnessObserver.browserState(service, this)
+            },
+            browserLauncher = navigator.app.loop.BrowserLauncher { url -> openBrowser(url) },
         )
         val startedAt = System.currentTimeMillis()
         val result = try {
@@ -635,6 +643,7 @@ class HarnessActivity : ComponentActivity() {
                 engineIdentity = built.identity,
                 isCancelled = { cancelRequested },
                 fallbackIdentity = built.fallbackIdentity,
+                startUrl = goal.startUrl,
             )
         } finally {
             // The shadow is fire-and-forget: settle it before the report freezes counts.
@@ -700,6 +709,8 @@ class HarnessActivity : ComponentActivity() {
             engine = built.mode.name.lowercase(),
             autoDeny = autoDeny.value,
             triage = result.triage,
+            triageClass = result.triageClass,
+            budgetProfile = result.budgetProfile,
             terminal = result.terminal.name,
             terminalDetail = result.terminalDetail,
             expectedTerminal = goal.expectedTerminal,

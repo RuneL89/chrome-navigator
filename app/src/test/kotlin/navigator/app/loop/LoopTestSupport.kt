@@ -166,6 +166,11 @@ class LoopFixture(
     /** External journal so presenter lambdas can share the fakes' timeline. */
     val journal: Journal = Journal(),
     completionCardPresenter: CompletionCardPresenter = AutoKeepGoingCompletionPresenter,
+    /** Phase-8D cold-start seams (vision 04 §1); null skips the pre-step. */
+    val browserProbe: BrowserProbe? = null,
+    val browserLauncher: BrowserLauncher? = null,
+    /** The scripted start URL handed to the loop's cold-start derivation. */
+    val startUrl: String? = null,
 ) {
     val clock = FakeClock()
     val sink = CollectingLogSink()
@@ -192,6 +197,8 @@ class LoopFixture(
         logSink = sink,
         spendMeter = spendMeter,
         config = config,
+        browserProbe = browserProbe,
+        browserLauncher = browserLauncher,
     )
 }
 

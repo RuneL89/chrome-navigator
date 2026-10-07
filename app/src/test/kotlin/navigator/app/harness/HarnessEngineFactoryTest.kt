@@ -29,11 +29,12 @@ class HarnessEngineFactoryTest {
     /** The exact token counts the fake provider reports (real-usage accounting assertions). */
     private val usageJson = """{"input_tokens": 123, "output_tokens": 45, "cost": 0.001}"""
 
-    /** A valid triage answer for [Triage.question]'s four options + provider usage. */
+    /** A valid triage answer for [Triage.question]'s six options + provider usage. */
     private fun responseJson() =
         """{"model":"typesafe/jev-1.13-20260917",""" +
             """"answers":{"triage":{"type":"choice","choice":"lookup",""" +
-            """"probabilities":{"lookup":0.7,"research-multi-step":0.1,"form-fill":0.1,"impossible":0.1},""" +
+            """"probabilities":{"lookup":0.7,"research-multi-step":0.06,"form-fill":0.06,""" +
+            """"action":0.06,"action-multi":0.06,"impossible":0.06},""" +
             """"confidence":0.9}},"usage":$usageJson}"""
 
     /** In-memory transport: records the wire headers, answers one triage question. */

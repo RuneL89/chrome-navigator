@@ -1,0 +1,42 @@
+{
+  "phase": "08D",
+  "status": "accepted",
+  "goal": "Gates 8D.1\u20138D.3 pass, full ./gradlew test green, Tier A byte-identical, $0 spend",
+  "lastAction": "PHASE 08D ACCEPTED: verifier cold-check PASS (512 tests re-run, Tier A byte-identical, both notes lawful EXTENSION, wire widening lawful); UAT owner-covered per standing directive; closing out.",
+  "gatesPassed": [
+    {
+      "gate": "8D.1",
+      "evidence": "TriageClassificationTest (app/src/test/kotlin/navigator/app/loop/): the fixture table app/src/test/resources/fixtures/triage-matrix.json (owner example goals as TEST DATA: bistro booking -> action; 'Unsubscribe from all food related youtube channels' -> action-multi; Tarte Tatin -> lookup; + research/form-fill/impossible rows) classifies via scripted StubEngine triage answers (pure interpret) AND end-to-end loop runs asserting RunResult.triageClass + budgetProfile; logged rows echo the class (row.triageClass == ACTION / ACTION_MULTI); the three original serial names + Standard profile pinned unchanged; core DecisionLogSchemaRoundTripTest 'every triage class ... round-trips' auto-covers the new entries."
+    },
+    {
+      "gate": "8D.2",
+      "evidence": "ColdStartTest: absent browser -> exactly one VIEW intent fired BEFORE the first OBSERVE and BEFORE the triage engine call (shared-journal order assertion); present/same-site -> no intent; unrelated/unreadable -> intent; derivation + decision always logged (step-log assertions); derivation matrix (GOAL_URL / GOAL_DOMAIN / SCRIPTED_START / none); same-host judgment is code (scheme/port/www/case-insensitive; about:blank never same-site); ColdStart takes no DecisionEngine (structural no-engine law). Emulator smoke: .state/phase-08D-smoke/smoke-record.json - the cold-start pre-step ran on-device in EVERY loop execution across warm boot, pm clear, and cold boot (derivation logged, code-judged same-site no-op, report fields present, gaps=0); the GOAL_ACHIEVED terminal (and an on-device LAUNCH observation) was blocked by the DOCUMENTED AVD a11y-starvation disease after the honest attempts (warm boot, pm clear webview_shell, cold -no-snapshot boot) - recorded, not faked; the LAUNCH branch is unit-proven and the on-device launcher seam is the harness's own openBrowser."
+    },
+    {
+      "gate": "8D.3",
+      "evidence": "BudgetProfileTest: the exact table numbers pinned (standard/action/multi vs vision 04 \u00a75); forClass selection per class; per-class clean stops IN THE REAL LOOP at each dimension - steps: action hard-stops at 100, action-multi at 300, lookup at 60 (soft warning fired once); wall clock: 6/9/18 steps at 100k ms/step (600k/900k/1800k hard); cloud spend: multi tolerates $0.70 (soft) where lookup hard-stops, each class hard-stops at its own cap; defaults byte-identical (TaskBudget companion constants ARE the Standard profile; TaskBudgetTest's pre-existing pin stays green)."
+    },
+    {
+      "gate": "full ./gradlew test",
+      "evidence": ":app:testDebugUnitTest = 272 tests, 0 failed; :core:test = 240 tests, 0 failed (JUnit XML counts); :app:assembleDebug produces the APK."
+    },
+    {
+      "gate": "Tier A byte-identical",
+      "evidence": "no state-format change (STATE_FORMAT_VERSION untouched); :core:test includes the committed-artifact drift detection (green); git diff on .state/eval/ is EMPTY - tier-a-report.{md,json} untouched."
+    },
+    {
+      "gate": "no site names in product code",
+      "evidence": "grep over app/src/main + core/src/main for youtube/tarte/opentable/allrecipes/booking.com/food-related: clean (owner example goals live only in app/src/test/resources/fixtures/triage-matrix.json)."
+    }
+  ],
+  "gatesFailed": [],
+  "gatesPending": [],
+  "llmCost": "$0.00",
+  "tokenBudgetRemaining": "n/a (deterministic phase; $0 budget respected)",
+  "blocker": null,
+  "deviations": [
+    "NONE from the phase doc or vision. Two implementation notes for the verifier: (1) ACTION_MULTI's WEAK predicate ('tracker drained') is implemented as pending=0 until the Phase-8G working-memory tracker ships - the vision-04 \u00a73 predicate holds vacuously with no tracker; STRONG still requires the identity match (CompletionGuardsTest pins this). (2) NavigationLoop.BudgetLimits fields became nullable (null = use the triage-selected profile) so explicit test overrides keep precedence over profile numbers; the no-argument defaults resolve to the Standard profile, byte-identical to the pre-08D numbers.",
+    "Smoke caveat (environment, not code): the on-device GOAL_ACHIEVED path was blocked by the documented AVD a11y-starvation disease (.state/phase-08J-cardfix-smoke/smoke-record.json precedent); the cold-start machinery itself IS on-device-proven (see gate 8D.2 evidence)."
+  ],
+  "nextAction": "Phase 08E (H9 general gate) per the master index ordering."
+}

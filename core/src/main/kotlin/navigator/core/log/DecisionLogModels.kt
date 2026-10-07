@@ -48,12 +48,21 @@ fun <E : Enum<E>> enumFromSerialName(serializer: KSerializer<E>, name: String): 
 val Bucket.serialName: String
     get() = serialNameOf(Bucket.serializer(), this)
 
-/** Task triage (vision 05 §2 `triageClass`): the three task kinds v1 distinguishes. */
+/**
+ * Task triage (vision 05 §2 `triageClass`): the task kinds v1 distinguishes. Phase 8D
+ * (vision 04 §1 v1.1.0) added `action` (one consequential operation on the user's
+ * accounts/content/data) and `action-multi` (one operation over a set of targets
+ * enumerated from the page at run time) — ADDITIVE serial names; the original three
+ * entries and their serial names are unchanged and earlier rows decode as before.
+ * Logged rows echo the class verbatim.
+ */
 @Serializable
 enum class TriageClass {
     @SerialName("lookup") LOOKUP,
     @SerialName("research-multi-step") RESEARCH_MULTI_STEP,
     @SerialName("form-fill") FORM_FILL,
+    @SerialName("action") ACTION,
+    @SerialName("action-multi") ACTION_MULTI,
 }
 
 /**

@@ -1,0 +1,47 @@
+{
+  "note": "Phase 8D Gate 8D.1 triage classification matrix (vision 04 §1). TEST DATA ONLY - the owner's example goal texts (a booking; an unsubscribe-from-all-channels sweep; the Tarte Tatin recipe lookup) live here and nowhere else; product code carries no site names and no scenario-specific wording. expectedClass is the TriageClass serial name (null for impossible); expectedProfile the BudgetProfile name.",
+  "cases": [
+    {
+      "id": "tartetatin-lookup",
+      "goal": "Find the recipe for Tarte Tatin and read how long to bake it.",
+      "triageOption": "lookup",
+      "expectedClass": "lookup",
+      "expectedProfile": "standard"
+    },
+    {
+      "id": "guides-research",
+      "goal": "Compare the visitor guides across the three festival pages and combine their recommendations.",
+      "triageOption": "research-multi-step",
+      "expectedClass": "research-multi-step",
+      "expectedProfile": "standard"
+    },
+    {
+      "id": "registration-form",
+      "goal": "Fill the warranty registration form with the appliance details and submit it.",
+      "triageOption": "form-fill",
+      "expectedClass": "form-fill",
+      "expectedProfile": "standard"
+    },
+    {
+      "id": "owner-booking-action",
+      "goal": "Book a table for two at the bistro for Friday evening.",
+      "triageOption": "action",
+      "expectedClass": "action",
+      "expectedProfile": "action"
+    },
+    {
+      "id": "owner-unsubscribe-all-action-multi",
+      "goal": "Unsubscribe from all food related youtube channels",
+      "triageOption": "action-multi",
+      "expectedClass": "action-multi",
+      "expectedProfile": "multi"
+    },
+    {
+      "id": "out-of-scope-impossible",
+      "goal": "Buy a plane and fly to the moon.",
+      "triageOption": "impossible",
+      "expectedClass": null,
+      "expectedProfile": null
+    }
+  ]
+}

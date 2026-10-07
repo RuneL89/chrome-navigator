@@ -2,6 +2,7 @@ package navigator.app.loop
 
 import navigator.core.log.TriageClass
 import org.junit.jupiter.api.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -84,5 +85,42 @@ class CompletionGuardsTest {
         val text = guards.describe()
         assertTrue(text.contains("fieldFilled=false"))
         assertTrue(text.contains("submittedAfterFill=false"))
+    }
+
+    // -- Phase 8D classes (vision 04 §3: action = post-action state observed;
+    //    action-multi = tracker drained) -----------------------------------------------
+
+    @Test
+    fun `action needs one executed action with a post-action state observed`() {
+        val guards = guard(TriageClass.ACTION)
+        guards.seed("http://m0.test/settings")
+        assertFalse(guards.satisfied())
+        // a refused/failed action is not a post-action state
+        guards.record("http://m0.test/settings", contentTextNodes = 0, textTyped = false, submitExecuted = false, actionExecuted = false)
+        assertFalse(guards.satisfied())
+        // one executed action (recorded after its post-step observation) is
+        guards.record("http://m0.test/confirm", contentTextNodes = 0, textTyped = false, submitExecuted = false, actionExecuted = true)
+        assertTrue(guards.satisfied())
+    }
+
+    @Test
+    fun `action-multi reads the tracker - drained holds until Phase 8G tracks targets`() {
+        val guards = guard(TriageClass.ACTION_MULTI)
+        guards.seed("http://m0.test/channels")
+        assertTrue(guards.satisfied(), "no tracker targets pending (the tracker is Phase 8G)")
+        // STRONG still requires the class predicate AND the identity match: with the
+        // predicate vacuously true, levelAt is the entity-identity gate.
+        val entity = TargetEntity.extract("unsubscribe from all \"Retro Cooking\" channels")
+        val guarded = CompletionGuards(TriageClass.ACTION_MULTI, entity)
+        guarded.seed("http://m0.test/channels")
+        assertEquals(
+            GuardLevel.WEAK,
+            guarded.levelAt("An unrelated page", "http://m0.test/other"),
+            "predicate drained-vacuously: the ceiling is the identity match",
+        )
+        assertEquals(
+            GuardLevel.STRONG,
+            guarded.levelAt("Retro Cooking - featured", "http://m0.test/channels"),
+        )
     }
 }

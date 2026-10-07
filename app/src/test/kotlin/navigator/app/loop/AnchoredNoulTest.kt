@@ -49,6 +49,22 @@ class AnchoredNoulTest {
     }
 
     @Test
+    fun `action and action-multi propositions are class-anchored and identity-anchored (Phase 8D)`() {
+        val action = AnchoredNoul.proposition("Book a table for two", entity, TriageClass.ACTION, title, url)
+        assertTrue(action.contains("carried out"), "the operation, not content vibes: $action")
+        assertTrue(action.contains("PAGE IDENTITY"))
+        val multi = AnchoredNoul.proposition(
+            "apply the operation to every target in the set",
+            null,
+            TriageClass.ACTION_MULTI,
+            title,
+            url,
+        )
+        assertTrue(multi.contains("targets"), "the set of discovered targets: $multi")
+        assertTrue(multi.contains("PAGE IDENTITY"))
+    }
+
+    @Test
     fun `without an extracted entity the proposition quotes the goal and still pins page identity`() {
         val goal = "check the weather in one specific town"
         val proposition = AnchoredNoul.proposition(goal, null, TriageClass.LOOKUP, "A weather page", "http://m0.test/weather")

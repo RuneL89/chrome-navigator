@@ -180,7 +180,12 @@ without a device.
   ACCEPTED ⇔ acceptedPath present; an accepted NONE guard is incoherent; exit checks
   are choice-free and excluded from the §3 agreement metrics; training now spans
   decision rows (choose cases) AND exit-check rows (noul cases), amendment rule d).
-  The goldens are untouched — the generator pins `DecisionLogRow` only
+  The goldens are untouched — the generator pins `DecisionLogRow` only.
+  Phase 8D (vision 04 §1 v1.1.0) widened the `TriageClass` vocabulary ADDITIVELY —
+  `action` + `action-multi` (@SerialName "action"/"action-multi": one consequential
+  operation on the user's accounts/content/data; one such operation over a run-time
+  target set) — the three original entries, their serial names, and the goldens are
+  untouched; earlier rows decode unchanged
 * Companion shadow-result rows (Phase 8B, vision 05 §2 amendment 2026-10-04):
   `ShadowResultRow` is the second INSERT-ONLY row type, legal only for a decision row
   logged as a shadowMiss and exactly once per `(taskId, stepIndex)` — enforced at the

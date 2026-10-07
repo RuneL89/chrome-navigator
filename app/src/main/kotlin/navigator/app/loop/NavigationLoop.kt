@@ -84,6 +84,16 @@ class NavigationLoop(
     private val spendMeter: SpendMeter = SpendMeter(),
     private val stateTextBuilder: StateTextBuilder = StateTextBuilder(),
     private val config: Config = Config(),
+    /**
+     * Cold-start edges (Phase 8D, vision 04 §1): when both are wired, the loop runs the
+     * deterministic cold-start pre-step — derive the goal's start URL in code, probe
+     * the browser, fire the VIEW intent when the browser is absent or on an unrelated
+     * page — BEFORE triage and the first OBSERVE. NO engine is consulted. Null (the
+     * default) skips the pre-step: tests and harnesses that manage the browser
+     * themselves are unaffected.
+     */
+    private val browserProbe: BrowserProbe? = null,
+    private val browserLauncher: BrowserLauncher? = null,
 ) {
 
     /**
@@ -115,13 +125,19 @@ class NavigationLoop(
         val budget: BudgetLimits = BudgetLimits(),
     )
 
+    /**
+     * Explicit budget overrides (tests). Every field left null resolves to the
+     * triage-selected [BudgetProfile] (vision 04 §5); a fully-default [BudgetLimits]
+     * therefore means "the profile numbers", and the three original classes resolve to
+     * the original Phase-6 defaults (Standard profile).
+     */
     data class BudgetLimits(
-        val stepsSoft: Int = TaskBudget.STEPS_SOFT,
-        val stepsHard: Int = TaskBudget.STEPS_HARD,
-        val timeSoftMs: Long = TaskBudget.TIME_SOFT_MS,
-        val timeHardMs: Long = TaskBudget.TIME_HARD_MS,
-        val spendSoftMicroUsd: Long = TaskBudget.SPEND_SOFT_MICRO_USD,
-        val spendHardMicroUsd: Long = TaskBudget.SPEND_HARD_MICRO_USD,
+        val stepsSoft: Int? = null,
+        val stepsHard: Int? = null,
+        val timeSoftMs: Long? = null,
+        val timeHardMs: Long? = null,
+        val spendSoftMicroUsd: Long? = null,
+        val spendHardMicroUsd: Long? = null,
     )
 
     /**
@@ -129,7 +145,9 @@ class NavigationLoop(
      * steps (the harness cancel button; never true in headless runs).
      * [fallbackIdentity] names the fallback engine of a composed engine (the `laya-fb-jev`
      * mode) so escalated rows can carry the `fallback {engine, model}` provenance
-     * (doc 05 v1.2.0); null for every single-engine mode.
+     * (doc 05 v1.2.0); null for every single-engine mode. [startUrl] is the goal's
+     * scripted start URL (the harness goal's `startUrl`), the cold-start derivation's
+     * fallback when the goal text names no site itself; null elsewhere.
      */
     suspend fun run(
         goal: String,
@@ -138,6 +156,7 @@ class NavigationLoop(
         clock: Clock = Clock.SYSTEM,
         isCancelled: () -> Boolean = { false },
         fallbackIdentity: EngineIdentity? = null,
+        startUrl: String? = null,
     ): RunResult {
         require(goal.isNotBlank()) { "goal must not be blank" }
         val startMs = clock.nowMs()
@@ -150,16 +169,6 @@ class NavigationLoop(
         }
 
         // -- per-task machinery -------------------------------------------------------
-        val budget = TaskBudget(
-            clock = clock,
-            spendMeter = spendMeter,
-            stepsSoft = config.budget.stepsSoft,
-            stepsHard = config.budget.stepsHard,
-            timeSoftMs = config.budget.timeSoftMs,
-            timeHardMs = config.budget.timeHardMs,
-            spendSoftMicroUsd = config.budget.spendSoftMicroUsd,
-            spendHardMicroUsd = config.budget.spendHardMicroUsd,
-        )
         val taskGate = TaskGate()
         val stuck = StuckDetector()
         val exitPolicy = ExitPolicy()
@@ -172,6 +181,7 @@ class NavigationLoop(
         var metaDecisions = 0
         var triageLabel = "untriaged"
         var triageClass: TriageClass? = null
+        var budgetProfile: BudgetProfile? = null
         var guards: CompletionGuards? = null
         var entity: TargetEntity? = null
         var exitSummary: ExitSummary? = null
@@ -194,6 +204,8 @@ class NavigationLoop(
                 goal = goal,
                 taskId = taskId,
                 triage = triageLabel,
+                triageClass = triageClass?.let { serialNameOf(TriageClass.serializer(), it) },
+                budgetProfile = budgetProfile?.name,
                 terminal = terminal,
                 terminalDetail = detail,
                 steps = steps,
@@ -322,14 +334,23 @@ class NavigationLoop(
             return false
         }
 
+        // -- COLD-START (vision 04 §1: deterministic code BEFORE triage and the first
+        //    OBSERVE; NO engine is ever consulted for opening the browser) -------------
+        if (browserProbe != null && browserLauncher != null) {
+            val record = ColdStart.run(goal, startUrl, browserProbe, browserLauncher)
+            record.lines.forEach { line(it) }
+        }
+
         // -- TRIAGE (vision 04 §1: ONE choose over the goal text) ----------------------
         line("triage: asking the engine over the goal text")
         when (val triage = Triage.interpret(engine.choose(goal, Triage.question()))) {
             is Triage.Result.Impossible -> {
                 triageLabel = triage.chosenId
                 line("triage: IMPOSSIBLE ('${triage.chosenId}') - explain and abort pre-navigation")
-                line("explanation: I can only attempt lookup, multi-step research, or form-fill " +
-                    "goals in v1; \"$goal\" is outside that scope")
+                line(
+                    "explanation: I can only attempt lookup, multi-step research, form-fill, " +
+                        "or action goals in v1; \"$goal\" is outside that scope",
+                )
                 return finish(
                     TerminalState.TRIAGE_IMPOSSIBLE,
                     "triage answered '${triage.chosenId}' - no navigation attempted",
@@ -348,6 +369,24 @@ class NavigationLoop(
                 line("guard state: ${guards.describe()}")
             }
         }
+
+        // -- per-class budget profile (vision 04 §5): selected by the resolved triage
+        //    class; explicit [BudgetLimits] overrides (tests) win over profile numbers;
+        //    the three original classes resolve to the original defaults ---------------
+        val profile = triageClass?.let { BudgetProfiles.forClass(it) }
+        budgetProfile = profile
+        val budget = TaskBudget(
+            clock = clock,
+            spendMeter = spendMeter,
+            stepsSoft = config.budget.stepsSoft ?: profile?.stepsSoft ?: TaskBudget.STEPS_SOFT,
+            stepsHard = config.budget.stepsHard ?: profile?.stepsHard ?: TaskBudget.STEPS_HARD,
+            timeSoftMs = config.budget.timeSoftMs ?: profile?.timeSoftMs ?: TaskBudget.TIME_SOFT_MS,
+            timeHardMs = config.budget.timeHardMs ?: profile?.timeHardMs ?: TaskBudget.TIME_HARD_MS,
+            spendSoftMicroUsd = config.budget.spendSoftMicroUsd
+                ?: profile?.spendSoftMicroUsd ?: TaskBudget.SPEND_SOFT_MICRO_USD,
+            spendHardMicroUsd = config.budget.spendHardMicroUsd
+                ?: profile?.spendHardMicroUsd ?: TaskBudget.SPEND_HARD_MICRO_USD,
+        )
 
         var stepIndex = 0
         while (true) {
@@ -812,6 +851,7 @@ class NavigationLoop(
                 contentTextNodes = post.contentTextNodes,
                 textTyped = proceed && execOk && kind == ActionKind.TYPE,
                 submitExecuted = proceed && execOk && kind == ActionKind.SUBMIT,
+                actionExecuted = proceed && execOk,
             )
             stuck.record(
                 StuckDetector.Footprint(
@@ -1088,6 +1128,16 @@ data class RunResult(
     val goal: String,
     val taskId: String,
     val triage: String,
+    /**
+     * The triage class serial name (vision 04 §1; Phase 8D run-report field), null
+     * when triage did not resolve to a task class (impossible / failed pre-triage).
+     */
+    val triageClass: String? = null,
+    /**
+     * The per-class budget profile that governed this task (vision 04 §5; Phase 8D
+     * run-report field), null when no profile was selected.
+     */
+    val budgetProfile: String? = null,
     val terminal: TerminalState,
     val terminalDetail: String,
     val steps: Int,

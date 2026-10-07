@@ -39,6 +39,16 @@ class CompletionGuards(
     private var firstUrl: String? = null
     private var fieldFilled = false
     private var submittedAfterFill = false
+    private var actionExecutedSeen = false
+
+    /**
+     * Targets still pending in the action-multi tracker (the WEAK predicate, vision 04
+     * §3: "tracker drained"). The working-memory tracker itself is Phase 8G; until it
+     * ships the tracked set is empty from the start, so pending is 0 and the predicate
+     * holds vacuously — every exit is still gated by the STRONG identity match or the
+     * engine-anchored noul paths.
+     */
+    private var targetsPending: Int = 0
 
     /**
      * Seeds the task's start page URL. Call once per OBSERVE (before EXECUTE) — the
@@ -56,11 +66,21 @@ class CompletionGuards(
      * @param contentTextNodes non-interactive text nodes counted in that observation
      * @param textTyped true when a TYPE action executed successfully this step
      * @param submitExecuted true when a SUBMIT action executed successfully this step
+     * @param actionExecuted true when any action executed successfully this step (the
+     *   `action` class's post-action-state evidence; defaulted false for the callers
+     *   that predate the action classes)
      */
-    fun record(url: String, contentTextNodes: Int, textTyped: Boolean, submitExecuted: Boolean) {
+    fun record(
+        url: String,
+        contentTextNodes: Int,
+        textTyped: Boolean,
+        submitExecuted: Boolean,
+        actionExecuted: Boolean = false,
+    ) {
         pages[url] = maxOf(pages[url] ?: 0, contentTextNodes)
         if (textTyped) fieldFilled = true
         if (submitExecuted && fieldFilled) submittedAfterFill = true
+        if (actionExecuted) actionExecutedSeen = true
     }
 
     /** Whether the task's class-specific completion preconditions hold (the WEAK level). */
@@ -68,6 +88,8 @@ class CompletionGuards(
         TriageClass.LOOKUP -> readContentfulPages().any { it != firstUrl }
         TriageClass.RESEARCH_MULTI_STEP -> readContentfulPages().size >= 2
         TriageClass.FORM_FILL -> fieldFilled && submittedAfterFill
+        TriageClass.ACTION -> actionExecutedSeen
+        TriageClass.ACTION_MULTI -> targetsPending == 0
     }
 
     /**
@@ -95,6 +117,10 @@ class CompletionGuards(
             "research: distinct contentful pages=${readContentfulPages().size} (needs 2)"
         TriageClass.FORM_FILL ->
             "form-fill: fieldFilled=$fieldFilled submittedAfterFill=$submittedAfterFill"
+        TriageClass.ACTION ->
+            "action: post-action state observed=$actionExecutedSeen (needs one executed action)"
+        TriageClass.ACTION_MULTI ->
+            "action-multi: targets pending=$targetsPending (drained=${targetsPending == 0})"
     } + entity.let { e -> if (e == null) "" else "; entity=\"${e.text}\"" }
 
     private fun readContentfulPages(): List<String> =

@@ -63,6 +63,15 @@ object AnchoredNoul {
                     "is displayed — the page identified below."
             } ?: "The form described by the goal \"$goalText\" was filled and submitted, " +
                 "and its result is displayed on the page identified below."
+            TriageClass.ACTION -> entity?.let {
+                "The consequential operation for \"${it.text}\" was carried out, and the " +
+                    "resulting state is displayed on the page identified below."
+            } ?: "The consequential operation described by the goal \"$goalText\" was " +
+                "carried out, and the resulting state is displayed on the page identified below."
+            TriageClass.ACTION_MULTI ->
+                "The operation described by the goal \"$goalText\" was applied to the targets " +
+                    "discovered on the pages, and the completed work is reflected on the page " +
+                    "identified below."
         }
         return "$body\n${identityLine(pageTitle, pageUrl)}"
     }

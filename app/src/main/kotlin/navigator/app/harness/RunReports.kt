@@ -41,6 +41,14 @@ data class RunReport(
     val engine: String,
     val autoDeny: Boolean,
     val triage: String,
+    /**
+     * Phase 8D (vision 04 §1/§5): the triage class serial name and the per-class
+     * budget profile that governed the run. Null when triage did not resolve to a
+     * task class (impossible / failed pre-triage) — never ambiguous with a resolved
+     * class, and absent from the JSON on those paths (defaults omitted).
+     */
+    val triageClass: String? = null,
+    val budgetProfile: String? = null,
     val terminal: String,
     val terminalDetail: String,
     val expectedTerminal: String?,

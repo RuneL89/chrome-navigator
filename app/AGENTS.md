@@ -53,9 +53,26 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     non-debuggable builds)
   * `src/main/kotlin/navigator/app/loop/` — the navigation loop (Phase 6,
     vision 04): `NavigationLoop` (STRICT step order OBSERVE → ENUMERATE → DECIDE →
-    GATE → EXECUTE → LOG; exits goal-achieved / budget-exhausted / stuck-kill /
-    guard-abort / user-cancel + the documented REFUSED and TRIAGE_IMPOSSIBLE),
-    `Triage` (one choose over `{lookup, research-multi-step, form-fill, impossible}`),
+    GATE → EXECUTE → LOG; preceded by the Phase-8D cold-start pre-step (vision 04 §1)
+    when its `BrowserProbe`/`BrowserLauncher` seams are wired, and by ONE triage
+    choose; exits goal-achieved / budget-exhausted / stuck-kill /
+    guard-abort / user-cancel + the documented REFUSED and TRIAGE_IMPOSSIBLE;
+    the task budget resolves to the triage class's `BudgetProfile` after triage —
+    explicit `BudgetLimits` overrides (tests) win; `RunResult` carries the triage
+    class + profile name),
+    `Triage` (one choose over `{lookup, research-multi-step, form-fill, action,
+    action-multi, impossible}`; Phase 8D added the two action classes per vision 04
+    §1 — `action` = one consequential operation on the user's accounts/content/data,
+    `action-multi` = one operation over a set of targets discovered from the page at
+    run time — with general option descriptions, NO site names; additive, so
+    StubEngine scripts and fixtures replay unchanged),
+    `ColdStart` (Phase 8D, vision 04 §1: deterministic code, NO engine ever
+    consulted — derive the goal's start URL (explicit goal URL → bare goal domain →
+    the caller's scripted start URL; never a hardcoded site name), probe the browser
+    ([BrowserProbe]; null = absent), fire the VIEW intent through [BrowserLauncher]
+    only when the browser is absent or on an UNRELATED page — the same-site judgment
+    is CODE (host equality, scheme/port/www-insensitive), never an engine call; the
+    derivation and the decision are ALWAYS logged and ride the step log/run report),
     `CompletionGuards` (per-triage-class code state machines — ART-4; Phase 8J Guard
     2.0: `TargetEntity` — deterministic code extraction of the goal's target
     (quoted spans, "article/page titled|named|about X" cues, capitalized multi-word
@@ -83,8 +100,13 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     the exit conflict — 3 consecutive refused finishes with no screen progress; the L1
     hint carries "engine wants to finish, evidence says <level>"; a screen change resets
     both escalations; L2 recovery set, rephrase = deterministic stub until Phase 10), 
-    `TaskBudget` (steps 40/60, time 5/10 min, spend $0.20/$0.25 — integer
-    micro-dollars via `SpendMeter` + `SpendPrices`, ART-5), `StepExecutor`
+    `TaskBudget` + `BudgetProfiles` (Phase 8D, vision 04 §5: per-class profiles —
+    Standard lookup·research·form-fill 40/60 steps · 5/10 min · $0.20/$0.25 (built
+    FROM the pre-08D companion constants, byte-identical); Action 60/100 ·
+    10/15 min · $0.20/$0.25; Multi 150/300 · 15/30 min · $0.50/$0.75 — integer
+    micro-dollars via `SpendMeter` + `SpendPrices`, ART-5; shadow calls stay free
+    and unbudgeted; on any hard stop: clean stop, partial results, everything
+    logged), `StepExecutor`
     (`ActionExecutor` interface + `GestureExecutor` dispatchGesture impl +
     `phraseStub`), `GatePresenter` (interface; `AutoDenyGatePresenter` = harness
     test mode, `DebugGatePresenter` = overlay dialog with 30s countdown,
@@ -146,6 +168,8 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     notifications are Phase 9's with their own rules), `RunReports` (pure report
     data + JSON; when a launch requests the shadow by ANY alias, EVERY per-run report
     carries the full `shadowReport` object — zeroed with a `note` on degraded paths;
+    Phase 8D: every report carries `triageClass` + `budgetProfile` (additive,
+    defaulted — null only when triage never resolved);
     `RunReportStore` does the file export),
     `HarnessPagesServer` (loopback-only static server over
     `assets/harness/pages/`), `GoalCatalog` (`assets/harness/goals.json` — the M0
@@ -291,7 +315,19 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
   gates (`NavigationLoopTest`: strict step order incl. GATE-before-EXECUTE, budget
   clean-stops per dimension, double-deny abort, ART-4 adversarial finish refusal,
   one-row-per-decision; `TaskBudgetTest`, `StuckDetectorTest`, `CompletionGuardsTest`,
-  `StubEngineTest`, `GoalCatalogTest`) + the Phase-8 laya gates (`LayaEngineTwoStageTest`
+  `StubEngineTest`, `GoalCatalogTest`) + the Phase-8D gates (`TriageClassificationTest`
+  Gate 8D.1: the classification matrix over `src/test/resources/fixtures/triage-matrix.json`
+  — the owner example goal texts as TEST DATA, booking→action, unsubscribe-all→action-multi,
+  Tarte Tatin→lookup — via scripted triage answers, with budget-profile selection asserted
+  end-to-end in the loop and the row law for the new classes; `ColdStartTest` Gate 8D.2:
+  absent browser → exactly one VIEW intent BEFORE the first OBSERVE and the triage engine
+  call, present/same-site → no-op, unrelated/unreadable → intent, derivation + decision
+  always logged, the GOAL_URL/GOAL_DOMAIN/SCRIPTED_START derivation matrix, code-only
+  same-host judgment; `BudgetProfileTest` Gate 8D.3: the exact vision 04 §5 table,
+  forClass selection, per-class clean stops in the real loop at steps (60/100/300),
+  wall clock (6/9/18 steps at 100k ms/step) and cloud spend (multi tolerates $0.70 where
+  standard hard-stops), Standard defaults byte-identical to the pre-08D constants) +
+  the Phase-8 laya gates (`LayaEngineTwoStageTest`
   Gate 8.2 scripted two-stage correctness, `LayaEngineReferenceParityTest` Gate 8.1
   reference-vector parity over the REAL int8 graph on the desktop JVM ONNX Runtime,
   `ShadowRouterTest` Gate 8.3 router semantics: latency isolation, shadowMiss under a
@@ -336,6 +372,13 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
   exit block path=SUSTAINED guard=STRONG checks=5 card=KEEP_GOING). Note: the AVD's
   webview-shell web-content a11y starvation (documented since Phase 6) needed a
   one-time `adb shell pm clear org.chromium.webview_shell` this session
+* Gate 8D.2 (on-device smoke, Phase 8D): the loop's cold-start pre-step ran in EVERY
+  loop execution across warm boot, `pm clear org.chromium.webview_shell`, and cold
+  `-no-snapshot` boot — derivation logged, code-judged same-site no-op, report fields
+  (`triageClass`/`budgetProfile`) present, gaps=0; the GOAL_ACHIEVED terminal (and an
+  on-device LAUNCH observation) was BLOCKED by the same AVD a11y-starvation disease
+  after those honest attempts — evidence = `.state/phase-08D-smoke/`
+  (`smoke-record.json`; the LAUNCH branch is JVM-proven in `ColdStartTest`)
 * Gate 6.2 (on-device): the harness suite runs all six scripted goal families to their
   expected terminal states with zero log gaps; evidence = the pulled `run-reports/`
   (`suite-report.json` `allPassed: true`)

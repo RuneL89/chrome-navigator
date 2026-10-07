@@ -1,6 +1,7 @@
 package navigator.app.loop
 
 import kotlinx.coroutines.delay
+import navigator.core.log.TriageClass
 
 /**
  * Wall-clock source (vision 04 §5: wall-clock budget). Abstracted so the loop and its
@@ -50,12 +51,83 @@ class SpendMeter : SpendRecorder {
 }
 
 /**
- * Per-task budget (vision 04 §5 — law): steps 40/60, wall clock 5/10 min, cloud spend
- * $0.20/$0.25. Soft thresholds warn (the step carries on, the warning is logged); hard
- * thresholds stop the task cleanly with partial results, everything logged. Laya shadow
- * calls are free and unbudgeted (vision 04 §5) — they never reach this class.
+ * One triage class's budget limits (vision 04 §5 — the per-class BudgetProfile table).
+ * All numbers are pinned in code as integer micro-dollars / whole steps / whole
+ * milliseconds (ART-5); a change is a reviewed amendment, never a runtime value.
+ */
+data class BudgetProfile(
+    /** The profile's name as it rides the run report (`standard` | `action` | `multi`). */
+    val name: String,
+    val stepsSoft: Int,
+    val stepsHard: Int,
+    val timeSoftMs: Long,
+    val timeHardMs: Long,
+    val spendSoftMicroUsd: Long,
+    val spendHardMicroUsd: Long,
+)
+
+/**
+ * The per-class budget table (vision 04 §5 — law):
  *
- * Initial values are pinned here in code (ART-5); tests may construct tighter budgets.
+ * | Profile | Classes                          | Steps soft/hard | Wall clock soft/hard | Cloud spend soft/hard |
+ * |---------|----------------------------------|-----------------|----------------------|-----------------------|
+ * | Standard| lookup · research-multi-step · form-fill | 40 / 60 | 5 / 10 min           | $0.20 / $0.25         |
+ * | Action  | action                           | 60 / 100        | 10 / 15 min          | $0.20 / $0.25         |
+ * | Multi   | action-multi                     | 150 / 300       | 15 / 30 min          | $0.50 / $0.75         |
+ *
+ * Selection is by triage class; the Standard profile IS the original Phase-6 default
+ * (the three original classes' numbers are byte-identical to the pre-08D constants).
+ * Shadow calls remain free and unbudgeted (they never reach the meter).
+ */
+object BudgetProfiles {
+
+    val STANDARD = BudgetProfile(
+        name = "standard",
+        stepsSoft = TaskBudget.STEPS_SOFT,
+        stepsHard = TaskBudget.STEPS_HARD,
+        timeSoftMs = TaskBudget.TIME_SOFT_MS,
+        timeHardMs = TaskBudget.TIME_HARD_MS,
+        spendSoftMicroUsd = TaskBudget.SPEND_SOFT_MICRO_USD,
+        spendHardMicroUsd = TaskBudget.SPEND_HARD_MICRO_USD,
+    )
+
+    val ACTION = BudgetProfile(
+        name = "action",
+        stepsSoft = 60,
+        stepsHard = 100,
+        timeSoftMs = 10L * 60_000L,
+        timeHardMs = 15L * 60_000L,
+        spendSoftMicroUsd = 200_000L, // $0.20
+        spendHardMicroUsd = 250_000L, // $0.25
+    )
+
+    val MULTI = BudgetProfile(
+        name = "multi",
+        stepsSoft = 150,
+        stepsHard = 300,
+        timeSoftMs = 15L * 60_000L,
+        timeHardMs = 30L * 60_000L,
+        spendSoftMicroUsd = 500_000L, // $0.50
+        spendHardMicroUsd = 750_000L, // $0.75
+    )
+
+    /** Profile selection by triage class (vision 04 §5's Classes column). */
+    fun forClass(triageClass: TriageClass): BudgetProfile = when (triageClass) {
+        TriageClass.LOOKUP, TriageClass.RESEARCH_MULTI_STEP, TriageClass.FORM_FILL -> STANDARD
+        TriageClass.ACTION -> ACTION
+        TriageClass.ACTION_MULTI -> MULTI
+    }
+}
+
+/**
+ * Per-task budget (vision 04 §5 — law), now in per-class [BudgetProfile] strengths.
+ * Soft thresholds warn (the step carries on, the warning is logged); hard thresholds
+ * stop the task cleanly with partial results, everything logged. Laya shadow calls are
+ * free and unbudgeted (vision 04 §5) — they never reach this class.
+ *
+ * The no-argument defaults are the Standard profile (lookup/research/form-fill — the
+ * original Phase-6 numbers); the loop applies the triage-selected profile after triage
+ * ([BudgetProfiles.forClass]). Tests may construct tighter budgets.
  */
 class TaskBudget(
     private val clock: Clock = Clock.SYSTEM,
