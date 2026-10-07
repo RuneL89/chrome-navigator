@@ -2,7 +2,7 @@
 
 **Document ID:** `NAVIGATOR-IMPL-PHASE-08I`
 **Version:** 1.0.0
-**Status:** Draft
+**Status:** ACCEPTED (2026-10-07) — gates 8I.1–8I.3 verified (verifier cold re-run: 632 tests green); foundations batch declared done; UAT 8I.1 scheduled into the owner demo session
 **Date:** 2026-10-06
 **Dependencies:** Phases 08D–08H (all foundations); vision 07 v1.1.0
 **Estimated Time:** 2-3h (+ optional $0.50 live demo)

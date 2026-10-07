@@ -1,0 +1,159 @@
+{
+  "capturedAt": "2026-10-07T10:00:00Z",
+  "site": "content-fixture.test",
+  "url": "https://content-fixture.test/account/subscriptions",
+  "title": "Your Subscriptions",
+  "device": "Phase 08I synthetic capture (mirror of the harness fixture page subscriptions.html; generic page, no real site)",
+  "nodes": [
+    {
+      "id": "n0",
+      "text": "Your subscriptions",
+      "desc": "",
+      "clickable": false,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,120,1025,190",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n1",
+      "text": "Every channel you follow is listed below with its current state. Changes apply immediately and are reversible from the same row.",
+      "desc": "",
+      "clickable": false,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,200,1025,300",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n2",
+      "text": "Cooking Classics",
+      "desc": "",
+      "clickable": false,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,320,1025,380",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n3",
+      "text": "Weekly recipes from the test kitchen. Status: Subscribed",
+      "desc": "",
+      "clickable": false,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,390,760,470",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n4",
+      "text": "Unsubscribe from Cooking Classics",
+      "desc": "",
+      "clickable": true,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "780,390,1025,470",
+      "className": "android.widget.Button"
+    },
+    {
+      "id": "n5",
+      "text": "Trailer Reviews",
+      "desc": "",
+      "clickable": false,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,490,1025,550",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n6",
+      "text": "New trailer breakdowns every Friday. Status: Subscribed",
+      "desc": "",
+      "clickable": false,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,560,760,640",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n7",
+      "text": "Unsubscribe from Trailer Reviews",
+      "desc": "",
+      "clickable": true,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "780,560,1025,640",
+      "className": "android.widget.Button"
+    },
+    {
+      "id": "n8",
+      "text": "Garden Week",
+      "desc": "",
+      "clickable": false,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,660,1025,720",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n9",
+      "text": "Seasonal tips for small balconies. Status: Subscribed",
+      "desc": "",
+      "clickable": false,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,730,760,810",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n10",
+      "text": "Unsubscribe from Garden Week",
+      "desc": "",
+      "clickable": true,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "780,730,1025,810",
+      "className": "android.widget.Button"
+    },
+    {
+      "id": "n11",
+      "text": "Star Log",
+      "desc": "",
+      "clickable": false,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,830,1025,890",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n12",
+      "text": "A short sky guide for the week ahead. Status: Subscribed",
+      "desc": "",
+      "clickable": false,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,900,760,980",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n13",
+      "text": "Unsubscribe from Star Log",
+      "desc": "",
+      "clickable": true,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "780,900,1025,980",
+      "className": "android.widget.Button"
+    },
+    {
+      "id": "n14",
+      "text": "This is a local harness test page. It has no backend and subscribes to nothing.",
+      "desc": "",
+      "clickable": false,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,1000,1025,1060",
+      "className": "android.view.View"
+    }
+  ]
+}

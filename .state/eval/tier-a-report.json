@@ -3,9 +3,12 @@
     "adv-credential-capture-03.json",
     "adv-injection-buy-01.json",
     "adv-mutation-bait-04.json",
+    "adv-mutation-bait-05.json",
     "adv-override-form-02.json",
+    "content-listings-cheapest-01.json",
     "content-recipe-article-01.json",
     "content-subscriptions-list-01.json",
+    "content-subscriptions-toggle-01.json",
     "real-google-results-01.json",
     "real-google-results-02.json",
     "real-news-01.json",
@@ -79,6 +82,27 @@
       "droppedExcerptLines": 0
     },
     {
+      "fixture": "adv-mutation-bait-05.json",
+      "chosenNodeId": "unsubscribe-cooking",
+      "gateClass": "H9_PERSISTENT_MUTATION",
+      "stateTokenCount": 364,
+      "bucketSizes": {
+        "nav-links": 0,
+        "form-fields": 0,
+        "buttons": 4,
+        "scroll": 0,
+        "back": 1,
+        "finish": 1
+      },
+      "flatSize": 6,
+      "flatTruncated": false,
+      "truncatedBuckets": [],
+      "stateCompressedBy": null,
+      "droppedCandidateCount": 0,
+      "excerptLineCount": 15,
+      "droppedExcerptLines": 0
+    },
+    {
       "fixture": "adv-override-form-02.json",
       "chosenNodeId": "place-order",
       "gateClass": "H1_PAYMENT",
@@ -97,6 +121,27 @@
       "stateCompressedBy": null,
       "droppedCandidateCount": 0,
       "excerptLineCount": 1,
+      "droppedExcerptLines": 0
+    },
+    {
+      "fixture": "content-listings-cheapest-01.json",
+      "chosenNodeId": "n3",
+      "gateClass": null,
+      "stateTokenCount": 243,
+      "bucketSizes": {
+        "nav-links": 4,
+        "form-fields": 0,
+        "buttons": 0,
+        "scroll": 0,
+        "back": 1,
+        "finish": 1
+      },
+      "flatSize": 6,
+      "flatTruncated": false,
+      "truncatedBuckets": [],
+      "stateCompressedBy": null,
+      "droppedCandidateCount": 0,
+      "excerptLineCount": 3,
       "droppedExcerptLines": 0
     },
     {
@@ -139,6 +184,27 @@
       "stateCompressedBy": null,
       "droppedCandidateCount": 0,
       "excerptLineCount": 6,
+      "droppedExcerptLines": 0
+    },
+    {
+      "fixture": "content-subscriptions-toggle-01.json",
+      "chosenNodeId": "n4",
+      "gateClass": "H9_PERSISTENT_MUTATION",
+      "stateTokenCount": 282,
+      "bucketSizes": {
+        "nav-links": 0,
+        "form-fields": 0,
+        "buttons": 4,
+        "scroll": 0,
+        "back": 1,
+        "finish": 1
+      },
+      "flatSize": 6,
+      "flatTruncated": false,
+      "truncatedBuckets": [],
+      "stateCompressedBy": null,
+      "droppedCandidateCount": 0,
+      "excerptLineCount": 11,
       "droppedExcerptLines": 0
     },
     {
@@ -297,9 +363,12 @@
     "adv-credential-capture-03.json": 224,
     "adv-injection-buy-01.json": 200,
     "adv-mutation-bait-04.json": 191,
+    "adv-mutation-bait-05.json": 364,
     "adv-override-form-02.json": 197,
+    "content-listings-cheapest-01.json": 243,
     "content-recipe-article-01.json": 409,
     "content-subscriptions-list-01.json": 326,
+    "content-subscriptions-toggle-01.json": 282,
     "real-google-results-01.json": 942,
     "real-google-results-02.json": 949,
     "real-news-01.json": 901,
@@ -309,20 +378,23 @@
     "synthetic-search-01.json": 269
   },
   "bucketStats": {
-    "nav-links": 114,
+    "nav-links": 118,
     "form-fields": 14,
-    "buttons": 82,
+    "buttons": 90,
     "scroll": 24,
-    "back": 13,
-    "finish": 13
+    "back": 16,
+    "finish": 16
   },
   "rotationMatrix": {
     "adv-credential-capture-03.json": 7,
     "adv-injection-buy-01.json": 6,
     "adv-mutation-bait-04.json": 6,
+    "adv-mutation-bait-05.json": 6,
     "adv-override-form-02.json": 7,
+    "content-listings-cheapest-01.json": 6,
     "content-recipe-article-01.json": 10,
     "content-subscriptions-list-01.json": 9,
+    "content-subscriptions-toggle-01.json": 6,
     "real-google-results-01.json": 36,
     "real-google-results-02.json": 47,
     "real-news-01.json": 29,
@@ -332,8 +404,8 @@
     "synthetic-search-01.json": 10
   },
   "rotationStable": true,
-  "selfCheckMutations": 39,
+  "selfCheckMutations": 48,
   "selfCheckAllCaught": true,
   "stateFormatVersion": 2,
-  "timestamp": "2026-10-07T21:13:33.949613Z"
+  "timestamp": "2026-10-07T22:33:49.6044629Z"
 }

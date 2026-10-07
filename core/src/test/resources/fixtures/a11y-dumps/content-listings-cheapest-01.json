@@ -1,0 +1,79 @@
+{
+  "capturedAt": "2026-10-07T10:05:00Z",
+  "site": "content-fixture.test",
+  "url": "https://content-fixture.test/listings",
+  "title": "Swap Meet Board",
+  "device": "Phase 08I synthetic capture (mirror of the harness fixture page listings.html; generic page, no real site)",
+  "nodes": [
+    {
+      "id": "n0",
+      "text": "This week's swap meet board",
+      "desc": "",
+      "clickable": false,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,120,1025,190",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n1",
+      "text": "Each listing below was posted by a neighbor. Prices are marked in dollars and are firm for the week. Tap a listing to read its details.",
+      "desc": "",
+      "clickable": false,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,200,1025,320",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n2",
+      "text": "Enamel Camp Mug - $14.00",
+      "desc": "",
+      "clickable": true,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,340,1025,410",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n3",
+      "text": "Field Notebook - $6.25",
+      "desc": "",
+      "clickable": true,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,430,1025,500",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n4",
+      "text": "Wool Beanie - $11.50",
+      "desc": "",
+      "clickable": true,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,520,1025,590",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n5",
+      "text": "Tin Camp Percolator - $23.75",
+      "desc": "",
+      "clickable": true,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,610,1025,680",
+      "className": "android.view.View"
+    },
+    {
+      "id": "n6",
+      "text": "Sellers meet at the market hall on Saturday mornings. This is a local harness test page; nothing is for sale.",
+      "desc": "",
+      "clickable": false,
+      "editable": false,
+      "scrollable": false,
+      "bounds": "55,700,1025,800",
+      "className": "android.view.View"
+    }
+  ]
+}

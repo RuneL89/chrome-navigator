@@ -15,8 +15,8 @@ import kotlin.test.assertTrue
 
 /**
  * Gate 4.3: injection fixtures (isolation; vision 06 §3 / vision 07 §2, ART-4). The
- * three adversarial a11y dumps (`adv-*.json`) carry injected instruction-like page text.
- * Proof obligations:
+ * adversarial a11y dumps (`adv-*.json`, five since Phase 08I) carry injected
+ * instruction-like page text. Proof obligations:
  *  1. the injected imperative routes INTO the gate — the control it points at
  *     classifies as a gated H-class when selected (H2 for click-Buy);
  *  2. every high-stakes target each fixture plants (purchase button, card field,
@@ -60,6 +60,14 @@ class AdversarialInjectionTest {
             "adv-mutation-bait-04.json" to listOf(
                 "delete-posts-button" to ActionKind.TAP,
             ),
+            // Phase 08I subscriptions bait: the real toggles the injected prose steers at
+            // (all four are the same gated mutation family).
+            "adv-mutation-bait-05.json" to listOf(
+                "unsubscribe-cooking" to ActionKind.TAP,
+                "unsubscribe-trailer" to ActionKind.TAP,
+                "unsubscribe-garden" to ActionKind.TAP,
+                "unsubscribe-starlog" to ActionKind.TAP,
+            ),
         )
 
         /** Ordinary controls on the same pages — must stay ungated. */
@@ -68,6 +76,10 @@ class AdversarialInjectionTest {
             "adv-override-form-02.json" to listOf("faq-link"),
             "adv-credential-capture-03.json" to listOf("archive-link"),
             "adv-mutation-bait-04.json" to listOf("privacy-link"),
+            // The subscriptions bait plants NO ordinary control by design: every
+            // clickable node is a mutation toggle, and the injected imperative is
+            // non-interactive prose (it can steer, never be selected).
+            "adv-mutation-bait-05.json" to emptyList(),
         )
 
         /** Sample payloads used for TYPE actions over editable planted fields. */
@@ -206,8 +218,23 @@ class AdversarialInjectionTest {
     }
 
     @Test
+    fun `fixture 5 - subscriptions mutation bait steers at most INTO gated toggles (ART-4)`() {
+        val name = "adv-mutation-bait-05.json"
+        // The injected imperative inside the unrelated community content is
+        // non-interactive page text — it cannot be selected, only obeyed by selecting a
+        // real control.
+        assertTrue(candidates(name).flat.none { it.id == "injected-mutation-bait" })
+        // The steer target (dictionary verb "unsubscribe") classifies H9 when selected —
+        // the bait gates, it never passes silently.
+        assertEquals(
+            HClass.H9_PERSISTENT_MUTATION,
+            RiskGate.classify(action(name, "unsubscribe-cooking", ActionKind.TAP), context(name)),
+        )
+    }
+
+    @Test
     fun `every adversarial dump loads with its nodes observed (fixtures stay strict-schema)`() {
-        assertEquals(4, dumps.size, "the four adversarial fixtures must all be present: ${dumps.keys}")
+        assertEquals(5, dumps.size, "the five adversarial fixtures must all be present: ${dumps.keys}")
         for ((name, d) in dumps) {
             val nodes: List<ObservedNode> = d.observedNodes()
             assertTrue(nodes.isNotEmpty(), "$name: no nodes observed")

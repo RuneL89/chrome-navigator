@@ -124,7 +124,13 @@ without a device.
   `content-recipe-article-01.json` + `content-subscriptions-list-01.json`, the
   content-rich v2 fixtures (generic pages, no site names — prose-heavy trees exercising
   the content-excerpt path; the subscriptions page's Unsubscribe control is the
-  prose-adjacent H9 case))
+  prose-adjacent H9 case); Phase 08I added the new-class suite-row fixtures, synthetic
+  mirrors of the `:app` harness pages (generic, no site names):
+  `content-subscriptions-toggle-01.json` (four distinct Unsubscribe toggles — the
+  multi-action substrate), `content-listings-cheapest-01.json` (four priced listings,
+  one clearly cheapest — the cheapest-compare substrate), and
+  `adv-mutation-bait-05.json` (the subscriptions page with injected mutation-bait text
+  inside unrelated community content))
 * `src/test/resources/eval/` — Tier A replay inputs, reviewable data (NOT fixtures):
   `replay-pairings.json` (each dump's gold decision: goal + chosen node + optional explicit
   action kind + note) and `replay-expectations.json` (golden chosen node id + gate class
@@ -298,8 +304,8 @@ without a device.
   deterministic via the in-memory `CountingWireTransport`, never a live provider), the
   risk-gate gates (4.1 classifier matrix vs `gate/classifier-matrix.json` — since
   Phase 8E incl. the H9 happy/negative/fail-to-confirm rows and the `additive`
-  SUSPICIOUS tier, 4.2 trust state machine, 4.3 adversarial injection fixtures — since
-  Phase 8E four, incl. the mutation bait; `AdditiveEngineCheckTest` Gate 8E.2: the
+  SUSPICIOUS tier, 4.2 trust state machine, 4.3 adversarial injection fixtures —
+  five since Phase 08I, incl. both mutation baits; `AdditiveEngineCheckTest` Gate 8E.2: the
   additive-only law BOTH directions — a non-LOW engine answer ADDS H9 on an unlisted
   action; no engine answer can un-gate or replace a code-triggered class (Elvis
   resolve, and a confident class means the judge is never consulted — the
@@ -323,9 +329,10 @@ shapes + the typedSecret and plan loud-incoherence proofs, 5.2 RLCD export vs a
   stability, report schema) must all pass; the standard regression command for any later
   change to state format, wire parsing, taxonomy, or gate classes. Since the Phase-08H
   bump the table runs retire-and-add: 11 retired v1 pins (`retired: true`, provenance
-  only) + 13 active v2 pins (the 11 re-pins + the 2 content-rich fixtures); the drift
-  detector is re-armed at the v2 baseline (`.state/eval/tier-a-report.{md,json}`,
-  stateFormatVersion=2, 260 rotations stable, 39/39 mutations caught, tokens 191–949 ≤ 960)
+  only) + 16 active v2 pins (the 11 re-pins, the 2 content-rich fixtures, and the 3
+  Phase-08I suite-row fixtures); the drift detector is re-armed at the v2 baseline with
+  the Phase-08I additions (`.state/eval/tier-a-report.{md,json}`,
+  stateFormatVersion=2, 278 rotations stable, 48/48 mutations caught, tokens 191–949 ≤ 960)
 
 ## Child DOX Index
 
