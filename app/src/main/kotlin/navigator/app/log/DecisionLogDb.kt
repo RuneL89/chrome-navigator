@@ -20,6 +20,7 @@ import navigator.core.log.ExecutedAction
 import navigator.core.log.ExitProvenance
 import navigator.core.log.FallbackInfo
 import navigator.core.log.LoggedGateEvent
+import navigator.core.log.LoggedPlan
 import navigator.core.log.Outcome
 import navigator.core.log.ShadowAnswer
 import navigator.core.log.ShadowPrecision
@@ -83,6 +84,9 @@ data class DecisionLogEntity(
      *  `[credential-redacted]`. Pre-v6 rows decode as typedSecret=false through the
      *  migration's column default. */
     @ColumnInfo(defaultValue = "0") val typedSecret: Boolean = false,
+    /** Phase 08G (vision 05 §2 `plan`, vision 04 §1): plan-proposal provenance. Pre-v7
+     *  rows decode as plan=null through the migration's nullable column (additive only). */
+    val planJson: String? = null,
 )
 
 /** Bidirectional mapping row ↔ entity. Decoding validates loudly (core log law). */
@@ -122,6 +126,7 @@ object DecisionLogConverters {
         fallbackJson = row.fallback?.let { DECISION_LOG_JSON.encodeToString(FallbackInfo.serializer(), it) },
         exitJson = row.exit?.let { DECISION_LOG_JSON.encodeToString(ExitProvenance.serializer(), it) },
         typedSecret = row.typedSecret,
+        planJson = row.plan?.let { DECISION_LOG_JSON.encodeToString(LoggedPlan.serializer(), it) },
     )
 
     fun toRow(entity: DecisionLogEntity): DecisionLogRow = DecisionLogRow(
@@ -172,6 +177,9 @@ object DecisionLogConverters {
             DECISION_LOG_JSON.decodeFromString(ExitProvenance.serializer(), it)
         },
         typedSecret = entity.typedSecret,
+        plan = entity.planJson?.let {
+            DECISION_LOG_JSON.decodeFromString(LoggedPlan.serializer(), it)
+        },
     )
 }
 
@@ -227,7 +235,7 @@ interface DecisionLogDao {
 
 @Database(
     entities = [DecisionLogEntity::class, ShadowResultEntity::class, ExitCheckEntity::class],
-    version = 6,
+    version = 7,
     exportSchema = false,
 )
 abstract class DecisionLogDb : RoomDatabase() {
@@ -351,10 +359,29 @@ abstract class DecisionLogDb : RoomDatabase() {
             }
         }
 
+        /**
+         * v6 → v7 (vision 05 §2 `plan`, Phase 08G): adds the `planJson` column (nullable)
+         * — the plan-proposal provenance (vision 04 §1: writer-LLM plans carry their
+         * PROMPT_VERSION). ALTER ADD COLUMN only: every historical row survives,
+         * decoding as plan=null, never rewritten (insert-only law).
+         */
+        val MIGRATION_6_7: androidx.room.migration.Migration = object : androidx.room.migration.Migration(6, 7) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `decision_log` ADD COLUMN `planJson` TEXT")
+            }
+        }
+
         /** Production: a named, on-disk database (indefinite local retention, vision 05 §5). */
         fun open(context: Context, name: String): DecisionLogDb =
             Room.databaseBuilder(context, DecisionLogDb::class.java, name)
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                .addMigrations(
+                    MIGRATION_1_2,
+                    MIGRATION_2_3,
+                    MIGRATION_3_4,
+                    MIGRATION_4_5,
+                    MIGRATION_5_6,
+                    MIGRATION_6_7,
+                )
                 .build()
 
         /** In-memory variant (tests / ephemeral windows). */

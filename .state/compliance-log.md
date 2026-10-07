@@ -705,3 +705,21 @@ a new dated entry. Format per `Implementation Plan/MASTER_IMPLEMENTATION_PROMPT.
   Gates: verifier independent re-run ./gradlew test --rerun-tasks → BUILD SUCCESSFUL, :core 259 + :app 290 = 549, 0 failures; $0 spend.
   Result: COMPLIANT — gates verified; UAT 8F.1 (owner card-feel with dummy secret) PENDING owner scheduling (now on the S25+ or bundled with the 08I demo); phase NOT yet accepted
   Checked By: canon-implementer (post-entry, backfilled per verifier nit) + canon-verifier (cold) + Main agent (close-out)
+
+[2026-10-07 22:15] Phase 08F UAT deferral — owner decision
+  Decision: UAT 8F.1 (owner types a dummy secret on the card, judges the feel) DEFERRED to the Phase 08I owner demo session (bundled with the H9 card + triage demos), matching the 08E covered-pending precedent. Phase 08F remains gates-verified/UAT-pending; NOT accepted until the demo. Owner authorized proceeding to Phase 08G in the meantime.
+  Checked By: Main agent (orchestrator), owner decision
+
+[2026-10-07 22:15] Phase 08G Compliance Check (pre-implementation — START_PHASE_PROMPT step 3)
+  Changed: none yet (pre-check)
+  Phase selection: Phase 08G per the master index (08E closed; 08F gates-verified with owner-deferred UAT).
+  Vision Docs Checked: 04 v1.3.0 §1 (task working memory law: for action-multi tasks a code-owned tracker enumerates target rows from the page, records processed/pending, survives scrolls and navigation; the guard (§3) and the TASK PROGRESS state section (doc 03 v2) read from it; the 3-line HISTORY digest is never the memory of record), §3 (WEAK per-class predicates: action = post-action state observed; action-multi = tracker drained; STRONG superset note — the 08D interim vacuous-WEAK for action-multi must be replaced by the real tracker predicate here, per the 08D verifier's ruling "08G must populate targetsPending"), §4 (the tracker's progress lines ride the L1 hint for action-multi), §1 (plan proposal law: LLM may draft a subgoal plan at triage; the plan rides the state text as the PLAN section — context, never executor (ART-2); until the writer role ships in Phase 10, a deterministic PlanSource default supplies NO plan; logged with its own provenance), 05 §2 (additive plan provenance field on rows: plan: {version, subgoals} | null)
+  Comparison: PHASE_08G implements exactly this (TargetTracker state machine + re-identification; ActionCompletionGuard single post-action; ActionMultiCompletionGuard tracker-drained; PlanSource interface + deterministic null default; additive plan field). 8G.2's "finish impossible while targets pending" strengthens the exit law consistent with §3/ART-4. State-format rendering of PLAN/TASK PROGRESS is 08H's scope (out of scope here) — consistent. The 08D vacuous-WEAK interim is resolved by this phase (note for the implementer: ActionMultiCompletionGuard.pending must come from the tracker, not default to 0).
+  Result: COMPLIANT — no contradictions; Phase 08G may start ($0 budget, deterministic)
+  Checked By: Main agent (GLM-5.3-Flash)
+
+[2026-10-07 22:40] Phase 08G close-out — verifier PASS + acceptance per standing directive
+  Verification: canon-verifier (deepseek-v4-pro, cold) — PASS, report at .state/phase-08G-verification.md (orchestrator transcription). Gates 8G.1-8G.3 pass on independent re-run (./gradlew test --rerun-tasks: :core 264 + :app 323 = 587, 0 failures). Key rulings: 08D vacuous interim GONE (init requires a tracker for ACTION_MULTI; pending targets refuse with the count); STRONG stays the strict superset; skipped=resolved is a lawful EXTENSION (owner gate-DENY must resolve or drain is impossible; owner-deny-authoritative pinned at three levels); PlanSource default byte-identical with ART-2 structural (plan never touches questions/gate/executor; state rendering is 08H); Room v7 MIGRATION_6_7 additive; goldens additive; .state/eval/ untouched; zero new site strings. Count nits non-blocking.
+  UAT: phase doc §4 verifier-mechanical only — owner-covered per standing directive; accepted.
+  Result: PHASE 08G CLOSED — next Phase 08H (state-format v2, the fine-tune-critical phase)
+  Checked By: canon-verifier (cold) + Main agent (close-out)

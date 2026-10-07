@@ -110,4 +110,32 @@ class RunReportsJsonTest {
         assertFalse("\"shadow\"" in json)
         assertFalse("companionRows" in json)
     }
+
+    // -- Phase 08G: the tracker summary and the plan provenance blocks ------------------
+
+    @Test
+    fun `an action-multi run report carries the tracker summary and plan provenance`() {
+        val json = RunReports.json(
+            report(shadow = null).copy(
+                targets = TargetTrackerReport(
+                    tracked = 3,
+                    processed = 2,
+                    pending = 0,
+                    skipped = 1,
+                    drained = true,
+                ),
+                plan = PlanReport("plan-prompt-v1", listOf("open the list", "sweep each row")),
+            ),
+        )
+        for (key in listOf("\"targets\"", "\"plan\"", "tracked", "processed", "pending", "skipped", "drained", "subgoals", "plan-prompt-v1")) {
+            assertTrue(key in json, "report JSON must carry $key")
+        }
+    }
+
+    @Test
+    fun `lookup and unplanned runs omit the targets and plan keys (additive only)`() {
+        val json = RunReports.json(report(shadow = null))
+        assertFalse("\"targets\"" in json)
+        assertFalse("\"plan\"" in json)
+    }
 }

@@ -241,4 +241,24 @@ internal object LogRowFixtures {
         ),
         typedSecret = true,
     )
+
+    /**
+     * A row of a planned task (vision 05 §2 `plan`, vision 04 §1 plan-proposal law,
+     * Phase 08G): the plan provenance rides every row of the task — context, never
+     * executor (ART-2). Generic subgoals: no site names, no scenario-specific wording.
+     */
+    fun planned(): DecisionLogRow = complete(
+        rowId = "row-0009",
+        stepIndex = 11,
+    ).copy(
+        triageClass = TriageClass.ACTION_MULTI,
+        plan = LoggedPlan(
+            version = "plan-prompt-v1",
+            subgoals = listOf(
+                "open the target list page",
+                "apply the operation to each enumerated target row",
+                "verify every target row is resolved",
+            ),
+        ),
+    )
 }

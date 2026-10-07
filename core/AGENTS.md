@@ -212,7 +212,12 @@ without a device.
   (step log and rows render `[credential-redacted]`); the goldens were regenerated via
   UPDATE_GOLDENS under the ratified amendment — every row now encodes
   `"typedSecret": false`, and the new `row-typed-secret.json` golden pins the populated
-  shape; earlier rows decode unchanged
+  shape; earlier rows decode unchanged. Phase 8G (vision 04 §1 plan-proposal law) added
+  `plan: LoggedPlan? = null` ADDITIVELY — `{version, subgoals}` plan-proposal provenance
+  (context, never executor, ART-2; version non-blank, subgoals non-empty and non-blank);
+  the goldens were regenerated via UPDATE_GOLDENS under the ratified amendment — every
+  row now encodes `"plan": null`, and the new `row-planned.json` golden pins the
+  populated shape; earlier rows decode unchanged
 * Companion shadow-result rows (Phase 8B, vision 05 §2 amendment 2026-10-04):
   `ShadowResultRow` is the second INSERT-ONLY row type, legal only for a decision row
   logged as a shadowMiss and exactly once per `(taskId, stepIndex)` — enforced at the
@@ -273,9 +278,9 @@ without a device.
   hostile-judge loud-failure proof; `GateCardTest` since Phase 8F also pins the
   `credentialTyping` variant matrix — credential classes on TYPE only)), and the
   DecisionLog gates
-  (5.1 schema round-trip + byte-stable `log/goldens/` snapshots — since Phase 8F incl.
-  the regenerated goldens and the `row-typed-secret.json` populated shape + the
-  typedSecret loud-incoherence proofs, 5.2 RLCD export vs a
+(5.1 schema round-trip + byte-stable `log/goldens/` snapshots — since Phase 8G incl.
+the regenerated goldens, the `row-typed-secret.json`/`row-planned.json` populated
+shapes + the typedSecret and plan loud-incoherence proofs, 5.2 RLCD export vs a
   strict finetune-row validator + mixed-teacher manifest + the two case kinds with
   authoritative-gold selection and loud format-scoping counts, 5.3 agreement math with
   hand-computed KL values, the Phase-8J-Round-2 `ExitCheckRowTest` schema round-trips

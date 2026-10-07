@@ -105,16 +105,20 @@ class ExitPolicy(private val config: ExitPolicyConfig = ExitPolicyConfig()) {
      * Evaluates one engine finish claim against the three paths (vision 04 §3). Order
      * of evaluation: guard NONE → refuse; Path A → accept; Path B (sustained) → accept;
      * Path C (K guard-pass refusals, card unused) → ask the owner; otherwise refuse.
+     * [guardDetail] (Phase 08G) is the guard's own why-it-failed detail — it is appended
+     * to the NONE refusal's reason (e.g. the action-multi tracker's pending count) and
+     * never changes the verdict: with a NONE guard every path is closed regardless.
      */
-    fun onFinishCheck(guardLevel: GuardLevel, noul: Double): ExitDecision {
+    fun onFinishCheck(guardLevel: GuardLevel, noul: Double, guardDetail: String? = null): ExitDecision {
         finishChecks += 1
         if (guardLevel == GuardLevel.NONE) {
             // No code evidence at all: every path is closed and both streaks reset —
             // the code says the goal is not plausibly done.
             sustainedStreak = 0
             guardPassRefusalStreak = 0
+            val detail = guardDetail?.let { ": $it" } ?: ""
             return ExitDecision.Refuse(
-                reason = "the completion guard failed (${GuardLevel.NONE})",
+                reason = "the completion guard failed (${GuardLevel.NONE})$detail",
                 guardLevel = guardLevel,
                 noul = noul,
             )

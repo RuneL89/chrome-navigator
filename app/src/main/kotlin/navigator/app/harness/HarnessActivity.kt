@@ -762,6 +762,20 @@ class HarnessActivity : ComponentActivity() {
                     completionCardResolution = exit.completionCardResolution,
                 )
             },
+            targets = result.targets?.let { targets ->
+                log("targets: $targets")
+                TargetTrackerReport(
+                    tracked = targets.tracked,
+                    processed = targets.processed,
+                    pending = targets.pending,
+                    skipped = targets.skipped,
+                    drained = targets.drained,
+                )
+            },
+            plan = result.plan?.let { plan ->
+                log("plan: v${plan.version} (${plan.subgoals.size} subgoals, provenance only)")
+                PlanReport(version = plan.version, subgoals = plan.subgoals)
+            },
         )
         val path = RunReportStore.write(this, "run-${goal.id}-${result.taskId}.json", RunReports.json(report))
         log("report: $path")

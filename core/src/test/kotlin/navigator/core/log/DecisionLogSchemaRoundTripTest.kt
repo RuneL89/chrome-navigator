@@ -134,6 +134,46 @@ class DecisionLogSchemaRoundTripTest {
         }
     }
 
+    // ---- plan provenance (vision 05 §2 `plan`, vision 04 §1 plan-proposal law — Phase 08G) ----
+
+    @Test
+    fun `plan provenance round-trips on a planned row`() {
+        val row = LogRowFixtures.planned()
+        val decoded = json.decodeFromString<DecisionLogRow>(json.encodeToString(row))
+        assertEquals(row, decoded)
+        val plan = requireNotNull(decoded.plan) { "plan provenance must survive" }
+        assertEquals("plan-prompt-v1", plan.version)
+        assertEquals(3, plan.subgoals.size)
+        assertEquals(TriageClass.ACTION_MULTI, decoded.triageClass)
+    }
+
+    @Test
+    fun `every pre-08G row decodes with plan null`() {
+        val decoded = json.decodeFromString<DecisionLogRow>(json.encodeToString(LogRowFixtures.complete()))
+        assertNull(decoded.plan)
+    }
+
+    @Test
+    fun `a plan without a version fails loudly`() {
+        assertLoudFailure("a plan provenance without its prompt-surface version must be rejected") {
+            LogRowFixtures.planned().copy(plan = LoggedPlan("", listOf("one subgoal")))
+        }
+    }
+
+    @Test
+    fun `a plan without subgoals fails loudly`() {
+        assertLoudFailure("an empty subgoal list is not a plan") {
+            LogRowFixtures.planned().copy(plan = LoggedPlan("plan-prompt-v1", emptyList()))
+        }
+    }
+
+    @Test
+    fun `a plan with a blank subgoal fails loudly`() {
+        assertLoudFailure("blank subgoals are incoherent plan provenance") {
+            LogRowFixtures.planned().copy(plan = LoggedPlan("plan-prompt-v1", listOf("open the list", " ")))
+        }
+    }
+
     // ---- gateEvent variants (vision 05 §2: class H1–H8, approved|denied|timeout, trustedFromTask) ----
 
     @Test
@@ -326,6 +366,7 @@ class DecisionLogSchemaRoundTripTest {
         "row-exited-after-abort" to LogRowFixtures.exitedAfterAbort(),
         "row-goal-achieved-exit" to LogRowFixtures.goalAchievedSustainedExit(),
         "row-typed-secret" to LogRowFixtures.typedSecretCredential(),
+        "row-planned" to LogRowFixtures.planned(),
     )
 
     private fun goldenDir(): Path =

@@ -350,7 +350,7 @@ class ShadowResultDbTest {
         // MIGRATION_3_4 — the database is now at version 4) must run, validate, keep history.
         
         val migrated = Room.databaseBuilder(context, DecisionLogDb::class.java, name)
-            .addMigrations(DecisionLogDb.MIGRATION_1_2, DecisionLogDb.MIGRATION_2_3, DecisionLogDb.MIGRATION_3_4, DecisionLogDb.MIGRATION_4_5, DecisionLogDb.MIGRATION_5_6)
+            .addMigrations(DecisionLogDb.MIGRATION_1_2, DecisionLogDb.MIGRATION_2_3, DecisionLogDb.MIGRATION_3_4, DecisionLogDb.MIGRATION_4_5, DecisionLogDb.MIGRATION_5_6, DecisionLogDb.MIGRATION_6_7)
             .allowMainThreadQueries()
             .build()
         try {

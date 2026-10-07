@@ -210,6 +210,7 @@ class DecisionLogV5DbTest {
                 DecisionLogDb.MIGRATION_3_4,
                 DecisionLogDb.MIGRATION_4_5,
                 DecisionLogDb.MIGRATION_5_6,
+                DecisionLogDb.MIGRATION_6_7,
             )
             .allowMainThreadQueries()
             .build()

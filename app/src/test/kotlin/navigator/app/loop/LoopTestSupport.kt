@@ -171,6 +171,8 @@ class LoopFixture(
     val browserLauncher: BrowserLauncher? = null,
     /** The scripted start URL handed to the loop's cold-start derivation. */
     val startUrl: String? = null,
+    /** Phase-08G plan-proposal seam (vision 04 §1); defaults to NO plan. */
+    val planSource: PlanSource = PlanSource.None,
 ) {
     val clock = FakeClock()
     val sink = CollectingLogSink()
@@ -199,6 +201,7 @@ class LoopFixture(
         config = config,
         browserProbe = browserProbe,
         browserLauncher = browserLauncher,
+        planSource = planSource,
     )
 }
 

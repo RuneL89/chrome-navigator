@@ -12,7 +12,8 @@ import navigator.core.log.TriageClass
  * - [GuardLevel.NONE] — the class predicate does not hold; no exit path can accept.
  * - [GuardLevel.WEAK] — the per-triage-class contentful predicates: lookup/research
  *   (a non-empty content region read after results loaded), form-fill (submission
- *   observed), action (post-action state observed), action-multi (tracker drained).
+ *   observed), action (post-action state observed, [ActionCompletionGuard]),
+ *   action-multi (tracker drained, [ActionMultiCompletionGuard]).
  * - [GuardLevel.STRONG] — deterministic target verification: the triage-extracted
  *   [TargetEntity] is matched in the page **title or URL** (exact/fuzzy code match,
  *   no model) — page identity, not a content mention: a mention is not arrival, and a
@@ -30,25 +31,36 @@ class CompletionGuards(
     /** The triage-extracted target entity (null when extraction found none — STRONG
      *  can never fire; WEAK is the ceiling). Extracted once at triage, code-only. */
     private val entity: TargetEntity? = null,
+    /** The task working memory for action-multi (vision 04 §1, Phase 08G). REQUIRED
+     *  for the ACTION_MULTI class — the Phase-8D vacuous pending=0 interim is replaced:
+     *  the WEAK predicate is the REAL tracker's drained state and can fail. */
+    private val tracker: TargetTracker? = null,
 ) {
 
     private val kind: TriageClass = triageClass
+
+    init {
+        require(triageClass != TriageClass.ACTION_MULTI || tracker != null) {
+            "action-multi completion guards require the real TargetTracker (vision 04 §1) — " +
+                "the vacuous pending=0 interim is gone; a finish attempt with pending targets " +
+                "must be refusable"
+        }
+        require(tracker == null || triageClass == TriageClass.ACTION_MULTI) {
+            "a TargetTracker is only meaningful for action-multi guards, was $triageClass"
+        }
+    }
 
     /** url -> highest content-text-node count observed there, in first-seen order. */
     private val pages = LinkedHashMap<String, Int>()
     private var firstUrl: String? = null
     private var fieldFilled = false
     private var submittedAfterFill = false
-    private var actionExecutedSeen = false
 
-    /**
-     * Targets still pending in the action-multi tracker (the WEAK predicate, vision 04
-     * §3: "tracker drained"). The working-memory tracker itself is Phase 8G; until it
-     * ships the tracked set is empty from the start, so pending is 0 and the predicate
-     * holds vacuously — every exit is still gated by the STRONG identity match or the
-     * engine-anchored noul paths.
-     */
-    private var targetsPending: Int = 0
+    /** The `action` class's predicate (Phase 08G named guard; vision 04 §3). */
+    private val actionGuard = ActionCompletionGuard()
+
+    /** The `action-multi` class's predicate over the REAL tracker (Phase 08G). */
+    private val multiGuard: ActionMultiCompletionGuard? = tracker?.let { ActionMultiCompletionGuard(it) }
 
     /**
      * Seeds the task's start page URL. Call once per OBSERVE (before EXECUTE) — the
@@ -80,7 +92,7 @@ class CompletionGuards(
         pages[url] = maxOf(pages[url] ?: 0, contentTextNodes)
         if (textTyped) fieldFilled = true
         if (submitExecuted && fieldFilled) submittedAfterFill = true
-        if (actionExecuted) actionExecutedSeen = true
+        if (actionExecuted) actionGuard.recordActionExecuted()
     }
 
     /** Whether the task's class-specific completion preconditions hold (the WEAK level). */
@@ -88,8 +100,18 @@ class CompletionGuards(
         TriageClass.LOOKUP -> readContentfulPages().any { it != firstUrl }
         TriageClass.RESEARCH_MULTI_STEP -> readContentfulPages().size >= 2
         TriageClass.FORM_FILL -> fieldFilled && submittedAfterFill
-        TriageClass.ACTION -> actionExecutedSeen
-        TriageClass.ACTION_MULTI -> targetsPending == 0
+        TriageClass.ACTION -> actionGuard.satisfied
+        TriageClass.ACTION_MULTI -> multiGuard!!.satisfied
+    }
+
+    /**
+     * The class-specific detail for a refused finish (the refusal must say WHY the
+     * guard is NONE — vision 04 §3's evidence law). Null when the predicate holds or
+     * the class has no tracker-backed count to name.
+     */
+    fun refusalDetail(): String? = when (kind) {
+        TriageClass.ACTION_MULTI -> multiGuard?.takeIf { !it.satisfied }?.refusalDetail()
+        else -> null
     }
 
     /**
@@ -117,10 +139,8 @@ class CompletionGuards(
             "research: distinct contentful pages=${readContentfulPages().size} (needs 2)"
         TriageClass.FORM_FILL ->
             "form-fill: fieldFilled=$fieldFilled submittedAfterFill=$submittedAfterFill"
-        TriageClass.ACTION ->
-            "action: post-action state observed=$actionExecutedSeen (needs one executed action)"
-        TriageClass.ACTION_MULTI ->
-            "action-multi: targets pending=$targetsPending (drained=${targetsPending == 0})"
+        TriageClass.ACTION -> actionGuard.describe()
+        TriageClass.ACTION_MULTI -> "action-multi: ${multiGuard!!.describe()}"
     } + entity.let { e -> if (e == null) "" else "; entity=\"${e.text}\"" }
 
     private fun readContentfulPages(): List<String> =
@@ -130,6 +150,47 @@ class CompletionGuards(
         /** A "non-empty content region": >= 3 non-interactive, non-blank text nodes. */
         const val CONTENT_MIN_TEXT_NODES = 3
     }
+}
+
+/**
+ * The `action` class's WEAK predicate (vision 04 §3, Phase 08G named guard): a
+ * post-action state observed — exactly one successful action executed, recorded after
+ * its post-step observation (code evidence, never the engine's self-report, ART-4).
+ */
+class ActionCompletionGuard {
+
+    /** True once a step recorded an executed action (the post-action observation). */
+    var satisfied: Boolean = false
+        private set
+
+    /** Called by [CompletionGuards.record] when an action executed successfully. */
+    fun recordActionExecuted() {
+        satisfied = true
+    }
+
+    fun describe(): String =
+        "action: post-action state observed=$satisfied (needs one executed action)"
+}
+
+/**
+ * The `action-multi` class's WEAK predicate (vision 04 §3, Phase 08G named guard): the
+ * tracker DRAINED — none pending. Skipped rows count as resolved (the owner's gate
+ * refusal is authoritative for that row); processed rows are the operation applied.
+ * Finish is IMPOSSIBLE while targets are pending, and the refusal names the count.
+ */
+class ActionMultiCompletionGuard(private val tracker: TargetTracker) {
+
+    /** None pending — processed and skipped rows are both resolved. */
+    val satisfied: Boolean get() = tracker.drained()
+
+    /** Targets still pending (the refusal's count). */
+    fun pendingCount(): Int = tracker.pendingCount()
+
+    /** Why a finish is refused right now: the pending count, named. */
+    fun refusalDetail(): String =
+        "${tracker.pendingCount()} target(s) still pending (drained=false)"
+
+    fun describe(): String = tracker.summaryLine()
 }
 
 /** Guard evidence levels (vision 04 §3 v1.2.0); NONE never reaches the log (an exit

@@ -92,6 +92,16 @@ data class RunReport(
      * ended GOAL_ACHIEVED — never ambiguous with "no exit provenance" on other terminals.
      */
     val exit: ExitReport? = null,
+    /**
+     * Phase 08G (vision 04 §1): the action-multi tracker's final counters. Null for
+     * every non-action-multi run.
+     */
+    val targets: TargetTrackerReport? = null,
+    /**
+     * Phase 08G plan-proposal provenance (vision 04 §1, vision 05 §2 `plan`): context,
+     * never executor (ART-2). Null on the deterministic default path.
+     */
+    val plan: PlanReport? = null,
 )
 
 /**
@@ -105,6 +115,33 @@ data class EscalationStats(
     val escalations: Long,
     /** escalations / decisions over this run (0.0 over zero decisions). */
     val rate: Double,
+)
+
+/**
+ * Phase 08G (vision 04 §1): the action-multi target tracker's final counters — the
+ * working memory the completion guard drains and the L1 stuck hint quotes. Present only
+ * on action-multi runs; the report Json omits the key elsewhere (defaults omitted).
+ */
+@Serializable
+data class TargetTrackerReport(
+    val tracked: Int,
+    val processed: Int,
+    val pending: Int,
+    val skipped: Int,
+    /** The WEAK guard predicate: none pending (skipped rows count as resolved). */
+    val drained: Boolean,
+)
+
+/**
+ * Phase 08G (vision 04 §1 plan-proposal law, vision 05 §2 `plan`): the triage-time plan
+ * provenance — which prompt surface drafted the subgoal plan and the subgoals. The plan
+ * is context, never executor (ART-2). Null on the deterministic default path (no plan
+ * until the Phase-10 writer); omitted from the JSON there.
+ */
+@Serializable
+data class PlanReport(
+    val version: String,
+    val subgoals: List<String>,
 )
 
 /**

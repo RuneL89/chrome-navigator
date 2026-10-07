@@ -378,6 +378,26 @@ data class ExitProvenance(
 }
 
 /**
+ * Plan-proposal provenance on a decision row (vision 05 §2 `plan`, vision 04 §1
+ * plan-proposal law): which versioned prompt surface drafted the task's subgoal plan,
+ * and the subgoals themselves. The plan is CONTEXT, NEVER EXECUTOR (ART-2) — it may
+ * inform like the L3 rescue-coach precedent, and every step's action is still the
+ * primary engine's choice. Additive Phase-08G amendment: earlier rows decode unchanged
+ * with `plan = null`.
+ */
+@Serializable
+data class LoggedPlan(
+    val version: String,
+    val subgoals: List<String>,
+) {
+    init {
+        require(version.isNotBlank()) { "LoggedPlan.version must not be blank" }
+        require(subgoals.isNotEmpty()) { "LoggedPlan: a plan without subgoals is incoherent" }
+        require(subgoals.all { it.isNotBlank() }) { "LoggedPlan: subgoals must not be blank" }
+    }
+}
+
+/**
  * One DecisionLog row (vision 05 §2 — the full schema, one row per decision).
  *
  * Cross-field consistency fails loudly in [init]: the teacher answer must live on the
@@ -426,6 +446,13 @@ data class DecisionLogRow(
      * earlier rows decode unchanged with typedSecret=false.
      */
     val typedSecret: Boolean = false,
+    /**
+     * Plan-proposal provenance (vision 05 §2 `plan`, vision 04 §1): null unless a
+     * PlanSource drafted a subgoal plan for this task at triage — context, never
+     * executor (ART-2). Additive Phase-08G amendment: earlier rows decode unchanged
+     * with plan=null.
+     */
+    val plan: LoggedPlan? = null,
 ) {
     init {
         require(rowId.isNotBlank()) { "DecisionLogRow.rowId must not be blank" }

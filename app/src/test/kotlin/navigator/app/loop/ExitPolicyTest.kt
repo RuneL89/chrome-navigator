@@ -50,6 +50,23 @@ class ExitPolicyTest {
         assertEquals(GuardLevel.NONE, decision.guardLevel)
     }
 
+    @Test
+    fun `a NONE guard refusal carries the guard's detail - the pending count, named (Phase 08G)`() {
+        val policy = ExitPolicy()
+        val decision = policy.onFinishCheck(
+            GuardLevel.NONE,
+            0.99,
+            guardDetail = "2 target(s) still pending (drained=false)",
+        )
+        assertIs<ExitDecision.Refuse>(decision)
+        assertEquals(
+            "the completion guard failed (NONE): 2 target(s) still pending (drained=false)",
+            decision.reason,
+        )
+        // the detail never changes the verdict: NONE refuses regardless
+        assertEquals(GuardLevel.NONE, decision.guardLevel)
+    }
+
     // -- Path B (sustained): STRONG + >= 0.55 over K=3 CONSECUTIVE checks -------------
 
     @Test

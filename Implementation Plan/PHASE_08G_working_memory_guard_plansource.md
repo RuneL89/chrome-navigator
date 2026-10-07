@@ -2,7 +2,7 @@
 
 **Document ID:** `NAVIGATOR-IMPL-PHASE-08G`
 **Version:** 1.0.0
-**Status:** Draft
+**Status:** ACCEPTED (2026-10-07) — gates 8G.1–8G.3 verified (verifier cold re-run: 587 tests green); UAT verifier-mechanical per the phase doc
 **Date:** 2026-10-06
 **Dependencies:** Phase 08D (action triage classes); vision 04 v1.1.0
 **Estimated Time:** 3-4h

@@ -46,6 +46,7 @@ import navigator.core.log.LoggedExitPath
 import navigator.core.log.LoggedGateDecision
 import navigator.core.log.LoggedGateEvent
 import navigator.core.log.LoggedGuardLevel
+import navigator.core.log.LoggedPlan
 import navigator.core.log.Outcome
 import navigator.core.log.TeacherAnswer
 import navigator.core.log.TriageClass
@@ -100,6 +101,14 @@ class NavigationLoop(
      */
     private val browserProbe: BrowserProbe? = null,
     private val browserLauncher: BrowserLauncher? = null,
+    /**
+     * The plan-proposal seam (Phase 08G, vision 04 §1): consulted ONCE at triage. The
+     * default ([PlanSource.None]) supplies NO plan — until the Phase-10 writer ships
+     * the default path is byte-identical to the pre-08G loop (no state text, no step
+     * log line, every row carries plan=null). A proposed plan is provenance only
+     * (ART-2: context, never executor) — it rides the log rows and the run report.
+     */
+    private val planSource: PlanSource = PlanSource.None,
 ) {
 
     /**
@@ -194,6 +203,12 @@ class NavigationLoop(
         var budgetProfile: BudgetProfile? = null
         var guards: CompletionGuards? = null
         var entity: TargetEntity? = null
+        // Task working memory for action-multi (vision 04 §1, Phase 08G): created at
+        // triage, fed once per OBSERVE, resolved after EXECUTE; the guard reads it.
+        var tracker: TargetTracker? = null
+        // The triage-time plan proposal (Phase 08G): provenance only, ART-2. Null on
+        // the default path (byte-identical to the pre-08G loop).
+        var plan: ProposedPlan? = null
         var exitSummary: ExitSummary? = null
         /** The completion card's resolution when it was shown (once per task). */
         var completionCardResolution: String? = null
@@ -242,6 +257,8 @@ class NavigationLoop(
                 stepLog = stepLog.map(::scrub),
                 partialResult = scrub(partialResult()),
                 exit = exitSummary,
+                targets = tracker?.summary(),
+                plan = plan,
             )
         }
 
@@ -324,6 +341,9 @@ class NavigationLoop(
                 fallback = fallbackInfo,
                 exit = exit,
                 typedSecret = typedSecret,
+                // Plan-proposal provenance (Phase 08G, vision 05 §2 `plan`): the task's
+                // triage-time plan rides every row — null on the default path.
+                plan = plan?.let { LoggedPlan(it.version, it.subgoals) },
             )
             logSink.write(row)
             rows += 1
@@ -344,6 +364,15 @@ class NavigationLoop(
                         val conflictHint = StuckDetector.exitConflictHint(evidence)
                         line("stuck: $conflictHint")
                         hints.add(conflictHint)
+                    }
+                    // Vision 04 §4 (Phase 08G): for action-multi tasks the tracker's
+                    // progress lines ride the L1 hint so the engine re-orients to the
+                    // PENDING targets (the HISTORY digest is never the memory of record).
+                    val multiTracker = tracker
+                    if (triageClass == TriageClass.ACTION_MULTI && multiTracker != null) {
+                        val progress = multiTracker.progressLines()
+                        progress.forEach { hints.add(it) }
+                        line("stuck: ${progress.first()}")
                     }
                 }
                 2 -> {
@@ -384,9 +413,25 @@ class NavigationLoop(
                 // Triage-time target-entity extraction (vision 04 §3 v1.2.0): pure code,
                 // once per task; anchors the STRONG guard and the noul proposition.
                 entity = TargetEntity.extract(goal)
-                guards = CompletionGuards(triage.triageClass, entity)
+                // Task working memory (Phase 08G, vision 04 §1): action-multi tasks get
+                // the code-owned target tracker — the guard's WEAK predicate is its
+                // drained state, and the L1 stuck hint carries its progress lines.
+                val taskTracker = if (triage.triageClass == TriageClass.ACTION_MULTI) TargetTracker() else null
+                tracker = taskTracker
+                guards = CompletionGuards(triage.triageClass, entity, taskTracker)
                 line("triage: $triageLabel")
                 entity?.let { line("triage: target entity \"${it.text}\" (code-extracted)") }
+                // Plan proposal (Phase 08G, vision 04 §1): consulted ONCE at triage;
+                // context, never executor (ART-2). The default source returns null and
+                // this block stays silent — byte-identical to the pre-08G loop. (The
+                // PLAN section's state-text rendering is Phase 08H; provenance logs now.)
+                plan = planSource.propose(goal, triage.triageClass)
+                plan?.let {
+                    line(
+                        "plan: proposed v${it.version} with ${it.subgoals.size} subgoal(s) - " +
+                            "provenance only, ART-2 (state rendering is Phase 08H)",
+                    )
+                }
                 line("guard state: ${guards.describe()}")
             }
         }
@@ -451,6 +496,10 @@ class NavigationLoop(
 
             // -- 2. ENUMERATE (deterministic buckets, doc 03 §3) -------------------------
             guards!!.seed(obs.url)
+            // Task working memory (Phase 08G, vision 04 §1): the action-multi tracker
+            // re-reads the page each step — re-identifies rows across scrolls and
+            // navigation, registers newly discovered targets.
+            tracker?.observe(obs)
             var candidates = CandidateEnumerator.enumerate(obs.nodes)
             // Anti-oscillation (vision 04 §3 v1.2.0): a refused finish withholds the
             // `finish` pseudo-action from the next M decisions unless the hash changed.
@@ -606,7 +655,9 @@ class NavigationLoop(
                         "guard state: ${guards.describe()}, " +
                         "proposition=v${AnchoredNoul.ANCHORED_NOUL_VERSION}",
                 )
-                val verdict: ExitDecision = when (val first = exitPolicy.onFinishCheck(guardLevel, noul.pTrue)) {
+                val verdict: ExitDecision = when (
+                    val first = exitPolicy.onFinishCheck(guardLevel, noul.pTrue, guards!!.refusalDetail())
+                ) {
                     is ExitDecision.AskOwner -> {
                         line(
                             "exit: ${first.refusedChecks} consecutive guard-pass refusals - " +
@@ -1029,6 +1080,20 @@ class NavigationLoop(
                 submitExecuted = proceed && execOk && kind == ActionKind.SUBMIT,
                 actionExecuted = proceed && execOk,
             )
+            // Task working memory (Phase 08G, vision 04 §1): resolve the acted-on row —
+            // an executed action marks the target PROCESSED; a gate refusal marks it
+            // SKIPPED (the owner's denial is authoritative for that row); a FAILED
+            // dispatch changes nothing (the row stays pending, retryable). A synthetic
+            // or non-row candidate resolves to nothing.
+            if (tracker != null) {
+                obs.nodes.firstOrNull { it.id == candidate.id }?.let { node ->
+                    when {
+                        !proceed -> tracker.markSkipped(node)
+                        execOk -> tracker.markProcessed(node)
+                        else -> null
+                    }
+                }
+            }
             stuck.record(
                 StuckDetector.Footprint(
                     actionKey = "${kind.name}:${candidate.id}",
@@ -1378,4 +1443,14 @@ data class RunResult(
     val partialResult: String,
     /** Exit provenance (vision 04 §3 v1.2.0): null unless the terminal is GOAL_ACHIEVED. */
     val exit: ExitSummary? = null,
+    /**
+     * The action-multi tracker's final counters (Phase 08G, vision 04 §1): the run
+     * report's `targets` block on action-multi runs; null for every other class.
+     */
+    val targets: TargetTracker.Summary? = null,
+    /**
+     * The triage-time plan proposal (Phase 08G, vision 04 §1): provenance only (ART-2);
+     * null on the deterministic default path (no plan until the Phase-10 writer).
+     */
+    val plan: ProposedPlan? = null,
 )

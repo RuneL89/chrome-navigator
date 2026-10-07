@@ -76,7 +76,14 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     guard-abort / user-cancel + the documented REFUSED and TRIAGE_IMPOSSIBLE;
     the task budget resolves to the triage class's `BudgetProfile` after triage —
     explicit `BudgetLimits` overrides (tests) win; `RunResult` carries the triage
-    class + profile name),
+    class + profile name). Phase 8G: the loop consults the injected `PlanSource` once
+    at triage (rows + run report carry the plan provenance; the default is silent and
+    byte-identical), builds the `TargetTracker` for action-multi tasks (fed once per
+    OBSERVE, resolved after EXECUTE), injects the tracker's progress lines into the L1
+    stuck hint (vision 04 §4 — the only state-adjacent text this phase; the state
+    builder and STATE_FORMAT_VERSION are untouched, 08H owns the PLAN/TASK-PROGRESS
+    sections), passes the guard's `refusalDetail()` into the exit check, and
+    `RunResult` carries `targets` (tracker summary) + `plan` (provenance)),
     `Triage` (one choose over `{lookup, research-multi-step, form-fill, action,
     action-multi, impossible}`; Phase 8D added the two action classes per vision 04
     §1 — `action` = one consequential operation on the user's accounts/content/data,
@@ -99,7 +106,30 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     mention is not arrival"; the Test-2′ Apple-pie mention page is a permanent
     MUST-NOT-EXIT decoy fixture); `levelAt` returns NONE (class predicate fails; every
     exit path closed) / WEAK (predicate holds) / STRONG (predicate holds AND the
-    identity match holds)),
+    identity match holds)). Phase 8G (vision 04 §1/§3): the named per-class guards it
+    delegates to — `ActionCompletionGuard` (single action: post-action state observed)
+    and `ActionMultiCompletionGuard` (the REAL `TargetTracker` drained — none pending;
+    skipped counts as resolved); an ACTION_MULTI guard REQUIRES the tracker (the
+    Phase-8D vacuous pending=0 interim is unrepresentable), and its `refusalDetail()`
+    names the pending count for the finish refusal),
+    `TargetTracker` (Phase 8G, vision 04 §1 — the task working memory for action-multi:
+    own file; enumerates target rows (clickable non-editable text nodes, read order,
+    cap 100) from each observation, tracks PENDING/PROCESSED/SKIPPED, and SURVIVES
+    scrolls + navigation by deterministic re-identification keys (label + span-relative
+    position band + nearest-preceding-text container cue; exact-key match first, then
+    the documented collision fallback: same label, nearest band, first-seen tiebreak —
+    duplicates stay distinct one-to-one; rows absent from a page KEEP their state — the
+    tracker, not the screen, is the memory of record). The loop marks an acted row
+    PROCESSED (executed) or SKIPPED (gate refusal — the owner's denial is authoritative;
+    a failed dispatch stays pending); `drained()` = none PENDING is the guard's WEAK
+    predicate, `progressLines()` ride the L1 stuck hint (vision 04 §4), `summary()`
+    rides the run report),
+    `PlanSource` (Phase 8G, vision 04 §1 plan-proposal law: the loop consults it ONCE
+    at triage; `ProposedPlan {version, subgoals}` rides every decision row
+    (`plan`, vision 05 §2) and the run report as provenance — CONTEXT, NEVER EXECUTOR
+    (ART-2); the deterministic default `PlanSource.None` returns null and that path is
+    byte-identical to the pre-08G loop; the PLAN state-text section is Phase 08H, the
+    writer LLM Phase 10),
     `ExitPolicy` (Phase 8J, vision 04 §3 v1.2.0 — the exit law as pure code: Path A
     HIGH anchored noul > 0.70 (Bands semantics, exclusive) with any guard level; Path
     B SUSTAINED = STRONG + noul >= 0.55 over K=3 CONSECUTIVE checks (the streak RESETS
@@ -107,7 +137,10 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     completion card after K guard-pass refusals (once per task); anti-oscillation:
     a refused finish excludes `finish` from the next M=2 decisions via
     `CandidateList.withoutFinish()`, cleared on any page-hash change; thresholds are
-    code config (ART-5) gated by the exit-calibration family),
+    code config (ART-5) gated by the exit-calibration family). Phase 8G: an additive
+    `guardDetail` parameter appends the guard's own why-it-failed detail (the
+    action-multi pending count) to the NONE refusal's reason — it never changes a
+    verdict; null keeps the pre-08G reason bytes),
     `AnchoredNoul` (Phase 8J: the finish question's proposition is code-constructed per
     triage class, anchored to the extracted entity; Round 2 = v2
     (`ANCHORED_NOUL_VERSION=2`): every proposition carries a code-derived PAGE IDENTITY
@@ -193,7 +226,10 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     carries the full `shadowReport` object — zeroed with a `note` on degraded paths;
     Phase 8D: every report carries `triageClass` + `budgetProfile` (additive,
     defaulted — null only when triage never resolved);
-    `RunReportStore` does the file export),
+    `RunReportStore` does the file export; Phase 8G additive blocks — `targets`
+    (`TargetTrackerReport`: tracked/processed/pending/skipped/drained, action-multi
+    runs only) and `plan` (`PlanReport`: version + subgoals provenance); both null
+    (and JSON-omitted) elsewhere),
     `HarnessPagesServer` (loopback-only static server over
     `assets/harness/pages/` — Phase 8F added the clearly-dummy `login.html`
     credential fixture form (test-only, no real endpoint) for scripted credential
@@ -255,7 +291,9 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
   + indices only — both existing tables untouched); Phase 8F (doc 05 §2, doc 06 §2a)
   added `DecisionLogDb` v6 with `MIGRATION_5_6` (ALTER ADD COLUMN `typedSecret`
   NOT NULL DEFAULT 0 — the FLAG only: the credential value itself is never stored
-  anywhere; pre-v6 rows decode typedSecret=false); law:
+  anywhere; pre-v6 rows decode typedSecret=false); Phase 8G (doc 05 §2 `plan`) added
+  `DecisionLogDb` v7 with `MIGRATION_6_7` (ALTER ADD COLUMN `planJson` nullable — the
+  plan-provenance JSON; pre-v7 rows decode plan=null); law:
   `Project Vision/05` §2, §5
 * `build.gradle.kts` — Android build config (minSdk 34, compile/targetSdk 36, Compose;
   Room compiler wired via KSP; kotlinx-serialization + coroutines plugins/deps)
@@ -409,7 +447,27 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
   `DecisionLogV4DbTest` Room v4 exit round-trips + the v3→v4 migration;
   `DecisionLogV5DbTest` Room v5 exit-check round-trips + duplicate-key ABORT + the
   v3→v4→v5 migration chain — its chain, like every migration-chain test's, now runs
-  through `MIGRATION_5_6` (Phase 8F)) —
+  through `MIGRATION_6_7` (Phase 8G)) —
+  the Phase-8G working-memory gates (`TargetTrackerTest` Gate 8G.1: the tracker state
+  machine — enumeration scope/cap/normalization, the documented key derivation
+  (label + band + container), processing/skip idempotence, scroll survival via the
+  collision fallback, navigation away-and-back, one-to-one duplicates, newly revealed
+  rows, drained semantics, progress-line overflow counting, and the loud death of the
+  vacuous interim (an ACTION_MULTI guard without a tracker fails to construct);
+  `CompletionGuardsTest` Gate 8G.2 (unit): the re-pinned REAL action-multi WEAK —
+  NONE while pending with the refusal naming the count, drained-only achievement,
+  skipped-is-resolved, STRONG superset — plus the single-action post-action law;
+  `ActionMultiLoopTest` Gate 8G.2 (loop): finish refused in the REAL loop naming the
+  pending count, drained → GOAL_ACHIEVED (refused check then HIGH-path accept,
+  guard STRONG), the gate-denied target counted SKIPPED and still draining, the
+  action class's
+  refusal carrying NO tracker detail, `RunResult.targets` populated (and null for
+  non-multi); `PlanSourceLoopTest` + `ExitPolicyTest` Gate 8G.3: default null plan —
+  byte-identical (explicit `PlanSource.None` produces identical step logs/state
+  texts), a proposed plan riding every row + the once-at-triage consultation + the
+  triage provenance line, the guardDetail suffix on the NONE refusal (verdict
+  unchanged); `DecisionLogV7DbTest` Room v7 (plan round-trip, plain rows decode
+  plan=null, the hand-built v6 database survives `MIGRATION_6_7`) —
   plain JVM, Robolectric-free; the laya gates need the 421M model artifact
   (verifyLayaModel fails the build loudly when it is missing); the v32b parity gate
   (`LayaEngineV32bReferenceParityTest`) is EVAL-ONLY since the 2026-10-06 demotion — it
