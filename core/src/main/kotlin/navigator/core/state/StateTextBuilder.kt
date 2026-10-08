@@ -40,16 +40,17 @@ import navigator.core.laya.Tokenizer
  * - Never-exceed: if even an empty content block cannot fit the budget the builder fails
  *   loudly — an oversized state text is never emitted.
  * - Secrets never appear in any section (vision 03 §4, doc 06 §2a redaction law): the
- *   caller passes the credentials supplied so far this task in [build]'s `secrets`.
- *   The law splits by block (the 2026-10-07 post-injection deadlock fix): in the
- *   UNTRUSTED PAGE CONTENT block — where a successfully injected secret may
- *   legitimately appear as page content (live Chrome carries the typed value in the
- *   field's a11y text, so every post-injection observation reads it back) — every
- *   occurrence is REPLACED with [CREDENTIAL_REDACTED] (doc 05 §2's render): the secret
- *   never appears, which IS the law, and the run survives its post-injection state
- *   builds. In the app-authored sections (GOAL/URL/TITLE/PLAN/TASK PROGRESS/HISTORY)
- *   a secret is still a LOUD error — an upstream leak (e.g. the secret rode into
- *   HISTORY) is a real bug and must fail, never be masked silently.
+ *   caller passes the credentials supplied so far this task in [build]'s `secrets`,
+ *   and every occurrence in EVERY section — app-authored (GOAL/URL/TITLE/PLAN/TASK
+ *   PROGRESS/HISTORY) and the UNTRUSTED PAGE CONTENT block alike — is REPLACED with
+ *   [CREDENTIAL_REDACTED] (doc 05 §2's render). Masking is the only lawful response:
+ *   the builder knows only SANCTIONED (card-typed) secrets, so a loud app-authored
+ *   check could never catch a genuine leak (an unsanctioned secret is unknown to it
+ *   by construction) — it could only ever fire on a collision (a card value that is
+ *   a substring of the URL/goal/title; live-proven 2026-10-08: the typed value inside
+ *   the login page's own URL deadlocked nine card approvals) and kill the run. The
+ *   masked render keeps section semantics: the URL line still shows the address, the
+ *   colliding substring redacted.
  *
  * The ≤960-token count is measured with the real laya tokenizer port (vision 05 §6),
  * not an approximation.
@@ -92,10 +93,9 @@ class StateTextBuilder(private val tokenizer: Tokenizer = Tokenizer.loadDefault(
      *   omits the section
      * @param secrets the credential values supplied via gate cards so far this task
      *   (doc 06 §2a; empty for every non-credential task — the default keeps every
-     *   non-credential call site unchanged). A secret in the untrusted page block
-     *   (candidate labels, content excerpt) is MASKED to [CREDENTIAL_REDACTED] — the
-     *   lawful post-injection render; a secret in an app-authored section fails LOUDLY
-     *   (an upstream leak), never a silent truncation.
+     *   non-credential call site unchanged). Every occurrence in any section — the
+     *   app-authored lines and the untrusted page block alike — is MASKED to
+     *   [CREDENTIAL_REDACTED] (doc 05 §2's render; the collision-deadlock fix).
      */
     fun build(
         goal: String,
@@ -109,37 +109,27 @@ class StateTextBuilder(private val tokenizer: Tokenizer = Tokenizer.loadDefault(
         secrets: List<String> = emptyList(),
     ): StateText {
         val redactions = secrets.filter { it.isNotEmpty() }
-        val appLines = buildList {
-            add("GOAL: " + flatten(goal))
-            add("URL: " + flatten(url))
-            add("TITLE: " + flatten(title))
-            plan?.take(MAX_PLAN_LINES)?.forEach { subgoal -> add("PLAN: " + flatten(subgoal)) }
-            progress?.take(MAX_PROGRESS_LINES)?.forEach { line -> add("TASK PROGRESS: " + flatten(line)) }
-            val digest = history.takeLast(MAX_HISTORY_LINES).map(::flatten)
-            addAll(digest.map { "HISTORY: $it" })
-            if (digest.isEmpty()) add("HISTORY: (none)")
-        }
-        // App-authored sections are the loop's own text (GOAL/URL/TITLE/PLAN/TASK
-        // PROGRESS/HISTORY): a sanctioned secret here rode upstream into app state — a
-        // real leak — so it fails LOUDLY; only the untrusted block below masks (the
-        // 2026-10-07 post-injection deadlock fix). The offending line itself is never
-        // echoed into the error (it carries the secret); the section prefix is constant.
-        for (secret in redactions) {
-            val offender = appLines.firstOrNull { it.contains(secret) }
-            if (offender != null) {
-                throw IllegalStateException(
-                    "state text app-authored section (${offender.substringBefore(':')}) would " +
-                        "carry a credential-secret value (vision 03 §4 / doc 06 §2a redaction " +
-                        "law) — an upstream leak, never a page-side echo; refusing to emit, " +
-                        "and this is a loud error, never a silent truncation or a mask",
-                )
-            }
-        }
-        // Untrusted-block redaction (doc 05 §2's render): every occurrence of a
-        // sanctioned secret in page content becomes [credential-redacted]. Applied at
-        // line level so compression counts the emitted (masked) text.
+        // Sanctioned-secret redaction (doc 05 §2's render): every occurrence of a known
+        // secret masks to [credential-redacted], in the app-authored sections below AND
+        // the untrusted block. Masking is the only lawful response here: the builder
+        // knows only SANCTIONED (card-typed) secrets, so a loud app-authored check could
+        // never catch a genuine leak (an unsanctioned secret is unknown to it by
+        // construction) — it could only ever fire on a collision (a card value that is a
+        // substring of the URL/goal/title, live-proven 2026-10-08: the typed value
+        // inside the login page's own URL) and deadlock the run. Applied at line level
+        // so compression counts the emitted (masked) text.
         fun mask(line: String): String =
             redactions.fold(line) { acc, secret -> acc.replace(secret, CREDENTIAL_REDACTED) }
+        val appLines = buildList {
+            add("GOAL: " + mask(flatten(goal)))
+            add("URL: " + mask(flatten(url)))
+            add("TITLE: " + mask(flatten(title)))
+            plan?.take(MAX_PLAN_LINES)?.forEach { subgoal -> add("PLAN: " + mask(flatten(subgoal))) }
+            progress?.take(MAX_PROGRESS_LINES)?.forEach { line -> add("TASK PROGRESS: " + mask(flatten(line))) }
+            val digest = history.takeLast(MAX_HISTORY_LINES).map(::flatten)
+            addAll(digest.map { "HISTORY: " + mask(it) })
+            if (digest.isEmpty()) add("HISTORY: (none)")
+        }
         val excerptLines = excerpt.map(::flatten).filter { it.isNotEmpty() }.map(::mask)
 
         val ranked = candidates.bucketed.values.flatten().sortedWith(Candidate.RANKING)
@@ -169,11 +159,12 @@ class StateTextBuilder(private val tokenizer: Tokenizer = Tokenizer.loadDefault(
             }
             text = render(appLines, shownExcerpt, groupByBucket(kept), ::mask)
         }
-        // Emission-boundary invariant (doc 06 §2a via vision 03 §4): after the
-        // app-authored loud check and the untrusted-block masking no sanctioned secret
-        // can remain — if one does, either the masking invariant broke or the secret
-        // equals a structural constant (e.g. the untrusted marker itself), which cannot
-        // be masked without corrupting the format. Either way: LOUD, never emitted.
+        // Emission-boundary invariant (doc 06 §2a via vision 03 §4): after the section
+        // and untrusted-block masking no sanctioned secret can remain — if one does,
+        // either the masking invariant broke or the secret equals a structural constant
+        // rendered outside every masked line (e.g. the untrusted marker itself, or a
+        // bucket header), which cannot be masked without corrupting the format. Either
+        // way: LOUD, never emitted.
         for (secret in redactions) {
             check(!text.contains(secret)) {
                 "state text still carries a credential-secret value after redaction " +
@@ -192,11 +183,12 @@ class StateTextBuilder(private val tokenizer: Tokenizer = Tokenizer.loadDefault(
     }
 
     /**
-     * The exact v2 template: app-authored header lines, the untrusted-block marker, the
-     * content-excerpt lines, then bucket headers (taxonomy order, vision 03 §3) with
-     * serialized candidate lines (serializer line discipline, vision 03 §2). Candidate
-     * lines ride the caller's [mask] — the excerpt is masked upstream, the candidates
-     * here, so every untrusted line is covered (ids and coords included).
+     * The exact v2 template: the (pre-masked) app-authored header lines, the
+     * untrusted-block marker, the content-excerpt lines, then bucket headers (taxonomy
+     * order, vision 03 §3) with serialized candidate lines (serializer line discipline,
+     * vision 03 §2). Candidate lines ride the caller's [mask] — the excerpt and the app
+     * lines are masked upstream, the candidates here, so every line is covered (ids and
+     * coords included).
      */
     private fun render(
         appLines: List<String>,
@@ -249,8 +241,8 @@ class StateTextBuilder(private val tokenizer: Tokenizer = Tokenizer.loadDefault(
 
         /**
          * The sanctioned-secret render (doc 05 §2): a known credential value found in
-         * the untrusted page block is replaced with this marker — the secret never
-         * appears in any section (vision 03 §4 / doc 06 §2a).
+         * any section is replaced with this marker — the secret never appears anywhere
+         * (vision 03 §4 / doc 06 §2a).
          */
         const val CREDENTIAL_REDACTED = "[credential-redacted]"
 

@@ -34,8 +34,8 @@ import kotlin.test.assertTrue
  *    `[credential-redacted]` and `typedSecret=true` appear exactly where the law says;
  *    the sanctioned-secret state-text render is proven end-to-end (a page-side echo of
  *    the typed value is MASKED `[credential-redacted]` and the run survives — the
- *    2026-10-07 post-injection deadlock fix; an app-authored-section leak still fails
- *    loudly, pinned in `:core`'s StateTextBuilderTest);
+ *    2026-10-07 post-injection deadlock fix; every state-text section masks the same
+ *    way, pinned in `:core`'s StateTextBuilderTest);
  *  - **8F.3** card flow: approve-with-secret / deny / timeout all resolve through the
  *    TaskGate's legal transitions (double-refusal abort intact); the masked-input card
  *    is presented for every credential-typing action (trust cannot supply a secret);

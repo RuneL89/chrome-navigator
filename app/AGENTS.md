@@ -79,8 +79,10 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     trustedFromTask logging and the double-refusal abort are intact), the approved
     secret is injected DIRECTLY into the target field and kept in memory only
     (`cardSecrets` feeds the state builder's sanctioned-secret redaction — masked
-    `[credential-redacted]` in the untrusted block, LOUD failure if one reaches an
-    app-authored section — plus the SAME redaction on the question payloads' option
+    `[credential-redacted]` in EVERY state-text section (the 2026-10-08 collision fix:
+    the old app-authored LOUD half could only ever fire on a sanctioned value — a
+    URL/goal/title collision — and deadlock the run, never catch a genuine leak) —
+    plus the SAME redaction on the question payloads' option
     labels and the HISTORY digest line (the 2026-10-07 post-injection deadlock fix:
     after a successful injection the page legitimately echoes the secret, so masking —
     not dying — is the lawful render; the PREUAT2-4 residual hardening extends the same

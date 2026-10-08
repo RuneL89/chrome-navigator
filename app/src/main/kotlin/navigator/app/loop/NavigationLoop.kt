@@ -201,10 +201,10 @@ class NavigationLoop(
         val history = mutableListOf<String>()
         val hints = mutableListOf<String>()
         // The credential values this task has received from gate cards (doc 06 §2a).
-        // MEMORY ONLY: they feed the sanctioned-secret MASKING (the state text's
-        // untrusted block, the question payloads, the HISTORY digest, the additive-
-        // consult proposition, the execute step-log line, the report's boundary scrub) —
-        // a value is never sent to any engine raw and never rendered raw into a log,
+        // MEMORY ONLY: they feed the sanctioned-secret MASKING (every state-text
+        // section, the question payloads, the HISTORY digest, the additive-consult
+        // proposition, the execute step-log line, the report's boundary scrub) — a
+        // value is never sent to any engine raw and never rendered raw into a log,
         // row, or report.
         val cardSecrets = mutableListOf<String>()
 
@@ -677,9 +677,10 @@ class NavigationLoop(
                     ?.progressLines()
                     ?.map { it.removePrefix("TASK PROGRESS: ") },
                 // doc 06 §2a via vision 03 §4: a sanctioned secret MASKS to
-                // [credential-redacted] in the untrusted block (a post-injection page
-                // echo is the lawful render) and still fails LOUDLY in an app-authored
-                // section; the keys include serializer-cap prefixes of long secrets.
+                // [credential-redacted] in EVERY state section (a post-injection page
+                // echo is the lawful render — and so is a collision, e.g. the typed
+                // value inside the page URL's own text); the keys include
+                // serializer-cap prefixes of long secrets.
                 secrets = redactionKeys(),
             )
             hints.clear() // the L1 hint rode this step's HISTORY block
@@ -1305,9 +1306,8 @@ class NavigationLoop(
             )
             // The history digest quotes the acted-on label — page text that can carry a
             // sanctioned post-injection echo (the acted-on field's own a11y text IS the
-            // typed secret on live Chrome). It renders [credential-redacted] here (doc 05
-            // §2) so the secret never enters app-authored state; the state builder's
-            // app-authored loud check stays reserved for genuine upstream leaks.
+            // typed secret on live Chrome). It renders [credential-redacted] here
+            // (doc 05 §2); the state builder masks every section the same way.
             history.add(
                 "step $stepIndex: ${kind.name.lowercase()} \"${redactedLabel(candidate.label, redactionKeys())}\" -> " +
                     serial(outcome) +

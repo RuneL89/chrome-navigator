@@ -42,9 +42,10 @@ class StateTextBuilderTest {
 
     private val bucketHeaders = setOf("nav-links:", "form-fields:", "buttons:", "scroll:", "back:", "finish:")
 
-    // ---- sanctioned-secret redaction (vision 03 §4 / doc 06 §2a, Phase 08F; split by
-    // the 2026-10-07 post-injection deadlock fix — masked in the untrusted block, loud
-    // in the app-authored sections) ----
+    // ---- sanctioned-secret redaction (vision 03 §4 / doc 06 §2a, Phase 08F; masked in
+    // EVERY section — the 2026-10-07 post-injection deadlock fix, then the 2026-10-08
+    // collision fix: the app-authored throw knew only SANCTIONED secrets, so it could
+    // only ever deadlock the run on URL/goal/title collisions, never catch a leak) ----
 
     private val fixtureSecret = "fixture-secret-DO-NOT-USE"
 
@@ -99,43 +100,104 @@ class StateTextBuilderTest {
     }
 
     @Test
-    fun `a secret in an app-authored line still fails loudly - never masked silently`() {
+    fun `a secret riding in the GOAL line masks in place - the run survives`() {
         val dump = TestFixtures.loadAll().first().second
         val candidates = CandidateEnumerator.enumerate(dump.observedNodes())
-        val error = assertFailsWith<IllegalStateException> {
-            builder.build(
-                "paste $fixtureSecret into the field",
-                dump.url,
-                dump.title,
-                emptyList(),
-                candidates,
-                secrets = listOf(fixtureSecret),
-            )
-        }
-        assertTrue(
-            error.message!!.contains("app-authored") && error.message!!.contains("credential-secret value"),
-            "the error must name the app-authored leak: ${error.message}",
+        val state = builder.build(
+            "paste $fixtureSecret into the field",
+            dump.url,
+            dump.title,
+            emptyList(),
+            candidates,
+            secrets = listOf(fixtureSecret),
         )
         assertTrue(
-            !error.message!!.contains(fixtureSecret),
-            "even the error must not carry the value: ${error.message}",
+            "GOAL: paste ${StateTextBuilder.CREDENTIAL_REDACTED} into the field" in state.text,
+            state.text,
         )
+        assertTrue(fixtureSecret !in state.text, "the value itself must never appear")
     }
 
     @Test
-    fun `a secret that rode into HISTORY fails loudly too`() {
+    fun `a secret that rode into HISTORY masks in place too`() {
         val dump = TestFixtures.loadAll().first().second
         val candidates = CandidateEnumerator.enumerate(dump.observedNodes())
-        assertFailsWith<IllegalStateException> {
-            builder.build(
-                "goal",
-                dump.url,
-                dump.title,
-                listOf("typed $fixtureSecret into the field"),
-                candidates,
-                secrets = listOf(fixtureSecret),
-            )
-        }
+        val state = builder.build(
+            "goal",
+            dump.url,
+            dump.title,
+            listOf("typed $fixtureSecret into the field"),
+            candidates,
+            secrets = listOf(fixtureSecret),
+        )
+        assertTrue(
+            "HISTORY: typed ${StateTextBuilder.CREDENTIAL_REDACTED} into the field" in state.text,
+            state.text,
+        )
+        assertTrue(fixtureSecret !in state.text, "the value itself must never appear")
+    }
+
+    // -- the collision class (live-proven S25+ 2026-10-08: nine card approvals, nine
+    // deadlocks — the owner's card-typed secret was a SUBSTRING of the page URL, and the
+    // old app-authored throw killed every subsequent state build). Masking keeps the
+    // section semantics: the line still shows its content, the colliding substring
+    // redacted. -------------------------------------------------------------------------
+
+    @Test
+    fun `a card secret colliding with the URL masks inside the URL line - the live S25+ shape`() {
+        val dump = TestFixtures.loadAll().first().second
+        val candidates = CandidateEnumerator.enumerate(dump.observedNodes())
+        val state = builder.build(
+            "sign in",
+            "http://127.0.0.1:8099/login.html",
+            dump.title,
+            emptyList(),
+            candidates,
+            secrets = listOf("login"),
+        )
+        assertTrue(
+            "URL: http://127.0.0.1:8099/${StateTextBuilder.CREDENTIAL_REDACTED}.html" in state.text,
+            state.text,
+        )
+        assertTrue("login" !in state.text, "the colliding value must never appear")
+    }
+
+    @Test
+    fun `a card secret colliding with the GOAL masks inside the GOAL line`() {
+        val dump = TestFixtures.loadAll().first().second
+        val candidates = CandidateEnumerator.enumerate(dump.observedNodes())
+        val state = builder.build(
+            "open the login page and sign in",
+            dump.url,
+            dump.title,
+            emptyList(),
+            candidates,
+            secrets = listOf("login"),
+        )
+        assertTrue(
+            "GOAL: open the ${StateTextBuilder.CREDENTIAL_REDACTED} page and sign in" in state.text,
+            state.text,
+        )
+        assertTrue("login" !in state.text, "the colliding value must never appear")
+    }
+
+    @Test
+    fun `a card secret colliding with the TITLE masks inside the TITLE line`() {
+        val dump = TestFixtures.loadAll().first().second
+        val candidates = CandidateEnumerator.enumerate(dump.observedNodes())
+        val state = builder.build(
+            "sign in",
+            dump.url,
+            "Fixture Bank Dummy Login (TEST ONLY)",
+            emptyList(),
+            candidates,
+            secrets = listOf("Login"),
+        )
+        assertTrue(
+            "TITLE: Fixture Bank Dummy ${StateTextBuilder.CREDENTIAL_REDACTED} (TEST ONLY)" in state.text,
+            state.text,
+        )
+        assertTrue("Login" !in state.text, "the colliding value must never appear")
     }
 
     @Test

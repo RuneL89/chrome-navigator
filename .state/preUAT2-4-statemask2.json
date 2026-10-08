@@ -1,0 +1,38 @@
+{
+  "pass": "PREUAT2-4 STATEMASK2 defect-follower (the collision half of the credential-law split — final link of the STATEMASK chain)",
+  "date": "2026-10-08",
+  "status": "fix-complete-awaiting-verifier-and-device-rerun",
+  "llmCost": "$0",
+  "defect": {
+    "id": "PREUAT2-4-STATEMASK2 (URL-collision deadlock)",
+    "kind": "product (live-proven S25+, this hour — nine card approvals, nine deadlocks)",
+    "summary": "The owner's card-typed secret was a SUBSTRING of the page URL (http://127.0.0.1:8099/login.html — e.g. \"login\"), and every post-approval state build threw 'app-authored section (URL) would carry a credential-secret value'. Structural insight: the builder only knows SANCTIONED (card-typed) secrets, so the app-authored throw could only ever fire on sanctioned values — i.e. it could only deadlock the run on collisions (URL/goal/title substrings) and never catch a genuine leak (an unsanctioned secret is by construction unknown to the builder). The throw was dead weight that kills; masking is the lawful response everywhere."
+  },
+  "fix": {
+    "files": [
+      "core/src/main/kotlin/navigator/core/state/StateTextBuilder.kt (the throw removed; mask applied to ALL sections)",
+      "core/src/test/kotlin/navigator/core/state/StateTextBuilderTest.kt (GOAL/HISTORY throw pins re-pinned to masked renders; +3 collision tests; secret tests 8 -> 11)",
+      "app/src/main/kotlin/navigator/app/loop/NavigationLoop.kt (three stale loud-law comments rewritten — behavior unchanged, the cardSecrets seam already passes redactionKeys())",
+      "app/src/main/kotlin/navigator/app/loop/TextSource.kt (KDoc only)",
+      "app/src/test/kotlin/navigator/app/loop/CredentialEntryLoopTest.kt (KDoc only)",
+      "core/AGENTS.md (state-law ownership + verification bullets)",
+      "app/AGENTS.md (cardSecrets seam paragraph)",
+      ".state/AGENTS.md (index line for this note)"
+    ],
+    "mechanism": "StateTextBuilder masks every occurrence of a known secret in EVERY section — the app-authored lines (GOAL/URL/TITLE/PLAN/TASK PROGRESS/HISTORY) now fold through the same mask() as the untrusted block (doc 05 §2's render). The vision law line (03 §4 'Secrets never appear in any section') is satisfied by the masked render; section semantics survive (the URL line still shows the address, the colliding substring redacted). The emission-boundary invariant is UNCHANGED and stays loud: a secret equal to a structural constant rendered outside every masked line (the untrusted marker, a bucket header) must never be emittable. The app-authored IllegalStateException and its offender scan are deleted. Non-credential builds stay byte-identical (empty-secrets default; Tier A drift detector green as committed)."
+  },
+  "deviations": [
+    "No vision edit: vision 03 §4's law line ('secrets never appear in any section', doc 06 §2a redaction law) is satisfied by masking — the doc 05 §2 [credential-redacted] render IS the law's own vocabulary (same reasoning the 2026-10-07 STATEMASK pass recorded for the untrusted block, now extended to the app-authored sections). Recorded here per dispatch; no vision doc touched.",
+    "The PHASE_08F §2 wording ('state-text builder rejects secret values loudly') is the implementation choice corrected by this chain — already recorded as a deviation in preUAT2-4-statemask.json; this pass removes the last remaining loud half.",
+    "Prefix note: the loop's redactionKeys() (secret + 40-char-cap prefixes) feeds build() unchanged, so the former 'app-authored loud check covers prefixes' followup note is superseded — prefixes now MASK in app-authored sections too (the run survives a prefix collision; a capped fragment was never a doc 05 §2-compliant thing to die on).",
+    "Pathological corner, disclosed not fixed: a secret colliding with a section PREFIX (e.g. the literal string 'GOAL') now masks the prefix of that one line ([credential-redacted]: ...) instead of reaching the invariant — the secret never appears (the law holds) but the line's prefix is mangled for that build. Structural constants rendered OUTSIDE masked lines (untrusted marker, bucket headers) still hit the loud invariant, unchanged.",
+    "Test re-pins are the fix's purpose (dispatch): 'a secret in an app-authored line still fails loudly' -> 'a secret riding in the GOAL line masks in place'; 'a secret that rode into HISTORY fails loudly too' -> '... masks in place too'. The structural-constant emission-boundary pin is unchanged."
+  ],
+  "testEvidence": {
+    "fullSuite": "./gradlew test BUILD SUCCESSFUL (exit 0, 6m15s) — core 302 + app-debug 367 + app-release 367 = 1036 executions, 0 failures/errors/skipped (prior 666 unique + 3 new core collision tests)",
+    "newTests": "navigator.core.state.StateTextBuilderTest (secret section 8 -> 11, suite 28 -> 31): URL collision — secret \"login\" masks inside 'URL: http://127.0.0.1:8099/[credential-redacted].html' (the live S25+ shape, value absent from the whole text); GOAL collision — \"login\" masks inside 'GOAL: open the [credential-redacted] page and sign in'; TITLE collision — \"Login\" masks inside 'TITLE: Fixture Bank Dummy [credential-redacted] (TEST ONLY)'. Re-pins assert the masked GOAL/HISTORY renders, value absent.",
+    "tierA": "untouched and green inside the full suite (all five eval suites 0 failures) — masking is keyed on non-empty secrets; every fixture replay builds with the empty default, so state bytes are unchanged and the committed drift detector passes as-is"
+  },
+  "lastAction": "wrote this status note after the green full suite; DOX pass done (core/AGENTS.md state-law bullets, app/AGENTS.md seam paragraph, .state/AGENTS.md index); compliance-log entry appended",
+  "nextAction": "canon-verifier cold re-check, then the orchestrator re-runs the S25+ credential segment (observable: with a card secret that collides with the URL/goal/title, the post-approval state build emits the masked render and the run continues instead of deadlocking)"
+}

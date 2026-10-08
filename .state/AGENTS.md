@@ -48,6 +48,13 @@ remembers."
   at source, serializer-cap prefixes of long secrets join the redaction keys, the stale
   loud-rejection comments rewritten; tests only, the device APK stayed with the
   orchestrator)
+* `preUAT2-4-statemask2.json` — the STATEMASK collision-fix status note (2026-10-08:
+  the split law's app-authored LOUD half removed — live-proven S25+: a card-typed
+  secret that is a SUBSTRING of the page URL ("login" inside `login.html`) threw on
+  every post-approval state build and deadlocked nine card approvals; the throw could
+  only ever fire on a sanctioned value and never catch a genuine leak — EVERY
+  state-text section now masks `[credential-redacted]`, the emission-boundary
+  invariant stays loud)
 * `eval/` — measurement-report artifacts, git-tracked: `tier-a-report.{md,json}` (Tier A
   deterministic replay, Phase 7; regenerate with `./gradlew :core:generateTierAReport` —
   the committed bytes are the drift detector a state/wire/taxonomy/gate change must keep
