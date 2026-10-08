@@ -1,6 +1,7 @@
 package navigator.app.loop
 
 import kotlinx.coroutines.delay
+import navigator.app.observe.TreeSerializer
 import navigator.core.decision.ChoiceQuestion
 import navigator.core.decision.ChoiceResult
 import navigator.core.decision.DecisionEngine
@@ -200,9 +201,27 @@ class NavigationLoop(
         val history = mutableListOf<String>()
         val hints = mutableListOf<String>()
         // The credential values this task has received from gate cards (doc 06 §2a).
-        // MEMORY ONLY: they feed the state builder's loud-rejection check and the run
-        // report's redaction pass — never any engine call, never a log, row, or report.
+        // MEMORY ONLY: they feed the sanctioned-secret MASKING (the state text's
+        // untrusted block, the question payloads, the HISTORY digest, the additive-
+        // consult proposition, the execute step-log line, the report's boundary scrub) —
+        // a value is never sent to any engine raw and never rendered raw into a log,
+        // row, or report.
         val cardSecrets = mutableListOf<String>()
+
+        // The deterministic redaction key set (doc 06 §2a via doc 05 §2): every
+        // sanctioned secret PLUS — for one longer than the serializer's 40-char label
+        // cap — its capped prefix, because the enumerator truncates labels BEFORE any
+        // masking sees them (PREUAT2-4 (C): a long secret's truncated echo must mask
+        // too, not leak its prefix). Order is stable: the full secret first, so the
+        // prefix pass only ever fires where the truncation actually cut the value.
+        fun redactionKeys(): List<String> = cardSecrets.flatMap { secret ->
+            when {
+                secret.isEmpty() -> emptyList()
+                secret.length > TreeSerializer.MAX_TEXT_LENGTH ->
+                    listOf(secret, secret.take(TreeSerializer.MAX_TEXT_LENGTH))
+                else -> listOf(secret)
+            }
+        }
         var goalText = goal
         var recoveryArmed = false
         var rows = 0
@@ -358,13 +377,11 @@ class NavigationLoop(
             line("terminal: $terminal - $detail")
             // doc 06 §2a render law (via doc 05 §2): reports render credential-sourced
             // text as [credential-redacted]. Construction keeps the value out of every
-            // line; this render-boundary pass guarantees it even if a PAGE echoes the
-            // secret back into content text (partialResult) — the one place page text
-            // lands verbatim in a report.
+            // line (the masking seams above); this render-boundary pass guarantees it
+            // even if a PAGE echoes the secret back into content text (partialResult) —
+            // the one place page text lands verbatim in a report.
             fun scrub(text: String): String =
-                cardSecrets.fold(text) { acc, secret ->
-                    if (secret.isNotEmpty()) acc.replace(secret, TextSource.REDACTED) else acc
-                }
+                redactionKeys().fold(text) { acc, key -> acc.replace(key, TextSource.REDACTED) }
             return RunResult(
                 goalId = goalId,
                 goal = goal,
@@ -459,7 +476,7 @@ class NavigationLoop(
                 stateFormatVersion = state.formatVersion,
                 triageClass = requireNotNull(triageClass) { "triage must run before the first step" },
                 questionPrimary = question,
-                questionShadow = shadowQuestion(candidates),
+                questionShadow = shadowQuestion(candidates, redactionKeys()),
                 teacher = engineIdentity,
                 teacherAnswer = teacherAnswer,
                 shadow = null, // shadowMiss: the shadow engine arrives in Phase 8 (vision 02 §4)
@@ -659,9 +676,11 @@ class NavigationLoop(
                     ?.takeIf { triageClass == TriageClass.ACTION_MULTI }
                     ?.progressLines()
                     ?.map { it.removePrefix("TASK PROGRESS: ") },
-                // doc 06 §2a via vision 03 §4: a card secret that would ever reach the
-                // state text (e.g. a page-side echo in a candidate label) fails LOUDLY.
-                secrets = cardSecrets,
+                // doc 06 §2a via vision 03 §4: a sanctioned secret MASKS to
+                // [credential-redacted] in the untrusted block (a post-injection page
+                // echo is the lawful render) and still fails LOUDLY in an app-authored
+                // section; the keys include serializer-cap prefixes of long secrets.
+                secrets = redactionKeys(),
             )
             hints.clear() // the L1 hint rode this step's HISTORY block
 
@@ -678,7 +697,10 @@ class NavigationLoop(
                 escalation = readEscalation(question.name)
                 line("decide: recovery set -> '${choice.chosenId}'" + escalationSuffix(escalation))
             } else {
-                question = actionQuestion(candidates)
+                // The action question's option labels ride the same sanctioned-secret
+                // redaction as the state text (doc 05 §2: the value is never stored —
+                // a page-side echo of an injected secret must not reach the row).
+                question = actionQuestion(candidates, redactionKeys())
                 choice = engine.choose(state.text, question)
                 escalation = readEscalation(question.name)
                 line("decide: action -> '${choice.chosenId}'" + escalationSuffix(escalation))
@@ -999,10 +1021,22 @@ class NavigationLoop(
                 RiskGate.mutationNet(gateAction, pageContext) == RiskGate.MutationNet.SUSPICIOUS
             ) {
                 val verdict = AdditiveEngineCheck.evaluate(gateAction, pageContext.site) { proposition ->
+                    // doc 06 §2a (PREUAT2-4 (A)): the consult proposition embeds the raw
+                    // target label — a sanctioned post-injection echo must never reach
+                    // ANY engine. Masked here with the same redaction seam as the decide
+                    // question; the consult itself still runs (skipping it would fail
+                    // the H9 net open), and the masking is loud on the step log.
+                    val masked = redactedLabel(proposition, redactionKeys())
+                    if (masked != proposition) {
+                        line(
+                            "gate: additive consult proposition carried a sanctioned secret - " +
+                                "masked (${TextSource.REDACTED}) before the engine",
+                        )
+                    }
                     band(
                         engine.judge(
                             state.text,
-                            NoulQuestion(AdditiveEngineCheck.QUESTION_NAME, proposition),
+                            NoulQuestion(AdditiveEngineCheck.QUESTION_NAME, masked),
                         ).pTrue,
                     )
                 }
@@ -1218,6 +1252,10 @@ class NavigationLoop(
                 }
                 // Credential-sourced text renders [credential-redacted] in the step log
                 // (doc 05 §2); the stub-phrase path keeps its pre-08F line unchanged.
+                // The acted-on label masks at SOURCE too (PREUAT2-4 (B)): it is page
+                // text that can carry a sanctioned post-injection echo, so the value
+                // never transits the in-memory stepLog raw — the finish scrub stays as
+                // the report boundary's second layer.
                 val typedMarker =
                     if (kind == ActionKind.TYPE && textSource is TextSource.GateSuppliedSecret) {
                         " text=${TextSource.REDACTED}"
@@ -1225,9 +1263,15 @@ class NavigationLoop(
                         ""
                     }
                 line(
-                    "execute: ${kind.name.lowercase()} \"${candidate.label}\" at " +
-                        "(${candidate.cx},${candidate.cy})$typedMarker -> " +
-                        "${if (execOk) "dispatched" else "FAILED"}",
+                    executeLine(
+                        kind = kind,
+                        label = candidate.label,
+                        cx = candidate.cx,
+                        cy = candidate.cy,
+                        dispatched = execOk,
+                        typedMarker = typedMarker,
+                        redact = redactionKeys(),
+                    ),
                 )
             }
 
@@ -1259,8 +1303,14 @@ class NavigationLoop(
                 // carries the flag, the step log renders [credential-redacted]).
                 typedSecret = proceed && textSource is TextSource.GateSuppliedSecret,
             )
+            // The history digest quotes the acted-on label — page text that can carry a
+            // sanctioned post-injection echo (the acted-on field's own a11y text IS the
+            // typed secret on live Chrome). It renders [credential-redacted] here (doc 05
+            // §2) so the secret never enters app-authored state; the state builder's
+            // app-authored loud check stays reserved for genuine upstream leaks.
             history.add(
-                "step $stepIndex: ${kind.name.lowercase()} \"${candidate.label}\" -> ${serial(outcome)}" +
+                "step $stepIndex: ${kind.name.lowercase()} \"${redactedLabel(candidate.label, redactionKeys())}\" -> " +
+                    serial(outcome) +
                     (gateEvent?.let { " (gate ${it.decision.name.lowercase()})" } ?: ""),
             )
 
@@ -1473,31 +1523,65 @@ class NavigationLoop(
             },
         )
 
-        /** The primary's flat action question (vision 03 §3: the flat list). */
-        fun actionQuestion(candidates: CandidateList): ChoiceQuestion = ChoiceQuestion(
-            name = "action",
-            options = candidates.flat.map { candidate ->
-                Option(
-                    id = candidate.id,
-                    label = candidate.label,
-                    description = "bucket=${serialName(candidate.bucket)} (${candidate.cx},${candidate.cy})",
-                )
-            },
-        )
+        /**
+         * Sanctioned-secret redaction for question payloads (doc 05 §2 via doc 06 §2a:
+         * the value itself is NEVER stored — rows render [TextSource.REDACTED]). A
+         * page-side echo of an injected secret rides candidate labels into the engine
+         * payload and the row's question field; the 2026-10-07 post-injection deadlock
+         * fix masks them exactly like the state text's untrusted block. Empty `redact`
+         * (every non-credential task) keeps the labels byte-identical.
+         */
+        private fun redactedLabel(label: String, redact: List<String>): String =
+            redact.fold(label) { acc, secret ->
+                if (secret.isNotEmpty()) acc.replace(secret, TextSource.REDACTED) else acc
+            }
 
-        /** The shadow's two-stage bucketed form (vision 02 §3 / vision 05 §2). */
-        fun shadowQuestion(candidates: CandidateList): BucketedQuestion = BucketedQuestion(
-            name = "shadow-action",
-            buckets = candidates.bucketed.mapValues { (_, list) ->
-                list.map { candidate ->
+        /**
+         * The EXECUTE step-log line, built in exactly one place so its redaction law is
+         * unit-pinnable (PREUAT2-4 (B)): the acted-on label is page text that can carry
+         * a sanctioned post-injection echo, so it renders masked [TextSource.REDACTED]
+         * at source — the value never transits the in-memory stepLog raw. The empty
+         * `redact` default of every non-credential task keeps the line byte-identical.
+         */
+        internal fun executeLine(
+            kind: ActionKind,
+            label: String,
+            cx: Int,
+            cy: Int,
+            dispatched: Boolean,
+            typedMarker: String,
+            redact: List<String> = emptyList(),
+        ): String =
+            "execute: ${kind.name.lowercase()} \"${redactedLabel(label, redact)}\" at " +
+                "($cx,$cy)$typedMarker -> ${if (dispatched) "dispatched" else "FAILED"}"
+
+        /** The primary's flat action question (vision 03 §3: the flat list). */
+        fun actionQuestion(candidates: CandidateList, redact: List<String> = emptyList()): ChoiceQuestion =
+            ChoiceQuestion(
+                name = "action",
+                options = candidates.flat.map { candidate ->
                     Option(
                         id = candidate.id,
-                        label = candidate.label,
-                        description = "bucket=${serialName(candidate.bucket)}",
+                        label = redactedLabel(candidate.label, redact),
+                        description = "bucket=${serialName(candidate.bucket)} (${candidate.cx},${candidate.cy})",
                     )
-                }
-            },
-        )
+                },
+            )
+
+        /** The shadow's two-stage bucketed form (vision 02 §3 / vision 05 §2). */
+        fun shadowQuestion(candidates: CandidateList, redact: List<String> = emptyList()): BucketedQuestion =
+            BucketedQuestion(
+                name = "shadow-action",
+                buckets = candidates.bucketed.mapValues { (_, list) ->
+                    list.map { candidate ->
+                        Option(
+                            id = candidate.id,
+                            label = redactedLabel(candidate.label, redact),
+                            description = "bucket=${serialName(candidate.bucket)}",
+                        )
+                    }
+                },
+            )
 
         fun serialName(recovery: Recovery): String = serialNameOf(Recovery.serializer(), recovery)
 

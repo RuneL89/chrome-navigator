@@ -78,7 +78,18 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     supply a secret; the resolution still flows the TaskGate's legal transitions, so
     trustedFromTask logging and the double-refusal abort are intact), the approved
     secret is injected DIRECTLY into the target field and kept in memory only
-    (`cardSecrets` feeds the state builder's loud rejection and a render-boundary scrub
+    (`cardSecrets` feeds the state builder's sanctioned-secret redaction — masked
+    `[credential-redacted]` in the untrusted block, LOUD failure if one reaches an
+    app-authored section — plus the SAME redaction on the question payloads' option
+    labels and the HISTORY digest line (the 2026-10-07 post-injection deadlock fix:
+    after a successful injection the page legitimately echoes the secret, so masking —
+    not dying — is the lawful render; the PREUAT2-4 residual hardening extends the same
+    seam to the additive-engine consult proposition — masked before the engine sees it,
+    doc 06 §2a "never sent to any engine", the masking loud on the step log — and the
+    execute step-log line's acted-on label, masked at source so the value never
+    transits the in-memory stepLog raw; the redaction key set also carries the
+    serializer-cap (40-char) prefix of any longer secret, because the enumerator
+    truncates labels before masking), and a render-boundary scrub
     of the run report's stepLog/partialResult), the step log renders
     `[credential-redacted]`, the row carries `typedSecret=true`, and wrong-source in
     either direction (plain approve on a credential card; secret on any other card)
@@ -504,7 +515,18 @@ tracked as last-known (normalized) and serves on an empty card URL, and garbage
   over the step log, decision rows (full JSON), exit-check rows, and the report strings
   finds ZERO hits of the fixture values while `[credential-redacted]` renders on both
   typing steps and `typedSecret=true` rides exactly those rows; a page-side echo of the
-  typed value is a LOUD state-text failure; the card flow matrix — approve-with-secret,
+  typed value is MASKED `[credential-redacted]` in the state text, question payload, and
+  HISTORY digest while the run survives to GOAL_ACHIEVED (the 2026-10-07 post-injection
+  deadlock fix — the echo test targets the echoed field by id, the submit fails to H3
+  without the identifier field, and an app-authored-section leak still fails loudly in
+  `:core`'s StateTextBuilderTest; the PREUAT2-4 residual-hardening follower: the
+  additive consult proposition masks a sanctioned echo before the engine sees it (a
+  `PropositionRecordingEngine` fixture wrapper captures what the engine RECEIVED; the
+  masking is loud on the step log and the consult still runs), the execute step-log
+  line masks the acted-on label at source (`NavigationLoop.executeLine`, the
+  one-line-builder unit pin + the echo test's label-position assertion), and a 45-char
+  secret's capped (40-char) prefix — what the enumerator's label truncation leaves —
+  masks in the state text, question payload, and exit-check row); the card flow matrix — approve-with-secret,
   deny, timeout, double-deny abort, and the trusted-decline (a trusted credential card
   still asks; declining skips it every time); the 2026-10-08 pre-UAT2 H8-gap follower:
   typing into a reader-FLAGGED wording-free field fires the H8 credential card (masked

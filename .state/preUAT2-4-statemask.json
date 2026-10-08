@@ -1,0 +1,40 @@
+{
+  "pass": "PREUAT2-4 defect-follower STATEMASK (implementer half of the fix-first protocol; the 08F credential-law deadlock)",
+  "date": "2026-10-08",
+  "status": "fix-complete-awaiting-verifier-and-device-rerun",
+  "llmCost": "$0",
+  "defect": {
+    "id": "PREUAT2-4-STATEMASK",
+    "kind": "product (credential-law deadlock, live-proven)",
+    "caughtOn": "S25+/Chrome 154 demo session, this hour: the credential card flow SUCCEEDED end-to-end (owner typed the secret on the masked card, the readiness wait held, the injection landed, the observation read the secret back from the password field's content) — then the NEXT state build threw 'IllegalStateException: state text would carry a credential-secret value — refusing to emit' and the run died (loud-retry x3, HARNESS_ERROR-style failure)",
+    "summary": "The 08F design ('builder rejects secret values loudly', PHASE_08F doc §2 wording) deadlocks after any SUCCESSFUL injection: a sanctioned, owner-approved secret that the page legitimately echoes makes EVERY subsequent observation carry it, so no state text can ever be built and no task can continue. Loud failure is the wrong render for the sanctioned case; the law 'secrets never appear in any section' (vision 03 §4) is equally satisfied by the doc 05 §2 masked render."
+  },
+  "fix": {
+    "files": [
+      "core/src/main/kotlin/navigator/core/state/StateTextBuilder.kt",
+      "core/src/test/kotlin/navigator/core/state/StateTextBuilderTest.kt (5 secret tests -> 8, re-pinned)",
+      "app/src/main/kotlin/navigator/app/loop/NavigationLoop.kt",
+      "app/src/test/kotlin/navigator/app/loop/CredentialEntryLoopTest.kt (echo test re-pinned, loop-level)",
+      "core/AGENTS.md (state/ ownership line + verification line)",
+      "app/AGENTS.md (NavigationLoop cardSecrets seam line + CredentialEntryLoopTest verification line)",
+      ".state/AGENTS.md (index line for this note)"
+    ],
+    "mechanism": "StateTextBuilder.build splits the redaction law by block: (1) UNTRUSTED PAGE CONTENT (content-excerpt lines + candidate lines, ids and coords included) — every occurrence of a known secret is REPLACED with [credential-redacted] (doc 05 §2's render) at line level, so compression counts the emitted (masked) text and non-credential builds stay byte-identical (empty secrets default); (2) app-authored sections (GOAL/URL/TITLE/PLAN/TASK PROGRESS/HISTORY) — a known secret still throws LOUDLY naming the offending section, never echoing the value; (3) an emission-boundary invariant keeps the 'never in any section' guarantee absolute (fires e.g. for a secret equal to a structural constant like the untrusted marker, which cannot be masked without corrupting the format). The loop already passed cardSecrets into every build (same 08F seam, fix item 2 — no change needed there). TWO further leak surfaces the state-text seam alone does not cover, both found live by the rewritten loop test: the DECIDE step's question payloads carry raw candidate labels (actionQuestion/shadowQuestion -> engine wire call + the row's question field — doc 05 §2 'the value itself is NEVER stored' requires the mask there too), and the HISTORY digest line quotes the acted-on label (page text that IS the typed secret on live Chrome) — both now render [credential-redacted] via the same cardSecrets redaction; with no card secrets both are byte-identical. The builder's app-authored loud check stays reserved for genuine upstream leaks (e.g. a secret reaching GOAL/HISTORY from the credential path itself)."
+  },
+  "deviations": [
+    "Phase-doc §2 wording correction (recorded, per dispatch): PHASE_08F_credential_entry_redaction.md §2 'state-text builder rejects secret values loudly' is the implementation choice being corrected — after a successful injection the loud rejection deadlocks every subsequent build (the defect itself); the vision law (03 §4 'Secrets never appear in any section' + doc 05 §2 line 37 '[credential-redacted]' render) is satisfied by masking the sanctioned secret in page-derived surfaces. No vision doc edited; the phase doc is not edited by this pass either — the deviation stands recorded here and in the compliance log.",
+    "Scope beyond the state-text seam (discovered, not improvised): the rewritten loop test proved the raw echoed secret would reach the row's question payload and the HISTORY digest even with the state text masked — both mask through the same cardSecrets redaction now. Without them the 8F.2 secret-absence law (doc 05 §2: value never stored) would be violated post-injection.",
+    "Test-shape notes: the partial-overlap pin keeps surrounding text short enough to fit the serializer's 40-char label cap (the truncation happens in the enumerator, before the builder — a secret cut by that pre-existing cap leaks only a prefix, identical to the pre-08F behavior, unchanged here); the loop echo test targets the echoed field by id (its label is the masked marker) and includes the submit step because FORM_FILL's guard predicate requires an observed submission; on the echo page the submit correctly classifies H3 (the echo removed the identifier field, so the H4 pair is gone — the classifier's fail-to-stricter working as designed) and resolves on the ordinary card.",
+    "The old test 'a secret echoed into a candidate label fails loudly' pinned the deadlocking behavior and was re-pinned to the masked render — the re-pin IS this fix's purpose (dispatch item 3c)."
+  ],
+  "testEvidence": {
+    "fullSuite": "./gradlew test BUILD SUCCESSFUL (exit 0, ~6m29s) — core 299 + app 364 (debug) = 663 tests, 0 failures, 0 errors, 0 skipped (prior 660 + 3 new core secret tests)",
+    "newTests": {
+      "core": "navigator.core.state.StateTextBuilderTest (secret section 5 -> 8): candidate-label echo masked + value absent; excerpt echo masked; partial-overlap masks only the secret with surrounding text intact; GOAL leak still throws loudly naming 'app-authored' and never the value; HISTORY leak throws; a secret equal to the untrusted marker fails at the emission-boundary invariant; clean-text + byte-identical-default pins unchanged",
+      "app": "navigator.app.loop.CredentialEntryLoopTest: the page-side echo scenario now reaches GOAL_ACHIEVED — the echo step's state text renders [credential-redacted], the row's full JSON (question payload included) renders the marker and never the value, and the whole logged corpus is value-free"
+    },
+    "tierA": "untouched and green inside the full suite — masking is keyed on non-empty secrets; every fixture replay builds with the empty default, so state bytes are unchanged and the committed drift detector still passes as-is"
+  },
+  "lastAction": "wrote this status note after the green full suite; DOX pass done (core/AGENTS.md state/ + verification lines, app/AGENTS.md cardSecrets seam + CredentialEntryLoopTest verification lines, .state/AGENTS.md index); compliance-log entry appended",
+  "nextAction": "canon-verifier cold re-check, then the orchestrator re-runs the S25+ credential segment (observable: after the successful injection the run continues — the post-injection state builds emit '[credential-redacted]' in place of the echoed value instead of dying)"
+}

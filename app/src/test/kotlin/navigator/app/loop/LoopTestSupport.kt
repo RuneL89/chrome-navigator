@@ -3,6 +3,13 @@ package navigator.app.loop
 import navigator.app.stub.ScriptedAnswer
 import navigator.app.stub.StubEngine
 import navigator.app.stub.StubScript
+import navigator.core.decision.ChoiceQuestion
+import navigator.core.decision.ChoiceResult
+import navigator.core.decision.DecisionEngine
+import navigator.core.decision.NoulQuestion
+import navigator.core.decision.NoulResult
+import navigator.core.decision.ScoreQuestion
+import navigator.core.decision.ScoreResult
 import navigator.core.enumerate.ObservedNode
 import navigator.core.log.DecisionLogRow
 import navigator.core.log.ExitCheckRow
@@ -92,6 +99,28 @@ class CollectingLogSink : DecisionLogSink {
     }
 }
 
+/**
+ * Wraps a [DecisionEngine] and records every noul question it is ASKED (name +
+ * proposition) before delegating — the additive-consult masking pins assert what the
+ * engine would have RECEIVED, not what the loop built (PREUAT2-4 (A): doc 06 §2a, the
+ * secret is never sent to any engine). $0: the delegate is the scripted stub.
+ */
+class PropositionRecordingEngine(
+    private val delegate: DecisionEngine,
+    val judgedQuestions: MutableList<NoulQuestion> = mutableListOf(),
+) : DecisionEngine {
+    override suspend fun choose(state: String, question: ChoiceQuestion): ChoiceResult =
+        delegate.choose(state, question)
+
+    override suspend fun judge(state: String, question: NoulQuestion): NoulResult {
+        judgedQuestions.add(question)
+        return delegate.judge(state, question)
+    }
+
+    override suspend fun score(state: String, question: ScoreQuestion): ScoreResult =
+        delegate.score(state, question)
+}
+
 // -- observation builders -------------------------------------------------------------
 
 /** One node spec for [obs]. */
@@ -177,13 +206,19 @@ class LoopFixture(
     val startUrl: String? = null,
     /** Phase-08G plan-proposal seam (vision 04 §1); defaults to NO plan. */
     val planSource: PlanSource = PlanSource.None,
+    /**
+     * Optional engine decorator (the additive-consult masking pins wrap the stub to
+     * capture the question the engine RECEIVED); the identity default leaves every
+     * existing fixture byte-identical.
+     */
+    engineDecorator: (DecisionEngine) -> DecisionEngine = { it },
 ) {
     val clock = FakeClock()
     val sink = CollectingLogSink()
     val executor = FakeExecutor(journal)
     private val stubCallLog = mutableListOf<String>()
 
-    val engine = StubEngine(StubScript(script), stubCallLog)
+    val engine = engineDecorator(StubEngine(StubScript(script), stubCallLog))
 
     val engineCalls: List<String> get() = stubCallLog
 

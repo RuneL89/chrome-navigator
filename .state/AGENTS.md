@@ -36,6 +36,18 @@ remembers."
   `AccessibilityNodeInfo.isPassword` and the wording/mask heuristics miss Chrome 154's
   actual-content echo; the reader-flag fix, the `password` kind marker, the +3
   classifier-matrix rows, and the Tier A timestamp-only re-pin)
+* `preUAT2-4-statemask.json` — the PREUAT2-4-STATEMASK defect-follower status note
+  (2026-10-07/08: the 08F loud state-text rejection deadlocked after any SUCCESSFUL
+  credential injection — the page legitimately echoes the sanctioned secret, so no
+  post-injection state text could ever be built; the split law: mask
+  `[credential-redacted]` in the untrusted block + question labels + HISTORY digest,
+  keep the LOUD failure for app-authored-section leaks)
+* `preUAT2-4-statemask-followup.json` — the STATEMASK residual-hardening status note
+  (2026-10-08: the verifier's observations A/B/C/E — the additive-consult proposition
+  masks a sanctioned echo before the engine, the execute step-log line masks its label
+  at source, serializer-cap prefixes of long secrets join the redaction keys, the stale
+  loud-rejection comments rewritten; tests only, the device APK stayed with the
+  orchestrator)
 * `eval/` — measurement-report artifacts, git-tracked: `tier-a-report.{md,json}` (Tier A
   deterministic replay, Phase 7; regenerate with `./gradlew :core:generateTierAReport` —
   the committed bytes are the drift detector a state/wire/taxonomy/gate change must keep

@@ -42,35 +42,67 @@ class StateTextBuilderTest {
 
     private val bucketHeaders = setOf("nav-links:", "form-fields:", "buttons:", "scroll:", "back:", "finish:")
 
-    // ---- the loud secret rejection (vision 03 §4 / doc 06 §2a, Phase 08F) ----
+    // ---- sanctioned-secret redaction (vision 03 §4 / doc 06 §2a, Phase 08F; split by
+    // the 2026-10-07 post-injection deadlock fix — masked in the untrusted block, loud
+    // in the app-authored sections) ----
 
     private val fixtureSecret = "fixture-secret-DO-NOT-USE"
 
     @Test
-    fun `a secret echoed into a candidate label fails loudly - never truncation, never a mask`() {
+    fun `a secret echoed into a candidate label is masked - the post-injection build survives`() {
         val dump = TestFixtures.loadAll().first { it.first == "real-recipe-01.json" }.second
         val nodes = dump.observedNodes().toMutableList()
-        // A page-side echo: the typed value shows up in a node's visible text.
+        // A page-side echo: the typed value shows up in a node's visible text — the
+        // lawful post-injection shape (the field carries what was injected into it).
         nodes[nodes.size / 2] = nodes[nodes.size / 2].copy(text = fixtureSecret)
         val candidates = CandidateEnumerator.enumerate(nodes)
-        val error = assertFailsWith<IllegalStateException> {
-            builder.build("goal", dump.url, dump.title, emptyList(), candidates, secrets = listOf(fixtureSecret))
-        }
-        assertTrue(
-            error.message!!.contains("credential-secret value"),
-            "the builder must name the secret law: ${error.message}",
+        val state = builder.build(
+            "goal", dump.url, dump.title, emptyList(), candidates,
+            secrets = listOf(fixtureSecret),
         )
-        assertTrue(
-            !error.message!!.contains(fixtureSecret),
-            "even the error must not carry the value: ${error.message}",
-        )
+        assertTrue(StateTextBuilder.CREDENTIAL_REDACTED in state.text, state.text)
+        assertTrue(fixtureSecret !in state.text, "the value itself must never appear")
     }
 
     @Test
-    fun `a secret in an app-authored line fails loudly too`() {
+    fun `a secret echoed into the content excerpt is masked too (the v2 excerpt path)`() {
         val dump = TestFixtures.loadAll().first().second
         val candidates = CandidateEnumerator.enumerate(dump.observedNodes())
-        assertFailsWith<IllegalStateException> {
+        val state = builder.build(
+            "goal",
+            dump.url,
+            dump.title,
+            emptyList(),
+            candidates,
+            excerpt = listOf("page prose", "echoes $fixtureSecret back"),
+            secrets = listOf(fixtureSecret),
+        )
+        assertTrue("echoes ${StateTextBuilder.CREDENTIAL_REDACTED} back" in state.text, state.text)
+        assertTrue(fixtureSecret !in state.text, "the value itself must never appear")
+    }
+
+    @Test
+    fun `a partial-overlap field value masks only the secret - surrounding page text survives`() {
+        val dump = TestFixtures.loadAll().first { it.first == "real-recipe-01.json" }.second
+        val nodes = dump.observedNodes().toMutableList()
+        // The secret as a substring of a longer field value (the live Chrome shape: the
+        // masked-field a11y text is the typed content inside rendered context). The
+        // surrounding text stays short enough to fit the serializer's 40-char label cap.
+        nodes[nodes.size / 2] = nodes[nodes.size / 2].copy(text = "sv: $fixtureSecret (af)")
+        val candidates = CandidateEnumerator.enumerate(nodes)
+        val state = builder.build(
+            "goal", dump.url, dump.title, emptyList(), candidates,
+            secrets = listOf(fixtureSecret),
+        )
+        assertTrue("sv: ${StateTextBuilder.CREDENTIAL_REDACTED} (af)" in state.text, state.text)
+        assertTrue(fixtureSecret !in state.text, "the value itself must never appear")
+    }
+
+    @Test
+    fun `a secret in an app-authored line still fails loudly - never masked silently`() {
+        val dump = TestFixtures.loadAll().first().second
+        val candidates = CandidateEnumerator.enumerate(dump.observedNodes())
+        val error = assertFailsWith<IllegalStateException> {
             builder.build(
                 "paste $fixtureSecret into the field",
                 dump.url,
@@ -80,10 +112,18 @@ class StateTextBuilderTest {
                 secrets = listOf(fixtureSecret),
             )
         }
+        assertTrue(
+            error.message!!.contains("app-authored") && error.message!!.contains("credential-secret value"),
+            "the error must name the app-authored leak: ${error.message}",
+        )
+        assertTrue(
+            !error.message!!.contains(fixtureSecret),
+            "even the error must not carry the value: ${error.message}",
+        )
     }
 
     @Test
-    fun `a secret echoed into the content excerpt fails loudly (the v2 excerpt path)`() {
+    fun `a secret that rode into HISTORY fails loudly too`() {
         val dump = TestFixtures.loadAll().first().second
         val candidates = CandidateEnumerator.enumerate(dump.observedNodes())
         assertFailsWith<IllegalStateException> {
@@ -91,12 +131,33 @@ class StateTextBuilderTest {
                 "goal",
                 dump.url,
                 dump.title,
-                emptyList(),
+                listOf("typed $fixtureSecret into the field"),
                 candidates,
-                excerpt = listOf("page prose", "echoes $fixtureSecret back"),
                 secrets = listOf(fixtureSecret),
             )
         }
+    }
+
+    @Test
+    fun `a secret equal to a structural constant still fails loudly at the emission boundary`() {
+        // The one shape masking cannot fix (masking the untrusted marker would corrupt
+        // the format): the emission-boundary invariant refuses to emit.
+        val dump = TestFixtures.loadAll().first().second
+        val candidates = CandidateEnumerator.enumerate(dump.observedNodes())
+        val error = assertFailsWith<IllegalStateException> {
+            builder.build(
+                "goal",
+                dump.url,
+                dump.title,
+                emptyList(),
+                candidates,
+                secrets = listOf(StateTextBuilder.UNTRUSTED_HEADER),
+            )
+        }
+        assertTrue(
+            error.message!!.contains("credential-secret value"),
+            "the invariant must name the secret law: ${error.message}",
+        )
     }
 
     @Test

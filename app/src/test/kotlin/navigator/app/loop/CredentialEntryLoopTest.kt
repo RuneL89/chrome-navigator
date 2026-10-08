@@ -1,6 +1,10 @@
 package navigator.app.loop
 
 import kotlinx.coroutines.runBlocking
+import navigator.app.observe.TreeSerializer
+import navigator.core.decision.NoulQuestion
+import navigator.core.gate.ActionKind
+import navigator.core.gate.AdditiveEngineCheck
 import navigator.core.gate.GateCard
 import navigator.core.log.ActionDisposition
 import navigator.core.log.DecisionLogRow
@@ -28,8 +32,10 @@ import kotlin.test.assertTrue
  *    user strings appear NOWHERE in the step log, the decision rows, the exit-check
  *    rows, or the report strings — asserted here by exhaustive grep — while
  *    `[credential-redacted]` and `typedSecret=true` appear exactly where the law says;
- *    the state-text builder's loud rejection is proven end-to-end (a page-side echo of
- *    the typed value kills the run with a loud error);
+ *    the sanctioned-secret state-text render is proven end-to-end (a page-side echo of
+ *    the typed value is MASKED `[credential-redacted]` and the run survives — the
+ *    2026-10-07 post-injection deadlock fix; an app-authored-section leak still fails
+ *    loudly, pinned in `:core`'s StateTextBuilderTest);
  *  - **8F.3** card flow: approve-with-secret / deny / timeout all resolve through the
  *    TaskGate's legal transitions (double-refusal abort intact); the masked-input card
  *    is presented for every credential-typing action (trust cannot supply a secret);
@@ -39,6 +45,10 @@ import kotlin.test.assertTrue
  *    content with no label association, so the wording/mask heuristics alone left H8/H3
  *    dark (the stub phrase was typed five times, no card). A reader-FLAGGED wording-free
  *    field fires the H8 credential card; the live login shape gates the H4 pair.
+ *  - **PREUAT2-4 residual-hardening follower**: the consult proposition of the additive
+ *    engine check masks a sanctioned echo before ANY engine sees it (doc 06 §2a "never
+ *    sent to any engine"); the execute step-log line masks the acted-on label at source;
+ *    a secret longer than the serializer's 40-char label cap masks via its capped prefix.
  *
  * $0 by construction: the engine is the scripted stub; the secrets are obviously-dummy
  * fixture strings.
@@ -362,28 +372,239 @@ class CredentialEntryLoopTest {
     }
 
     @Test
-    fun `a page-side echo of the typed credential is a LOUD state-text failure`() = runBlocking {
-        val presenter = GatePresenter { _ -> GateResolution.ApproveWithSecret(fixtureUser) }
-        val fixture = LoopFixture(
-            script = formFillScript(
-                type("Email or username"),
-                type("Email or username"),
-            ),
-            observations = listOf(loginPage(), loginPageEchoingUser()),
-            presenter = presenter,
-            config = NavigationLoop.Config(settleMs = 0, budget = NavigationLoop.BudgetLimits(stepsHard = 5)),
-        )
-        // After the username is typed, the page echoes it back into the field's a11y
-        // text — the next state build must fail LOUDLY (never truncate, never mask).
-        val error = assertThrows<IllegalStateException> { fixture.run() }
-        assertTrue(
-            error.message!!.contains("credential-secret value"),
-            "the builder must name the secret law: ${error.message}",
-        )
-        // And the failure stays loud: no logged row's state text carries the value.
-        fixture.sink.rows.forEach { row ->
-            assertFalse(fixtureUser in row.stateText, "a row's state text must never carry the value")
+    fun `a page-side echo of the typed credential is masked and the run survives the post-injection build`() =
+        runBlocking {
+            // Only the Email typing card carries the secret; the submit gates H3 on the
+            // echo page (the echo removed the identifier field, so the pair is gone and
+            // the submit fails to the stricter class) and resolves on the ordinary card.
+            val presenter = GatePresenter { card ->
+                if (card.target.contains("Email")) {
+                    GateResolution.ApproveWithSecret(fixtureUser)
+                } else {
+                    GateResolution.APPROVED
+                }
+            }
+            val fixture = LoopFixture(
+                script = formFillScript(
+                    type("Email or username"),
+                    // The echoed field's label IS the masked marker now — target by id.
+                    choose("action", "n2"),
+                    type("Submit sign in"), // rides the per-task trust granted at step 0
+                ),
+                observations = listOf(loginPage(), loginPageEchoingUser()),
+                presenter = presenter,
+                config = NavigationLoop.Config(settleMs = 0, budget = NavigationLoop.BudgetLimits(stepsHard = 6)),
+            )
+            // After the username is typed, the page echoes it back into the field's a11y
+            // text — the LIVE S25+ shape that deadlocked the 08F loud-rejection build
+            // (every post-injection observation carries the sanctioned secret). The law:
+            // the untrusted block MASKS it ([credential-redacted], doc 05 §2) and the
+            // task continues to its terminal.
+            val result = fixture.run()
+            assertEquals(TerminalState.GOAL_ACHIEVED, result.terminal)
+            // The echo step's state text renders the redaction marker, never the value —
+            // and so does the row's question payload (the option label is masked too).
+            val echoRow = fixture.sink.rows[1]
+            assertTrue(
+                TextSource.REDACTED in echoRow.stateText,
+                "the echo must render the marker: ${echoRow.stateText}",
+            )
+            val rowJson = DECISION_LOG_JSON.encodeToString(DecisionLogRow.serializer(), echoRow)
+            assertTrue(TextSource.REDACTED in rowJson, "the question label must render the marker: $rowJson")
+            assertFalse(fixtureUser in rowJson, "the row (state text AND question payload) must never carry the value")
+            // The execute line's acted-on label masks at SOURCE (PREUAT2-4 (B)): the
+            // marker rides in the label position, not only as the typed-text marker.
+            assertTrue(
+                result.stepLog.any { it.contains("execute: type \"${TextSource.REDACTED}\"") },
+                "the echo step's execute line must mask the label: ${result.stepLog}",
+            )
+            // And the value is nowhere in the whole logged corpus (the 8F.2 law holds).
+            val corpus = buildString {
+                append(result.stepLog.joinToString("\n")).append('\n')
+                fixture.sink.rows.forEach { append(it.stateText).append('\n') }
+                fixture.sink.exitChecks.forEach { append(it.stateText).append('\n') }
+            }
+            assertFalse(fixtureUser in corpus, "the fixture value LEAKED into the log/row corpus")
         }
+
+    // -- PREUAT2-4 residual hardening: the consult proposition, the execute line, the cap
+
+    /** Obviously-dummy fixture secret LONGER than the serializer's 40-char label cap. */
+    private val longSecret = "fixture-secret-45chars-DO-NOT-USE-0123456789a"
+
+    /**
+     * The post-injection account page: the echoed username IS a clickable control on an
+     * authenticated surface — classify-null + `mutationNet` SUSPICIOUS territory (the
+     * additive engine check's additive trigger, vision 06 §3).
+     */
+    private fun accountEchoPage() = obs(
+        "http://127.0.0.1:8099/account.html",
+        N("Account notice header"),
+        N("Notice body text one"),
+        N("Notice body text two"),
+        N(fixtureUser, clickable = true, button = true),
+        N("Footer text"),
+        pageNodes = 7,
+        title = "Account (TEST ONLY)",
+    )
+
+    /** The echo page for [longSecret]: the echoed value rides a candidate label the
+     *  enumerator truncates to the serializer's 40-char cap BEFORE any masking. */
+    private fun longEchoPage() = obs(
+        "http://127.0.0.1:8099/echo-long.html",
+        N("Echo page header (TEST ONLY)"),
+        N("Echo body text one"),
+        N("Echo body text two"),
+        N(longSecret, editable = true),
+        N("Echo footer text"),
+        pageNodes = 7,
+        title = "Echo (TEST ONLY)",
+    )
+
+    @Test
+    fun `the additive consult proposition masks a sanctioned echo before any engine sees it`() =
+        runBlocking {
+            val judged = mutableListOf<NoulQuestion>()
+            val presenter = GatePresenter { card ->
+                if (card.target.contains("Email")) {
+                    GateResolution.ApproveWithSecret(fixtureUser)
+                } else {
+                    GateResolution.APPROVED
+                }
+            }
+            val fixture = LoopFixture(
+                script = scriptOf(
+                    choose("triage", "form-fill"),
+                    type("Email or username"), // H4 card -> the secret is sanctioned
+                    type("Submit sign in"), // rides the per-task trust granted at step 0
+                    choose("action", "n3"), // the echoed-username control on the auth surface
+                    navigator.app.stub.ScriptedAnswer(
+                        question = AdditiveEngineCheck.QUESTION_NAME,
+                        pTrue = 0.1, // confident LOW -> no gate -> the run continues
+                    ),
+                    choose("action", "finish"),
+                    noul(0.95),
+                ),
+                // Per executed step the observer is read TWICE (the loop-top observe and
+                // the post-execute one): login, login, login, then the account-echo page
+                // (repeats for the tap step and the finish check).
+                observations = listOf(loginPage(), loginPage(), loginPage(), accountEchoPage()),
+                presenter = presenter,
+                engineDecorator = { stub -> PropositionRecordingEngine(stub, judged) },
+                config = NavigationLoop.Config(settleMs = 0, budget = NavigationLoop.BudgetLimits(stepsHard = 5)),
+            )
+            val result = fixture.run()
+
+            // The consult RAN (classify null + SUSPICIOUS on the auth surface), its LOW
+            // answer left the tap ungated, and the run completed normally.
+            assertEquals(TerminalState.GOAL_ACHIEVED, result.terminal)
+            assertTrue(
+                result.stepLog.any { it.contains("engine LOW: no gate") },
+                "the additive consult must have run: ${result.stepLog}",
+            )
+            // What the engine RECEIVED: the proposition masks the sanctioned echo —
+            // doc 06 §2a "never sent to any engine" (PREUAT2-4 (A)). Masking (not
+            // skipping) keeps the additive H9 net functional.
+            val consult = judged.filter { it.name == AdditiveEngineCheck.QUESTION_NAME }
+            assertEquals(1, consult.size, "exactly one consult: ${judged.map { it.name }}")
+            assertTrue(
+                TextSource.REDACTED in consult[0].proposition,
+                "the consult proposition must mask the echo: ${consult[0].proposition}",
+            )
+            assertFalse(fixtureUser in consult[0].proposition)
+            // The masking is loud on the step log for the audit trail.
+            assertTrue(
+                result.stepLog.any {
+                    it.contains("additive consult proposition") && it.contains(TextSource.REDACTED)
+                },
+                "the consult masking must be logged: ${result.stepLog}",
+            )
+            // The value never surfaced anywhere else either.
+            assertFalse(fixtureUser in result.stepLog.joinToString("\n"))
+        }
+
+    @Test
+    fun `the execute step-log line masks a sanctioned echo label at source`() {
+        // PREUAT2-4 (B): the acted-on label is page text that can carry a sanctioned
+        // post-injection echo — the line builder masks it, so the value never transits
+        // the in-memory stepLog raw (the finish scrub stays as the boundary's second
+        // layer). This is the loop's ONLY execute-line builder.
+        val line = NavigationLoop.executeLine(
+            kind = ActionKind.TAP,
+            label = "$fixtureUser (af)",
+            cx = 50,
+            cy = 300,
+            dispatched = true,
+            typedMarker = "",
+            redact = listOf(fixtureUser),
+        )
+        assertTrue("\"${TextSource.REDACTED} (af)\" at (50,300)" in line, "line=$line")
+        assertTrue(line.endsWith("-> dispatched"), "line=$line")
+        assertFalse(fixtureUser in line, "the raw label must never appear: $line")
+        // A non-credential task (empty redact) keeps the pre-08F line byte-identical.
+        assertEquals(
+            "execute: tap \"plain label\" at (1,2) -> FAILED",
+            NavigationLoop.executeLine(ActionKind.TAP, "plain label", 1, 2, dispatched = false, typedMarker = ""),
+        )
+    }
+
+    @Test
+    fun `a long sanctioned secret truncated by the serializer cap still masks fully`() = runBlocking {
+        check(longSecret.length == 45 && longSecret.length > TreeSerializer.MAX_TEXT_LENGTH) {
+            "the fixture secret must outgrow the ${TreeSerializer.MAX_TEXT_LENGTH}-char label cap"
+        }
+        val fixture = LoopFixture(
+            script = scriptOf(
+                choose("triage", "form-fill"),
+                type("Field two"), // the flagged wording-free field -> H8 credential typing
+                type("Go"), // the lone-secret submission -> H3, the ordinary card
+                choose("action", "finish"),
+                noul(0.95),
+            ),
+            // Two executed steps on the flagged page (type + submit), then the echo page
+            // (the post-execute read lands on it; it repeats for the finish check).
+            observations = listOf(
+                wordingFreeFlaggedPage(),
+                wordingFreeFlaggedPage(),
+                wordingFreeFlaggedPage(),
+                longEchoPage(),
+            ),
+            presenter = ScriptedGatePresenter(
+                GateResolution.ApproveWithSecret(longSecret),
+                GateResolution.APPROVED,
+            ),
+            config = NavigationLoop.Config(settleMs = 0, budget = NavigationLoop.BudgetLimits(stepsHard = 4)),
+        )
+        val result = fixture.run()
+        assertEquals(TerminalState.GOAL_ACHIEVED, result.terminal)
+
+        // The echo step's state text: the echoed label was truncated to the 40-char cap
+        // by the enumerator BEFORE masking — the capped prefix must mask too (PREUAT2-4
+        // (C)), never leak raw.
+        val echoRow = fixture.sink.rows[2]
+        assertTrue(TextSource.REDACTED in echoRow.stateText, echoRow.stateText)
+        assertFalse(longSecret in echoRow.stateText)
+        assertFalse(longSecret.take(TreeSerializer.MAX_TEXT_LENGTH) in echoRow.stateText)
+        // The question payload and the exit-check row are covered by the same keys.
+        val rowJson = DECISION_LOG_JSON.encodeToString(DecisionLogRow.serializer(), echoRow)
+        assertFalse(longSecret.take(TreeSerializer.MAX_TEXT_LENGTH) in rowJson, rowJson)
+        val exitJson = DECISION_LOG_JSON.encodeToString(
+            ExitCheckRow.serializer(),
+            fixture.sink.exitChecks.single(),
+        )
+        assertFalse(longSecret.take(TreeSerializer.MAX_TEXT_LENGTH) in exitJson, exitJson)
+        // Corpus-wide: neither the value nor its capped prefix leaked anywhere.
+        val corpus = buildString {
+            append(result.stepLog.joinToString("\n")).append('\n')
+            append(result.partialResult).append('\n')
+            fixture.sink.rows.forEach { append(it.stateText).append('\n') }
+            fixture.sink.exitChecks.forEach { append(it.stateText).append('\n') }
+        }
+        assertFalse(longSecret in corpus, "the 45-char value LEAKED into the corpus")
+        assertFalse(
+            longSecret.take(TreeSerializer.MAX_TEXT_LENGTH) in corpus,
+            "the capped prefix LEAKED into the corpus",
+        )
     }
 
     // -- Gate 8F.3: card flow (approve-with-secret / deny / timeout / trust) -------------

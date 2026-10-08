@@ -8,9 +8,10 @@ package navigator.app.loop
  *
  * Secret law (doc 06 §2a + doc 05 §2): the [GateSuppliedSecret] value is injected
  * DIRECTLY into the target field by code and lives in memory only for that call — it
- * is never phrased by any cloud role, never built into state text (the
- * [navigator.core.state.StateTextBuilder] rejects a secret loudly), and never written
- * to any log, row, or report: those render [REDACTED].
+ * is never phrased by any cloud role, never sent to any engine raw (a sanctioned
+ * page-side echo masks as [REDACTED] in the state text's untrusted block; an
+ * app-authored-section leak still fails loudly), and never written to any log, row,
+ * or report: those render [REDACTED].
  */
 sealed interface TextSource {
     /** Ordinary text: the deterministic Phase-10 stub phrasing (the pre-08F behavior). */

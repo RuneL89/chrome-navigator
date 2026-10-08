@@ -1,0 +1,40 @@
+{
+  "pass": "PREUAT2-4-STATEMASK residual hardening (defect-follower for the canon-verifier's post-fix observations A/B/C/E in .state/preUAT2-4-statemask-verification.md)",
+  "date": "2026-10-08",
+  "status": "fix-complete-awaiting-verifier",
+  "llmCost": "$0",
+  "scope": "Disk-only follow-ups after the STATEMASK fix; the S25+ credential session was RUNNING on-device in parallel, so tests only — NO assembleDebug (the orchestrator owns the device APK). No vision edits, no commits, no site names.",
+  "fixes": {
+    "A_additive_consult_proposition": {
+      "law": "doc 06 §2a: a sanctioned secret is 'never sent to any engine or provider' — absolute",
+      "was": "AdditiveEngineCheck.propositionFor embeds action.target.label verbatim; the loop sent it to engine.judge (the cloud Jev primary in prod). Reachable only post-injection (cardSecrets non-empty) + classify null + mutationNet SUSPICIOUS (TAP/SUBMIT) — narrow, but the law is absolute.",
+      "now": "NavigationLoop masks the consult proposition with the same redactedLabel/cardSecrets seam the decide question uses, BEFORE the engine sees it; the masking is loud on the step log ('additive consult proposition carried a sanctioned secret - masked ([credential-redacted]) before the engine'). CHOSEN OVER SKIPPING deliberately: skipping the consult would fail the additive H9 net OPEN (no engine answer = no H9 added); masking keeps the §3 check functional while honoring the law. Deterministic: same fold, same marker."
+    },
+    "B_execute_step_log_line": {
+      "was": "NavigationLoop's execute line interpolated candidate.label raw — clean only via the finish() boundary scrub, so the value transited the in-memory stepLog.",
+      "now": "The line is built by one companion builder, NavigationLoop.executeLine(kind, label, cx, cy, dispatched, typedMarker, redact), which redactedLabel-masks the label at SOURCE; the loop is its only caller. The finish() scrub stays as the report boundary's second layer (defense in depth). Non-credential tasks (empty redact) keep the line byte-identical."
+    },
+    "C_serializer_cap_prefix": {
+      "was": "The enumerator truncates candidate labels at the serializer's 40-char cap (CandidateEnumerator.MAX_LABEL_LENGTH = TreeSerializer.MAX_TEXT_LENGTH = 40) BEFORE any masking sees them — a sanctioned secret longer than the cap leaked its capped prefix raw into state text / question payloads / history.",
+      "now": "The loop derives ONE redaction key set — every sanctioned secret PLUS the take(40) prefix of any longer one (loop-local redactionKeys(), deterministic, full secret folded first so the prefix pass only fires where truncation actually cut the value) — and passes it to every masking seam: the state builder's secrets param, actionQuestion/shadowQuestion, the HISTORY digest, the execute line, the consult proposition, and the finish() scrub. Consequence (accepted, fail-closed): the builder's app-authored-section LOUD check now also fires on a capped prefix — a secret FRAGMENT in an app-authored section is a doc 05 §2 violation, so loud is the lawful render; the only realistic app-authored carrier remains the tracker-progress/hint path already disclosed as fail-closed in the verifier's (D) (action-multi x credential-echo overlap, out of this dispatch's scope)."
+    },
+    "E_stale_comments": {
+      "was": "NavigationLoop.kt ~203-204 and ~662-663 still described the retired loud-rejection law.",
+      "now": "Both rewritten to the mask law (mask untrusted / loud app-authored / never raw to any engine or log). Also updated the same stale sentence in TextSource.kt's seam KDoc ('StateTextBuilder rejects a secret loudly' -> the untrusted-block mask + app-authored loud split)."
+    }
+  },
+  "deviations": [
+    "Test-shape: the two loop fixtures needed the FORM_FILL guard's fill-then-submit predicate satisfied (a lone type does not reach WEAK, so the finish refused and the scripts starved) — both scenarios now type + submit on the credential page before the echo/consult step; the observer fixture is read TWICE per executed step (loop top + post-execute), so the page lists carry four entries.",
+    "(B)'s in-memory stepLog is not observable post-run (RunResult.stepLog is the scrubbed copy), so the at-source pin is a unit test over NavigationLoop.executeLine — the loop's single execute-line builder — plus an end-to-end label-position assertion in the existing echo test (the marker rides INSIDE the label quotes, which the old scrub-only path also produced, hence the unit pin).",
+    "LoopTestSupport gained an additive LoopFixture param (engineDecorator, identity default — every existing fixture byte-identical) and PropositionRecordingEngine, which records the NoulQuestion the engine RECEIVED (what the loop built is not the law's subject; what crossed the engine boundary is)."
+  ],
+  "testEvidence": {
+    "fullSuite": "./gradlew test BUILD SUCCESSFUL (exit 0) — core 299 + app-debug 367 + app-release 367 = 1033 executions, 0 failures, 0 errors, 0 skipped (prior 663 + 3 new app tests; no core change this pass)",
+    "newTests": {
+      "app": "navigator.app.loop.CredentialEntryLoopTest 11 -> 14: (A) 'the additive consult proposition masks a sanctioned echo before any engine sees it' — classify-null + SUSPICIOUS echoed-username control on an authenticated surface, the recorded proposition renders [credential-redacted] and never the value, the LOW answer leaves the tap ungated, the masking line is on the step log; (B) 'the execute step-log line masks a sanctioned echo label at source' — the executeLine unit pin (masked label, structure intact, empty-redact byte-identical); (C) 'a long sanctioned secret truncated by the serializer cap still masks fully' — a 45-char sanctioned secret, the enumerator-truncated 40-char label masks in the state text, the row question JSON, and the exit-check row; corpus-wide neither the value nor its prefix appears; the existing echo test gained the (B) label-position assertion"
+    },
+    "tierA": "untouched and green inside the full suite (no core change this pass; the prefix keys are loop-side and keyed on non-empty secrets, so every fixture replay still builds with the empty default)"
+  },
+  "lastAction": "wrote this note after the green full suite; DOX pass done (app/AGENTS.md cardSecrets seam + CredentialEntryLoopTest verification lines, .state/AGENTS.md index); compliance-log entry appended",
+  "nextAction": "canon-verifier cold re-check of A/B/C/E; the orchestrator owns the device APK (assembleDebug) and the running S25+ session"
+}

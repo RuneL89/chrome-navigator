@@ -50,8 +50,14 @@ without a device.
   of the candidate lines; deterministic-first compression — lowest-rank candidate drops,
   then head-anchored whole-line excerpt shrinking — with `compressedBy=code` logging, the
   cloud page-compressor LLM role is Phase 10's seam; Phase 8F: the `secrets` parameter —
-  a card-secret string that would reach the emitted text fails LOUDLY, never truncation
-  or masking, doc 06 §2a), `ContentExtractor` — the bounded non-candidate prose excerpt
+  sanctioned-secret redaction split by the 2026-10-07 post-injection deadlock fix: a
+  known secret in the UNTRUSTED PAGE CONTENT block (candidate lines + excerpt — where a
+  successfully injected secret legitimately appears as page content, live Chrome carries
+  the typed value in the field's a11y text) is MASKED to `[credential-redacted]` (doc 05
+  §2's render — the secret never appears, which IS the doc 06 §2a law), while a secret in
+  an app-authored section still fails LOUDLY (an upstream leak — never masked silently;
+  the emission-boundary invariant keeps the guarantee absolute), doc 06 §2a),
+  `ContentExtractor` — the bounded non-candidate prose excerpt
   (deterministic read-order selection, ≤24 lines × 200 chars, dedupe keeping first,
   TEXT only — ART-8), and `LayaStateView` (`LAYA_STATE_VIEW_VERSION = 1` — the dual-view
   law: a pure deterministic derivation of the canonical text, same sections/order,
@@ -316,7 +322,11 @@ without a device.
   excerpt rendering + head-anchored shrink, PLAN/TASK-PROGRESS rendering + omission,
   `ContentExtractorTest` Gate 8H.1, `LayaStateViewTest` Gate 8H.2 core half — the ≤319
   dual-view derivation with the REAL tokenizer, loud unfittable views; since Phase 8F
-  incl. the loud secret rejection — an echoed card-secret value is a loud failure, the
+  incl. the sanctioned-secret redaction (2026-10-07 post-injection deadlock fix) — an
+  echoed card-secret value in the untrusted block renders `[credential-redacted]`
+  (partial overlaps mask in place, surrounding page text survives), a secret in an
+  app-authored section (GOAL/HISTORY) still fails loudly, a secret equal to a structural
+  constant fails at the emission-boundary invariant, and the
   default `secrets` parameter keeps non-credential output byte-identical), the
   wire gates (3.1 transcript round-trips incl.
   the live goldens, 3.2 failover + retry law, 3.3 name-indexing + banding — all keyless;
