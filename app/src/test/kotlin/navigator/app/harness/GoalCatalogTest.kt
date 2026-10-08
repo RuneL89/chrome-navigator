@@ -17,9 +17,11 @@ import kotlin.test.assertTrue
  * suite goals (multi-action, H9 injection-bait, cheapest-compare — vision 07 §3's last
  * three rows) on generic fixture pages.
  *
- * Count law (pre-check directive): the RUNNABLE scripted catalog is 10. The vision §3
- * 16-goal count is the Tier-B on-device measurement suite's law — Phase 12's territory;
- * no product or report code may claim 16.
+ * Count law (pre-check directive): the RUNNABLE scripted catalog is 11 (the pre-UAT2
+ * automated on-device credential run added the `credential` family's `credential-login-1`
+ * on the harness login fixture page). The vision §3 16-goal count is the Tier-B
+ * on-device measurement suite's law — Phase 12's territory; no product or report code
+ * may claim 16.
  */
 class GoalCatalogTest {
 
@@ -38,8 +40,9 @@ class GoalCatalogTest {
     fun `the M0 families are present with the right multiplicities`() {
         val families = catalog.goals.map { it.family }
         // M0 set + the Phase-8J exit-reliability fixture goal + the Phase-08I new-class
-        // goals (multi-action, h9-injection-bait, cheapest-compare) = 10 runnable.
-        assertEquals(10, catalog.goals.size)
+        // goals (multi-action, h9-injection-bait, cheapest-compare) + the pre-UAT2
+        // credential login goal = 11 runnable.
+        assertEquals(11, catalog.goals.size)
         assertEquals(2, families.count { it == "search-and-read" })
         assertEquals(1, families.count { it == "research-multi-step" })
         assertEquals(1, families.count { it == "form-fill" })
@@ -49,6 +52,7 @@ class GoalCatalogTest {
         assertEquals(1, families.count { it == "multi-action" })
         assertEquals(1, families.count { it == "h9-injection-bait" })
         assertEquals(1, families.count { it == "cheapest-compare" })
+        assertEquals(1, families.count { it == "credential" })
     }
 
     @Test
@@ -112,6 +116,27 @@ class GoalCatalogTest {
     }
 
     @Test
+    fun `the pre-UAT2 credential login goal records the scripted credential shape`() {
+        // The automated on-device credential run's catalog goal: generic goal text (no
+        // secrets, no site names), the harness login fixture page, GOAL_ACHIEVED. The
+        // script answers ONLY the DECIDE chooses (username type -> password type ->
+        // submit); the credential/submit gate cards are resolved by the harness presenter
+        // and the typed text comes from the TextSource law (stub phrase / card secret) —
+        // never from this fixture.
+        val credential = catalog.byId("credential-login-1")
+        assertEquals("credential", credential.family)
+        assertEquals("GOAL_ACHIEVED", credential.expectedTerminal)
+        assertEquals("http://127.0.0.1:8099/login.html", credential.startUrl)
+        assertEquals("form-fill", credential.script.first().chosen)
+        assertEquals(
+            listOf("Email or username", "Password", "Submit sign in"),
+            credential.script.drop(1).take(3).map { it.labelContains },
+        )
+        assertEquals("finish", credential.script[4].chosen)
+        assertEquals(0.95, credential.script[5].pTrue)
+    }
+
+    @Test
     fun `every scripted answer parses and replays against the stub engine`() = kotlinx.coroutines.runBlocking {
         catalog.goals.forEach { goal ->
             val engine = StubEngine(goal.stubScript())
@@ -164,7 +189,7 @@ class GoalCatalogTest {
     fun `custom goals never join the fixture catalog`() {
         // Custom ids are runtime-only: they never join the committed fixture set.
         assertThrows<IllegalArgumentException> { catalog.byId(GoalCatalog.DEFAULT_CUSTOM_GOAL_ID) }
-        assertEquals(10, catalog.goals.size)
+        assertEquals(11, catalog.goals.size)
     }
 
     @Test

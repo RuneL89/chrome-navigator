@@ -338,7 +338,13 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     same goal resolves GUARD_ABORT, the gate's own second-refusal abort),
     `h9-injection-bait-1` (expected GUARD_ABORT: the gate fires on the real toggle and
     nothing executes), `cheapest-compare-1` (expected GOAL_ACHIEVED: the $6.25 Field
-    Notebook listing selected via the v2 content state); the RUNNABLE catalog is 10 —
+    Notebook listing selected via the v2 content state) + the pre-UAT2
+    `credential-login-1` (family credential — the automated on-device credential run's
+    catalog goal: generic goal text over `pages/login.html`, a DECIDE-only script
+    (email type → password type → "Submit sign in"); the typed text follows the
+    TextSource law — stub phrase / the card's secret — and the interactive
+    credential/submit cards resolve on-device, expected GOAL_ACHIEVED); the RUNNABLE
+    catalog is 11 —
     the vision 07 §3 16-goal count is the Tier-B on-device measurement suite's law,
     Phase 12's territory, never claimed in product or report code);
     `GoalCatalog.customGoal(...)` builds a ONE-OFF custom goal
@@ -642,7 +648,8 @@ tracked as last-known (normalized) and serves on an empty card URL, and garbage
   counts on action-multi, and the default path's pre-08H layout) +
   the Phase-08I fixture-goal gates (`GoalCatalogTest` Gate 8I.1/8I.3: the catalog parses
   with the three new-class goals at their recorded expected outcomes and the RUNNABLE
-  count pinned at 10; the suite-report shape carries every catalog goal with its
+  count pinned at 11 (the pre-UAT2 credential goal included); the suite-report shape
+  carries every catalog goal with its
   expected terminal and allPassed; `Phase08ILoopTest` Gate 8I.2: the three goals reach
   their terminals in the real loop over the committed Tier A fixture mirrors —
   multi-action first-card-then-trust with the tracker drained (and the auto-deny

@@ -161,6 +161,21 @@
         { "question": "action", "chosen": "finish" },
         { "question": "goal-achieved", "pTrue": 0.95 }
       ]
+    },
+    {
+      "id": "credential-login-1",
+      "family": "credential",
+      "goal": "Sign in to the demo account.",
+      "startUrl": "http://127.0.0.1:8099/login.html",
+      "expectedTerminal": "GOAL_ACHIEVED",
+      "script": [
+        { "question": "triage", "chosen": "form-fill" },
+        { "question": "action", "labelContains": "Email or username", "fallbackBucketOrdinal": 0 },
+        { "question": "action", "labelContains": "Password", "fallbackBucketOrdinal": 1 },
+        { "question": "action", "labelContains": "Submit sign in" },
+        { "question": "action", "chosen": "finish" },
+        { "question": "goal-achieved", "pTrue": 0.95 }
+      ]
     }
   ]
 }
