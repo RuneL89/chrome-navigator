@@ -27,6 +27,10 @@ remembers."
   (2026-10-08: mobile Chrome omits the URL-bar scheme, so the owner screenshot showed
   the card displaying a URL the restore's http(s)-prefix guard rejected; the
   `normalizePageUrl` fix — loopback→http else https — + test evidence)
+* `preUAT2-1-follower3.json` — the PREUAT2-1 defect-follower #3 status note
+  (2026-10-08: the fixed restore settle expired before Chrome was front+interactive on
+  Samsung OneUI, so the post-approval injection failed; the bounded observation-readiness
+  wait after the VIEW intent — usable-tree re-reads, expiry proceeds — + test evidence)
 * `preUAT2-2-h8gap.json` — the PREUAT2-3-H8GAP security-core fix status note
   (2026-10-08: live Chrome password typing ran ungated — the observation never read
   `AccessibilityNodeInfo.isPassword` and the wording/mask heuristics miss Chrome 154's

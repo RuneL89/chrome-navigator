@@ -98,7 +98,13 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     are tracked as last-known in their normalized form, and the serving line notes
     "(normalized)" when normalization changed the value
     through the cold-start `BrowserLauncher` seam + a short settle
-    (`Config.restoreSettleMs`), logged on the step log and `NavigatorHarness`; the
+    (`Config.restoreSettleMs`) + a bounded observation-readiness wait
+    (`Config.restoreReadinessMs` — the 2026-10-08 S25+ follower #3: OneUI's
+    resume+restore outlasted the fixed settle, so the focus-first tap landed wrong;
+    after the intent the loop re-reads on the unusable-tree cadence until the
+    usable-tree bar passes, expiry proceeds — the next observe's starvation machinery
+    owns a still-dark page; wall-clock within the same step, no extra budget/steps),
+    logged on the step log and `NavigatorHarness`; the
     overlay path, never-fronting presenters (scripted/auto), and task-ending
     resolutions (CONFIRM_DONE, the DENY-abort) restore nothing (byte-identical);
     preceded by the Phase-8D cold-start
@@ -465,7 +471,11 @@ prefers the card URL when present (source logged); the 2026-10-08 owner-screensh
 normalization follower: a scheme-less loopback card URL fires as http://, a
 scheme-less non-loopback card URL fires as https://, a scheme-less bar read is
 tracked as last-known (normalized) and serves on an empty card URL, and garbage
-reads (about:blank, empty; hidden pinned by the earlier test) still never serve) +
+  reads (about:blank, empty; hidden pinned by the earlier test) still never serve; the
+  2026-10-08 S25+ readiness follower #3: after the restore intent the loop waits through
+  a dark probe until a usable read before the execute gesture, a zero-budget expiry
+  proceeds with the execute (no hang), and the completion-card restore probes the same
+  way) +
   the Phase-8D gates (`TriageClassificationTest`
   Gate 8D.1: the classification matrix over `src/test/resources/fixtures/triage-matrix.json`
   — the owner example goal texts as TEST DATA, booking→action, unsubscribe-all→action-multi,

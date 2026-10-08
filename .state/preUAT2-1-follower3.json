@@ -1,0 +1,40 @@
+{
+  "pass": "PREUAT2-1 defect-follower #3 (implementer half of the fix-first protocol; restore readiness after the VIEW intent)",
+  "date": "2026-10-08",
+  "status": "fix-complete-awaiting-verifier-and-device-rerun",
+  "llmCost": "$0",
+  "defect": {
+    "id": "PREUAT2-1-FOLLOWER-3",
+    "kind": "product",
+    "caughtOn": "S25+ live demo, this hour: the credential card flow worked end-to-end (owner typed the secret on the masked card twice, the approval carried — [credential-redacted] everywhere, the redaction law proven live), the restore fired with the normalized URL — but the injection 'execute: type ... -> FAILED' BOTH times",
+    "summary": "The fixed 1000ms Config.restoreSettleMs expired before Chrome was actually front+interactive on Samsung OneUI (the activity resume + VIEW-intent page restore take longer), so the focus-first tap landed wrong and the gesture failed; the subsequent observation then read the wrong window and the run starved to REFUSED."
+  },
+  "fix": {
+    "files": [
+      "app/src/main/kotlin/navigator/app/loop/NavigationLoop.kt",
+      "app/src/test/kotlin/navigator/app/loop/CardForegroundRestoreTest.kt (+3 tests)",
+      "app/AGENTS.md (restore-seam one-liner + CardForegroundRestoreTest verification line)",
+      ".state/AGENTS.md (index line for this note)"
+    ],
+    "mechanism": "After restoreBrowserForeground fires the VIEW intent it now WAITS FOR OBSERVATION READINESS before the step continues: waitForBrowserReadiness() re-observes on the existing unusable-tree cadence (Config.unusableRetryDelayMs) until a read passes the loop's own usable-tree bar (non-empty lines >= minUsableNodes + pageNodes >= minPageNodes), bounded by the new Config.restoreReadinessMs (default 10s -> ~6 retries + the initial probe). The wait rides BOTH call sites (gate card and completion card) because it lives inside restoreBrowserForeground, right after the settle; the loud no-URL path (no intent fired) waits for nothing; overlay/never-fronting/trusted/task-ending exclusions are untouched. On budget expiry the step proceeds anyway — the next observe's own starvation machinery (refuseAfterUnusableReads) owns a still-dark page; no new failure mode. Outcome logged loudly: 'restore: browser ready after Nms' / 'restore: browser not readable within budget - continuing'. Config.restoreSettleMs stays as the pre-observe initial settle, default raised 1000 -> 2000 (dispatch-sanctioned, ART-5: Config; the old value wasted the first re-read on OneUI). The readiness probes are wall-clock WITHIN the same step (same precedent as restoreSettleMs): they consume no budget and no steps, and the step's enumerate/decide/execute state is unchanged — the probes only gate WHEN the step continues. Seam shape kept: restoreBrowserForeground is still the loop-local suspend fun; waitForBrowserReadiness is a loop-local suspend fun using the loop's own observer/usable/notePageUrl/line/clock. notePageUrl is called on the probes (they are observations)."
+  },
+  "deviations": [
+    "The readiness budget is enforced as a re-read count derived from Config.restoreReadinessMs / Config.unusableRetryDelayMs (~10s at the defaults) rather than a clock check — the loop's Clock is fakeable and static in JVM tests, so a clock-only bound would either hang tests or need a second backstop; the count bound is deterministic in tests and ~wall-clock-identical in production (each retry sleeps the cadence). restoreReadinessMs=0 means one probe, no retries (the timeout test uses this).",
+    "restoreSettleMs default raised 1000 -> 2000 (explicitly offered by the dispatch; judged helpful — OneUI's resume+restore outlasted 1000ms, so the first re-read was wasted)"
+  ],
+  "testEvidence": {
+    "targeted": "./gradlew :app:testDebugUnitTest --tests navigator.app.loop.CardForegroundRestoreTest — BUILD SUCCESSFUL, 21/21 (18 prior + 3 new)",
+    "fullSuite": "./gradlew test BUILD SUCCESSFUL (exit 0, 4m28s) — :core 296 + :app 364 (debug) = 660 tests, 0 failures, 0 errors, 0 skipped (prior 657 + 3 new; the :app release variant also re-ran green: 364/0); Tier A report bytes untouched (git-clean)",
+    "newTests": {
+      "class": "navigator.app.loop.CardForegroundRestoreTest (18 -> 21)",
+      "covers": [
+        "after the restore intent the loop waits for a usable read before the execute gesture — journal shows exactly two probes (dark, then the restored page) between restore:view(...) and tap(...); 'restore: browser ready after' logged; the execute dispatched",
+        "readiness timeout proceeds — restoreReadinessMs=0: exactly one probe between the intent and the gesture, 'restore: browser not readable within budget - continuing' logged, the execute still dispatched, no hang",
+        "the completion-card restore also waits for observation readiness before the loop continues — the readiness probe is the very next journal read after the restore intent and 'restore: browser ready after' rides the step log, outcome unchanged (GOAL_ACHIEVED via SUSTAINED)"
+      ]
+    },
+    "existingTests": "all 18 prior restore tests pass unchanged — the wait only runs when an intent actually fires, and in those scenarios the first probe re-reads a usable page (FakeObserver repeats the last), so no journal-visible behavior they assert moved"
+  },
+  "lastAction": "wrote this status note; DOX pass done (app/AGENTS.md restore-seam + verification lines, .state/AGENTS.md index); compliance-log entry appended",
+  "nextAction": "canon-verifier cold re-check, then the orchestrator re-runs the S25+ credential-card flow (observable: after 'VIEW intent for ...' the step log shows 'restore: browser ready after Nms' and the injection dispatches instead of FAILED)"
+}

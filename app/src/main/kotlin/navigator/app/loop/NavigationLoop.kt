@@ -138,8 +138,15 @@ class NavigationLoop(
         /** Breather between the fresh reads of an unusable tree (page render). */
         val unusableRetryDelayMs: Long = 1_500,
         /** The short settle after a card restore's VIEW intent (the browser re-fronts
-         *  and the page refocuses) before the loop proceeds (2026-10-08 defect fix). */
-        val restoreSettleMs: Long = 1_000,
+         *  and the page refocuses) before the readiness wait's first re-read
+         *  (2026-10-08 defect fix; 1000 -> 2000 — OneUI's resume+restore outlasted the
+         *  old value, wasting the first re-read). */
+        val restoreSettleMs: Long = 2_000,
+        /** The readiness-wait budget after a card restore's VIEW intent (2026-10-08 S25+
+         *  follower #3): re-reads on the [unusableRetryDelayMs] cadence until the
+         *  usable-tree bar passes, at most ~this much wall-clock; expiry proceeds
+         *  anyway — a still-dark page is the next observe's starvation machinery's job. */
+        val restoreReadinessMs: Long = 10_000,
         val budget: BudgetLimits = BudgetLimits(),
     )
 
@@ -240,6 +247,10 @@ class NavigationLoop(
         // follower: mobile Chrome OMITS the scheme, so the card showed
         // "127.0.0.1:8099/subscriptions.html" while the old http(s)-prefix guard
         // rejected it — scheme-less bar text now fires, loopback -> http else https).
+        // After the intent the wait is OBSERVATION READINESS, not a fixed guess
+        // (2026-10-08 S25+ follower #3): OneUI's resume+restore outlasted the settle, so
+        // the first gesture landed wrong — [waitForBrowserReadiness] re-reads until the
+        // tree is usable or the budget expires, then the step proceeds either way.
 
         /** Whether [presenter] fronted the harness for its most recent card. */
         fun frontedHarness(presenter: Any): Boolean =
@@ -278,10 +289,42 @@ class NavigationLoop(
         }
 
         /**
+         * The restore's readiness wait (2026-10-08 S25+ defect-follower #3): the fixed
+         * settle expired before Chrome was front+interactive on Samsung OneUI (the
+         * activity resume + VIEW-intent page restore outlast it), so the focus-first tap
+         * landed wrong and the run starved. Re-observes on the existing unusable-tree
+         * cadence until a read passes the loop's own usable-tree bar — bounded by
+         * [Config.restoreReadinessMs]. Wall-clock WITHIN the same step (the probes
+         * consume no budget and no steps — the same precedent as the settle); on expiry
+         * the step proceeds anyway: a still-dark page is the next observe's starvation
+         * machinery's job, not a new failure mode. The outcome is logged loudly.
+         */
+        suspend fun waitForBrowserReadiness() {
+            val startedAt = clock.nowMs()
+            val maxRetries =
+                (config.restoreReadinessMs / config.unusableRetryDelayMs.coerceAtLeast(1L)).toInt()
+            var probe = observer.observe()
+            notePageUrl(probe)
+            var retries = 0
+            while (!usable(probe) && retries < maxRetries) {
+                retries += 1
+                delay(config.unusableRetryDelayMs)
+                probe = observer.observe()
+                notePageUrl(probe)
+            }
+            if (usable(probe)) {
+                line("restore: browser ready after ${clock.nowMs() - startedAt}ms")
+            } else {
+                line("restore: browser not readable within budget - continuing")
+            }
+        }
+
+        /**
          * Re-fronts the browser with the VIEW intent for the first candidate among
          * [candidates] (source label to raw URL, in preference order) that normalizes
-         * ([normalizePageUrl]) to a page URL; short settle, logged with the serving
-         * source — noted "(normalized)" when normalization changed the value.
+         * ([normalizePageUrl]) to a page URL; short settle, then the readiness wait
+         * ([waitForBrowserReadiness]) — logged with the serving source — noted
+         * "(normalized)" when normalization changed the value.
          */
         suspend fun restoreBrowserForeground(what: String, vararg candidates: Pair<String, String?>) {
             val launcher = browserLauncher ?: return
@@ -300,6 +343,7 @@ class NavigationLoop(
             )
             launcher.launch(pageUrl)
             delay(config.restoreSettleMs)
+            waitForBrowserReadiness()
         }
 
         fun partialResult(): String =

@@ -36,6 +36,16 @@ import kotlin.test.assertTrue
  * gets http:// for the loopback hosts, https:// otherwise; garbage (about:blank,
  * hidden, empty) never serves. Scheme-less bar reads are also tracked as last-known.
  *
+ * The S25+ readiness defect-follower #3 (live-proven on the credential-card flow): the
+ * fixed settle expired before Chrome was front+interactive on Samsung OneUI (the
+ * activity resume + VIEW-intent page restore take longer), so the focus-first tap
+ * landed wrong and the run starved to REFUSED. After the intent the loop now WAITS for
+ * observation readiness — bounded re-reads on the unusable-tree cadence until a read
+ * passes the usable-tree bar ("restore: browser ready after Nms"); on budget expiry it
+ * proceeds anyway ("browser not readable within budget - continuing" — the next
+ * observe's starvation machinery owns a still-dark page). The wait rides BOTH card
+ * paths and is wall-clock within the same step: probes consume no budget and no steps.
+ *
  * $0 by construction: the engine is the scripted stub; the launcher journal is the
  * LoopTestSupport cold-start intent pattern reused for the restore intents.
  */
@@ -578,6 +588,101 @@ class CardForegroundRestoreTest {
         )
     }
 
+    // -- restore readiness (2026-10-08 S25+ defect-follower #3) ---------------------------
+    // The fixed settle expired before Chrome was front+interactive on Samsung OneUI, so
+    // the first gesture landed wrong. After the VIEW intent the loop re-reads until a
+    // probe passes the usable-tree bar (or the budget expires, then it proceeds anyway).
+
+    /** A Chrome-still-re-fronting read: two toolbar lines, far below the usable bar. */
+    private fun darkProbe() = obs("hidden", N("Chrome toolbar"), N("Tab strip"))
+
+    @Test
+    fun `after the restore intent the loop waits for a usable read before the execute gesture`() = runBlocking {
+        val (fixture, fired) = frontingFixture(
+            script = scriptOf(
+                choose("triage", "lookup"),
+                chooseByLabel("action", "Unsubscribe now"),
+            ),
+            // the step's page, then the restore's first probe lands DARK (still
+            // re-fronting), then the restored page reads usable
+            observations = listOf(listPage(), darkProbe(), listPage()),
+            gatePresenter = FrontingGatePresenter(true, GateResolution.APPROVED),
+            config = NavigationLoop.Config(
+                settleMs = 0,
+                restoreSettleMs = 0,
+                unusableRetryDelayMs = 0,
+                budget = NavigationLoop.BudgetLimits(stepsHard = 1),
+            ),
+        )
+        val result = fixture.loop.run("tidy the subscriptions", "restore-ready", identity, fixture.clock)
+
+        assertEquals(TerminalState.BUDGET_EXHAUSTED, result.terminal)
+        assertEquals(listOf(pageUrl), fired)
+        // the wait probed through the dark first read and only continued once the
+        // restored page read usable: exactly two observes between the VIEW intent and
+        // the gesture — no execute until a usable read
+        val entries = fixture.journal.entries
+        val restoreIdx = entries.indexOfFirst { it == "restore:view($pageUrl)" }
+        val tapIdx = entries.indexOfFirst { it.startsWith("tap(") }
+        assertTrue(restoreIdx in 0 until tapIdx, "journal=$entries")
+        assertEquals(
+            2,
+            entries.subList(restoreIdx + 1, tapIdx).count { it == "observe" },
+            "journal=$entries",
+        )
+        assertTrue(
+            result.stepLog.any { it.contains("restore: browser ready after") },
+            "stepLog=${result.stepLog}",
+        )
+        assertTrue(
+            result.stepLog.any { it.contains("execute: tap") && it.contains("-> dispatched") },
+            "stepLog=${result.stepLog}",
+        )
+    }
+
+    @Test
+    fun `readiness timeout proceeds - the execute still happens after an unreadable restore`() = runBlocking {
+        val (fixture, fired) = frontingFixture(
+            script = scriptOf(
+                choose("triage", "lookup"),
+                chooseByLabel("action", "Unsubscribe now"),
+            ),
+            observations = listOf(listPage(), darkProbe()),
+            gatePresenter = FrontingGatePresenter(true, GateResolution.APPROVED),
+            config = NavigationLoop.Config(
+                settleMs = 0,
+                restoreSettleMs = 0,
+                restoreReadinessMs = 0, // no retry budget: one probe, then proceed
+                budget = NavigationLoop.BudgetLimits(stepsHard = 1),
+            ),
+        )
+        val result = fixture.loop.run("tidy the subscriptions", "restore-ready-timeout", identity, fixture.clock)
+
+        // expiry is not a failure mode: the step ran to its ordinary budget stop
+        assertEquals(TerminalState.BUDGET_EXHAUSTED, result.terminal)
+        assertEquals(listOf(pageUrl), fired)
+        // exactly one probe between the VIEW intent and the gesture - no hang, no retry loop
+        val entries = fixture.journal.entries
+        val restoreIdx = entries.indexOfFirst { it == "restore:view($pageUrl)" }
+        val tapIdx = entries.indexOfFirst { it.startsWith("tap(") }
+        assertTrue(restoreIdx in 0 until tapIdx, "journal=$entries")
+        assertEquals(
+            1,
+            entries.subList(restoreIdx + 1, tapIdx).count { it == "observe" },
+            "journal=$entries",
+        )
+        assertTrue(
+            result.stepLog.any {
+                it.contains("restore: browser not readable within budget - continuing")
+            },
+            "stepLog=${result.stepLog}",
+        )
+        assertTrue(
+            result.stepLog.any { it.contains("execute: tap") && it.contains("-> dispatched") },
+            "stepLog=${result.stepLog}",
+        )
+    }
+
     // -- the completion card --------------------------------------------------------------
 
     /** The exit-flow specimen pages: seed, then entity-bearing article pages. */
@@ -741,6 +846,31 @@ class CardForegroundRestoreTest {
         assertTrue(fired.isEmpty(), "restore fired with no page URL known: $fired")
         assertTrue(
             result.stepLog.any { it.contains("fronted the harness but the URL bar holds no page URL") },
+            "stepLog=${result.stepLog}",
+        )
+    }
+
+    @Test
+    fun `the completion-card restore also waits for observation readiness before the loop continues`() = runBlocking {
+        val cards = FrontingCompletionPresenter(true, CompletionResolution.KEEP_GOING)
+        val (fixture, fired) = frontingFixture(
+            script = seriesScript(listOf(0.60, 0.30, 0.60, 0.60, 0.60)),
+            observations = pages(40),
+            gatePresenter = ScriptedGatePresenter(),
+            completionCardPresenter = cards,
+        )
+        val result = fixture.loop.run("Open Wikipedia article Tarte Tatin", "restore-comp-ready", identity, fixture.clock)
+
+        // the keep-going streak completes exactly as without the wait
+        assertEquals(TerminalState.GOAL_ACHIEVED, result.terminal)
+        assertEquals(LoggedExitPath.SUSTAINED, fixture.sink.rows.last().exit?.path)
+        assertEquals(1, fired.size, "fired=$fired")
+        // the readiness probe is the VERY next read after the restore intent (the wait
+        // rides the completion-card path too), and the outcome line is logged
+        val restoreIdx = fixture.journal.entries.indexOfFirst { it.startsWith("restore:view(") }
+        assertEquals("observe", fixture.journal.entries[restoreIdx + 1], "journal=${fixture.journal.entries}")
+        assertTrue(
+            result.stepLog.any { it.contains("restore: browser ready after") },
             "stepLog=${result.stepLog}",
         )
     }
