@@ -53,20 +53,24 @@ class NavigatorAccessibilityService : AccessibilityService() {
     }
 
     /**
-     * Phase-6 loop observation: the same fresh walk as [observe] plus the page-content
+     * One live observation for the Phase-6 loop: the same fresh walk as [observe] plus the page-content
      * node count — the number of nodes under the first WebView-classed node (Chromium's
      * web-content subtree root, present in Chrome stable and the webview shell alike).
      * The unreadable-tree rule (vision 03 §5, "one undifferentiated node") must judge
      * the PAGE, not the page plus the browser toolbar; when no WebView node exists the
-     * whole meaningful tree counts. One walk, one consistent triple.
+     * whole meaningful tree counts. One walk, one consistent triple. [windowPackage] is
+     * the ACTIVE window's package (2026-10-08 pre-UAT2 RC1) — the readiness signal: a
+     * readable tree alone is not readiness, because Chrome's tree stays readable while
+     * Chrome sits in the background (the focus-first injection then lands nowhere).
      */
     fun observeForLoop(): LoopObservation {
+        val activePackage = rootInActiveWindow?.packageName?.toString().orEmpty()
         val root = freshChromeRoot()
-            ?: return LoopObservation(UrlBarReader.Url.Unavailable, emptyList(), emptyList(), 0)
+            ?: return LoopObservation(UrlBarReader.Url.Unavailable, emptyList(), emptyList(), 0, activePackage)
         val snapshot = toSnapshot(root, depth = 1) ?: NodeSnapshot()
         val serialized = TreeSerializer.serialize(snapshot)
         val url = UrlBarReader.read(A11yNodeView(root))
-        return LoopObservation(url, serialized.lines, serialized.nodes, countPageNodes(snapshot))
+        return LoopObservation(url, serialized.lines, serialized.nodes, countPageNodes(snapshot), activePackage)
     }
 
     /** Descendant count under the first WebView-classed node; whole tree when absent. */
@@ -109,7 +113,9 @@ class NavigatorAccessibilityService : AccessibilityService() {
      * serializer applies the meaningful-depth accounting and indentation cap). Off-screen
      * nodes are skipped but their subtree is still walked (the reference pattern); a node
      * that fails to `refresh()` (stale) is dropped with its subtree — honest sparseness
-     * over wrong coordinates.
+     * over wrong coordinates. A node in the omnibox/URL-bar subtree is marked
+     * browser-chrome (2026-10-08 pre-UAT2 RC2): the gate excludes it from credential
+     * consideration — the marker propagates to the whole subtree.
      */
     internal fun toSnapshot(node: AccessibilityNodeInfo, depth: Int): NodeSnapshot? {
         if (!node.refresh()) return null
@@ -134,6 +140,8 @@ class NavigatorAccessibilityService : AccessibilityService() {
             visible = visible,
             bounds = Bounds(rect.left, rect.top, rect.right, rect.bottom),
             children = children,
+            browserChrome = node.viewIdResourceName == UrlBarReader.URL_BAR_VIEW_ID ||
+                children.any { it.browserChrome },
         )
     }
 
@@ -165,9 +173,11 @@ class NavigatorAccessibilityService : AccessibilityService() {
          * this constant for test sites later — code-side filtering is authoritative
          * (the XML `packageNames` attribute only filters event delivery). The Chromium
          * webview-shell browser is on it for fixture capture on images that ship no
-         * Chrome stable (Phase-1 capture harness only).
+         * Chrome stable (Phase-1 capture harness only). Delegates to the pure
+         * [BrowserPackages.ALLOWLIST] (RC1: the focus-gating decisions are JVM-pinned
+         * against the same list).
          */
-        val PACKAGE_ALLOWLIST: Set<String> = setOf("com.android.chrome", "org.chromium.webview_shell")
+        val PACKAGE_ALLOWLIST: Set<String> get() = BrowserPackages.ALLOWLIST
 
         /** Class-name marker of Chromium's web-content subtree root. */
         private const val WEBVIEW_CLASS_MARKER = "WebView"
@@ -195,10 +205,13 @@ data class Observation(
 }
 
 /** One live observation for the Phase-6 loop: [Observation] plus the page-content
- *  node count the unreadable-tree rule needs (see [NavigatorAccessibilityService.observeForLoop]). */
+ *  node count the unreadable-tree rule needs (see [NavigatorAccessibilityService.observeForLoop])
+ *  and the ACTIVE window's package — empty when there is none — the RC1 readiness
+ *  signal (readiness = usable tree AND the browser being the active window). */
 data class LoopObservation(
     val url: UrlBarReader.Url,
     val lines: List<String>,
     val nodes: List<TreeSerializer.Emitted>,
     val pageNodeCount: Int,
+    val windowPackage: String = "",
 )

@@ -39,7 +39,10 @@ without a device.
   `ObservedNode` carries the reader-captured `isPassword` flag and the enumerator emits
   the app-authored `password` kind (fixed order tap, edit, password, scroll) so the
   state text marks secret fields for the engine — observation metadata, not page
-  content (ART-4 unaffected; the 2026-10-08 pre-UAT2 H8-gap fix);
+  content (ART-4 unaffected; the 2026-10-08 pre-UAT2 H8-gap fix); both also carry the
+  additive `browserChrome` flag (the 2026-10-08 pre-UAT2 RC2 fix: the omnibox/URL-bar
+  subtree — browser UI, never a credential target — stays an ordinary ungated
+  candidate);
   law: `Project Vision/03` §3
 * `src/main/kotlin/navigator/core/state/` — the state-text family (vision 03 §4 v2.1.0,
   STATE_FORMAT_VERSION = 2): `StateTextBuilder` — the canonical state text v2 (sections in
@@ -73,7 +76,13 @@ without a device.
 * `src/main/kotlin/navigator/core/gate/` — the risk gate (ART-1: code owns the gate,
   no model judgment in the gate path): `RiskGate` (deterministic H1–H9 classifier over
   (action, context); ambiguous classification fails to the stricter class — never
-  fail-open; Phase 8E added the H9 persistent-state mutation arm — the broad code net
+  fail-open; credential classification is TARGET-SCOPED for entry — 2026-10-08 pre-UAT2
+  RC2: a page merely HAVING a password field never credential-classifies typing into
+  plain fields, the identifier-member check reads the target field's NAME (id/label),
+  never its echoed value — and browser-chrome targets are excluded from form context
+  and never credential-classify (`FieldDescriptor.fromNodes` skips `browserChrome`
+  editables; the SUBMIT arms keep their form-level `pair` semantics); Phase 8E added the
+  H9 persistent-state mutation arm — the broad code net
   per vision 06 §1a: illustrative dictionary floor + structural signals
   (state-word flips, confirm-dialog semantics) + fail-to-confirm, with link-bucket
   candidates needing mutation-context corroboration (ART-4) — plus `mutationNet`, the
@@ -167,7 +176,10 @@ without a device.
   is the reader-captured `isPassword` flag (typing garbage into it → H8; flagged-pair
   submit with login wording → H4; lone flagged secret submit → H3 — H8 is entry-only
   by law), and matrix fields carry the raw `isPassword` attribute through
-  `FieldDescriptor.fromObserved` so the derivation stays under test
+  `FieldDescriptor.fromObserved` so the derivation stays under test; the 2026-10-08
+  pre-UAT2 RC2 fix added two negative rows (plain-field typing on a page WITH a
+  password field → ungated; omnibox typing on a login page → ungated — the raw
+  `browserChrome` attribute rides targets and fields like `isPassword` does)
 * `src/test/resources/tokenizer/` — tokenizer correctness fixtures (real reference
   vectors, vocab sample)
 * `src/test/resources/exit/` — Phase-8J exit fixtures (reviewable data): the Test-1
@@ -338,7 +350,10 @@ without a device.
   deterministic via the in-memory `CountingWireTransport`, never a live provider), the
   risk-gate gates (4.1 classifier matrix vs `gate/classifier-matrix.json` — since
   Phase 8E incl. the H9 happy/negative/fail-to-confirm rows and the `additive`
-  SUSPICIOUS tier, 4.2 trust state machine, 4.3 adversarial injection fixtures —
+  SUSPICIOUS tier, since the 2026-10-08 pre-UAT2 RC2 fix incl. the two
+  target-scoping negative rows (`RiskGateTargetScopingTest` pins them directly: the
+  target-scoped entry classification, the browser-chrome exclusion, the untouched
+  form-level SUBMIT arms), 4.2 trust state machine, 4.3 adversarial injection fixtures —
   five since Phase 08I, incl. both mutation baits; `AdditiveEngineCheckTest` Gate 8E.2: the
   additive-only law BOTH directions — a non-LOW engine answer ADDS H9 on an unlisted
   action; no engine answer can un-gate or replace a code-triggered class (Elvis

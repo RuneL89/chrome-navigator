@@ -55,7 +55,14 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     PACKAGE_ALLOWLIST browsers; Phase 6 added `observeForLoop()` = the same fresh
     walk plus `LoopObservation.pageNodeCount` — the WebView-subtree node count the
     unreadable-tree rule reads; the 2026-10-08 pre-UAT2 H8-gap fix reads
-    `AccessibilityNodeInfo.isPassword` into the snapshot), `A11ySnapshot` +
+    `AccessibilityNodeInfo.isPassword` into the snapshot; the 2026-10-08 pre-UAT2
+    RC2 fix marks the omnibox/URL-bar subtree `browserChrome` in the snapshot (the
+    `com.android.chrome:id/url_bar` viewId and its descendants — the gate never
+    credential-classifies it), and `observeForLoop()` reports the ACTIVE window's
+    package (`LoopObservation.windowPackage`) — the RC1 readiness signal);
+    `BrowserPackages` (the PURE allowlist decision beside the service's
+    `PACKAGE_ALLOWLIST`, which delegates to it — `isBrowser(pkg)` is what the
+    executor's focus gate and the loop's readiness consume; JVM-pinnable), `A11ySnapshot` +
     `TreeSerializer` (JVM-pure model and `[nN] "text" kinds (cx,cy)` serialization —
     kinds fixed order tap, edit, password, scroll since the 2026-10-08 H8-gap fix, the
     `password` kind the app-authored secret-field marker; meaningful-node
@@ -77,7 +84,12 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     `TextSource` — the card is presented for EVERY such action (per-task trust cannot
     supply a secret; the resolution still flows the TaskGate's legal transitions, so
     trustedFromTask logging and the double-refusal abort are intact), the approved
-    secret is injected DIRECTLY into the target field and kept in memory only
+    secret is injected DIRECTLY into the target field and kept in memory only, and the
+    approval is BOUND to the card's candidate id — the execute site verifies the acting
+    candidate matches before injecting and fails loudly on mismatch
+    (`requireSecretCandidateBinding`, the 2026-10-08 pre-UAT2 RC2 fix; the
+    credential-typing classification itself is target-scoped + browser-chrome-excluded
+    in `:core`'s RiskGate — see core/AGENTS.md)
     (`cardSecrets` feeds the state builder's sanctioned-secret redaction — masked
     `[credential-redacted]` in EVERY state-text section (the 2026-10-08 collision fix:
     the old app-authored LOUD half could only ever fire on a sanctioned value — a
@@ -114,9 +126,14 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     (`Config.restoreSettleMs`) + a bounded observation-readiness wait
     (`Config.restoreReadinessMs` — the 2026-10-08 S25+ follower #3: OneUI's
     resume+restore outlasted the fixed settle, so the focus-first tap landed wrong;
-    after the intent the loop re-reads on the unusable-tree cadence until the
-    usable-tree bar passes, expiry proceeds — the next observe's starvation machinery
-    owns a still-dark page; wall-clock within the same step, no extra budget/steps),
+    after the intent the loop re-reads on the unusable-tree cadence until readiness
+    passes — RC1, the 2026-10-08 pre-UAT2 follower: readiness = usable tree AND the
+    ACTIVE window's package in the browser allowlist (`StepObservation.windowPackage`,
+    additive default "" — readable-but-backgrounded Chrome is NOT ready, live-proven);
+    the ready/timeout log lines name the validated window package; expiry proceeds —
+    the next observe's starvation machinery owns a still-dark page; wall-clock within
+    the same step, no extra budget/steps; a failed text entry renders its terminal
+    cause on the execute line, `-> FAILED (WRONG_WINDOW)` etc.),
     logged on the step log and `NavigatorHarness`; the
     overlay path, never-fronting presenters (scripted/auto), and task-ending
     resolutions (CONFIRM_DONE, the DENY-abort) restore nothing (byte-identical);
@@ -212,7 +229,14 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     and unbudgeted; on any hard stop: clean stop, partial results, everything
     logged), `StepExecutor`
     (`ActionExecutor` interface + `GestureExecutor` dispatchGesture impl +
-    `phraseStub`), `GatePresenter` (interface; `AutoDenyGatePresenter` = harness
+    `phraseStub`; the 2026-10-08 pre-UAT2 RC1 fix: `enterText` carries an additive
+    cause-reporting overload — the `TextEntryFailure` vocabulary WRONG_WINDOW /
+    NO_FIELD_AT_POINT / REFRESH_FAILED / SET_TEXT_REJECTED / PASTE_FAILED /
+    CLIPBOARD_UNAVAILABLE, the loop logs the terminal cause on the execute line —,
+    waits BOUNDED (~5s, 400ms cadence, executor-internal) for the ACTIVE window to be
+    an allowlisted browser before resolving the field, and clears the clipboard after
+    a paste; the window DECISION is the pure `textEntryWindowCause` beside
+    `observe/BrowserPackages`, JVM-pinned — the Android wrapper stays thin), `GatePresenter` (interface; `AutoDenyGatePresenter` = harness
     test mode, `DebugGatePresenter` = overlay dialog with 30s countdown,
     `ScriptedGatePresenter`; card visibility (2026-10-07 S25+ UAT defect fix, both Debug
     presenters): overlay window when "display over other apps" is granted, otherwise the
@@ -471,7 +495,12 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
   gates (`NavigationLoopTest`: strict step order incl. GATE-before-EXECUTE, budget
   clean-stops per dimension, double-deny abort, ART-4 adversarial finish refusal,
   one-row-per-decision; `TaskBudgetTest`, `StuckDetectorTest`, `CompletionGuardsTest`,
-  `StubEngineTest`, `GoalCatalogTest`; `CardForegroundRestoreTest`: the 2026-10-08
+  `StubEngineTest`, `GoalCatalogTest`; `PreUAT25FocusAndBindingTest` (the 2026-10-08
+  pre-UAT2 RC1+RC2 follower): the secret-to-candidate binding pins (bound A vs acting
+  B → loud failure, no binding → loud failure, bound passes), the execute line's
+  `-> FAILED (CAUSE)` rendering for every `TextEntryFailure` value byte-identically
+  preserved without one, the cause riding the real loop end-to-end, and the pure
+  `textEntryWindowCause`/`BrowserPackages` decision matrix; `CardForegroundRestoreTest`: the 2026-10-08
   no-overlay card restore — the restore VIEW intent fires after a gate-card approval
   BEFORE the execute gesture (and after a credential-card approval before each
   injection), after a first deny (the loop continues), and after completion
@@ -488,7 +517,10 @@ tracked as last-known (normalized) and serves on an empty card URL, and garbage
   2026-10-08 S25+ readiness follower #3: after the restore intent the loop waits through
   a dark probe until a usable read before the execute gesture, a zero-budget expiry
   proceeds with the execute (no hang), and the completion-card restore probes the same
-  way) +
+  way; the 2026-10-08 pre-UAT2 RC1 focus follower: a readable-but-wrong-package probe
+  is NOT ready (the wait spins bounded, then expiry proceeds) and the ready/timeout
+  lines name the validated window package — the `obs()` fake carries
+  `windowPackage` (default = a browser, the live shape)) +
   the Phase-8D gates (`TriageClassificationTest`
   Gate 8D.1: the classification matrix over `src/test/resources/fixtures/triage-matrix.json`
   — the owner example goal texts as TEST DATA, booking→action, unsubscribe-all→action-multi,

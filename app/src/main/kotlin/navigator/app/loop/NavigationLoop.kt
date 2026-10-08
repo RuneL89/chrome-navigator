@@ -1,6 +1,7 @@
 package navigator.app.loop
 
 import kotlinx.coroutines.delay
+import navigator.app.observe.BrowserPackages
 import navigator.app.observe.TreeSerializer
 import navigator.core.decision.ChoiceQuestion
 import navigator.core.decision.ChoiceResult
@@ -308,15 +309,20 @@ class NavigationLoop(
         }
 
         /**
-         * The restore's readiness wait (2026-10-08 S25+ defect-follower #3): the fixed
-         * settle expired before Chrome was front+interactive on Samsung OneUI (the
-         * activity resume + VIEW-intent page restore outlast it), so the focus-first tap
-         * landed wrong and the run starved. Re-observes on the existing unusable-tree
-         * cadence until a read passes the loop's own usable-tree bar — bounded by
-         * [Config.restoreReadinessMs]. Wall-clock WITHIN the same step (the probes
-         * consume no budget and no steps — the same precedent as the settle); on expiry
-         * the step proceeds anyway: a still-dark page is the next observe's starvation
-         * machinery's job, not a new failure mode. The outcome is logged loudly.
+         * The restore's readiness wait (2026-10-08 S25+ defect-follower #3, tightened by
+         * the RC1 follower): the fixed settle expired before Chrome was front+interactive
+         * on Samsung OneUI (the activity resume + VIEW-intent page restore outlast it),
+         * so the focus-first tap landed wrong and the run starved. Re-observes on the
+         * existing unusable-tree cadence until a read passes the readiness bar — which
+         * is NOT merely a usable tree: the observation must ALSO name an allowlisted
+         * browser as the ACTIVE window ([StepObservation.windowPackage]). The live-proven
+         * RC1 defect: Chrome's tree is fully readable while Chrome sits in the
+         * background, so the readability-only probe passed and the injection 13ms later
+         * found no focused field. Bounded by [Config.restoreReadinessMs]; wall-clock
+         * WITHIN the same step (the probes consume no budget and no steps — the same
+         * precedent as the settle); on expiry the step proceeds anyway: a still-dark
+         * page is the next observe's starvation machinery's job, not a new failure mode.
+         * The outcome is logged loudly, naming the validated window package.
          */
         suspend fun waitForBrowserReadiness() {
             val startedAt = clock.nowMs()
@@ -325,16 +331,22 @@ class NavigationLoop(
             var probe = observer.observe()
             notePageUrl(probe)
             var retries = 0
-            while (!usable(probe) && retries < maxRetries) {
+            while (!ready(probe) && retries < maxRetries) {
                 retries += 1
                 delay(config.unusableRetryDelayMs)
                 probe = observer.observe()
                 notePageUrl(probe)
             }
-            if (usable(probe)) {
-                line("restore: browser ready after ${clock.nowMs() - startedAt}ms")
+            if (ready(probe)) {
+                line(
+                    "restore: browser ready after ${clock.nowMs() - startedAt}ms " +
+                        "(window=${probe.windowPackage.ifBlank { "unknown" }})",
+                )
             } else {
-                line("restore: browser not readable within budget - continuing")
+                line(
+                    "restore: browser not readable within budget - continuing " +
+                        "(last window=${probe.windowPackage.ifBlank { "unknown" }})",
+                )
             }
         }
 
@@ -1062,6 +1074,11 @@ class NavigationLoop(
             // trusted paths present no card and therefore restore nothing.
             var gateCardFronted = false
             var gateCardUrl: String? = null
+            // RC2 secret binding (2026-10-08 pre-UAT2): the candidate id an
+            // ApproveWithSecret approval was given FOR. Set only on the credential-card
+            // approval; the EXECUTE site verifies the acting candidate matches before
+            // injecting (fail loudly on mismatch — the wrong-TextSource precedent).
+            var secretBoundTo: String? = null
             // The typed-text source (vision 04 §2 step 5, Phase 08F): the stub phrase
             // for ordinary typing; the credential path REPLACES it with the card secret
             // ([TextSource.GateSuppliedSecret]) — or refuses loudly. Null for every
@@ -1115,6 +1132,9 @@ class NavigationLoop(
                                 "on the card (${TextSource.REDACTED}, never logged)",
                         )
                         cardSecrets.add(resolution.secret)
+                        // RC2 binding: this approval is bound to THIS card's candidate;
+                        // the execute site verifies before injecting.
+                        secretBoundTo = candidate.id
                         textSource = TextSource.GateSuppliedSecret(resolution.secret)
                     }
                     GateResolution.APPROVED -> throw IllegalStateException(
@@ -1219,6 +1239,9 @@ class NavigationLoop(
 
             // -- 5. EXECUTE -------------------------------------------------------------------
             var execOk = true
+            // RC1: the terminal text-entry failure cause (null when nothing failed or
+            // the executor did not report one); the execute line renders it.
+            var typeFailureCause: TextEntryFailure? = null
             if (proceed) {
                 execOk = when (kind) {
                     ActionKind.TAP, ActionKind.SUBMIT -> executor.tap(candidate.cx, candidate.cy)
@@ -1238,10 +1261,15 @@ class NavigationLoop(
                                 check(credentialTyping) {
                                     "a gate-supplied secret reached a non-credential typing action - wrong TextSource"
                                 }
+                                // RC2 binding check: the secret may only be injected
+                                // into the candidate it was approved FOR.
+                                requireSecretCandidateBinding(secretBoundTo, candidate.id)
                                 source.value
                             }
                         }
-                        executor.enterText(candidate.cx, candidate.cy, text)
+                        // RC1: the executor reports the terminal failure cause; the
+                        // execute line logs it as `-> FAILED (CAUSE)`.
+                        executor.enterText(candidate.cx, candidate.cy, text) { typeFailureCause = it }
                     }
                     ActionKind.SCROLL -> executor.scroll(
                         candidate.cx,
@@ -1272,6 +1300,7 @@ class NavigationLoop(
                         dispatched = execOk,
                         typedMarker = typedMarker,
                         redact = redactionKeys(),
+                        failureCause = typeFailureCause.takeIf { !execOk },
                     ),
                 )
             }
@@ -1371,6 +1400,15 @@ class NavigationLoop(
     private fun usable(obs: StepObservation): Boolean =
         obs.lines.size >= config.minUsableNodes &&
             (obs.pageNodeCount == null || obs.pageNodeCount >= config.minPageNodes)
+
+    /**
+     * Observation readiness (2026-10-08 pre-UAT2 RC1): a usable tree AND the browser
+     * being the ACTIVE window ([StepObservation.windowPackage] in the browser
+     * allowlist). A readable-but-backgrounded Chrome must keep the wait spinning —
+     * the focus-first injection cannot land in a background app.
+     */
+    private fun ready(obs: StepObservation): Boolean =
+        usable(obs) && BrowserPackages.isBrowser(obs.windowPackage)
 
     /** A gate refusal resolves to SKIP, or to ABORT_TASK on the second refusal. */
     private fun refusalOutcome(decision: GateDecision, onSkip: ActionDisposition): Pair<ActionDisposition, Boolean> =
@@ -1542,6 +1580,9 @@ class NavigationLoop(
          * a sanctioned post-injection echo, so it renders masked [TextSource.REDACTED]
          * at source — the value never transits the in-memory stepLog raw. The empty
          * `redact` default of every non-credential task keeps the line byte-identical.
+         * A failed text entry renders its terminal cause (RC1, 2026-10-08):
+         * `-> FAILED (WRONG_WINDOW)`; a failure without a reported cause stays plain
+         * `-> FAILED`.
          */
         internal fun executeLine(
             kind: ActionKind,
@@ -1551,9 +1592,31 @@ class NavigationLoop(
             dispatched: Boolean,
             typedMarker: String,
             redact: List<String> = emptyList(),
-        ): String =
-            "execute: ${kind.name.lowercase()} \"${redactedLabel(label, redact)}\" at " +
-                "($cx,$cy)$typedMarker -> ${if (dispatched) "dispatched" else "FAILED"}"
+            failureCause: TextEntryFailure? = null,
+        ): String {
+            val outcome = when {
+                dispatched -> "dispatched"
+                failureCause != null -> "FAILED (${failureCause.name})"
+                else -> "FAILED"
+            }
+            return "execute: ${kind.name.lowercase()} \"${redactedLabel(label, redact)}\" at " +
+                "($cx,$cy)$typedMarker -> $outcome"
+        }
+
+        /**
+         * RC2 secret binding (2026-10-08 pre-UAT2): an ApproveWithSecret approval is
+         * bound to the candidate id its card was built for; the execute site verifies
+         * the acting candidate matches BEFORE any injection. A mismatch (or a secret
+         * with no binding at all) is the wrong-TextSource class of wiring bug — it
+         * fails loudly and injects nothing. Internal so the JVM tests can pin both
+         * directions (the loop's single-pass wiring cannot diverge them naturally).
+         */
+        internal fun requireSecretCandidateBinding(boundId: String?, actingId: String) {
+            check(boundId != null && boundId == actingId) {
+                "a gate-supplied secret is bound to candidate [$boundId] but the acting " +
+                    "candidate is [$actingId] - refusing to inject into an unbound target"
+            }
+        }
 
         /** The primary's flat action question (vision 03 §3: the flat list). */
         fun actionQuestion(candidates: CandidateList, redact: List<String> = emptyList()): ChoiceQuestion =
@@ -1618,6 +1681,14 @@ data class StepObservation(
      * observer supplies none (fakes default to it).
      */
     val excerpt: List<String> = emptyList(),
+    /**
+     * The ACTIVE window's package (2026-10-08 pre-UAT2 RC1, additive default ""): the
+     * focus half of observation readiness. A readable tree alone is NOT readiness —
+     * Chrome's tree stays readable while Chrome sits in the background (the live-proven
+     * injection failure 13ms after a "ready" probe). Empty means "unknown" (fakes),
+     * which never passes the browser-window bar — set it on fakes that must pass.
+     */
+    val windowPackage: String = "",
 ) {
     /** Non-interactive, non-blank text nodes — the completion guards' content measure. */
     val contentTextNodes: Int

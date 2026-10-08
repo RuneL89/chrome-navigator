@@ -195,9 +195,16 @@ data class FieldDescriptor(
             isPassword = node.isPassword,
         )
 
-        /** Derives descriptors for every editable node of an observed tree. */
+        /**
+         * Derives descriptors for every editable PAGE field of an observed tree.
+         * Browser-chrome editables (the omnibox/URL-bar subtree, 2026-10-08 pre-UAT2
+         * RC2) are EXCLUDED: they are the browser's UI, not the page's form — counting
+         * them as form context let the URL bar's own echoed URL text (its a11y label)
+         * satisfy the identifier-wording check and credential-classify typing into the
+         * omnibox itself. The URL bar can never be a credential target.
+         */
         fun fromNodes(nodes: List<ObservedNode>): List<FieldDescriptor> =
-            nodes.filter { it.editable }.map { fromNode(it) }
+            nodes.filter { it.editable && !it.browserChrome }.map { fromNode(it) }
     }
 }
 

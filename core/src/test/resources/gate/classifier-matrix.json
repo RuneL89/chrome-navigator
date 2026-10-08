@@ -441,6 +441,44 @@
       }
     },
     {
+      "id": "n-plain-typing-on-password-page",
+      "tag": "negative",
+      "expect": null,
+      "note": "2026-10-08 pre-UAT2 RC2 target-scoping pin: a page merely HAVING a password field must NOT credential-classify typing into its PLAIN fields — credential classification requires the ACTION'S OWN TARGET to be the secret field.",
+      "action": {
+        "kind": "TYPE",
+        "textToType": "a note for the record",
+        "target": { "id": "note", "label": "Note", "bucket": "form-fields", "className": "android.widget.EditText" }
+      },
+      "context": {
+        "url": "https://portal.example.com/signin",
+        "fields": [
+          { "id": "note", "label": "Note", "className": "android.widget.EditText" },
+          { "id": "email", "label": "Email", "className": "android.widget.EditText" },
+          { "id": "password", "label": "Password", "className": "android.widget.EditText", "isPassword": true }
+        ]
+      }
+    },
+    {
+      "id": "n-omnibox-typing",
+      "tag": "negative",
+      "expect": null,
+      "note": "2026-10-08 pre-UAT2 RC2 regression pin (LIVE-proven: the owner's secret was dispatched into Chrome's URL bar): typing into the BROWSER-CHROME omnibox is never credential typing, even on a login page whose URL its own label echoes (\"login\" in the bar text satisfied the identifier wording). Browser-chrome nodes are excluded from form context and can never be a credential target.",
+      "action": {
+        "kind": "TYPE",
+        "textToType": "127.0.0.1:8099/other.html",
+        "target": { "id": "n0", "label": "127.0.0.1:8099/login.html", "bucket": "form-fields", "className": "android.widget.EditText", "browserChrome": true }
+      },
+      "context": {
+        "url": "http://127.0.0.1:8099/login.html",
+        "fields": [
+          { "id": "n0", "label": "127.0.0.1:8099/login.html", "className": "android.widget.EditText", "browserChrome": true },
+          { "id": "n2", "label": "Email or username", "className": "android.widget.EditText" },
+          { "id": "n3", "label": "Password", "className": "android.widget.EditText", "isPassword": true }
+        ]
+      }
+    },
+    {
       "id": "ftc-ambiguous-checkout-form",
       "tag": "fail-to-confirm",
       "expect": "H1_PAYMENT",

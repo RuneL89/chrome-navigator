@@ -25,6 +25,11 @@ import navigator.core.fixtures.A11yNode
  *   typed content, so wording/mask heuristics alone leave the gate dark); the gate
  *   consumes it through `FieldDescriptor.fromNode`, the state text carries it as the
  *   `password` kind marker
+ * @param browserChrome browser-UI marker (2026-10-08 pre-UAT2 RC2): the node belongs
+ *   to the browser chrome (the omnibox/URL-bar subtree), not the page content — the
+ *   gate excludes such nodes from credential consideration (the URL bar can never be
+ *   a credential target) while they stay ordinary ungated candidates. Committed
+ *   fixtures predate the flag and decode false (page-only trees).
  */
 data class ObservedNode(
     val id: String,
@@ -40,6 +45,7 @@ data class ObservedNode(
     val className: String,
     val sourceOrder: Int,
     val isPassword: Boolean = false,
+    val browserChrome: Boolean = false,
 ) {
     /** Center X — the same `(left + right) / 2` convention the serializer emits. */
     val centerX: Int get() = (left + right) / 2

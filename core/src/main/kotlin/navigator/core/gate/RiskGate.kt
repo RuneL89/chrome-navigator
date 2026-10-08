@@ -48,7 +48,19 @@ object RiskGate {
 
         val target = targetText(action)
         val targetField = context.formFields.firstOrNull { it.id == action.target.id }
-        val fieldText = targetField?.let { "${it.id.lowercase()} ${it.label.lowercase()} ${it.value.lowercase()}" }.orEmpty()
+        // TARGET-SCOPED credential names (2026-10-08 pre-UAT2 RC2): ENTRY-arm credential
+        // classification is satisfied only by the ACTION'S OWN TARGET field's NAME
+        // (id + label) — never by its VALUE. A page merely HAVING a password/identifier
+        // field must not credential-classify typing into other fields; the target's
+        // echoed content (live Chrome fields echo their typed value as a11y text) is
+        // content, not a field name. (SUBMIT arms keep the form-level `pair` semantics
+        // below — submission is form-level by law.)
+        val targetFieldName = targetField?.let { "${it.id.lowercase()} ${it.label.lowercase()}" }.orEmpty()
+        // Browser-chrome targets (the omnibox/URL-bar, RC2) are never credential
+        // targets: their label IS the page URL text, so no wording on them may read as
+        // a secret signal. They are also absent from [context.formFields]
+        // ([FieldDescriptor.fromNodes]) — this guard closes the wording fallback too.
+        val targetIsBrowserChrome = action.target.browserChrome
 
         val sitePath = PageContext.siteAndPath(context.url)
         val hasCardField = context.formFields.any { it.isCardLike }
@@ -64,7 +76,8 @@ object RiskGate {
         // focus as entry (typing would follow on the next step).
         val entersTarget = action.kind == ActionKind.TYPE ||
             (action.kind == ActionKind.TAP && targetField != null)
-        val targetIsSecret = targetField?.isPassword == true || FieldDescriptor.PASSWORD_WORDS.containsMatchIn(target)
+        val targetIsSecret = !targetIsBrowserChrome &&
+            (targetField?.isPassword == true || FieldDescriptor.PASSWORD_WORDS.containsMatchIn(target))
 
         val matched = mutableSetOf<HClass>()
 
@@ -115,9 +128,12 @@ object RiskGate {
         // identifier+secret PAIR typing (either member) is credential entry on any site;
         // submitting over a pair is credential submission (distinct from search: search
         // forms carry no secret field). Pages with a login widget can over-gate an
-        // unrelated submit — the safe direction (fail-to-confirm).
+        // unrelated submit — the safe direction (fail-to-confirm). ENTRY is
+        // target-scoped (RC2): the action's own target must be a PAIR MEMBER — the
+        // secret field itself, or a field whose NAME (id/label, never echoed value)
+        // reads as the identifier. A browser-chrome target (omnibox) is never a member.
         if (entersTarget && pair && targetField != null &&
-            (IDENTIFIER_FIELD_WORDS.containsMatchIn(fieldText) || targetField.isPassword)
+            (IDENTIFIER_FIELD_WORDS.containsMatchIn(targetFieldName) || targetField.isPassword)
         ) {
             matched += HClass.H4_LOGIN
         }
@@ -153,7 +169,10 @@ object RiskGate {
         // A secret field entered with NO create/change cues — the vision's
         // wrong-site/injected credential-capture case. Login-shaped entry resolved to H4
         // above (pair present); this is the no-context remainder. Purely entry-shaped:
-        // submissions are covered by H3/H4.
+        // submissions are covered by H3/H4. Requires the ACTION'S OWN TARGET to be the
+        // secret field (target-scoped, RC2) — a page merely HAVING a secret field never
+        // credential-classifies typing into other fields, and a browser-chrome target
+        // (the omnibox) is never a credential target.
         if (entersTarget && targetIsSecret && !changeCues) matched += HClass.H8_CREDENTIAL_TYPING
 
         // -- H9: persistent-state mutation (general class, vision 06 §1 + §1a, Phase 8E) ----

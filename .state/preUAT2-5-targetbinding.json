@@ -1,0 +1,66 @@
+{
+  "pass": "PREUAT2-5 target-binding + focus-gated injection (owner-approved plan after the full RC1/RC2 RCA; implementer half of the fix-first protocol)",
+  "date": "2026-10-08",
+  "status": "fix-complete-awaiting-verifier-and-device-rerun",
+  "llmCost": "$0",
+  "defects": {
+    "RC2-security": {
+      "id": "PREUAT2-5-RC2",
+      "kind": "security",
+      "site": "core/src/main/kotlin/navigator/core/gate/RiskGate.kt (classify)",
+      "summary": "hasSecretField = formFields.any { it.isPassword } is PAGE-scoped: on a login page EVERY typing action — including one targeting Chrome's OMNIBOX — classified credential, took the credential card, and on ApproveWithSecret injected the owner's secret into whatever field the engine chose. Live-proven: the secret was dispatched into Chrome's URL bar (log: 'type ... at (451,168) text=[credential-redacted] -> dispatched').",
+      "rootCauseChain": "the omnibox is an editable node, so it rode formFields AND was a form-fields candidate; its a11y LABEL is the page URL text, so IDENTIFIER_FIELD_WORDS ('login' inside 'login.html') matched the H4 ENTRY identifier-member check (id+label+value) — target-scoping alone (name-not-value) does NOT fix it because the wording rides the label, not a value."
+    },
+    "RC1-execution": {
+      "id": "PREUAT2-5-RC1",
+      "kind": "product",
+      "site": "app/src/main/kotlin/navigator/app/loop/StepExecutor.kt (enterText)",
+      "summary": "enterText resolved service.rootInActiveWindow (focus-scoped). After the no-overlay card the harness is still focused; the fresh walk found no editable at the page-field coordinates and returned a bare false. Live-proven: injection FAILED 13ms after a 'browser ready after 24ms' readiness pass — the readiness probe validated content-readable, not focused (Chrome's tree is readable even in background)."
+    }
+  },
+  "fix": {
+    "files": [
+      "core/src/main/kotlin/navigator/core/gate/RiskGate.kt (target-scoped H4 entry: identifier wording reads the target field's NAME id+label, never the echoed value; targetIsSecret requires !target.browserChrome; SUBMIT arms untouched)",
+      "core/src/main/kotlin/navigator/core/gate/HighStakes.kt (FieldDescriptor.fromNodes excludes browserChrome editables from form context)",
+      "core/src/main/kotlin/navigator/core/enumerate/ObservedNode.kt + Candidate.kt + CandidateEnumerator.kt (additive browserChrome flag rides node -> candidate)",
+      "core/src/test/resources/gate/classifier-matrix.json (+2 additive negative rows: n-plain-typing-on-password-page, n-omnibox-typing; raw browserChrome attribute like isPassword)",
+      "core/src/test/kotlin/navigator/core/gate/RiskGateClassifierTest.kt (matrix schema gains optional browserChrome on targets/fields; browser-chrome fields excluded at the runner's derivation, mirroring fromNodes)",
+      "core/src/test/kotlin/navigator/core/gate/RiskGateTargetScopingTest.kt (NEW: 10 direct pins)",
+      "app/src/main/kotlin/navigator/app/observe/BrowserPackages.kt (NEW: pure allowlist + isBrowser; service PACKAGE_ALLOWLIST delegates)",
+      "app/src/main/kotlin/navigator/app/observe/NavigatorAccessibilityService.kt (url_bar subtree marked browserChrome in toSnapshot; observeForLoop reports the ACTIVE window's package; PACKAGE_ALLOWLIST delegates to BrowserPackages)",
+      "app/src/main/kotlin/navigator/app/observe/A11ySnapshot.kt (NodeSnapshot.browserChrome additive)",
+      "app/src/main/kotlin/navigator/app/harness/HarnessRunners.kt (HarnessObserver threads browserChrome + windowPackage into the loop observation)",
+      "app/src/main/kotlin/navigator/app/loop/StepExecutor.kt (TextEntryFailure vocabulary; additive cause-reporting enterText overload; GestureExecutor bounded active-browser wait ~5s/400ms; clipboard cleared after paste; pure textEntryWindowCause)",
+      "app/src/main/kotlin/navigator/app/loop/NavigationLoop.kt (StepObservation.windowPackage additive default ''; readiness = usable tree AND windowPackage in the browser allowlist, log lines name the package; ApproveWithSecret binds the candidate id, the execute site verifies via requireSecretCandidateBinding; execute line renders -> FAILED (CAUSE))",
+      "app/src/test/kotlin/navigator/app/loop/LoopTestSupport.kt (obs() gains windowPackage default=com.android.chrome + browserChrome on N; FakeExecutor cause-reporting 4-arg override + failNextTextWith)",
+      "app/src/test/kotlin/navigator/app/loop/PreUAT25FocusAndBindingTest.kt (NEW: 9 pins)",
+      "app/src/test/kotlin/navigator/app/loop/CardForegroundRestoreTest.kt (+2 focus-readiness tests)",
+      "core/AGENTS.md, app/AGENTS.md (one-liners), .state/AGENTS.md (index line), .state/compliance-log.md (entry)"
+    ],
+    "RC2-mechanism": "Credential classification for ENTRY (TYPE/TAP-into-field) now requires the ACTION'S OWN TARGET to be the credential field: H8/H3-entry targetIsSecret = !browserChrome && (targetField.isPassword || secret wording on the candidate's own id/label); H4 entry requires targetField membership with identifier wording on the field's NAME (id+label — value dropped) or targetField.isPassword, over the unchanged form-level pair. The omnibox/URL-bar is excluded STRUCTURALLY: the service marks the com.android.chrome:id/url_bar subtree browserChrome during the walk; the flag rides ObservedNode -> Candidate (additive defaults, fixtures decode false); FieldDescriptor.fromNodes drops browserChrome editables from form context and RiskGate's targetIsSecret cannot fire on a browser-chrome candidate (its label IS the page URL — the wording fallback would otherwise re-open the leak on password-named pages). The SUBMIT arms keep their form-level law: a submit over an identifier+secret pair still gates H4, a lone flagged secret still gates H3. Chosen mechanism documented: structural (the observation CAN distinguish browser UI by viewId — the exact id UrlBarReader already reads) because pure target-scoping provably does not close the live case.",
+    "RC1-mechanism": "enterText's cause-reporting overload (default delegates to the 3-arg, every existing JVM fake compiles unchanged) reports the terminal failure cause — WRONG_WINDOW / NO_FIELD_AT_POINT / REFRESH_FAILED / SET_TEXT_REJECTED / PASTE_FAILED / CLIPBOARD_UNAVAILABLE (progressive; the loop logs the LAST reported on the execute line as '-> FAILED (CAUSE)', plain '-> FAILED' byte-identical without one). GestureExecutor first waits BOUNDED (~5s budget, 400ms cadence, executor-internal constants) for the ACTIVE window's package to be an allowlisted browser — the pure decision textEntryWindowCause beside BrowserPackages is JVM-pinned, the Android wrapper thin. The restore readiness bar is fixed at the loop: readiness = usable tree AND StepObservation.windowPackage (the ACTIVE window's package, threaded LoopObservation -> HarnessObserver -> StepObservation additive default '') in the browser allowlist; ready/timeout log lines name the validated/last-seen package. After a successful paste the clipboard is cleared (the secret lingered there)."
+  },
+  "deviations": [
+    "Structural browser-chrome exclusion chosen over target-scoping-alone (the dispatch's own alternative): target-scoping alone does NOT close the live case because the omnibox's identifier wording rides its a11y LABEL (the page URL text), not a value — the live RCA's 'login' in 'login.html' was the label. The observation can distinguish browser UI cheaply by viewId (the exact id UrlBarReader reads), so the flag rides NodeSnapshot -> ObservedNode -> Candidate (all additive defaults; no committed fixture edited; the Phase-2 node-shape precedent is the isPassword addition).",
+    "browserChrome detection covers Chrome stable's url_bar viewId only (the live-proven surface); the webview shell's chrome is not marked — the shell is a test browser and its bar was never the defect surface.",
+    "The secret-binding check is wired in the loop (bind at ApproveWithSecret, verify at execute) and pinned through the loop's own requireSecretCandidateBinding helper, because the loop's single-pass wiring cannot naturally diverge the bound and acting candidates — the helper pins both directions loud (the wrong-TextSource precedent).",
+    "Wording tension noted, not edited: vision 06 §1 H4 'identifier+secret pair typing' and H8 'credential typing into any field' read page-scoped; the fix implements the owner-ratified target-scoped reading (a page HAVING a secret never credential-classifies other fields) and keeps the SUBMIT arms form-level per the dispatch. No vision text changed.",
+    "The execute line's plain '-> FAILED' shape is preserved byte-identical when the executor reports no cause (pre-RC1 fakes), per the existing CredentialEntryLoopTest pin."
+  ],
+  "testEvidence": {
+    "fullSuite": "./gradlew test BUILD SUCCESSFUL (exit 0, 4m09s) — :core 312 + :app 378 = 690 tests, 0 failures, 0 errors, 0 skipped; matrix hygiene green over the +2 additive rows; no fixture or golden edited",
+    "newTests": {
+      "core": [
+        "RiskGateTargetScopingTest (10): plain-field TYPE on a password-page -> null + ORDINARY; flagged-field TYPE (no pair) -> H8; identifier wording in the ECHOED VALUE no longer classifies; omnibox typing on a login page -> null + ORDINARY (label echoes login URL); browser-chrome excluded from fromNodes; SUBMIT arms form-level intact (pair -> H4, lone flagged -> H3); TAP into lone flagged -> H8; pair-member typings (identifier AND secret) still H4",
+        "classifier-matrix.json +2 additive negative rows through the existing matrix runner (n-plain-typing-on-password-page, n-omnibox-typing — both null AND mutationNet ORDINARY)"
+      ],
+      "app": [
+        "PreUAT25FocusAndBindingTest (9): binding A-vs-B loud, no-binding loud, bound passes; execute line '-> FAILED (WRONG_WINDOW)' + every vocabulary value + byte-identical without a cause; the cause riding the REAL loop end-to-end (outcome ERROR, typedSecret false); textEntryWindowCause browser->null / harness-launcher-android-blank-null->WRONG_WINDOW; BrowserPackages.ALLOWLIST pinned; THE live RC2 shape END-TO-END in the real loop — the engine choosing the omnibox on a login page runs UNGATED (no card, stub phrase typed, no secret injected) while the identifier-member typing on the same page still gates H4 (auto-denied)",
+        "CardForegroundRestoreTest +2: readable-but-wrong-package probe is NOT ready (exactly 3 bounded probes until the browser package appears; ready line names '(window=com.android.chrome)'); never-right-package times out bounded (exactly 3 probes, no hang), the timeout line names '(last window=navigator.app)', the execute still dispatched"
+      ]
+    },
+    "existingTests": "all prior suites green unchanged (CredentialEntryLoopTest 14/14 — the H4-entry happy paths and the H8/H3 followers ride the same target-scoped law; CardForegroundRestoreTest 23/23 incl. the prior readiness pins on the appended-line contains-checks)"
+  },
+  "lastAction": "wrote this status note; DOX pass done (core/AGENTS.md + app/AGENTS.md one-liners, .state/AGENTS.md index, compliance-log entry)",
+  "nextAction": "canon-verifier cold re-check against the owner-approved plan, then the orchestrator owns the device APK rebuild + the S25+ live re-run (observable: omnibox typing never presents a credential card; after a no-overlay card the step log shows 'restore: browser ready after Nms (window=com.android.chrome)' and text entry either dispatches or names its cause, e.g. '-> FAILED (WRONG_WINDOW)')"
+}

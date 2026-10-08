@@ -10,6 +10,10 @@ package navigator.app.observe
  * explicit, reliable secret-field signal (2026-10-08 pre-UAT2 defect: live Chrome
  * exposes secret fields as plain EditText with the typed content as the text and no
  * label association, so text heuristics alone miss it).
+ *
+ * [browserChrome] marks the omnibox/URL-bar subtree (2026-10-08 pre-UAT2 RC2): the
+ * browser's own UI, not page content — the gate excludes it from credential
+ * consideration (the URL bar can never be a credential target).
  */
 data class NodeSnapshot(
     val text: String = "",
@@ -22,6 +26,7 @@ data class NodeSnapshot(
     val visible: Boolean = true,
     val bounds: Bounds = Bounds.ZERO,
     val children: List<NodeSnapshot> = emptyList(),
+    val browserChrome: Boolean = false,
 ) {
     /** Meaningful-node filter (vision 03 §2, the PokeClaw-pattern filter). */
     val isMeaningful: Boolean

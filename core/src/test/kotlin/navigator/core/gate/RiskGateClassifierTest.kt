@@ -37,7 +37,14 @@ class RiskGateClassifierTest {
     private data class MatrixAction(val kind: String, val target: MatrixTarget, val textToType: String? = null)
 
     @Serializable
-    private data class MatrixTarget(val id: String, val label: String, val bucket: String, val className: String = "")
+    private data class MatrixTarget(
+        val id: String,
+        val label: String,
+        val bucket: String,
+        val className: String = "",
+        /** The browser-chrome marker (2026-10-08 pre-UAT2 RC2, the omnibox rows). */
+        val browserChrome: Boolean = false,
+    )
 
     @Serializable
     private data class MatrixContext(val url: String, val fields: List<MatrixField> = emptyList())
@@ -50,6 +57,8 @@ class RiskGateClassifierTest {
         val className: String = "",
         /** The reader-captured `AccessibilityNodeInfo.isPassword` flag (primary signal). */
         val isPassword: Boolean = false,
+        /** The browser-chrome marker (2026-10-08 pre-UAT2 RC2, the omnibox rows). */
+        val browserChrome: Boolean = false,
     )
 
     private companion object {
@@ -78,6 +87,7 @@ class RiskGateClassifierTest {
                 source = if (synthetic) CandidateSource.SYNTHETIC else CandidateSource.A11Y,
                 sourceOrder = 0,
                 synthetic = synthetic,
+                browserChrome = action.target.browserChrome,
             )
             return GateAction(target, kind, action.textToType)
         }
@@ -85,8 +95,14 @@ class RiskGateClassifierTest {
         /** Fields arrive as raw observed attributes — derivation stays under test. */
         private fun MatrixRow.toPageContext(): PageContext = PageContext(
             url = context.url,
-            formFields = context.fields.map {
-                FieldDescriptor.fromObserved(it.id, it.label, it.value, it.className, it.isPassword)
+            formFields = context.fields.mapNotNull {
+                // Browser-chrome editables are excluded at the real derivation site
+                // ([FieldDescriptor.fromNodes]) — the matrix mirrors that here.
+                if (it.browserChrome) {
+                    null
+                } else {
+                    FieldDescriptor.fromObserved(it.id, it.label, it.value, it.className, it.isPassword)
+                }
             },
         )
 

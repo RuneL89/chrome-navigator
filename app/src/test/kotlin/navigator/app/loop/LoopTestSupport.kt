@@ -57,7 +57,16 @@ class FakeExecutor(private val journal: Journal) : ActionExecutor {
     val calls = mutableListOf<String>()
     private var failNext = false
 
+    /** The terminal cause the armed text-entry failure reports (RC1); null = silent. */
+    private var pendingTextCause: TextEntryFailure? = null
+
     fun failNextCall(): Unit {
+        failNext = true
+    }
+
+    /** Arms the NEXT text entry to FAIL, reporting [cause] through the cause sink. */
+    fun failNextTextWith(cause: TextEntryFailure) {
+        pendingTextCause = cause
         failNext = true
     }
 
@@ -76,6 +85,14 @@ class FakeExecutor(private val journal: Journal) : ActionExecutor {
     override fun back(): Boolean = record("back")
 
     override fun enterText(x: Int, y: Int, text: String): Boolean = record("text($x,$y,\"$text\")")
+
+    override fun enterText(x: Int, y: Int, text: String, cause: (TextEntryFailure) -> Unit): Boolean {
+        val ok = record("text($x,$y,\"$text\")")
+        val reported = pendingTextCause
+        pendingTextCause = null
+        if (!ok && reported != null) cause(reported)
+        return ok
+    }
 }
 
 /** Collects the rows the loop writes (the Room sink's test double). */
@@ -132,17 +149,23 @@ data class N(
     val button: Boolean = false,
     /** The reader-captured secret-field flag (2026-10-08 pre-UAT2 H8-gap fix). */
     val password: Boolean = false,
+    /** The browser-chrome marker (2026-10-08 pre-UAT2 RC2): the omnibox/URL-bar subtree. */
+    val browserChrome: Boolean = false,
 )
 
 /**
  * Builds a [StepObservation] from node specs. Node ids are `n<index>` in spec order;
  * bounds are deterministic (row i sits at y=i*100) so candidate ranking is stable.
+ * [windowPackage] defaults to an allowlisted browser — the LIVE shape (every real loop
+ * observation is read from an allowlisted browser root); readiness-focused tests pass
+ * the wrong-package values explicitly.
  */
 fun obs(
     url: String,
     vararg nodes: N,
     pageNodes: Int? = null,
     title: String = "",
+    windowPackage: String = "com.android.chrome",
 ): StepObservation {
     val observed = nodes.mapIndexed { index, spec ->
         ObservedNode(
@@ -159,6 +182,7 @@ fun obs(
             className = if (spec.button) "android.widget.Button" else "android.view.View",
             sourceOrder = index,
             isPassword = spec.password,
+            browserChrome = spec.browserChrome,
         )
     }
     val lines = observed.map { node ->
@@ -177,6 +201,7 @@ fun obs(
         lines = lines,
         nodes = observed,
         pageNodeCount = pageNodes,
+        windowPackage = windowPackage,
     )
 }
 

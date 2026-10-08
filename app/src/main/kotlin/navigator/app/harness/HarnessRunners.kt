@@ -57,6 +57,7 @@ class HarnessObserver(private val service: NavigatorAccessibilityService) : Loop
                 className = snapshot.className,
                 sourceOrder = emitted.index,
                 isPassword = snapshot.isPassword,
+                browserChrome = snapshot.browserChrome,
             )
         }
         return navigator.app.loop.StepObservation(
@@ -72,6 +73,10 @@ class HarnessObserver(private val service: NavigatorAccessibilityService) : Loop
             // Phase 08H (vision 03 §1 content extraction): the bounded non-candidate
             // prose excerpt, deterministically extracted from the same fresh walk.
             excerpt = ContentExtractor.extract(nodes),
+            // RC1 readiness signal: the ACTIVE window's package (empty when none) —
+            // readiness requires the browser to BE the active window, not merely to
+            // have a readable tree (Chrome's tree reads fine in the background).
+            windowPackage = observation.windowPackage,
         )
     }
 

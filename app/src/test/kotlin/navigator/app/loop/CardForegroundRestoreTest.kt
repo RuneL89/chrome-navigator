@@ -683,6 +683,116 @@ class CardForegroundRestoreTest {
         )
     }
 
+    // -- restore readiness is FOCUS-gated (2026-10-08 pre-UAT2 RC1 follower) ----------------
+    // The RC1 live defect: Chrome's tree stays READABLE while Chrome sits in the
+    // background — the readability-only probe passed ("browser ready after 24ms") and
+    // the injection 13ms later found no focused field (bare `false`). Readiness now
+    // ALSO requires the observation's windowPackage (the ACTIVE window) to be an
+    // allowlisted browser; the fakes pass it additively ([obs]'s windowPackage).
+
+    /** A READABLE page while the active window is NOT the browser (harness fronted). */
+    private fun backgroundedProbe() = obs(
+        "http://m0.test/list",
+        N("Issue header"),
+        N("Body text one"),
+        N("Body text two"),
+        N("Unsubscribe now", clickable = true, button = true),
+        N("Also unsubscribe", clickable = true, button = true),
+        N("Footer"),
+        windowPackage = "navigator.app",
+    )
+
+    @Test
+    fun `a readable-but-wrong-package probe is NOT ready - the wait spins until the browser is active`() = runBlocking {
+        val (fixture, fired) = frontingFixture(
+            script = scriptOf(
+                choose("triage", "lookup"),
+                chooseByLabel("action", "Unsubscribe now"),
+            ),
+            // step page, then TWO readable-but-backgrounded probes, then the restored
+            // browser page (right package) — readiness passes only on the third probe
+            observations = listOf(listPage(), backgroundedProbe(), backgroundedProbe(), listPage()),
+            gatePresenter = FrontingGatePresenter(true, GateResolution.APPROVED),
+            config = NavigationLoop.Config(
+                settleMs = 0,
+                restoreSettleMs = 0,
+                unusableRetryDelayMs = 0,
+                restoreReadinessMs = 3, // up to 3 retries: the probes are bounded, not hung
+                budget = NavigationLoop.BudgetLimits(stepsHard = 1),
+            ),
+        )
+        val result = fixture.loop.run("tidy the subscriptions", "restore-ready-focus", identity, fixture.clock)
+
+        assertEquals(TerminalState.BUDGET_EXHAUSTED, result.terminal)
+        assertEquals(listOf(pageUrl), fired)
+        val entries = fixture.journal.entries
+        val restoreIdx = entries.indexOfFirst { it == "restore:view($pageUrl)" }
+        val tapIdx = entries.indexOfFirst { it.startsWith("tap(") }
+        assertTrue(restoreIdx in 0 until tapIdx, "journal=$entries")
+        // exactly three probes between the VIEW intent and the gesture: two NOT ready
+        // (readable, wrong package) and the ready one
+        assertEquals(
+            3,
+            entries.subList(restoreIdx + 1, tapIdx).count { it == "observe" },
+            "journal=$entries",
+        )
+        assertTrue(
+            result.stepLog.any {
+                it.contains("restore: browser ready after") && it.contains("(window=com.android.chrome)")
+            },
+            "the ready line must name the validated package: ${result.stepLog}",
+        )
+        assertTrue(
+            result.stepLog.any { it.contains("execute: tap") && it.contains("-> dispatched") },
+            "stepLog=${result.stepLog}",
+        )
+    }
+
+    @Test
+    fun `a never-right-package probe times out bounded and the execute still proceeds`() = runBlocking {
+        val (fixture, fired) = frontingFixture(
+            script = scriptOf(
+                choose("triage", "lookup"),
+                chooseByLabel("action", "Unsubscribe now"),
+            ),
+            // every probe is readable but the harness stays the active window
+            observations = listOf(listPage(), backgroundedProbe()),
+            gatePresenter = FrontingGatePresenter(true, GateResolution.APPROVED),
+            config = NavigationLoop.Config(
+                settleMs = 0,
+                restoreSettleMs = 0,
+                unusableRetryDelayMs = 0,
+                restoreReadinessMs = 2, // one initial probe + 2 retries, then expiry proceeds
+                budget = NavigationLoop.BudgetLimits(stepsHard = 1),
+            ),
+        )
+        val result = fixture.loop.run("tidy the subscriptions", "restore-ready-wrongpkg", identity, fixture.clock)
+
+        assertEquals(TerminalState.BUDGET_EXHAUSTED, result.terminal)
+        assertEquals(listOf(pageUrl), fired)
+        val entries = fixture.journal.entries
+        val restoreIdx = entries.indexOfFirst { it == "restore:view($pageUrl)" }
+        val tapIdx = entries.indexOfFirst { it.startsWith("tap(") }
+        assertTrue(restoreIdx in 0 until tapIdx, "journal=$entries")
+        // bounded: one probe + exactly 2 retries (restoreReadinessMs / cadence) - no hang
+        assertEquals(
+            3,
+            entries.subList(restoreIdx + 1, tapIdx).count { it == "observe" },
+            "journal=$entries",
+        )
+        assertTrue(
+            result.stepLog.any {
+                it.contains("restore: browser not readable within budget - continuing") &&
+                    it.contains("(last window=navigator.app)")
+            },
+            "the timeout line must name the last-seen package: ${result.stepLog}",
+        )
+        assertTrue(
+            result.stepLog.any { it.contains("execute: tap") && it.contains("-> dispatched") },
+            "stepLog=${result.stepLog}",
+        )
+    }
+
     // -- the completion card --------------------------------------------------------------
 
     /** The exit-flow specimen pages: seed, then entity-bearing article pages. */

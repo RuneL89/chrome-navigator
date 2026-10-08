@@ -106,6 +106,9 @@ object CandidateEnumerator {
             source = CandidateSource.A11Y,
             sourceOrder = sourceOrder,
             synthetic = false,
+            // Browser-chrome marker rides the action (2026-10-08 pre-UAT2 RC2): the
+            // gate reads it so the omnibox/URL-bar can never credential-classify.
+            browserChrome = browserChrome,
         )
     }
 

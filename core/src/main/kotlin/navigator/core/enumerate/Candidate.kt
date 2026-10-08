@@ -71,6 +71,10 @@ enum class CandidateSource {
  * @param sourceOrder order within [source] — a11y read order / fixed synthetic order
  * @param synthetic false for on-screen page candidates, true for the always-present
  *   synthetic actions; synthetic candidates sort after every on-screen candidate
+ * @param browserChrome browser-UI marker (2026-10-08 pre-UAT2 RC2): the action targets
+ *   the browser chrome (the omnibox/URL-bar subtree), not page content — the gate
+ *   never credential-classifies typing into it (the URL bar can never be a credential
+ *   target); the action itself stays an ordinary ungated candidate
  */
 @Serializable
 data class Candidate(
@@ -83,6 +87,7 @@ data class Candidate(
     val source: CandidateSource,
     val sourceOrder: Int,
     val synthetic: Boolean,
+    val browserChrome: Boolean = false,
 ) {
     init {
         require(id.isNotBlank()) { "Candidate.id must not be blank" }

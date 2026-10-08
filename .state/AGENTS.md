@@ -55,6 +55,16 @@ remembers."
   only ever fire on a sanctioned value and never catch a genuine leak — EVERY
   state-text section now masks `[credential-redacted]`, the emission-boundary
   invariant stays loud)
+* `preUAT2-5-targetbinding.json` — the PREUAT2-5 status note (2026-10-08, the
+  owner-approved RC1/RC2 plan): RC2 — target-scoped credential classification (a page
+  HAVING a password field never credential-classifies typing into plain fields; the
+  omnibox/URL-bar excluded structurally via the additive `browserChrome` flag through
+  NodeSnapshot→ObservedNode→Candidate→FieldDescriptor/RiskGate) + the
+  ApproveWithSecret approval bound to the card's candidate id (loud mismatch at the
+  execute site); RC1 — the `TextEntryFailure` cause vocabulary on `enterText` (the
+  execute line logs `-> FAILED (CAUSE)`), the bounded active-browser wait, readiness =
+  usable tree AND the ACTIVE window's package in the browser allowlist, the clipboard
+  cleared after paste; +2 additive classifier-matrix rows
 * `eval/` — measurement-report artifacts, git-tracked: `tier-a-report.{md,json}` (Tier A
   deterministic replay, Phase 7; regenerate with `./gradlew :core:generateTierAReport` —
   the committed bytes are the drift detector a state/wire/taxonomy/gate change must keep
