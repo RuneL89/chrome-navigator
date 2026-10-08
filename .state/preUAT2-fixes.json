@@ -1,0 +1,74 @@
+{
+  "pass": "pre-UAT2 defect fixes (implementer half of the fix-first protocol)",
+  "date": "2026-10-08",
+  "status": "fixes-complete-awaiting-verifier-and-emulator-rerun",
+  "llmCost": "$0",
+  "defects": [
+    {
+      "id": "PREUAT2-1",
+      "kind": "product",
+      "caughtOn": "S25+ mechanical battery (compliance-log [2026-10-08 03:10])",
+      "summary": "After an in-task interactive card (gate card or completion card) resolved on the NO-OVERLAY path, the loop never returned Chrome to the foreground: post-approval EXECUTE failed (dispatchGesture cannot land in a background app) and OBSERVE read 0 lines (foreground window = harness) -> spurious REFUSED. Overlay path unaffected; 08J completion-card path unaffected (task ends at the card)."
+    },
+    {
+      "id": "PREUAT2-2",
+      "kind": "observation-environment",
+      "caughtOn": "AVD pocketpet-cardfix (compliance-log [2026-10-08 03:00] + prepass-record.md)",
+      "summary": "navigator_accessibility_service_config.xml lacked android:canRequestEnhancedWebAccessibility and filtered packageNames to com.android.chrome only, so the AVD's org.chromium.webview_shell delivered toolbar-only trees (pageNodes=2) to the bound service. Real Chrome ignores the capability: additive and safe."
+    }
+  ],
+  "fixes": [
+    {
+      "defect": "PREUAT2-1",
+      "files": [
+        "app/src/main/kotlin/navigator/app/loop/GatePresenter.kt",
+        "app/src/main/kotlin/navigator/app/loop/NavigationLoop.kt",
+        "app/src/main/kotlin/navigator/app/harness/HarnessActivity.kt",
+        "app/src/test/kotlin/navigator/app/loop/CardForegroundRestoreTest.kt (new)"
+      ],
+      "mechanism": "New HarnessFrontAware (both Debug presenters report shouldBringToFront per presentation). The loop, right after each interactive resolution, re-fronts the browser BEFORE the loop continues when the presenter fronted the harness: VIEW intent for GateCard.url (completion card: current obs.url; only real http(s) URLs fire) through the existing cold-start BrowserLauncher seam + Config.restoreSettleMs (default 1000ms), logged on the step log; openBrowser logs every VIEW intent on NavigatorHarness. Excluded: task-ending resolutions (DENY-abort, CONFIRM_DONE), overlay-path and never-fronting (scripted/auto) presentations, trusted no-card actions, non-page URLs — all byte-identical no-ops. 30s timeouts, once-per-task completion card, and card payloads untouched."
+    },
+    {
+      "defect": "PREUAT2-2",
+      "files": [
+        "app/src/main/res/xml/navigator_accessibility_service_config.xml"
+      ],
+      "mechanism": "Added android:canRequestEnhancedWebAccessibility=\"true\"; widened android:packageNames to the manifest's two allowlisted browsers com.android.chrome,org.chromium.webview_shell; comment updated (code-side PACKAGE_ALLOWLIST stays authoritative). No touch-exploration capability (owner-directed trade)."
+    }
+  ],
+  "deviations": [
+    {
+      "defect": "PREUAT2-2",
+      "deviation": "Dispatch specified the packageNames separator as a pipe; shipped a COMMA.",
+      "reason": "The platform parses android:packageNames as a comma-separated list (AccessibilityManagerService.parseServiceInfo splits on \\s*,\\s*); a pipe would form one non-matching package name and kill event delivery for BOTH browsers."
+    }
+  ],
+  "testEvidence": {
+    "fullSuite": "./gradlew test BUILD SUCCESSFUL — app 350 tests / core 293 tests / 0 failures / 0 errors (643 total; was 632 + 11 new)",
+    "apk": "./gradlew :app:assembleDebug BUILD SUCCESSFUL; merged resource carries canRequestEnhancedWebAccessibility + both package names",
+    "newTestClass": {
+      "name": "navigator.app.loop.CardForegroundRestoreTest",
+      "tests": 11,
+      "covers": [
+        "restore VIEW intent after a gate-card approval on the no-overlay path, BEFORE the execute gesture (journal ordering)",
+        "overlay path (fronting=false) never restores",
+        "never-fronting presenters (ScriptedGatePresenter) restore nothing — default byte-identical",
+        "first deny keeps the restore (loop continues); the aborting second deny does not (exactly one intent, GUARD_ABORT)",
+        "per-task-trusted second action restores nothing (only real card presentations do)",
+        "credential-card approvals restore before each secret injection (two cards -> two intents, ordered before the text gestures)",
+        "URL bar without a page URL (hidden) never fires the intent and logs the skip",
+        "completion card KEEP_GOING restores with the CURRENT page URL before the loop continues (SUSTAINED terminal intact)",
+        "completion card TIMEOUT restores like keep going",
+        "completion card CONFIRM_DONE never restores (OWNER_CONFIRM terminal intact)",
+        "completion card on the overlay path never restores"
+      ]
+    }
+  },
+  "notDoneHere": {
+    "emulatorVerify": "the orchestrator's (defect 2: whether the capability alone unlocks the webview-shell content tree on this webview build; if still starved WITH the capability, next hypothesis is the service setting FLAG_REQUEST_ENHANCED_WEB_ACCESSIBILITY via setServiceInfo)",
+    "deviceRerun": "the orchestrator's S25+ mechanical battery re-run (defect 1 observable: 'restore:' step-log lines + NavigatorHarness VIEW-intent logcat lines, no more FAILED-tap/0-line starvation after cards)",
+    "coldVerification": "canon-verifier re-check per the fix-first protocol"
+  },
+  "lastAction": "wrote .state/preUAT2-emulator/fix-record.md + this status note; DOX pass on app/AGENTS.md and .state/AGENTS.md",
+  "nextAction": "canon-verifier cold re-check, then the orchestrator re-runs /android-dev (AVD + S25+ battery) before any owner judgment"
+}

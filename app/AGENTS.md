@@ -79,7 +79,16 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     of the run report's stepLog/partialResult), the step log renders
     `[credential-redacted]`, the row carries `typedSecret=true`, and wrong-source in
     either direction (plain approve on a credential card; secret on any other card)
-    fails loudly — never a fall-through; preceded by the Phase-8D cold-start
+    fails loudly — never a fall-through; the 2026-10-08 pre-UAT defect fix: after an
+    interactive card resolution (gate card AND completion card) on the NO-OVERLAY path
+    (the presenter fronted the harness per `HarnessFrontAware`) the loop re-fronts the
+    browser BEFORE the loop continues — the VIEW intent for the card's page URL
+    (completion card: the current observation's URL; only real http(s) page URLs fire)
+    through the cold-start `BrowserLauncher` seam + a short settle
+    (`Config.restoreSettleMs`), logged on the step log and `NavigatorHarness`; the
+    overlay path, never-fronting presenters (scripted/auto), and task-ending
+    resolutions (CONFIRM_DONE, the DENY-abort) restore nothing (byte-identical);
+    preceded by the Phase-8D cold-start
     pre-step (vision 04 §1)
     when its `BrowserProbe`/`BrowserLauncher` seams are wired, and by ONE triage
     choose; exits goal-achieved / budget-exhausted / stuck-kill /
@@ -178,7 +187,10 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     harness activity is brought to the FRONT before the dialog shows (the
     `HarnessActivity` auto-return pattern — an activity-local dialog behind a STOPPED
     activity is never seen), chosen path logged loudly on `NavigatorHarness`, decision
-    JVM-tested as pure `shouldBringToFront`; Phase 8F: `GateResolution` is SEALED —
+    JVM-tested as pure `shouldBringToFront`; both Debug presenters report the fronting
+    path of their most recent presentation via `HarnessFrontAware` — the loop's
+    2026-10-08 restore seam reads it after each resolution (see `NavigationLoop`);
+    Phase 8F: `GateResolution` is SEALED —
     `ApproveWithSecret(secret)` carries the credential typed on the card's masked input
     (the value lives in memory only for the injection call; a blank input resolves deny),
     and `DebugGatePresenter` shows that masked input ONLY on
@@ -297,7 +309,14 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     `accessibility_enabled` immediately after the launch, inside the harness's
     20s service-await window (measured 2026-10-05; the runbook for every headless run)
 * `src/main/AndroidManifest.xml` — application manifest (service + debug capture
-  activity/receiver declarations; service config XML in `src/main/res/xml/`; Phase 6 added
+  activity/receiver declarations; service config XML in `src/main/res/xml/` — the
+  2026-10-08 pre-UAT observation widening: `android:packageNames` lists the manifest's
+  TWO allowlisted browsers `com.android.chrome,org.chromium.webview_shell` (COMMA
+  separated — the platform parser splits on commas) and adds
+  `android:canRequestEnhancedWebAccessibility` so the AVD's WebView Browser Tester
+  serves its web-content tree and shell window events to the bound service (real Chrome
+  ignores the capability — additive and safe; the code-side `PACKAGE_ALLOWLIST` stays
+  authoritative); Phase 6 added
   INTERNET + SYSTEM_ALERT_WINDOW permissions, `<queries>` for the two
   allowlisted browsers, and the exported debug `HarnessActivity`; 2026-10-06 added
   POST_NOTIFICATIONS + VIBRATE — harness-debug notifications and the run-over buzz
@@ -415,7 +434,14 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
   gates (`NavigationLoopTest`: strict step order incl. GATE-before-EXECUTE, budget
   clean-stops per dimension, double-deny abort, ART-4 adversarial finish refusal,
   one-row-per-decision; `TaskBudgetTest`, `StuckDetectorTest`, `CompletionGuardsTest`,
-  `StubEngineTest`, `GoalCatalogTest`) + the Phase-8D gates (`TriageClassificationTest`
+  `StubEngineTest`, `GoalCatalogTest`; `CardForegroundRestoreTest`: the 2026-10-08
+  no-overlay card restore — the restore VIEW intent fires after a gate-card approval
+  BEFORE the execute gesture (and after a credential-card approval before each
+  injection), after a first deny (the loop continues), and after completion
+  keep-going/timeout with the current page URL; it stays silent on the overlay path,
+  for never-fronting presenters, for trusted no-card actions, after the task-ending
+  resolutions (the DENY-abort and CONFIRM_DONE), and for a URL bar without a page URL) +
+  the Phase-8D gates (`TriageClassificationTest`
   Gate 8D.1: the classification matrix over `src/test/resources/fixtures/triage-matrix.json`
   — the owner example goal texts as TEST DATA, booking→action, unsubscribe-all→action-multi,
   Tarte Tatin→lookup — via scripted triage answers, with budget-profile selection asserted

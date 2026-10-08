@@ -316,6 +316,9 @@ class HarnessActivity : ComponentActivity() {
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
             .setPackage(browser)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        // Both loop VIEW intents ride this seam — cold-start and the 2026-10-08
+        // card-restore — so the run trace shows every re-front of the browser.
+        log("browser: firing VIEW intent for $url")
         try {
             runOnUiThread { startActivity(intent) }
         } catch (e: Exception) {

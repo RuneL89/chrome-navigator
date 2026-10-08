@@ -2,15 +2,23 @@
 <!-- Observation service config (vision 03 §1). packageNames only filters event delivery;
      the authoritative code-side observation filter is
      NavigatorAccessibilityService.PACKAGE_ALLOWLIST (the harness widens that constant).
-     NB: the platform has no "typeWindowScrollChanged" token — the scroll event type is
-     typeViewScrolled (AccessibilityEvent.TYPE_VIEW_SCROLLED). -->
+     2026-10-08 pre-UAT fix: org.chromium.webview_shell joins com.android.chrome (the
+     manifest <queries>' two allowlisted browsers) so the AVD's WebView Browser Tester
+     delivers shell window events, and canRequestEnhancedWebAccessibility unlocks the
+     webview-shell's web-content tree for bound services — real Chrome ignores the
+     capability (browser-level a11y), so this is additive and safe for production. NB:
+     packageNames is COMMA-separated (the platform splits it on commas; a pipe would
+     form one non-matching package name). The platform has no "typeWindowScrollChanged"
+     token — the scroll event type is typeViewScrolled
+     (AccessibilityEvent.TYPE_VIEW_SCROLLED). -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeViewScrolled"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagDefault|flagReportViewIds|flagRetrieveInteractiveWindows"
     android:canRetrieveWindowContent="true"
     android:canPerformGestures="true"
+    android:canRequestEnhancedWebAccessibility="true"
     android:notificationTimeout="100"
-    android:packageNames="com.android.chrome"
+    android:packageNames="com.android.chrome,org.chromium.webview_shell"
     android:description="@string/a11y_service_description"
     android:summary="@string/a11y_service_summary" />

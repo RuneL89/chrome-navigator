@@ -73,6 +73,22 @@ private const val HARNESS_LOG_TAG = "NavigatorHarness"
 internal fun shouldBringToFront(overlayGranted: Boolean): Boolean = !overlayGranted
 
 /**
+ * Implemented by presenters that may bring the harness activity to the FRONT to show a
+ * card (the no-overlay path — [shouldBringToFront]). The loop reads it right after a
+ * resolution to decide whether the BROWSER must be restored to the foreground before
+ * the loop continues (the 2026-10-08 pre-UAT defect: on the no-overlay path Chrome
+ * stays backgrounded after the card — the post-approval gesture cannot land and the
+ * next observation reads the harness window). Presenters that never front (the
+ * scripted/auto test modes) do not implement it; the loop's restore is then a
+ * byte-identical no-op. The flag reflects the MOST RECENT presentation, so callers
+ * read it immediately after that presentation's `present` returns.
+ */
+interface HarnessFrontAware {
+    /** Whether the most recent card presentation took the bring-to-front path. */
+    fun lastCardFrontedHarness(): Boolean
+}
+
+/**
  * The `HarnessActivity` auto-return pattern verbatim: a relaunch carrying NO extras is
  * a silent bring-to-front (`handleLaunchIntent` returns before any run starts or is
  * refused), so this must never start or refuse a run. Best-effort: a failure never
@@ -107,7 +123,12 @@ private fun bringToFront(activity: Activity) {
  * (the 2026-10-07 S25+ UAT defect). The product overlay (Phase 9) replaces this;
  * nothing here is product UI and no auto mode exists in Phase 9.
  */
-class DebugGatePresenter(private val activity: Activity) : GatePresenter {
+class DebugGatePresenter(private val activity: Activity) : GatePresenter, HarnessFrontAware {
+
+    /** Whether the most recent card took the bring-to-front path ([HarnessFrontAware]). */
+    private var frontedForLastCard = false
+
+    override fun lastCardFrontedHarness(): Boolean = frontedForLastCard
 
     override suspend fun present(card: GateCard): GateResolution {
         var resolution: GateResolution? = null
@@ -140,7 +161,8 @@ class DebugGatePresenter(private val activity: Activity) : GatePresenter {
             // invisible behind Chrome, so the harness comes to the front FIRST and the
             // dialog shows on a resumed activity.
             val overlayGranted = android.provider.Settings.canDrawOverlays(activity)
-            if (shouldBringToFront(overlayGranted)) {
+            frontedForLastCard = shouldBringToFront(overlayGranted)
+            if (frontedForLastCard) {
                 Log.d(
                     HARNESS_LOG_TAG,
                     "gate card: overlay permission absent - bringing the harness to the front " +
@@ -273,7 +295,13 @@ class ScriptedCompletionCardPresenter(private vararg val resolutions: Completion
  * harness activity is brought to the front first (the gate-card fix — an
  * activity-local dialog behind Chrome is never seen). Harness-only, never product UI.
  */
-class DebugCompletionCardPresenter(private val activity: Activity) : CompletionCardPresenter {
+class DebugCompletionCardPresenter(private val activity: Activity) :
+    CompletionCardPresenter, HarnessFrontAware {
+
+    /** Whether the most recent card took the bring-to-front path ([HarnessFrontAware]). */
+    private var frontedForLastCard = false
+
+    override fun lastCardFrontedHarness(): Boolean = frontedForLastCard
 
     override suspend fun present(card: CompletionCard): CompletionResolution {
         var resolution: CompletionResolution? = null
@@ -292,7 +320,8 @@ class DebugCompletionCardPresenter(private val activity: Activity) : CompletionC
             // card): overlay window when granted, otherwise the harness comes to the
             // front FIRST and the dialog shows on a resumed activity.
             val overlayGranted = android.provider.Settings.canDrawOverlays(activity)
-            if (shouldBringToFront(overlayGranted)) {
+            frontedForLastCard = shouldBringToFront(overlayGranted)
+            if (frontedForLastCard) {
                 Log.d(
                     HARNESS_LOG_TAG,
                     "completion card: overlay permission absent - bringing the harness to the " +

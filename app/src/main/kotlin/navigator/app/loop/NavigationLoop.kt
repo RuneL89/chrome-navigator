@@ -137,6 +137,9 @@ class NavigationLoop(
         val settleMs: Long = 700,
         /** Breather between the fresh reads of an unusable tree (page render). */
         val unusableRetryDelayMs: Long = 1_500,
+        /** The short settle after a card restore's VIEW intent (the browser re-fronts
+         *  and the page refocuses) before the loop proceeds (2026-10-08 defect fix). */
+        val restoreSettleMs: Long = 1_000,
         val budget: BudgetLimits = BudgetLimits(),
     )
 
@@ -213,6 +216,33 @@ class NavigationLoop(
         /** The completion card's resolution when it was shown (once per task). */
         var completionCardResolution: String? = null
         var lastPost: StepObservation? = null
+
+        // -- the no-overlay card restore (2026-10-08 pre-UAT defect) -------------------
+        // A card presenter that had to bring the HARNESS to the front to show its card
+        // (overlay permission absent) leaves Chrome in the background after the
+        // resolution — the next gesture cannot land (dispatchGesture needs the
+        // foreground) and the next observation reads the harness window (0 lines ->
+        // spurious REFUSED). Before the loop continues the browser is re-fronted by
+        // firing the VIEW intent for the page URL through the cold-start launcher seam.
+        // No-op (byte-identical) when the card showed on the overlay window, when the
+        // presenter never fronts (scripted/auto — every JVM test and harness auto mode),
+        // when no launcher is wired, or when the URL bar holds no real page URL.
+
+        /** Whether [presenter] fronted the harness for its most recent card. */
+        fun frontedHarness(presenter: Any): Boolean =
+            (presenter as? HarnessFrontAware)?.lastCardFrontedHarness() == true
+
+        /** Re-fronts the browser with the VIEW intent for [url]; short settle, logged. */
+        suspend fun restoreBrowserForeground(what: String, url: String?) {
+            val launcher = browserLauncher ?: return
+            if (url == null || (!url.startsWith("http://") && !url.startsWith("https://"))) {
+                line("restore: $what fronted the harness but the URL bar holds no page URL - no VIEW intent")
+                return
+            }
+            line("restore: $what fronted the harness (no-overlay path) - VIEW intent for $url")
+            launcher.launch(url)
+            delay(config.restoreSettleMs)
+        }
 
         fun partialResult(): String =
             lastPost?.nodes
@@ -675,7 +705,7 @@ class NavigationLoop(
                             "exit: ${first.refusedChecks} consecutive guard-pass refusals - " +
                                 "completion card (max one per task, vision 04 §3 Path C)",
                         )
-                        when (val resolution = completionCardPresenter.present(
+                        val resolution = completionCardPresenter.present(
                             CompletionCard(
                                 goal = goal,
                                 entity = entity?.text,
@@ -683,7 +713,9 @@ class NavigationLoop(
                                 noul = first.noul,
                                 refusedChecks = first.refusedChecks,
                             ),
-                        )) {
+                        )
+                        val cardFronted = frontedHarness(completionCardPresenter)
+                        val cardVerdict: ExitDecision = when (resolution) {
                             CompletionResolution.CONFIRM_DONE -> {
                                 completionCardResolution = resolution.name
                                 line("exit: owner CONFIRMED done - accepting via OWNER_CONFIRM")
@@ -706,6 +738,16 @@ class NavigationLoop(
                                 )
                             }
                         }
+                        // The keep-going resolutions continue the loop — on the
+                        // no-overlay path Chrome is still backgrounded behind the
+                        // harness, so it is re-fronted (VIEW intent for the current
+                        // page) before the loop continues. CONFIRM_DONE ends the task —
+                        // the harness's terminal auto-return fronts the harness; never
+                        // restore.
+                        if (cardFronted && cardVerdict is ExitDecision.Refuse) {
+                            restoreBrowserForeground("the completion card", obs.url)
+                        }
+                        cardVerdict
                     }
                     else -> first
                 }
@@ -871,6 +913,11 @@ class NavigationLoop(
             var taskAborted = false
             var gateEvent: LoggedGateEvent? = null
             var disposition = ActionDisposition.EXECUTED
+            // The most recent gate-card presentation's fronting state + page URL (the
+            // 2026-10-08 restore seam): captured at each present() call site — the
+            // trusted paths present no card and therefore restore nothing.
+            var gateCardFronted = false
+            var gateCardUrl: String? = null
             // The typed-text source (vision 04 §2 step 5, Phase 08F): the stub phrase
             // for ordinary typing; the credential path REPLACES it with the card secret
             // ([TextSource.GateSuppliedSecret]) — or refuses loudly. Null for every
@@ -894,7 +941,10 @@ class NavigationLoop(
                 check(card.credentialTyping) {
                     "credential-typing action (${h.name}) must build the credential card variant"
                 }
-                when (val resolution = gatePresenter.present(card)) {
+                val resolution = gatePresenter.present(card)
+                gateCardFronted = frontedHarness(gatePresenter)
+                gateCardUrl = card.url
+                when (resolution) {
                     is GateResolution.ApproveWithSecret -> {
                         when (val request = taskGate.decide(GateEvent.REQUEST(h, pageContext.site))) {
                             is GateDecision.EXECUTE -> {
@@ -961,7 +1011,10 @@ class NavigationLoop(
                     }
                     GateDecision.ASK -> {
                         val card = GateCard.build(hclass, gateAction, pageContext)
-                        when (val resolution = gatePresenter.present(card)) {
+                        val resolution = gatePresenter.present(card)
+                        gateCardFronted = frontedHarness(gatePresenter)
+                        gateCardUrl = card.url
+                        when (resolution) {
                             GateResolution.APPROVED -> {
                                 val approved = taskGate.decide(GateEvent.APPROVE)
                                 val trusted = approved is GateDecision.EXECUTE && approved.trustedFromTask
@@ -1002,6 +1055,17 @@ class NavigationLoop(
                         "gate ABORT_TASK outside a refusal - TaskGate state machine misuse",
                     )
                 }
+            }
+
+            // The 2026-10-08 pre-UAT defect: on the no-overlay card path Chrome is still
+            // backgrounded behind the harness after the resolution — restore it BEFORE
+            // the loop continues (the EXECUTE gesture, or the post-refusal observation
+            // when the card was denied). A task-ending resolution (the second-refusal
+            // abort) never restores: the run is over and the harness's terminal
+            // auto-return fronts the harness. Overlay/never-fronting presenters leave
+            // both flags untouched — a byte-identical no-op.
+            if (gateCardFronted && !taskAborted) {
+                restoreBrowserForeground("the gate card", gateCardUrl)
             }
 
             // -- 5. EXECUTE -------------------------------------------------------------------
