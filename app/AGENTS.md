@@ -83,10 +83,17 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     interactive card resolution (gate card AND completion card) on the NO-OVERLAY path
     (the presenter fronted the harness per `HarnessFrontAware`) the loop re-fronts the
     browser BEFORE the loop continues — the VIEW intent for the first usable page URL
-    in the chain card URL → current observation's URL → last-known page URL (noted at
+    in the chain card URL → current observation URL → last-known page URL (noted at
     every observation — the 2026-10-08 S25+ follower: the per-step URL-bar read is
-    intermittently empty on some devices; the serving source is logged; only real
-    http(s) page URLs fire, and the loud line stays for genuinely-never-had-a-URL runs)
+    intermittently empty on some devices; the serving source is logged, and the loud
+    line stays for genuinely-never-had-a-URL runs). Every chain candidate normalizes
+    through `normalizePageUrl` (the 2026-10-08 owner-screenshot follower: mobile Chrome
+    OMITS the scheme, so the card showed "127.0.0.1:8099/subscriptions.html" while the
+    old http(s)-prefix guard rejected it): schemed URLs pass through, scheme-less
+    host/path text gets the scheme prepended (loopback hosts → http, else https),
+    everything else (about:blank, hidden, blank) never serves; scheme-less bar reads
+    are tracked as last-known in their normalized form, and the serving line notes
+    "(normalized)" when normalization changed the value
     through the cold-start `BrowserLauncher` seam + a short settle
     (`Config.restoreSettleMs`), logged on the step log and `NavigatorHarness`; the
     overlay path, never-fronting presenters (scripted/auto), and task-ending
@@ -446,7 +453,11 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
   resolutions (the DENY-abort and CONFIRM_DONE), and for a URL bar without a page URL
 anywhere (no restore + the loud line); the 2026-10-08 S25+ follower chain: an empty
 per-step read still restores from the last-known URL (source logged) and the chain
-prefers the card URL when present (source logged)) +
+prefers the card URL when present (source logged); the 2026-10-08 owner-screenshot
+normalization follower: a scheme-less loopback card URL fires as http://, a
+scheme-less non-loopback card URL fires as https://, a scheme-less bar read is
+tracked as last-known (normalized) and serves on an empty card URL, and garbage
+reads (about:blank, empty; hidden pinned by the earlier test) still never serve) +
   the Phase-8D gates (`TriageClassificationTest`
   Gate 8D.1: the classification matrix over `src/test/resources/fixtures/triage-matrix.json`
   — the owner example goal texts as TEST DATA, booking→action, unsubscribe-all→action-multi,

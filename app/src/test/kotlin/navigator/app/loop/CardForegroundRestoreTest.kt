@@ -28,6 +28,14 @@ import kotlin.test.assertTrue
  * observation) and the step-log line names which source served; the loud line stays for
  * genuinely-never-had-a-URL runs.
  *
+ * The owner-screenshot defect-follower (same defect class): mobile Chrome OMITS the
+ * scheme, so the card displayed "127.0.0.1:8099/subscriptions.html" while the restore's
+ * old http(s)-prefix guard rejected that exact URL ("no VIEW intent") — the JVM tests
+ * passed because they used fully-schemed URLs. Every chain candidate now normalizes
+ * ([NavigationLoop.normalizePageUrl]): schemed URLs pass; scheme-less host/path text
+ * gets http:// for the loopback hosts, https:// otherwise; garbage (about:blank,
+ * hidden, empty) never serves. Scheme-less bar reads are also tracked as last-known.
+ *
  * $0 by construction: the engine is the scripted stub; the launcher journal is the
  * LoopTestSupport cold-start intent pattern reused for the restore intents.
  */
@@ -393,6 +401,179 @@ class CardForegroundRestoreTest {
         // the observation and last-known sources were never consulted
         assertTrue(
             result.stepLog.none { it.contains("(observation)") || it.contains("(last-known)") },
+            "stepLog=${result.stepLog}",
+        )
+    }
+
+    // -- scheme-less URL-bar text (2026-10-08 owner-screenshot defect-follower) -----------
+    // Mobile Chrome OMITS the scheme: the bar (and hence GateCard.url) reads
+    // "127.0.0.1:8099/subscriptions.html" — the old http(s)-prefix guard rejected that
+    // exact URL ("no VIEW intent") even as the card displayed it. Scheme-less text now
+    // normalizes at the restore: loopback -> http, any other dotted host -> https.
+
+    /** The mutation page with a parametrized (e.g. scheme-less) URL-bar read. */
+    private fun schemelessListPage(url: String) = obs(
+        url,
+        N("Issue header"),
+        N("Body text one"),
+        N("Body text two"),
+        N("Unsubscribe now", clickable = true, button = true),
+        N("Also unsubscribe", clickable = true, button = true),
+        N("Footer"),
+    )
+
+    /** An ordinary (never gated) link page with a parametrized URL-bar read. */
+    private fun schemelessLinkPage(url: String) = obs(
+        url,
+        N("Issue header"),
+        N("Body text one"),
+        N("Body text two"),
+        N("More results", clickable = true),
+        N("Footer"),
+    )
+
+    @Test
+    fun `a scheme-less loopback card URL normalizes to http and fires the restore`() = runBlocking {
+        val (fixture, fired) = frontingFixture(
+            script = scriptOf(
+                choose("triage", "lookup"),
+                chooseByLabel("action", "Unsubscribe now"),
+            ),
+            observations = listOf(schemelessListPage("127.0.0.1:8099/subscriptions.html")),
+            gatePresenter = FrontingGatePresenter(true, GateResolution.APPROVED),
+            config = NavigationLoop.Config(
+                settleMs = 0,
+                restoreSettleMs = 0,
+                budget = NavigationLoop.BudgetLimits(stepsHard = 1),
+            ),
+        )
+        val result = fixture.loop.run(
+            "tidy the subscriptions",
+            "restore-schemeless-loopback",
+            identity,
+            fixture.clock,
+        )
+
+        assertEquals(TerminalState.BUDGET_EXHAUSTED, result.terminal)
+        // the owner-screenshot card URL — scheme-less — now fires, loopback -> http
+        assertEquals(listOf("http://127.0.0.1:8099/subscriptions.html"), fired)
+        assertTrue(
+            result.stepLog.any {
+                it.contains("restore: the gate card fronted the harness (no-overlay path)") &&
+                    it.contains("http://127.0.0.1:8099/subscriptions.html") &&
+                    it.contains("(normalized)") &&
+                    it.contains("(card)")
+            },
+            "stepLog=${result.stepLog}",
+        )
+    }
+
+    @Test
+    fun `a scheme-less non-loopback card URL normalizes to https and fires the restore`() = runBlocking {
+        val (fixture, fired) = frontingFixture(
+            script = scriptOf(
+                choose("triage", "lookup"),
+                chooseByLabel("action", "Unsubscribe now"),
+            ),
+            observations = listOf(schemelessListPage("example.test/wiki/X")),
+            gatePresenter = FrontingGatePresenter(true, GateResolution.APPROVED),
+            config = NavigationLoop.Config(
+                settleMs = 0,
+                restoreSettleMs = 0,
+                budget = NavigationLoop.BudgetLimits(stepsHard = 1),
+            ),
+        )
+        val result = fixture.loop.run(
+            "tidy the subscriptions",
+            "restore-schemeless-https",
+            identity,
+            fixture.clock,
+        )
+
+        assertEquals(TerminalState.BUDGET_EXHAUSTED, result.terminal)
+        assertEquals(listOf("https://example.test/wiki/X"), fired)
+        assertTrue(
+            result.stepLog.any {
+                it.contains("VIEW intent for https://example.test/wiki/X (normalized) (card)")
+            },
+            "stepLog=${result.stepLog}",
+        )
+    }
+
+    @Test
+    fun `a scheme-less bar read is tracked as last-known and serves when the card URL is empty`() = runBlocking {
+        val (fixture, fired) = frontingFixture(
+            script = scriptOf(
+                choose("triage", "lookup"),
+                // step 0: ordinary ungated tap on a page whose bar read is SCHEME-LESS
+                chooseByLabel("action", "More results"),
+                // step 1: the H9 card fires while the URL bar reads empty
+                chooseByLabel("action", "Unsubscribe now"),
+            ),
+            observations = listOf(
+                schemelessLinkPage("example.test/list"),
+                hiddenListPage(),
+            ),
+            gatePresenter = FrontingGatePresenter(true, GateResolution.APPROVED),
+            config = NavigationLoop.Config(
+                settleMs = 0,
+                restoreSettleMs = 0,
+                budget = NavigationLoop.BudgetLimits(stepsHard = 2),
+            ),
+        )
+        val result = fixture.loop.run(
+            "tidy the subscriptions",
+            "restore-schemeless-lastknown",
+            identity,
+            fixture.clock,
+        )
+
+        assertEquals(TerminalState.BUDGET_EXHAUSTED, result.terminal)
+        // the scheme-less step-0 read is now tracked (normalized to https) and serves on
+        // the card step's empty read
+        assertEquals(listOf("https://example.test/list"), fired)
+        assertTrue(
+            result.stepLog.any {
+                it.contains("VIEW intent for https://example.test/list (last-known)")
+            },
+            "stepLog=${result.stepLog}",
+        )
+    }
+
+    @Test
+    fun `garbage bar reads (about_blank, hidden, empty) still never serve the restore`() = runBlocking {
+        val (fixture, fired) = frontingFixture(
+            script = scriptOf(
+                choose("triage", "lookup"),
+                // step 0: ordinary tap on a page whose bar read is EMPTY (never tracked)
+                chooseByLabel("action", "More results"),
+                // step 1: the H9 card fires while the bar reads "about:blank"
+                chooseByLabel("action", "Unsubscribe now"),
+            ),
+            observations = listOf(
+                schemelessLinkPage(""),
+                schemelessListPage("about:blank"),
+            ),
+            gatePresenter = FrontingGatePresenter(true, GateResolution.APPROVED),
+            config = NavigationLoop.Config(
+                settleMs = 0,
+                restoreSettleMs = 0,
+                budget = NavigationLoop.BudgetLimits(stepsHard = 2),
+            ),
+        )
+        val result = fixture.loop.run(
+            "tidy the subscriptions",
+            "restore-garbage-urls",
+            identity,
+            fixture.clock,
+        )
+
+        assertEquals(TerminalState.BUDGET_EXHAUSTED, result.terminal)
+        // about:blank and empty normalize to nothing, nothing was ever tracked, and the
+        // "hidden" sentinel is pinned by the earlier no-page-URL test — no restore
+        assertTrue(fired.isEmpty(), "restore fired for garbage bar reads: $fired")
+        assertTrue(
+            result.stepLog.any { it.contains("fronted the harness but the URL bar holds no page URL") },
             "stepLog=${result.stepLog}",
         )
     }

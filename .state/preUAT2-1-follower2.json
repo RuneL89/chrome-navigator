@@ -1,0 +1,39 @@
+{
+  "pass": "PREUAT2-1 defect-follower #2 (implementer half of the fix-first protocol; scheme normalization at the restore)",
+  "date": "2026-10-08",
+  "status": "fix-complete-awaiting-verifier-and-device-rerun",
+  "llmCost": "$0",
+  "defect": {
+    "id": "PREUAT2-1-FOLLOWER-2",
+    "kind": "product",
+    "caughtOn": "S25+ demo-session mechanical segment; the owner's screenshot (.state/demo-session-2026-10-08/owner-card-evidence.jpg) shows the gate card DISPLAYING '127.0.0.1:8099/subscriptions.html' while the step log recorded 'URL bar holds no page URL - no VIEW intent'",
+    "summary": "The URL-bar reader returns the bar's VISIBLE text and mobile Chrome OMITS the scheme, so the card URL ('127.0.0.1:8099/subscriptions.html') does not start with http(s):// — the restore's old http(s)-prefix guard rejected it AND the lastKnownPageUrl tracking never captured it. The JVM tests passed because they used fully-schemed URLs. The guard was written against a fiction: the loop's per-step URL-of-record has been scheme-less on real Chrome all along."
+  },
+  "fix": {
+    "files": [
+      "app/src/main/kotlin/navigator/app/loop/NavigationLoop.kt",
+      "app/src/test/kotlin/navigator/app/loop/CardForegroundRestoreTest.kt (+4 tests)",
+      "app/AGENTS.md (restore-seam line + CardForegroundRestoreTest verification line)",
+      ".state/AGENTS.md (index line for this note)"
+    ],
+    "mechanism": "One helper at the normalization point, normalizePageUrl(raw): String? — trims; fully-schemed http(s) returns as-is; scheme-less text whose part before any slash looks like a host (dotted host[:port], localhost, [::1]) gets the scheme PREPENDED (loopback hosts -> http, else https); everything else (about:blank, the hidden sentinel, blank) -> null. Deterministic. notePageUrl now tracks the NORMALIZED value (scheme-less bar reads are last-known-tracked). restoreBrowserForeground serves the first chain candidate that normalizes and fires the VIEW intent with the normalized URL; the serving log line notes '(normalized)' when normalization changed the value. Everything else byte-identical: the chain order (card -> observation -> last-known), the loud no-URL line, the overlay/never-fronting/trusted/task-ending exclusions, restore-before-execute ordering, Config.restoreSettleMs. NOTE: the old usablePageUrl(Boolean) was FOLDED INTO normalizePageUrl (the single helper the dispatch called for) — its lastKnownPageUrl-gate behavior is exactly 'normalizePageUrl(raw) != null', now also stored normalized."
+  },
+  "deviations": [
+    "Test host: the dispatch offered en.wikipedia.org for the non-loopback case or example.test if the site-name rule is stricter — used example.test (generic reserved TLD; the repo's verifier precedent checks 'zero new site strings')",
+    "usablePageUrl removed (folded into normalizePageUrl) rather than kept as a wrapper — no dead code; behavior of the dispatch's item 2 preserved (scheme-less bar text now tracked, normalized)"
+  ],
+  "testEvidence": {
+    "fullSuite": "./gradlew test BUILD SUCCESSFUL (exit 0, 4m14s) — :core 293 + :app 357 (debug) = 650 tests, 0 failures, 0 errors, 0 skipped (prior 646 + 4 new; the :app release variant also re-ran green: 357/0)",
+    "newTests": {
+      "class": "navigator.app.loop.CardForegroundRestoreTest (14 -> 18)",
+      "covers": [
+        "scheme-less loopback card URL ('127.0.0.1:8099/subscriptions.html' — the owner-screenshot URL) -> restore FIRES with 'http://127.0.0.1:8099/subscriptions.html', log notes '(normalized) (card)'",
+        "scheme-less non-loopback card URL ('example.test/wiki/X') -> restore fires with 'https://example.test/wiki/X'",
+        "scheme-less bar read is tracked as last-known (stored normalized) and serves when the card URL reads empty ('(last-known)' logged)",
+        "garbage reads ('about:blank', empty; 'hidden' pinned by the pre-existing no-page-URL test) still never serve + the loud line"
+      ]
+    }
+  },
+  "lastAction": "wrote this status note after the green full suite; DOX pass done (app/AGENTS.md restore-seam + verification lines, .state/AGENTS.md index); compliance-log entry appended",
+  "nextAction": "canon-verifier cold re-check, then the orchestrator re-runs the S25+ mechanical segment (observable: the multi-action-gated-1 card restores fire with 'http://127.0.0.1:8099/subscriptions.html (normalized) (card)' instead of 'no VIEW intent')"
+}

@@ -219,7 +219,7 @@ class NavigationLoop(
         // The last-known page URL (2026-10-08 S25+ defect-follower): the per-step
         // URL-bar read is intermittently empty on some devices, so the card-restore
         // chain falls back to the most recent observation that DID carry a usable
-        // page URL. Null until some observation yields one.
+        // page URL (stored normalized). Null until some observation yields one.
         var lastKnownPageUrl: String? = null
 
         // -- the no-overlay card restore (2026-10-08 pre-UAT defect) -------------------
@@ -235,37 +235,69 @@ class NavigationLoop(
         // from a preference chain (2026-10-08 S25+ defect-follower: the per-step URL-bar
         // read is intermittently empty on some devices): the card's URL, the current
         // observation's URL, then the last-known page URL — the serving source is
-        // logged; the loud line stays for genuinely-never-had-a-URL runs.
+        // logged; the loud line stays for genuinely-never-had-a-URL runs. Every
+        // candidate goes through [normalizePageUrl] (2026-10-08 owner-screenshot
+        // follower: mobile Chrome OMITS the scheme, so the card showed
+        // "127.0.0.1:8099/subscriptions.html" while the old http(s)-prefix guard
+        // rejected it — scheme-less bar text now fires, loopback -> http else https).
 
         /** Whether [presenter] fronted the harness for its most recent card. */
         fun frontedHarness(presenter: Any): Boolean =
             (presenter as? HarnessFrontAware)?.lastCardFrontedHarness() == true
 
-        /** A usable page URL: non-blank http(s) (the URL bar may read hidden/unavailable/empty). */
-        fun usablePageUrl(url: String?): Boolean =
-            url != null && (url.startsWith("http://") || url.startsWith("https://"))
+        /**
+         * Normalizes a raw URL-bar / card URL into a SCHEMED page URL, or null when the
+         * text is not one — the restore's single page-URL gate. Mobile Chrome OMITS the
+         * scheme in the URL bar, so the bar's visible text
+         * ("127.0.0.1:8099/subscriptions.html") does not start with http(s):// and the
+         * old http(s)-prefix guard rejected exactly the URL the card itself displayed
+         * (2026-10-08 owner screenshot; the JVM tests passed on fully-schemed URLs).
+         * Fully-schemed http(s) URLs return as-is; scheme-less text whose part before
+         * any slash looks like a host (dotted host[:port], localhost, or [::1]) gets the
+         * scheme prepended — http for the loopback hosts (the harness fixture server),
+         * https otherwise; everything else ("about:blank", the "hidden" sentinel,
+         * blank) is null. Deterministic; surfaced only at the restore log line.
+         */
+        fun normalizePageUrl(raw: String?): String? {
+            if (raw == null) return null
+            val text = raw.trim()
+            if (text.isEmpty()) return null
+            if (text.startsWith("http://") || text.startsWith("https://")) return text
+            val host = text.substringBefore('/')
+            val loopback = host == "localhost" || host.startsWith("localhost:") ||
+                host == "127.0.0.1" || host.startsWith("127.0.0.1:") ||
+                host == "[::1]" || host.startsWith("[::1]:")
+            if (!host.contains('.') && !loopback) return null
+            return "${if (loopback) "http" else "https"}://$text"
+        }
 
-        /** Notes [o]'s URL when it is a usable page URL — the restore chain's
-         *  last-known fallback; called at every observation. */
+        /** Notes [o]'s page URL (normalized — scheme-less bar text is stored schemed)
+         *  as the restore chain's last-known fallback; called at every observation. */
         fun notePageUrl(o: StepObservation) {
-            if (usablePageUrl(o.url)) lastKnownPageUrl = o.url
+            normalizePageUrl(o.url)?.let { lastKnownPageUrl = it }
         }
 
         /**
-         * Re-fronts the browser with the VIEW intent for the first usable page URL among
-         * [candidates] (source label to URL, in preference order); short settle, logged
-         * with the serving source.
+         * Re-fronts the browser with the VIEW intent for the first candidate among
+         * [candidates] (source label to raw URL, in preference order) that normalizes
+         * ([normalizePageUrl]) to a page URL; short settle, logged with the serving
+         * source — noted "(normalized)" when normalization changed the value.
          */
         suspend fun restoreBrowserForeground(what: String, vararg candidates: Pair<String, String?>) {
             val launcher = browserLauncher ?: return
-            val served = candidates.firstOrNull { (_, url) -> usablePageUrl(url) }
+            val served = candidates.firstNotNullOfOrNull { (source, raw) ->
+                normalizePageUrl(raw)?.let { pageUrl -> Triple(source, raw, pageUrl) }
+            }
             if (served == null) {
                 line("restore: $what fronted the harness but the URL bar holds no page URL - no VIEW intent")
                 return
             }
-            val (source, url) = served
-            val pageUrl = requireNotNull(url)
-            line("restore: $what fronted the harness (no-overlay path) - VIEW intent for $pageUrl ($source)")
+            val (source, raw, pageUrl) = served
+            val normalizedNote = if (pageUrl != raw) " (normalized)" else ""
+            line(
+                "restore: $what fronted the harness (no-overlay path) - VIEW intent for " +
+                    "$pageUrl$normalizedNote ($source)",
+            )
             launcher.launch(pageUrl)
             delay(config.restoreSettleMs)
         }
