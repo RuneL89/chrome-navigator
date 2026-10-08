@@ -20,6 +20,9 @@ remembers."
   defect-fix record for the two pre-UAT2 defects)
 * `preUAT2-fixes.json` — the pre-UAT2 fix status note: defects, fixes, deviations,
   per-fix test evidence, what stays with the verifier/orchestrator
+* `preUAT2-1-follower.json` — the PREUAT2-1 defect-follower status note (2026-10-08:
+  the S25+'s intermittently-empty per-step URL read defeating the card restore; the
+  last-known-URL chain fix + test evidence)
 * `eval/` — measurement-report artifacts, git-tracked: `tier-a-report.{md,json}` (Tier A
   deterministic replay, Phase 7; regenerate with `./gradlew :core:generateTierAReport` —
   the committed bytes are the drift detector a state/wire/taxonomy/gate change must keep

@@ -1,0 +1,35 @@
+{
+  "pass": "PREUAT2-1 defect-follower (implementer half of the fix-first protocol)",
+  "date": "2026-10-08",
+  "status": "fix-complete-awaiting-verifier-and-device-rerun",
+  "llmCost": "$0",
+  "defect": {
+    "id": "PREUAT2-1-FOLLOWER",
+    "kind": "product",
+    "caughtOn": "S25+ demo-session mechanical segment (two live gate-card approvals, runs 07:44:13 and 07:45:01; targets pending 4/3; the owner physically approved both cards)",
+    "summary": "PREUAT2-1's restore fired only with GateCard.url (= PageContext.url = the per-step URL-bar read). On the S25+ that read is intermittently empty: both live approvals produced no usable card/observation URL -> 'the URL bar holds no page URL - no VIEW intent' -> no restore -> the post-approval observe read the foreground harness window (0 lines) -> spurious REFUSED. The card flow itself worked."
+  },
+  "fix": {
+    "files": [
+      "app/src/main/kotlin/navigator/app/loop/NavigationLoop.kt",
+      "app/src/test/kotlin/navigator/app/loop/CardForegroundRestoreTest.kt (+3 tests)",
+      "app/AGENTS.md (seam line + CardForegroundRestoreTest verification line)",
+      ".state/AGENTS.md (index line for this note)"
+    ],
+    "mechanism": "The loop now tracks lastKnownPageUrl (private per-task state, updated at every observation whose URL-bar read is a usable non-blank http(s) URL) and the restore walks a preference chain: gate card = card URL -> current observation URL -> last-known; completion card = observation URL -> last-known. restoreBrowserForeground takes the labeled candidate list, serves the first usable URL, and the step-log line names the serving source (card / observation / last-known). The loud no-URL line is unchanged for genuinely-never-had-a-URL runs. Everything else byte-identical: the overlay/never-fronting/trusted exclusions, task-ending exclusions, restore-before-execute ordering, Config.restoreSettleMs, thresholds, once-per-task card."
+  },
+  "deviations": [],
+  "testEvidence": {
+    "fullSuite": "./gradlew test BUILD SUCCESSFUL (exit 0) — app 353 / core 293 = 646 tests, 0 failures, 0 errors, 0 skipped (prior 643 + 3 new)",
+    "newTests": {
+      "class": "navigator.app.loop.CardForegroundRestoreTest (11 -> 14)",
+      "covers": [
+        "empty per-step URL read still restores from the last-known page URL, source '(last-known)' logged (the S25+ scenario)",
+        "no page URL anywhere -> no restore + the loud line (completion-card arm; the existing gate-card hidden test pins the other arm)",
+        "the chain prefers the card URL when present, source '(card)' logged, other sources never consulted"
+      ]
+    }
+  },
+  "lastAction": "wrote this status note after the green full suite; DOX pass done (app/AGENTS.md seam + verification lines, .state/AGENTS.md index)",
+  "nextAction": "canon-verifier cold re-check, then the orchestrator re-runs the S25+ mechanical segment (observable: 'restore:' step-log lines naming the serving source on the runs that previously starved)"
+}

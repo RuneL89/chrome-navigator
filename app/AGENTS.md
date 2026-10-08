@@ -82,8 +82,11 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     fails loudly — never a fall-through; the 2026-10-08 pre-UAT defect fix: after an
     interactive card resolution (gate card AND completion card) on the NO-OVERLAY path
     (the presenter fronted the harness per `HarnessFrontAware`) the loop re-fronts the
-    browser BEFORE the loop continues — the VIEW intent for the card's page URL
-    (completion card: the current observation's URL; only real http(s) page URLs fire)
+    browser BEFORE the loop continues — the VIEW intent for the first usable page URL
+    in the chain card URL → current observation's URL → last-known page URL (noted at
+    every observation — the 2026-10-08 S25+ follower: the per-step URL-bar read is
+    intermittently empty on some devices; the serving source is logged; only real
+    http(s) page URLs fire, and the loud line stays for genuinely-never-had-a-URL runs)
     through the cold-start `BrowserLauncher` seam + a short settle
     (`Config.restoreSettleMs`), logged on the step log and `NavigatorHarness`; the
     overlay path, never-fronting presenters (scripted/auto), and task-ending
@@ -440,7 +443,10 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
   injection), after a first deny (the loop continues), and after completion
   keep-going/timeout with the current page URL; it stays silent on the overlay path,
   for never-fronting presenters, for trusted no-card actions, after the task-ending
-  resolutions (the DENY-abort and CONFIRM_DONE), and for a URL bar without a page URL) +
+  resolutions (the DENY-abort and CONFIRM_DONE), and for a URL bar without a page URL
+anywhere (no restore + the loud line); the 2026-10-08 S25+ follower chain: an empty
+per-step read still restores from the last-known URL (source logged) and the chain
+prefers the card URL when present (source logged)) +
   the Phase-8D gates (`TriageClassificationTest`
   Gate 8D.1: the classification matrix over `src/test/resources/fixtures/triage-matrix.json`
   — the owner example goal texts as TEST DATA, booking→action, unsubscribe-all→action-multi,

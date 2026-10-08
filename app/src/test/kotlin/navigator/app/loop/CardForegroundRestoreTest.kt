@@ -21,6 +21,13 @@ import kotlin.test.assertTrue
  * never-fronting presenters (scripted/auto), and task-ending resolutions (CONFIRM_DONE,
  * the DENY-abort) restore NOTHING.
  *
+ * The same-day defect-follower: on the S25+ the per-step URL-bar read is intermittently
+ * empty — two live approvals produced no usable card/observation URL, so the restore
+ * silently skipped and the run starved anyway. The restore now walks a preference chain
+ * (card URL -> current observation URL -> the last-known page URL noted at every
+ * observation) and the step-log line names which source served; the loud line stays for
+ * genuinely-never-had-a-URL runs.
+ *
  * $0 by construction: the engine is the scripted stub; the launcher journal is the
  * LoopTestSupport cold-start intent pattern reused for the restore intents.
  */
@@ -297,6 +304,99 @@ class CardForegroundRestoreTest {
         )
     }
 
+    // -- the URL preference chain (2026-10-08 S25+ defect-follower) -----------------------
+
+    /** A usable page whose only control is an ordinary (never gated) link. */
+    private fun linkPage() = obs(
+        pageUrl,
+        N("Issue header"),
+        N("Body text one"),
+        N("Body text two"),
+        N("More results", clickable = true),
+        N("Footer"),
+    )
+
+    /** The mutation page with the per-step URL-bar read EMPTY (the S25+ intermittency). */
+    private fun hiddenListPage() = obs(
+        "hidden",
+        N("Issue header"),
+        N("Body text one"),
+        N("Body text two"),
+        N("Unsubscribe now", clickable = true, button = true),
+        N("Also unsubscribe", clickable = true, button = true),
+        N("Footer"),
+    )
+
+    @Test
+    fun `an empty per-step URL read still restores from the last-known page URL - source logged`() = runBlocking {
+        val (fixture, fired) = frontingFixture(
+            script = scriptOf(
+                choose("triage", "lookup"),
+                // step 0: ordinary ungated tap on a page whose URL read fine
+                chooseByLabel("action", "More results"),
+                // step 1: the H9 card fires while the URL bar reads empty
+                chooseByLabel("action", "Unsubscribe now"),
+            ),
+            observations = listOf(linkPage(), hiddenListPage()),
+            gatePresenter = FrontingGatePresenter(true, GateResolution.APPROVED),
+            config = NavigationLoop.Config(
+                settleMs = 0,
+                restoreSettleMs = 0,
+                budget = NavigationLoop.BudgetLimits(stepsHard = 2),
+            ),
+        )
+        val result = fixture.loop.run("tidy the subscriptions", "restore-last-known", identity, fixture.clock)
+
+        assertEquals(TerminalState.BUDGET_EXHAUSTED, result.terminal)
+        // the card's page URL read empty (the S25+ intermittency) but a PRIOR
+        // observation carried the page URL — the restore fires with it
+        assertEquals(listOf(pageUrl), fired)
+        assertTrue(
+            result.stepLog.any {
+                it.contains("restore: the gate card fronted the harness (no-overlay path)") &&
+                    it.contains(pageUrl) &&
+                    it.contains("(last-known)")
+            },
+            "stepLog=${result.stepLog}",
+        )
+    }
+
+    @Test
+    fun `the chain prefers the card URL and the log names the serving source`() = runBlocking {
+        val (fixture, fired) = frontingFixture(
+            script = scriptOf(
+                choose("triage", "lookup"),
+                chooseByLabel("action", "Unsubscribe now"),
+            ),
+            observations = listOf(listPage()),
+            gatePresenter = FrontingGatePresenter(true, GateResolution.APPROVED),
+            config = NavigationLoop.Config(
+                settleMs = 0,
+                restoreSettleMs = 0,
+                budget = NavigationLoop.BudgetLimits(stepsHard = 1),
+            ),
+        )
+        val result = fixture.loop.run("tidy the subscriptions", "restore-chain-card", identity, fixture.clock)
+
+        assertEquals(TerminalState.BUDGET_EXHAUSTED, result.terminal)
+        // card.url, obs.url and the last-known URL all hold the page URL here; the
+        // served one must be the card's, and the log says so
+        assertEquals(listOf(pageUrl), fired)
+        assertTrue(
+            result.stepLog.any {
+                it.contains("restore: the gate card fronted the harness (no-overlay path)") &&
+                    it.contains(pageUrl) &&
+                    it.contains("(card)")
+            },
+            "stepLog=${result.stepLog}",
+        )
+        // the observation and last-known sources were never consulted
+        assertTrue(
+            result.stepLog.none { it.contains("(observation)") || it.contains("(last-known)") },
+            "stepLog=${result.stepLog}",
+        )
+    }
+
     // -- the completion card --------------------------------------------------------------
 
     /** The exit-flow specimen pages: seed, then entity-bearing article pages. */
@@ -414,5 +514,53 @@ class CardForegroundRestoreTest {
 
         assertEquals(TerminalState.GOAL_ACHIEVED, result.terminal)
         assertTrue(fired.isEmpty(), "restore fired on the overlay path: $fired")
+    }
+
+    @Test
+    fun `the completion card with no page URL anywhere never restores and keeps the loud line`() = runBlocking {
+        // The specimen pages with the URL bar never yielding a page URL (each page a
+        // distinct non-http read — the lookup guard's WEAK predicate needs navigation,
+        // while the restore chain only accepts http(s)): every finish check refuses and
+        // the card fires on the third guard-pass refusal — and no usable page URL was
+        // ever known (both chain sources empty: observation + last-known).
+        val hiddenSeed = obs(
+            "hidden",
+            N("search results page"),
+            N("Tarte Tatin recipe"),
+            N("More results"),
+            N("Tarte Tatin Caramelised fruit tart", clickable = true),
+            N("Footer"),
+        )
+        fun hiddenArticle(i: Int) = obs(
+            "hidden-$i",
+            N("Tarte Tatin"),
+            N("The Tarte Tatin is a caramelised fruit tart"),
+            N("Visit record $i"),
+            N("Related recipes", clickable = true),
+            N("Footer"),
+            N("Spacer", scrollable = true),
+        )
+        val observations = listOf(hiddenSeed) + (0 until 40).map { i -> hiddenArticle(i) }
+        val cards = FrontingCompletionPresenter(true, CompletionResolution.KEEP_GOING)
+        val (fixture, fired) = frontingFixture(
+            script = seriesScript(listOf(0.60, 0.60, 0.60, 0.60)),
+            observations = observations,
+            gatePresenter = ScriptedGatePresenter(),
+            completionCardPresenter = cards,
+            config = NavigationLoop.Config(
+                settleMs = 0,
+                restoreSettleMs = 0,
+                budget = NavigationLoop.BudgetLimits(stepsHard = 11),
+            ),
+        )
+        val result = fixture.loop.run("Open Wikipedia article Tarte Tatin", "restore-comp-nourl", identity, fixture.clock)
+
+        assertEquals(TerminalState.BUDGET_EXHAUSTED, result.terminal)
+        assertEquals(1, cards.presented.size)
+        assertTrue(fired.isEmpty(), "restore fired with no page URL known: $fired")
+        assertTrue(
+            result.stepLog.any { it.contains("fronted the harness but the URL bar holds no page URL") },
+            "stepLog=${result.stepLog}",
+        )
     }
 }

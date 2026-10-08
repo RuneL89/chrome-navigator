@@ -216,6 +216,11 @@ class NavigationLoop(
         /** The completion card's resolution when it was shown (once per task). */
         var completionCardResolution: String? = null
         var lastPost: StepObservation? = null
+        // The last-known page URL (2026-10-08 S25+ defect-follower): the per-step
+        // URL-bar read is intermittently empty on some devices, so the card-restore
+        // chain falls back to the most recent observation that DID carry a usable
+        // page URL. Null until some observation yields one.
+        var lastKnownPageUrl: String? = null
 
         // -- the no-overlay card restore (2026-10-08 pre-UAT defect) -------------------
         // A card presenter that had to bring the HARNESS to the front to show its card
@@ -226,21 +231,42 @@ class NavigationLoop(
         // firing the VIEW intent for the page URL through the cold-start launcher seam.
         // No-op (byte-identical) when the card showed on the overlay window, when the
         // presenter never fronts (scripted/auto — every JVM test and harness auto mode),
-        // when no launcher is wired, or when the URL bar holds no real page URL.
+        // when no launcher is wired, or when no page URL is known at all. The URL comes
+        // from a preference chain (2026-10-08 S25+ defect-follower: the per-step URL-bar
+        // read is intermittently empty on some devices): the card's URL, the current
+        // observation's URL, then the last-known page URL — the serving source is
+        // logged; the loud line stays for genuinely-never-had-a-URL runs.
 
         /** Whether [presenter] fronted the harness for its most recent card. */
         fun frontedHarness(presenter: Any): Boolean =
             (presenter as? HarnessFrontAware)?.lastCardFrontedHarness() == true
 
-        /** Re-fronts the browser with the VIEW intent for [url]; short settle, logged. */
-        suspend fun restoreBrowserForeground(what: String, url: String?) {
+        /** A usable page URL: non-blank http(s) (the URL bar may read hidden/unavailable/empty). */
+        fun usablePageUrl(url: String?): Boolean =
+            url != null && (url.startsWith("http://") || url.startsWith("https://"))
+
+        /** Notes [o]'s URL when it is a usable page URL — the restore chain's
+         *  last-known fallback; called at every observation. */
+        fun notePageUrl(o: StepObservation) {
+            if (usablePageUrl(o.url)) lastKnownPageUrl = o.url
+        }
+
+        /**
+         * Re-fronts the browser with the VIEW intent for the first usable page URL among
+         * [candidates] (source label to URL, in preference order); short settle, logged
+         * with the serving source.
+         */
+        suspend fun restoreBrowserForeground(what: String, vararg candidates: Pair<String, String?>) {
             val launcher = browserLauncher ?: return
-            if (url == null || (!url.startsWith("http://") && !url.startsWith("https://"))) {
+            val served = candidates.firstOrNull { (_, url) -> usablePageUrl(url) }
+            if (served == null) {
                 line("restore: $what fronted the harness but the URL bar holds no page URL - no VIEW intent")
                 return
             }
-            line("restore: $what fronted the harness (no-overlay path) - VIEW intent for $url")
-            launcher.launch(url)
+            val (source, url) = served
+            val pageUrl = requireNotNull(url)
+            line("restore: $what fronted the harness (no-overlay path) - VIEW intent for $pageUrl ($source)")
+            launcher.launch(pageUrl)
             delay(config.restoreSettleMs)
         }
 
@@ -512,12 +538,14 @@ class NavigationLoop(
 
             // -- 1. OBSERVE (fresh; unusable tree -> graceful refusal, doc 03 §5) -------
             var obs = observer.observe()
+            notePageUrl(obs)
             var unusableReads = 1
             while (!usable(obs) && unusableReads < config.refuseAfterUnusableReads) {
                 unusableReads += 1
                 line("observe: unusable tree (${obs.lines.size} lines, pageNodes=${obs.pageNodeCount}) - fresh re-read")
                 delay(config.unusableRetryDelayMs)
                 obs = observer.observe()
+                notePageUrl(obs)
             }
             if (!usable(obs)) {
                 line("observe: tree still unusable - graceful refusal (vision 03 §5)")
@@ -601,6 +629,7 @@ class NavigationLoop(
                         }
                         delay(config.settleMs)
                         val post = observer.observe()
+                        notePageUrl(post)
                         lastPost = post
                         val outcome = when {
                             !executed -> Outcome.ERROR
@@ -745,7 +774,11 @@ class NavigationLoop(
                         // the harness's terminal auto-return fronts the harness; never
                         // restore.
                         if (cardFronted && cardVerdict is ExitDecision.Refuse) {
-                            restoreBrowserForeground("the completion card", obs.url)
+                            restoreBrowserForeground(
+                                "the completion card",
+                                "observation" to obs.url,
+                                "last-known" to lastKnownPageUrl,
+                            )
                         }
                         cardVerdict
                     }
@@ -1065,7 +1098,12 @@ class NavigationLoop(
             // auto-return fronts the harness. Overlay/never-fronting presenters leave
             // both flags untouched — a byte-identical no-op.
             if (gateCardFronted && !taskAborted) {
-                restoreBrowserForeground("the gate card", gateCardUrl)
+                restoreBrowserForeground(
+                    "the gate card",
+                    "card" to gateCardUrl,
+                    "observation" to obs.url,
+                    "last-known" to lastKnownPageUrl,
+                )
             }
 
             // -- 5. EXECUTE -------------------------------------------------------------------
@@ -1120,6 +1158,7 @@ class NavigationLoop(
             // Post-step fresh observation (outcome diff, guards, stuck hash).
             delay(config.settleMs)
             val post = observer.observe()
+            notePageUrl(post)
             lastPost = post
             val outcome = when {
                 !proceed -> Outcome.NO_CHANGE
