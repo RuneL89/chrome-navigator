@@ -60,7 +60,9 @@ enum class CandidateSource {
  *   (`back` / `finish`) or a per-container pseudo-id (`scroll-down@<node id>` /
  *   `scroll-up@<node id>`) for synthetic actions
  * @param label short text for the state text line (truncated/flattened by the enumerator)
- * @param kinds traits in fixed order: `tap`, `edit`, `scroll` (serializer convention)
+ * @param kinds traits in fixed order: `tap`, `edit`, `password`, `scroll` (serializer
+ *   convention; `password` is the reader-captured secret-field flag — app-authored
+ *   metadata, not page content)
  * @param cx center X in pixels (synthetic scroll actions center on their scrollable;
  *   back/finish carry (0,0))
  * @param cy center Y in pixels

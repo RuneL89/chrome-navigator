@@ -1,6 +1,6 @@
 # Tier A evaluation report — :core replay harness
 
-- timestamp: 2026-10-07T22:33:49.6044629Z
+- timestamp: 2026-10-08T06:58:10.2458574Z
 - state format version: 2
 - fixtures: 16
 - rotation stability (Gate 7.3): STABLE — 278 rotations across 16 fixtures

@@ -96,6 +96,38 @@ class TreeSerializerTest {
         assertEquals("[n0] \"${"y".repeat(40)}\" (0,0)", over.lines.single())
     }
 
+    // -- the reader-captured password flag (2026-10-08 pre-UAT2 H8-gap fix) ----------
+
+    @Test
+    fun `a secret field carries the app-authored password kind after edit`() {
+        // The live-defect shape: a plain EditText whose text is the TYPED CONTENT and
+        // whose label never reached the node — the flag is the only observable signal.
+        val result = TreeSerializer.serialize(
+            NodeSnapshot(
+                text = "typed content, not a label",
+                className = "android.widget.EditText",
+                editable = true,
+                isPassword = true,
+                bounds = Bounds(0, 0, 100, 40),
+            ),
+        )
+        assertEquals("[n0] \"typed content, not a label\" edit password (50,20)", result.lines.single())
+    }
+
+    @Test
+    fun `nodes without the flag render exactly as before (kind order tap edit scroll)`() {
+        val result = TreeSerializer.serialize(
+            NodeSnapshot(
+                text = "apple pie - Google Search",
+                className = "android.widget.EditText",
+                clickable = true,
+                editable = true,
+                bounds = Bounds(120, 96, 960, 160),
+            ),
+        )
+        assertEquals("[n0] \"apple pie - Google Search\" tap edit (540,128)", result.lines.single())
+    }
+
     // -- depth accounting and cap ---------------------------------------------------
 
     @Test

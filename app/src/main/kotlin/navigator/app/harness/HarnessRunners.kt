@@ -56,6 +56,7 @@ class HarnessObserver(private val service: NavigatorAccessibilityService) : Loop
                 bottom = snapshot.bounds.bottom,
                 className = snapshot.className,
                 sourceOrder = emitted.index,
+                isPassword = snapshot.isPassword,
             )
         }
         return navigator.app.loop.StepObservation(

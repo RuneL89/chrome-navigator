@@ -146,6 +146,30 @@ class CandidateEnumeratorTest {
     }
 
     @Test
+    fun `a reader-flagged secret field carries the password kind marker`() {
+        // 2026-10-08 pre-UAT2 H8-gap fix: the reader-captured isPassword flag rides the
+        // candidate line as the app-authored `password` kind (after `edit`, before
+        // `scroll`) — observation metadata, not page content — so the engine's state
+        // text marks the secret field and the gate consumes the flag via
+        // FieldDescriptor.fromNode.
+        val list = enumerator.enumerate(
+            listOf(
+                TestFixtures.node(
+                    id = "input-1", top = 500, editable = true,
+                    text = "typed content, not a label", className = "android.widget.EditText",
+                    isPassword = true,
+                ),
+                TestFixtures.node(
+                    id = "input-2", top = 600, editable = true,
+                    text = "plain field", className = "android.widget.EditText",
+                ),
+            ),
+        )
+        val fields = list.bucketed[Bucket.FORM_FIELDS]!!
+        assertEquals(listOf(listOf("tap", "edit", "password"), listOf("tap", "edit")), fields.map { it.kinds })
+    }
+
+    @Test
     fun `a page node id colliding with a reserved synthetic id fails loudly`() {
         val nodes = listOf(TestFixtures.node(id = "back", top = 10))
         assertFailsWith<IllegalArgumentException> { enumerator.enumerate(nodes) }

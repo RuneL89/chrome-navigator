@@ -468,6 +468,24 @@ class StateTextBuilderTest {
     }
 
     @Test
+    fun `a reader-flagged secret field renders the password kind marker in the state text`() {
+        // 2026-10-08 pre-UAT2 H8-gap fix: the marker is the candidate kinds segment's
+        // app-authored trait (after `edit`) — the engine sees that the field is a secret
+        // field while the label stays verbatim page content (ART-4 block untouched).
+        val candidates = CandidateEnumerator.enumerate(
+            listOf(
+                TestFixtures.node(
+                    id = "input-1", top = 0, left = 0, clickable = false, editable = true,
+                    text = "typed content", className = "android.widget.EditText",
+                    isPassword = true,
+                ),
+            ),
+        )
+        val state = builder.build("g", "www.example.com", "Example", emptyList(), candidates)
+        assertTrue("[input-1] \"typed content\" edit password (50,25)" in state.text, state.text)
+    }
+
+    @Test
     fun `rendered state text preview for one fixture per site family`() {
         // UAT 2.1 prep: a human reads three rendered state texts next to page screenshots.
         val goals = mapOf(

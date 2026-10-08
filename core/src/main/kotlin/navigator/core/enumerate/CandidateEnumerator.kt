@@ -89,6 +89,11 @@ object CandidateEnumerator {
         val kinds = buildList {
             if (clickable) add("tap")
             if (editable) add("edit")
+            // Reader-captured secret-field flag (2026-10-08 pre-UAT2 H8-gap fix):
+            // app-authored observation metadata, not page content (ART-4 unaffected) —
+            // it tells the engine the field is a secret field. Same token the
+            // serializer emits; the gate reads the flag via FieldDescriptor.fromNode.
+            if (isPassword) add("password")
             if (scrollable) add("scroll")
         }
         return Candidate(

@@ -55,6 +55,7 @@ object CaptureMode {
                     clickable = snap.clickable,
                     editable = snap.editable,
                     scrollable = snap.scrollable,
+                    isPassword = snap.isPassword,
                     bounds = snap.bounds.asFixtureString,
                     className = snap.className,
                 )

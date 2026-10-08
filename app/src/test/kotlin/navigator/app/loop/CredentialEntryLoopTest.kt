@@ -34,6 +34,11 @@ import kotlin.test.assertTrue
  *    TaskGate's legal transitions (double-refusal abort intact); the masked-input card
  *    is presented for every credential-typing action (trust cannot supply a secret);
  *    non-credential cards are presented without it.
+ *  - **2026-10-08 pre-UAT2 H8-gap follower**: the reader-captured `isPassword` flag —
+ *    live Chrome (154) exposes secret fields as plain EditText carrying the typed
+ *    content with no label association, so the wording/mask heuristics alone left H8/H3
+ *    dark (the stub phrase was typed five times, no card). A reader-FLAGGED wording-free
+ *    field fires the H8 credential card; the live login shape gates the H4 pair.
  *
  * $0 by construction: the engine is the scripted stub; the secrets are obviously-dummy
  * fixture strings.
@@ -74,6 +79,38 @@ class CredentialEntryLoopTest {
 
     private suspend fun LoopFixture.run(): RunResult =
         loop.run("Sign in to the fixture bank demo account.", "goal-8f", identity, clock)
+
+    /**
+     * The 2026-10-08 pre-UAT2 LIVE-DEFECT shape (S25+, Chrome 154): the login page's
+     * password field is a plain EditText whose a11y text is the TYPED CONTENT (not the
+     * label — the `<label>` never associates with the field) — pre-fix this page typed
+     * the stub phrase five times with no gate. Post-fix the reader-captured
+     * `isPassword` flag is what the gate sees.
+     */
+    private fun liveChromeLoginPage() = obs(
+        "http://127.0.0.1:8099/login.html",
+        N("Fixture Bank Dummy Login (TEST ONLY)"),
+        N("TEST FIXTURE. No real credentials are accepted here."),
+        N("Email or username", editable = true),
+        N("correct-horse-battery-9", editable = true, password = true),
+        N("Submit sign in", clickable = true, button = true),
+        N("If you were signed in you would see the result page."),
+        pageNodes = 7,
+        title = "Fixture Bank Dummy Login (TEST ONLY)",
+    )
+
+    /** The same shape with EVERY field wording-free — only the flag marks the secret. */
+    private fun wordingFreeFlaggedPage() = obs(
+        "http://127.0.0.1:8099/flagged.html",
+        N("Flagged fields (TEST ONLY)"),
+        N("TEST FIXTURE. Two fields, one reader-flagged."),
+        N("Field one", editable = true),
+        N("Field two", editable = true, password = true),
+        N("Go", clickable = true, button = true),
+        N("End of the fixture page."),
+        pageNodes = 7,
+        title = "Flagged fields (TEST ONLY)",
+    )
 
     /** The scripted form-fill transcript through username -> password -> submit -> finish. */
     private fun formFillScript(vararg actionAnswers: navigator.app.stub.ScriptedAnswer) = scriptOf(
@@ -150,6 +187,87 @@ class CredentialEntryLoopTest {
         )
         assertTrue(fixture.executor.calls.none { it.startsWith("text(") }, "nothing may execute")
     }
+
+    // -- the 2026-10-08 pre-UAT2 H8-gap fix: the reader flag gates where wording cannot --
+
+    @Test
+    fun `typing into a reader-FLAGGED wording-free field fires the H8 credential card and the happy path completes`() =
+        runBlocking {
+            val fixture = LoopFixture(
+                script = formFillScript(
+                    type("Field one"), // unflagged, no identifier wording -> ordinary typing
+                    type("Field two"), // flagged -> H8 credential typing
+                    type("Go"), // lone secret form submission -> H3
+                ),
+                observations = listOf(wordingFreeFlaggedPage()),
+                presenter = ScriptedGatePresenter(
+                    GateResolution.ApproveWithSecret(fixtureSecret),
+                    GateResolution.APPROVED,
+                ),
+            )
+            val result = fixture.run()
+
+            assertEquals(TerminalState.GOAL_ACHIEVED, result.terminal)
+            // Precision: the unflagged field typed the stub phrase UNGATED (no card).
+            val stubPhrase = phraseStub("Sign in to the fixture bank demo account.", "Field one")
+            assertEquals(null, fixture.sink.rows[0].gateEvent, "no gate on the unflagged field")
+            // The flagged field: H8, the masked-input card, the CARD secret injected —
+            // never the stub phrase — and the state text marks the field `edit password`.
+            assertTrue(fixture.sink.rows[1].gateEvent!!.hclass == LoggedHClass.H8)
+            assertTrue(fixture.sink.rows[1].typedSecret)
+            assertTrue("[n3] \"Field two\" edit password" in fixture.sink.rows[1].stateText)
+            // Exactly two typing calls: the phrase into the unflagged field, the card
+            // secret into the flagged one (a fall-through to the phrase is a loud
+            // failure the loop enforces; the call journal pins it here too).
+            val typed = fixture.executor.calls.filter { it.startsWith("text(") }
+            assertEquals(2, typed.size, "typed=$typed")
+            assertTrue(typed.any { it.contains(stubPhrase) }, "typed=$typed")
+            assertTrue(typed.any { it.contains(fixtureSecret) }, "typed=$typed")
+            // The submission over a lone flagged secret gates H3 on the ordinary card.
+            assertTrue(fixture.sink.rows[2].gateEvent!!.hclass == LoggedHClass.H3)
+            assertFalse(fixture.sink.rows[2].typedSecret)
+        }
+
+    @Test
+    fun `the live Chrome login shape - the flagged wording-free password field gates the pair H4`() =
+        runBlocking {
+            val cards = mutableListOf<GateCard>()
+            val presenter = GatePresenter { card ->
+                cards.add(card)
+                if (card.target.contains("Email")) {
+                    GateResolution.ApproveWithSecret(fixtureUser)
+                } else {
+                    GateResolution.ApproveWithSecret(fixtureSecret)
+                }
+            }
+            val fixture = LoopFixture(
+                script = formFillScript(
+                    type("Email or username"),
+                    type("correct-horse-battery-9"), // the flagged field, label = typed content
+                    type("Submit sign in"),
+                ),
+                observations = listOf(liveChromeLoginPage()),
+                presenter = presenter,
+            )
+            val result = fixture.run()
+
+            assertEquals(TerminalState.GOAL_ACHIEVED, result.terminal)
+            // The flag (not wording) made the pair: H4 gates entry AND submission.
+            assertEquals(LoggedHClass.H4, fixture.sink.rows[0].gateEvent?.hclass)
+            assertEquals(LoggedHClass.H4, fixture.sink.rows[1].gateEvent?.hclass)
+            assertEquals(LoggedHClass.H4, fixture.sink.rows[2].gateEvent?.hclass)
+            // Both typing cards are credential cards; the secret is injected.
+            assertEquals(2, cards.size, "only the two typing cards: $cards")
+            assertTrue(cards[0].credentialTyping)
+            assertTrue(cards[1].credentialTyping)
+            assertTrue(fixture.sink.rows[1].typedSecret)
+            assertTrue(fixture.executor.calls.any { it.contains(fixtureSecret) })
+            // The flagged field's state-text line carries the app-authored marker.
+            assertTrue(
+                "[n3] \"correct-horse-battery-9\" edit password" in fixture.sink.rows[1].stateText,
+                fixture.sink.rows[1].stateText,
+            )
+        }
 
     @Test
     fun `a secret on a non-credential card fails loudly - never falls through`() = runBlocking {

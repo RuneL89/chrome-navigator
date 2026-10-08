@@ -130,6 +130,7 @@ class NavigatorAccessibilityService : AccessibilityService() {
             clickable = node.isClickable,
             editable = node.isEditable,
             scrollable = node.isScrollable,
+            isPassword = node.isPassword,
             visible = visible,
             bounds = Bounds(rect.left, rect.top, rect.right, rect.bottom),
             children = children,

@@ -1,5 +1,5 @@
 {
-  "law": "NAVIGATOR-VISION-006 §1 (H1–H9 detection table, v1.2.0) + PHASE_04 Gate 4.1 + PHASE_08E Gate 8E.1. One row per matrix case: the classifier MUST return exactly `expect` for (action, context). `tag`: happy (one per H-class minimum), negative (NOT gated — must classify null AND the mutation net must read ORDINARY, i.e. never even engine-consulted), fail-to-confirm (ambiguous/uncertain resolves to the stricter matching class, never null), additive (the H9 net is SUSPICIOUS: classify is null but RiskGate.mutationNet = SUSPICIOUS — the loop's ADDITIVE-ONLY engine check owns it; a non-LOW answer adds H9, vision 06 §3). H9 detection is a broad net: the verb dictionary here is the illustrative FLOOR (test data, not product law) — novel verbs gate via structure (confirm/flip wording) or via the additive engine check, never by dictionary growth alone. Field descriptors are given as RAW observed attributes (id/label/value/className) — the test derives isPassword/isCardLike through FieldDescriptor.fromObserved so the derivation itself is under test. This file is a reviewable table: UAT 4.1 has the owner read it and name missing site/form patterns (new rows are additive).",
+  "law": "NAVIGATOR-VISION-006 §1 (H1–H9 detection table, v1.2.0) + PHASE_04 Gate 4.1 + PHASE_08E Gate 8E.1. One row per matrix case: the classifier MUST return exactly `expect` for (action, context). `tag`: happy (one per H-class minimum), negative (NOT gated — must classify null AND the mutation net must read ORDINARY, i.e. never even engine-consulted), fail-to-confirm (ambiguous/uncertain resolves to the stricter matching class, never null), additive (the H9 net is SUSPICIOUS: classify is null but RiskGate.mutationNet = SUSPICIOUS — the loop's ADDITIVE-ONLY engine check owns it; a non-LOW answer adds H9, vision 06 §3). H9 detection is a broad net: the verb dictionary here is the illustrative FLOOR (test data, not product law) — novel verbs gate via structure (confirm/flip wording) or via the additive engine check, never by dictionary growth alone. Field descriptors are given as RAW observed attributes (id/label/value/className, plus the reader-captured isPassword flag since the 2026-10-08 pre-UAT2 H8-gap fix) — the test derives isPassword/isCardLike through FieldDescriptor.fromObserved so the derivation itself is under test. This file is a reviewable table: UAT 4.1 has the owner read it and name missing site/form patterns (new rows are additive).",
   "rows": [
     {
       "id": "h1-type-into-card-field",
@@ -249,6 +249,56 @@
         "url": "https://blog.example.com/posts/weekly-roundup",
         "fields": [
           { "id": "pw", "label": "Password", "className": "android.widget.EditText" }
+        ]
+      }
+    },
+    {
+      "id": "h8-type-into-reader-flagged-field",
+      "tag": "happy",
+      "expect": "H8_CREDENTIAL_TYPING",
+      "note": "2026-10-08 pre-UAT2 live defect (S25+, Chrome 154): the reader-captured isPassword flag with ZERO wording anywhere and the field's actual (non-masked) content echoed back as the label — the wording/mask heuristics see nothing; the explicit flag alone must fire H8 on typing. This row is the regression pin for that gap.",
+      "action": {
+        "kind": "TYPE",
+        "textToType": "correct-horse-battery-9",
+        "target": { "id": "input-1", "label": "correct-horse-battery-9", "bucket": "form-fields", "className": "android.widget.EditText" }
+      },
+      "context": {
+        "url": "https://portal.example.com/session",
+        "fields": [
+          { "id": "input-1", "label": "correct-horse-battery-9", "className": "android.widget.EditText", "isPassword": true }
+        ]
+      }
+    },
+    {
+      "id": "h4-submit-reader-flagged-login-pair",
+      "tag": "happy",
+      "expect": "H4_LOGIN",
+      "note": "The live login shape with wording-free nodes: an identifier field plus a reader-flagged secret field form the pair, and the Sign-in control wording routes the submission to H4 (H3's lone-secret arm stays silent on the pair+login shape). Same defect family as h8-type-into-reader-flagged-field — the flag, not wording, carries the detection.",
+      "action": {
+        "kind": "SUBMIT",
+        "target": { "id": "go", "label": "Sign in", "bucket": "buttons", "className": "android.widget.Button" }
+      },
+      "context": {
+        "url": "https://portal.example.com/session",
+        "fields": [
+          { "id": "input-1", "label": "Email or username", "className": "android.widget.EditText" },
+          { "id": "input-2", "label": "correct-horse-battery-9", "className": "android.widget.EditText", "isPassword": true }
+        ]
+      }
+    },
+    {
+      "id": "h3-submit-lone-reader-flagged-secret",
+      "tag": "happy",
+      "expect": "H3_PASSWORD_CHANGE",
+      "note": "Submitting a form whose ONLY secret signal is the reader flag (no wording, no pair, no create/change cues) still gates: a lone secret-bearing form fails to H3 — never fail-open. H8 never fires on SUBMIT by design (it is purely entry-shaped; submissions are H3/H4's).",
+      "action": {
+        "kind": "SUBMIT",
+        "target": { "id": "continue", "label": "Continue", "bucket": "buttons", "className": "android.widget.Button" }
+      },
+      "context": {
+        "url": "https://portal.example.com/session",
+        "fields": [
+          { "id": "input-1", "label": "correct-horse-battery-9", "className": "android.widget.EditText", "isPassword": true }
         ]
       }
     },

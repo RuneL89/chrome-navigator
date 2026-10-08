@@ -19,6 +19,12 @@ import navigator.core.fixtures.A11yNode
  * @param className Android class name (drives the link-vs-button split)
  * @param sourceOrder the node's index in the deterministic a11y read order (ART-6) —
  *   the third-order tiebreak in the candidate ranking
+ * @param isPassword the reader-captured secret-field flag
+ *   (`AccessibilityNodeInfo.isPassword`) — the primary H8/H3 signal (2026-10-08
+ *   pre-UAT2 defect: live Chrome exposes secret fields as plain EditText carrying the
+ *   typed content, so wording/mask heuristics alone leave the gate dark); the gate
+ *   consumes it through `FieldDescriptor.fromNode`, the state text carries it as the
+ *   `password` kind marker
  */
 data class ObservedNode(
     val id: String,
@@ -33,6 +39,7 @@ data class ObservedNode(
     val bottom: Int,
     val className: String,
     val sourceOrder: Int,
+    val isPassword: Boolean = false,
 ) {
     /** Center X — the same `(left + right) / 2` convention the serializer emits. */
     val centerX: Int get() = (left + right) / 2
@@ -71,5 +78,6 @@ fun A11yNode.toObservedNode(sourceOrder: Int): ObservedNode {
         bottom = b,
         className = className,
         sourceOrder = sourceOrder,
+        isPassword = isPassword,
     )
 }

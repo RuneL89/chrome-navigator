@@ -126,8 +126,9 @@ data class GateAction(
  * @param id stable node id (matches [Candidate.id] for the action's target field)
  * @param label visible label / content description of the field
  * @param value observed field value, if any (masked bullets for secret fields)
- * @param isPassword secret-type signal (`type=password`-like: explicit wording or an
- *   all-masked value echo)
+ * @param isPassword secret-type signal: the reader-captured
+ *   `AccessibilityNodeInfo.isPassword` flag (primary — see [fromObserved]) OR the
+ *   heuristic fallbacks (secret wording in id/label/className, an all-masked value echo)
  * @param isCardLike card-pattern signal (card/expiry/CVV wording or a card-number /
  *   masked-card value shape)
  */
@@ -152,25 +153,38 @@ data class FieldDescriptor(
         private val MASKED_CARD_SHAPE = Regex("^[•*·●_#]{4,}([ -]?[•*·●_#])*([ -]?\\d{3,4})?$")
 
         /**
-         * Derivation heuristics, each documented (vision 06 §1 detection column):
-         * - password: password/passphrase/pwd wording in id/label, a password-ish
-         *   class name, or an all-masked value echo (`••••••••`) — Chrome a11y exposes
-         *   secret fields as plain EditText with masked or empty text, so the echo and
-         *   wording are the observable signals.
+         * Derivation, each signal documented (vision 06 §1 detection column):
+         * - password: the reader-captured `AccessibilityNodeInfo.isPassword` flag
+         *   ([isPassword] parameter — the PRIMARY signal), falling back to the
+         *   heuristics: password/passphrase/pwd wording in id/label, a password-ish
+         *   class name, or an all-masked value echo (`••••••••`). Live Chrome (154,
+         *   2026-10-08 pre-UAT2 defect) exposes a secret field as a plain EditText
+         *   carrying the field's ACTUAL content — the typed text echoes back, the
+         *   `<label>` is not associated with the field node — so the wording and
+         *   masked-echo heuristics alone leave the gate dark; the explicit flag is
+         *   what makes H8/H3 engage on live Chrome. The heuristics stay as fallback
+         *   for observations whose reader could not capture the flag.
          * - card-like: card/CVV/expiry wording in id/label, or a value shaped like a
          *   card number (12–19 grouped digits, or a masked-card echo `•••• 4242`).
          *   Ambiguous echoes (all-masked) fail to password (gated either way —
          *   fail-to-confirm, never fail-open).
          */
-        fun fromObserved(id: String, label: String, value: String = "", className: String = ""): FieldDescriptor {
+        fun fromObserved(
+            id: String,
+            label: String,
+            value: String = "",
+            className: String = "",
+            isPassword: Boolean = false,
+        ): FieldDescriptor {
             val text = "${id.lowercase()} ${label.lowercase()}"
-            val isPassword = PASSWORD_WORDS.containsMatchIn(text) ||
+            val password = isPassword ||
+                PASSWORD_WORDS.containsMatchIn(text) ||
                 PASSWORD_WORDS.containsMatchIn(className.lowercase()) ||
                 ALL_MASKED.matches(value.trim())
             val isCardLike = CARD_FIELD_WORDS.containsMatchIn(text) ||
                 CARD_VALUE_SHAPE.matches(value.trim()) ||
                 MASKED_CARD_SHAPE.matches(value.trim())
-            return FieldDescriptor(id, label, value, isPassword, isCardLike)
+            return FieldDescriptor(id, label, value, password, isCardLike)
         }
 
         /** Derives the descriptor from one observed node (label = text, else desc). */
@@ -178,6 +192,7 @@ data class FieldDescriptor(
             id = node.id,
             label = node.text.ifBlank { node.desc },
             className = node.className,
+            isPassword = node.isPassword,
         )
 
         /** Derives descriptors for every editable node of an observed tree. */

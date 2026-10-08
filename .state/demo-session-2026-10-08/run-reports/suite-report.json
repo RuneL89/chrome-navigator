@@ -1,0 +1,52 @@
+{
+    "runs": [
+        {
+            "goalId": "cheapest-compare-1",
+            "family": "cheapest-compare",
+            "goal": "Open the listing for the Field Notebook and read its price.",
+            "taskId": "task-1791440483806",
+            "engine": "stub",
+            "autoDeny": true,
+            "triage": "lookup",
+            "triageClass": "lookup",
+            "budgetProfile": "standard",
+            "terminal": "GOAL_ACHIEVED",
+            "terminalDetail": "exit path HIGH: noul pTrue=0.95 with the WEAK guard after 1 finish check(s)",
+            "expectedTerminal": "GOAL_ACHIEVED",
+            "terminalMatchesExpected": true,
+            "steps": 2,
+            "rowsLogged": 2,
+            "metaDecisions": 0,
+            "logGaps": 0,
+            "gateEvents": 0,
+            "spendMicroUsd": 0,
+            "elapsedMs": 880,
+            "softWarnings": [],
+            "partialResult": "Field Notebook Price: $6.25, marked on the board this week. A pocket notebook with a stitched spine and dot-grid pages. About 120 pages, slight shelf wear on the cover. Pickup at the market hall on Saturday, or the seller can hold it until Sunday. Back to all listings",
+            "startedAt": 1791440483805,
+            "finishedAt": 1791440484691,
+            "stepLog": [
+                "[t+9ms] cold-start: start URL http://127.0.0.1:8099/listings.html (derived SCRIPTED_START)",
+                "[t+9ms] cold-start: no VIEW intent (browser com.android.chrome is already on the derived start host)",
+                "[t+9ms] triage: asking the engine over the goal text",
+                "[t+10ms] triage: lookup",
+                "[t+10ms] triage: target entity \"Field Notebook\" (code-extracted)",
+                "[t+10ms] guard state: lookup: contentful pages read=0 (needs one beyond the first page); entity=\"Field Notebook\"",
+                "[t+100ms] decide: action -> 'n5'",
+                "[t+102ms] execute: tap \"Field Notebook - $6.25\" at (101,438) -> dispatched",
+                "[t+873ms] decide: action -> 'finish'",
+                "[t+874ms] decide: finish -> verification: noul=0.95 (HIGH), guard=WEAK, guard state: lookup: contentful pages read=1 (needs one beyond the first page); entity=\"Field Notebook\", proposition=v2",
+                "[t+880ms] terminal: GOAL_ACHIEVED - exit path HIGH: noul pTrue=0.95 with the WEAK guard after 1 finish check(s)"
+            ],
+            "exit": {
+                "path": "HIGH",
+                "guardLevel": "WEAK",
+                "noul": 0.95,
+                "finishChecks": 1,
+                "completionCardShown": false
+            }
+        }
+    ],
+    "allPassed": true,
+    "finishedAt": 1791440484696
+}

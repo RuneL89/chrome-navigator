@@ -2,6 +2,7 @@ package navigator.core.fixtures
 
 import java.nio.file.Files
 import java.nio.file.Path
+import navigator.core.enumerate.observedNodes
 import org.junit.jupiter.api.io.TempDir
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -45,6 +46,29 @@ class FixtureLoaderTest {
         assertEquals(7, dump.nodes.size)
         assertEquals(dump.nodes.size, dump.nodes.map { it.id }.toSet().size, "node ids must be unique")
         assertTrue(dump.nodes.any { it.editable }, "seed must contain the editable search box")
+    }
+
+    @Test
+    fun `a11y nodes carry the optional isPassword flag and committed fixtures decode unchanged`() {
+        // 2026-10-08 pre-UAT2 H8-gap fix: A11yNode.isPassword is additive-optional —
+        // committed fixtures predate the field and decode false; a NEW capture carrying
+        // the flag decodes true and threads into the enumerator's ObservedNode.
+        val dump = FixtureLoaders.loadA11yDump(a11ySeed)
+        assertTrue(dump.nodes.none { it.isPassword }, "committed fixtures decode the flag false")
+        assertTrue(dump.observedNodes().none { it.isPassword })
+
+        val flagged = FixtureLoaders.loadA11yDump(
+            a11ySeed.replaceFirst(
+                "\"nodes\": [",
+                "\"nodes\": [\n    {\n      \"id\": \"n-secret\",\n      \"text\": \"typed content\",\n" +
+                    "      \"desc\": \"\",\n      \"clickable\": false,\n      \"editable\": true,\n" +
+                    "      \"scrollable\": false,\n      \"isPassword\": true,\n" +
+                    "      \"bounds\": \"0,0,10,10\",\n      \"className\": \"android.widget.EditText\"\n    },",
+            ),
+        )
+        val node = flagged.observedNodes().single { it.id == "n-secret" }
+        assertTrue(node.isPassword, "the captured flag threads through toObservedNode")
+        assertTrue(node.editable)
     }
 
     @Test

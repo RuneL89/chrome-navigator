@@ -27,6 +27,11 @@ remembers."
   (2026-10-08: mobile Chrome omits the URL-bar scheme, so the owner screenshot showed
   the card displaying a URL the restore's http(s)-prefix guard rejected; the
   `normalizePageUrl` fix — loopback→http else https — + test evidence)
+* `preUAT2-2-h8gap.json` — the PREUAT2-3-H8GAP security-core fix status note
+  (2026-10-08: live Chrome password typing ran ungated — the observation never read
+  `AccessibilityNodeInfo.isPassword` and the wording/mask heuristics miss Chrome 154's
+  actual-content echo; the reader-flag fix, the `password` kind marker, the +3
+  classifier-matrix rows, and the Tier A timestamp-only re-pin)
 * `eval/` — measurement-report artifacts, git-tracked: `tier-a-report.{md,json}` (Tier A
   deterministic replay, Phase 7; regenerate with `./gradlew :core:generateTierAReport` —
   the committed bytes are the drift detector a state/wire/taxonomy/gate change must keep

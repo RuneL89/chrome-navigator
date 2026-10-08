@@ -101,6 +101,8 @@ data class N(
     val editable: Boolean = false,
     val scrollable: Boolean = false,
     val button: Boolean = false,
+    /** The reader-captured secret-field flag (2026-10-08 pre-UAT2 H8-gap fix). */
+    val password: Boolean = false,
 )
 
 /**
@@ -127,12 +129,14 @@ fun obs(
             bottom = index * 100 + 40,
             className = if (spec.button) "android.widget.Button" else "android.view.View",
             sourceOrder = index,
+            isPassword = spec.password,
         )
     }
     val lines = observed.map { node ->
         val kinds = listOfNotNull(
             "tap".takeIf { node.clickable },
             "edit".takeIf { node.editable },
+            "password".takeIf { node.isPassword },
             "scroll".takeIf { node.scrollable },
         ).joinToString(" ")
         "[n${node.sourceOrder}] \"${node.text}\"${if (kinds.isEmpty()) "" else " $kinds"} " +

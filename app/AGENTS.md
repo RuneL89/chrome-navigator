@@ -52,15 +52,18 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     `LayaStateViewParityTest` must match byte-for-byte
   * `src/main/kotlin/navigator/app/observe/` — observation layer (Phase 1,
     vision 03): `NavigatorAccessibilityService` (fresh-root reads of the
-    `PACKAGE_ALLOWLIST` browsers; Phase 6 added `observeForLoop()` = the same fresh
+    PACKAGE_ALLOWLIST browsers; Phase 6 added `observeForLoop()` = the same fresh
     walk plus `LoopObservation.pageNodeCount` — the WebView-subtree node count the
-    unreadable-tree rule reads), `A11ySnapshot` + `TreeSerializer`
-    (JVM-pure model and `[nN] "text" kinds (cx,cy)` serialization, meaningful-node
+    unreadable-tree rule reads; the 2026-10-08 pre-UAT2 H8-gap fix reads
+    `AccessibilityNodeInfo.isPassword` into the snapshot), `A11ySnapshot` +
+    `TreeSerializer` (JVM-pure model and `[nN] "text" kinds (cx,cy)` serialization —
+    kinds fixed order tap, edit, password, scroll since the 2026-10-08 H8-gap fix, the
+    `password` kind the app-authored secret-field marker; meaningful-node
     filter, 40-char truncation, meaningful-depth indent cap 4), `UrlBarReader`
     (id-first `com.android.chrome:id/url_bar`, editable-fallback, `Url =
     Value|Hidden|Unavailable`), `CaptureMode`/`CaptureActivity`/`CaptureReceiver`
-    (debug fixture capture into the `:core` `A11yDump` schema; refused in
-    non-debuggable builds)
+    (debug fixture capture into the `:core` `A11yDump` schema, including
+    `A11yNode.isPassword`; refused in non-debuggable builds)
   * `src/main/kotlin/navigator/app/loop/` — the navigation loop (Phase 6,
     vision 04): `NavigationLoop` (STRICT step order OBSERVE → ENUMERATE → DECIDE →
     GATE → EXECUTE → LOG; the GATE step classifies with `RiskGate` and — Phase 8E,
@@ -266,7 +269,10 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     runs only) and `plan` (`PlanReport`: version + subgoals provenance); both null
     (and JSON-omitted) elsewhere); `HarnessObserver` (Phase 08H: maps the live walk and
     computes the bounded content excerpt via the `:core` `ContentExtractor` over the same
-    fresh nodes — the excerpt rides every `StepObservation` the loop sees; on-device
+    fresh nodes — the excerpt rides every `StepObservation` the loop sees; since the
+    2026-10-08 pre-UAT2 H8-gap fix it also threads the reader's `isPassword` flag into
+    the loop's `ObservedNode`s, which `FieldDescriptor.fromNodes` consumes at the GATE
+    step; on-device
     lineage note: the loop's canonical rows + the engine's view derivation keep the
     export/serve views identical by construction),
     `HarnessPagesServer` (loopback-only static server over
@@ -436,7 +442,9 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
 ## Verification
 
 * `./gradlew :app:assembleDebug` must produce an APK
-* `./gradlew :app:testDebugUnitTest` — Gate 1.1 serializer goldens + Gate 1.2 URL-bar
+* `./gradlew :app:testDebugUnitTest` — Gate 1.1 serializer goldens (+ the 2026-10-08
+  H8-gap `password`-kind marker tests — flagged nodes emit `edit password`, unflagged
+  nodes render exactly as before) + Gate 1.2 URL-bar
   strategy paths + Gate 5.1 Room half (`DecisionLogDbTest`) + Gate 8B.1/8B.3 Room half
   (`ShadowResultDbTest`: companion round-trip, duplicate-key ABORT, the rule-a guard,
   the v1→v2 migration, the joined view + hand-checked agreement/coverage) + the
@@ -488,7 +496,14 @@ reads (about:blank, empty; hidden pinned by the earlier test) still never serve)
   typing steps and `typedSecret=true` rides exactly those rows; a page-side echo of the
   typed value is a LOUD state-text failure; the card flow matrix — approve-with-secret,
   deny, timeout, double-deny abort, and the trusted-decline (a trusted credential card
-  still asks; declining skips it every time); `DecisionLogV6DbTest` Room v6: the
+  still asks; declining skips it every time); the 2026-10-08 pre-UAT2 H8-gap follower:
+  typing into a reader-FLAGGED wording-free field fires the H8 credential card (masked
+  input, card secret injected, state text carries `edit password`) and the happy path
+  completes — approve-with-secret → injected → the lone-secret submission gates H3 →
+  approve → GOAL_ACHIEVED, with the unflagged sibling field typing the stub phrase
+  ungated (precision); the live Chrome login shape (flagged wording-free password
+  field, label = typed content) gates the H4 pair on entry AND submission;
+  `DecisionLogV6DbTest` Room v6: the
   typedSecret flag round-trips, plain rows decode false, and the hand-built v5 database
   survives `MIGRATION_5_6`) +
   the Phase-8 laya gates (`LayaEngineTwoStageTest`

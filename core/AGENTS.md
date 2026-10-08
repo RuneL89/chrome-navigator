@@ -28,11 +28,18 @@ without a device.
   ONLY live-provider path in the build, real spend, owner-keyed); law: `Project Vision/02` §2, §5
 * `src/main/kotlin/navigator/core/fixtures/` — golden-fixture schemas (`A11yDump`,
   `WireTranscript` typed-canonical, `ProviderWireTranscript` provider-shape recordings)
-  + strict loaders; law: `Implementation Plan/PHASE_00_infrastructure.md` §2.3,
+  + strict loaders; `A11yNode` gained an additive-OPTIONAL `isPassword` field (the
+  `device`-field precedent) in the 2026-10-08 pre-UAT2 H8-gap fix so new captures carry
+  the reader flag — committed fixtures predate it and decode false, no fixture edited;
+  law: `Implementation Plan/PHASE_00_infrastructure.md` §2.3,
   `Implementation Plan/PHASE_03_wire_client_jevengine.md` §2.3
 * `src/main/kotlin/navigator/core/enumerate/` — candidate taxonomy (`Bucket` + the
   separate `Recovery` set), `Candidate`/`CandidateList`, `CandidateEnumerator`
   (deterministic ART-6 ranking, ≤20/bucket + ≤255 flat caps with recorded truncation);
+  `ObservedNode` carries the reader-captured `isPassword` flag and the enumerator emits
+  the app-authored `password` kind (fixed order tap, edit, password, scroll) so the
+  state text marks secret fields for the engine — observation metadata, not page
+  content (ART-4 unaffected; the 2026-10-08 pre-UAT2 H8-gap fix);
   law: `Project Vision/03` §3
 * `src/main/kotlin/navigator/core/state/` — the state-text family (vision 03 §4 v2.1.0,
   STATE_FORMAT_VERSION = 2): `StateTextBuilder` — the canonical state text v2 (sections in
@@ -68,7 +75,11 @@ without a device.
   unrepresentable, and a confident code class means the judge is never consulted),
   `HighStakes.kt` types (`HClass` incl. `H9_PERSISTENT_MUTATION` (strictness just above
   the residual H8 — broad classes never win ambiguity against specific ones),
-  `ActionKind`, `GateAction`, `FieldDescriptor` with derived isPassword/isCardLike,
+  `ActionKind`, `GateAction`, `FieldDescriptor` with derived isPassword/isCardLike —
+  since the 2026-10-08 pre-UAT2 H8-gap fix `isPassword` is the reader-captured
+  `AccessibilityNodeInfo.isPassword` flag OR-ed over the wording/masked-echo heuristics
+  (live Chrome exposes secret fields as plain EditText carrying the typed content with
+  no label association — the flag is the primary signal, the heuristics the fallback),
   `PageContext`), `TaskGate` (per-task trust state machine: approve → execute +
   (class, site) trust; timeout(30s) = deny; same (class, site) refused twice in a task →
   `ABORT_TASK`; trust never crosses tasks, sites, or classes; illegal transitions throw
@@ -142,7 +153,12 @@ without a device.
 * `src/test/resources/gate/` — `classifier-matrix.json`, the reviewable H1–H9 classifier
   matrix the Gate 4.1/8E.1 test consumes (UAT 4.1: the owner reads this table; new rows
   are additive only; the Phase-8E `additive` tag pins the net's SUSPICIOUS tier —
-  classify null + `mutationNet` SUSPICIOUS, the additive engine check's territory)
+  classify null + `mutationNet` SUSPICIOUS, the additive engine check's territory);
+  the 2026-10-08 pre-UAT2 H8-gap fix added three `happy` rows whose ONLY secret signal
+  is the reader-captured `isPassword` flag (typing garbage into it → H8; flagged-pair
+  submit with login wording → H4; lone flagged secret submit → H3 — H8 is entry-only
+  by law), and matrix fields carry the raw `isPassword` attribute through
+  `FieldDescriptor.fromObserved` so the derivation stays under test
 * `src/test/resources/tokenizer/` — tokenizer correctness fixtures (real reference
   vectors, vocab sample)
 * `src/test/resources/exit/` — Phase-8J exit fixtures (reviewable data): the Test-1
@@ -165,7 +181,11 @@ without a device.
   or a pinned model ID must re-run Tier A green (`.state/eval/` artifacts byte-stable) —
   the committed artifacts are the drift detector; regenerate with
   `./gradlew :core:generateTierAReport` and commit the result when a reviewed change
-  moves them
+  moves them. The 2026-10-08 `password` kind marker is such a format-relevant change:
+  Tier A re-ran green with every measured value byte-identical (278 rotations stable,
+  48/48 mutations caught, tokens 191–949, stateFormatVersion 2) — no fixture produces
+  the marker (all decode isPassword=false), so no pins moved and only the artifacts'
+  timestamp fields refreshed
 * Loaders validate strictly: unknown/missing fields and cross-field inconsistencies fail
   loudly (`FixtureValidationException`); malformed fixture = test failure, never silent default
 * Probability maps are name/id-keyed, never positional (vision 02 §2); callers branch on

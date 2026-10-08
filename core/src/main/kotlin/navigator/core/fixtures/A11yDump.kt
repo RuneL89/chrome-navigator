@@ -16,6 +16,10 @@ import java.time.format.DateTimeParseException
  * @param bounds on-screen bounds in Android a11y convention `"left,top,right,bottom"`
  *   (pixels, ints — `AccessibilityNodeInfo.getBoundsInScreen` flattening)
  * @param className Android class name of the node (e.g. `android.widget.EditText`)
+ * @param isPassword the reader-captured secret-field flag
+ *   (`AccessibilityNodeInfo.isPassword`); optional since the 2026-10-08 pre-UAT2 H8-gap
+ *   fix — committed fixtures predate the field and decode it false (the `device`-field
+ *   precedent: additive optional, never an edit to an existing fixture)
  */
 @Serializable
 data class A11yNode(
@@ -27,6 +31,7 @@ data class A11yNode(
     val scrollable: Boolean,
     val bounds: String,
     val className: String,
+    val isPassword: Boolean = false,
 ) {
     init {
         require(id.isNotBlank()) { "A11yNode.id must not be blank" }

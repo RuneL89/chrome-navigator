@@ -1,0 +1,79 @@
+{
+  "pass": "pre-UAT2 defect-follower (implementer half of the fix-first protocol)",
+  "id": "PREUAT2-3-H8GAP",
+  "date": "2026-10-08",
+  "status": "fix-complete-awaiting-verifier-and-live-device-rerun",
+  "llmCost": "$0",
+  "defect": {
+    "id": "PREUAT2-3-H8GAP",
+    "kind": "product-security",
+    "caughtOn": "owner demo session, S25+ / Chrome 154 (priority security-core fix)",
+    "summary": "The harness login fixture's <input type=\"password\"> field (label 'Password' NOT associated with the field node) accepted the stub phrase typed FIVE TIMES with no H8/H3/H4 card ever firing - the doc 06 section-2a credential-entry path and the H3/H8 protection law were dark on live Chrome. Root cause chain: (1) the observation never read AccessibilityNodeInfo.isPassword() - the one explicit reliable signal; (2) FieldDescriptor.fromObserved assumed Chrome exposes secret fields as masked-or-empty - Chrome 154 exposes the field's ACTUAL typed content, so the ALL_MASKED value echo matched nothing; (3) the node's serialized text is the typed content, not the label, so the PASSWORD_WORDS wording heuristic missed too."
+  },
+  "fix": {
+    "prongs": [
+      {
+        "prong": "1 reader",
+        "files": [
+          "app/src/main/kotlin/navigator/app/observe/A11ySnapshot.kt (NodeSnapshot.isPassword)",
+          "app/src/main/kotlin/navigator/app/observe/NavigatorAccessibilityService.kt (reads node.isPassword in toSnapshot)",
+          "app/src/main/kotlin/navigator/app/observe/TreeSerializer.kt (app-authored `password` kind, fixed order tap/edit/password/scroll)",
+          "app/src/main/kotlin/navigator/app/observe/CaptureMode.kt (records A11yNode.isPassword)",
+          "app/src/main/kotlin/navigator/app/harness/HarnessRunners.kt (HarnessObserver threads the flag into the loop's ObservedNodes)",
+          "core/src/main/kotlin/navigator/core/enumerate/ObservedNode.kt (isPassword, default false)",
+          "core/src/main/kotlin/navigator/core/enumerate/CandidateEnumerator.kt (emits the `password` kind - the state-text marker)",
+          "core/src/main/kotlin/navigator/core/enumerate/Candidate.kt (KDoc kinds order)",
+          "core/src/main/kotlin/navigator/core/fixtures/A11yDump.kt (A11yNode.isPassword, additive-OPTIONAL)"
+        ],
+        "mechanism": "The reader captures AccessibilityNodeInfo.isPassword into NodeSnapshot; the flag threads NodeSnapshot -> HarnessObserver -> ObservedNode -> (a) FieldDescriptor.fromNode at the GATE step and (b) the enumerator's `password` kind so the engine's state text marks the secret field ([nN] \"...\" edit password (x,y)). The marker is app-authored observation metadata, not page content (ART-4 block untouched)."
+      },
+      {
+        "prong": "2 classifier bridge",
+        "files": [
+          "core/src/main/kotlin/navigator/core/gate/HighStakes.kt"
+        ],
+        "mechanism": "fromObserved gains `isPassword: Boolean = false`, OR-ed over the existing heuristics (wording / class name / all-masked echo stay as fallback); fromNode passes node.isPassword, so the loop's existing FieldDescriptor.fromNodes(obs.nodes) call sites consume the flag with zero loop changes. The wrong Chrome claim in the fromObserved KDoc was corrected in the same pass (live Chrome 154: actual content echoed, no label association - the flag is primary, heuristics fallback)."
+      },
+      {
+        "prong": "3 classifier behavior proofs",
+        "files": [
+          "core/src/test/resources/gate/classifier-matrix.json (+3 happy rows, MatrixField gained isPassword)",
+          "core/src/test/kotlin/navigator/core/gate/RiskGateClassifierTest.kt (MatrixField.isPassword passed through to fromObserved)"
+        ],
+        "mechanism": "h8-type-into-reader-flagged-field (flag + zero wording + garbage content on TYPE -> H8 - the live-defect regression pin), h4-submit-reader-flagged-login-pair (identifier + flagged field, login wording on SUBMIT -> H4), h3-submit-lone-reader-flagged-secret (lone flagged secret on SUBMIT -> H3). H8 never fires on SUBMIT by law (entry-only; submissions are H3/H4's) - the dispatch's 'H4/H8 on submit' resolved to the law's actual classes."
+      }
+    ],
+    "serializationDecision": "The [nN] line's kinds segment gains the app-authored token `password` (lowercase, matching the tap/edit/scroll convention), placed after `edit` before `scroll`, identically in TreeSerializer (observation lines) and the enumerator (state-text candidate lines). It informs the engine the field is a secret field; the gate consumes the boolean flag independently of the text."
+  },
+  "deviations": [
+    {
+      "deviation": "A11yNode (the fixture schema) gained an additive-OPTIONAL isPassword field with default false.",
+      "reason": "CaptureMode must record the reader flag or every future real capture would re-encode the blindness this fix closes. Committed fixtures predate the field and decode false unchanged (no fixture edited - fixtures sacred); the strict loader's unknown/missing-key law is untouched (missing decodes to the default, unknown keys still fail loudly). Follows the sanctioned `device`-field precedent; recorded here because the schema is nominally a vision-level surface.",
+      "visionNote": "No vision text contradicted or edited: vision 03 section-2 shows the line format by example (kinds come from node traits) and the dispatch explicitly authorizes the app-authored marker as observation-layer metadata."
+    },
+    {
+      "deviation": "STATE_FORMAT_VERSION stayed 2 (no bump).",
+      "reason": "The kinds segment is an open trait list (vision 03 section-2 kind convention); the marker is conditional observation-layer metadata, not a new section or line grammar. A version bump is a vision-level event; none was authorized. The format-relevant change was instead discharged through the Tier A replay law (below)."
+    }
+  ],
+  "testEvidence": {
+    "fullSuite": "./gradlew test :app:assembleDebug BUILD SUCCESSFUL - core 296 tests / app 361 tests / 0 failures / 0 errors (657 total; was 650 = 293 core + 357 app before this fix; +3 core and +4 app new test methods)",
+    "newTests": [
+      "core CandidateEnumeratorTest: a reader-flagged secret field carries the password kind marker (kinds [tap, edit, password] vs [tap, edit])",
+      "core FixtureLoaderTest: a11y nodes carry the optional isPassword flag and committed fixtures decode unchanged (+ flagged capture threads through toObservedNode)",
+      "core StateTextBuilderTest: a reader-flagged secret field renders the password kind marker in the state text ([input-1] \"typed content\" edit password (50,25))",
+      "core RiskGateClassifierTest: matrix hygiene + happy rows over the 3 new reader-flag rows (data-driven - all rows re-verified through fromObserved)",
+      "app TreeSerializerTest: a secret field carries the app-authored password kind after edit; nodes without the flag render exactly as before",
+      "app CredentialEntryLoopTest: typing into a reader-FLAGGED wording-free field fires the H8 credential card and the happy path completes (unflagged sibling types the stub phrase ungated - precision; exactly 2 text() calls: phrase + card secret; flagged submission gates H3 on the ordinary card; typedSecret only on the flagged typing row; state text carries [n3] \"Field two\" edit password)",
+      "app CredentialEntryLoopTest: the live Chrome login shape - the flagged wording-free password field gates the pair H4 (entry AND submission H4, two credentialTyping cards, secret injected, marker in state text)"
+    ],
+    "tierA": "./gradlew :core:generateTierAReport - rotationStable=true (278 rotations), selfCheck allCaught=true (48/48 mutations), tokens 191-949 <= 960, stateFormatVersion=2; git diff of .state/eval/tier-a-report.{md,json} shows ONLY the timestamp fields moved - every measured value byte-identical, so NO pins were affected and no retire-and-add was needed (no fixture produces the marker: all fixtures decode isPassword=false). The regenerated artifacts (fresh timestamp) are the re-armed drift-detector baseline, left uncommitted per the no-commits constraint."
+  },
+  "notDoneHere": {
+    "liveDeviceRerun": "the orchestrator's S25+ Chrome 154 re-run of the harness login fixture - the fix is JVM-proven end-to-end; the live proof is the H8/H4 card firing on the real page where the stub phrase previously typed five times",
+    "coldVerification": "canon-verifier cold re-check per the fix-first protocol",
+    "uat": "UAT 4.1 owner matrix re-read now includes the three reader-flag rows"
+  },
+  "lastAction": "DOX pass on core/AGENTS.md + app/AGENTS.md; wrote this record + the compliance-log entry",
+  "nextAction": "canon-verifier cold re-check, then the orchestrator re-runs the S25+ live login fixture before any owner judgment"
+}

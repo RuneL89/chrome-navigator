@@ -12,7 +12,9 @@ package navigator.app.observe
  *   characters; control characters (newline/CR/tab) are flattened to spaces so one node is
  *   always exactly one line.
  * - Kinds come from node traits, in fixed order: `tap` (clickable), `edit` (editable),
- *   `scroll` (scrollable); a trait-less node (kept because of text only) has no kind segment.
+ *   `password` (the reader-captured secret-field flag — app-authored observation
+ *   metadata, not page content; 2026-10-08 pre-UAT2 H8-gap fix), `scroll` (scrollable);
+ *   a trait-less node (kept because of text only) has no kind segment.
  * - Depth: only MEANINGFUL ancestors consume depth; non-meaningful containers are
  *   transparent for it (web content stays reachable without burning depth on chrome).
  *   Depth is capped at 4 levels of two-space indentation on the emitted line. Invisible
@@ -77,6 +79,7 @@ object TreeSerializer {
         val kinds = buildList {
             if (node.clickable) add("tap")
             if (node.editable) add("edit")
+            if (node.isPassword) add("password")
             if (node.scrollable) add("scroll")
         }
         val kindSegment = if (kinds.isEmpty()) "" else " " + kinds.joinToString(" ")

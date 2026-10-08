@@ -5,6 +5,11 @@ package navigator.app.observe
  * [android.view.accessibility.AccessibilityNodeInfo] trees onto this model; everything
  * downstream (serializer, URL-bar strategy, tests) stays free of Android types so it runs
  * in plain JVM unit tests without Robolectric.
+ *
+ * [isPassword] carries the platform's `AccessibilityNodeInfo.isPassword` — the one
+ * explicit, reliable secret-field signal (2026-10-08 pre-UAT2 defect: live Chrome
+ * exposes secret fields as plain EditText with the typed content as the text and no
+ * label association, so text heuristics alone miss it).
  */
 data class NodeSnapshot(
     val text: String = "",
@@ -13,6 +18,7 @@ data class NodeSnapshot(
     val clickable: Boolean = false,
     val editable: Boolean = false,
     val scrollable: Boolean = false,
+    val isPassword: Boolean = false,
     val visible: Boolean = true,
     val bounds: Bounds = Bounds.ZERO,
     val children: List<NodeSnapshot> = emptyList(),

@@ -37,6 +37,7 @@ object TestFixtures {
         clickable: Boolean = true,
         editable: Boolean = false,
         scrollable: Boolean = false,
+        isPassword: Boolean = false,
         text: String = "",
         desc: String = "",
         className: String = "android.view.View",
@@ -54,5 +55,6 @@ object TestFixtures {
         bottom = top + height,
         className = className,
         sourceOrder = sourceOrder,
+        isPassword = isPassword,
     )
 }

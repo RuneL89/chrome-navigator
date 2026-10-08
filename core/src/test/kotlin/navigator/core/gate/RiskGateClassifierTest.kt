@@ -43,7 +43,14 @@ class RiskGateClassifierTest {
     private data class MatrixContext(val url: String, val fields: List<MatrixField> = emptyList())
 
     @Serializable
-    private data class MatrixField(val id: String, val label: String, val value: String = "", val className: String = "")
+    private data class MatrixField(
+        val id: String,
+        val label: String,
+        val value: String = "",
+        val className: String = "",
+        /** The reader-captured `AccessibilityNodeInfo.isPassword` flag (primary signal). */
+        val isPassword: Boolean = false,
+    )
 
     private companion object {
         private val matrix: MatrixFile by lazy {
@@ -78,7 +85,9 @@ class RiskGateClassifierTest {
         /** Fields arrive as raw observed attributes — derivation stays under test. */
         private fun MatrixRow.toPageContext(): PageContext = PageContext(
             url = context.url,
-            formFields = context.fields.map { FieldDescriptor.fromObserved(it.id, it.label, it.value, it.className) },
+            formFields = context.fields.map {
+                FieldDescriptor.fromObserved(it.id, it.label, it.value, it.className, it.isPassword)
+            },
         )
 
         private fun classify(row: MatrixRow): HClass? = RiskGate.classify(row.toGateAction(), row.toPageContext())
