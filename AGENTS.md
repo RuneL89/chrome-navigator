@@ -116,7 +116,16 @@ When the user requests a durable behavior change, record it here or in the relev
   the FallbackEngine wiring, and the three harness engine modes
   `jev`/`laya`/`laya-fb-jev`; Phase 8F added the credential-entry path (the loop's
   `TextSource` + the card's masked-secret variant — the owner-typed secret is injected
-  directly and rendered `[credential-redacted]` everywhere, never stored); overlay/result UI
-  arrive per phase). See `app/AGENTS.md`
+  directly and rendered `[credential-redacted]` everywhere, never stored); Phase 9
+  added the PRODUCT overlay UX (`overlay/` — the `TYPE_ACCESSIBILITY_OVERLAY` goal
+  input with the in-process blurred screenshot (ART-8 memory-only), the bottom-right
+  live log (Gate 9.4 measured), the gate/completion product presenters (no auto modes),
+  the `NavigatorService` specialUse foreground service, the DEBUG-ONLY adb command +
+  gate-runner surface (`GateScenarios` — the four gates' assertion bodies in main
+  source, run by adb OUTSIDE instrumentation because the JUnit shell is
+  platform-blocked on the API 35 emulator; evidence = `logcat -s NavigatorGates`)) and
+  the setup wizard (`setup/` — the four-check
+  wizard + `EncryptedSharedPreferences` key store; `MainActivity` is a thin launcher
+  into it); the result screen stays Phase 11). See `app/AGENTS.md`
 * `tools/` — Phase-8/8C model-acquisition + reference-vector scripts (uv-driven; build-time
   HF downloads only). See `tools/AGENTS.md`

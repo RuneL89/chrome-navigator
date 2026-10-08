@@ -10,13 +10,16 @@
      packageNames is COMMA-separated (the platform splits it on commas; a pipe would
      form one non-matching package name). The platform has no "typeWindowScrollChanged"
      token — the scroll event type is typeViewScrolled
-     (AccessibilityEvent.TYPE_VIEW_SCROLLED). -->
+     (AccessibilityEvent.TYPE_VIEW_SCROLLED). Phase 9 adds android:canTakeScreenshot —
+     the capability behind the goal input's blurred screenshot (a11y takeScreenshot,
+     API 30+); the bitmap lives in memory for the input session only (ART-8). -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeViewScrolled"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagDefault|flagReportViewIds|flagRetrieveInteractiveWindows"
     android:canRetrieveWindowContent="true"
     android:canPerformGestures="true"
+    android:canTakeScreenshot="true"
     android:canRequestEnhancedWebAccessibility="true"
     android:isAccessibilityTool="true"
     android:notificationTimeout="100"

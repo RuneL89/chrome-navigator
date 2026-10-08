@@ -7,7 +7,8 @@ integration, Room, ONNX, cloud LLM client. Phase 0 shipped the buildable skeleto
 Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
 (`log/`); Phase 6 the navigation loop (`loop/`), the fixture-driven stub engine
 (`stub/`), and the headless debug harness (`harness/`); Phase 8 the on-device shadow
-(`laya/`) and the `ShadowRouter`.
+(`laya/`) and the `ShadowRouter`; Phase 9 the product overlay UX (`overlay/`) and the
+setup wizard (`setup/`).
 
 ## Ownership
 
@@ -50,6 +51,68 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     mirror it exactly; the script's stdlib-only `--state-view-parity` mode generates
     `state-view-parity.json`, the cross-language derivation fixture the
     `LayaStateViewParityTest` must match byte-for-byte
+  * `src/main/kotlin/navigator/app/overlay/` — the PRODUCT overlay UX (Phase 9,
+    phase doc §2.1, pre-check readings a/b): `OverlayManager` (owns the three
+    `TYPE_ACCESSIBILITY_OVERLAY` windows — added/removed through the observation
+    service's WindowManager, NO SYSTEM_ALERT_WINDOW grant for product overlays; created
+    in the service's `onServiceConnected`, torn down (every window removed, pending
+    cards fail-safe) in `onDestroy`; hold the 08G plan for the cards' PLAN display;
+    `snapshot()` is the adb-driven gate runner's machine-readable state),
+    `GoalInputOverlay` (full-screen translucent backdrop + the a11y `takeScreenshot`
+    blurred IN-PROCESS by downscale/upscale — the bitmap lives in MEMORY for the input
+    session only, released on submit/cancel/dismiss; ZERO file/log/network (ART-8);
+    text box + Submit/Cancel), `LiveLogOverlay` (small bottom-right
+    `FLAG_NOT_FOCUSABLE|NOT_TOUCH_MODAL` window streaming the compact step lines,
+    latest-6 collapsed / tap-toggles 14, never obscures the center; the thinking
+    spinner line; `appendMeasured` measures decision-receipt → line-RENDERED into the
+    Gate 9.4 evidence + logcats `NAVIGATOR-G94`),
+    `GateCardOverlay.kt` (`GateCardWindow`/`CompletionCardWindow` — the product cards
+    rendering `GateCard` VERBATIM + Approve/Deny + a 30s countdown RING, timeout =
+    deny (vision 06 §2); the credential variant's masked input (doc 06 §2a) with the
+    empty-input=deny fail-safe and the value cleared on dismiss; the completion card
+    (vision 04 §3 Path C) timeout = keep going; the PLAN section on every card;
+    focusable modal windows that BLOCK while presenting (CompletableDeferred); plus
+    `OverlayGatePresenter`/`OverlayCompletionCardPresenter` implementing the loop's
+    presenter seams — a missing overlay manager fails LOUDLY (never a silent deny)),
+    `NavigatorService` (§2.3 — the product foreground service, `specialUse` type,
+    START_STICKY, the `navigator` channel's persistent ready/working notification,
+    tap → SetupActivity + a "New task" action; hosts product runs: the SAME recorded
+    Jev primary keyed by the Setup-stored key (no key → a POLITE loud refusal, never a
+    silent no-op) + product presenters + the ADDITIVE `LoopUiListener` streaming
+    (onThinking→spinner, onPlan→PLAN display, onStep→measured live-log line,
+    onTaskState→log line + notification); the goal submit hands over via the
+    IN-PROCESS channel (no background FGS start ever — foreground starts only, from
+    the wizard / the notification action); DEBUG-ONLY stub override for the Gate 9.3
+    $0 emulator flow), `GateScenarios.kt` (MAIN source — the four gates' assertion
+    bodies written ONCE, debug-gated at the caller; returns
+    `Result {gate, checks}` (per-check name/pass/detail + measured numbers); the
+    EVIDENCE path is the in-app debug runner driven by adb OUTSIDE instrumentation,
+    because the instrumented shell is platform-blocked on the API 35 emulator (the a11y
+    service binds system-wide but the in-process handshake never completes under
+    `am instrument`; measured — see `.state/phase-9-status.json`); every simulated
+    owner touch is a REAL `dispatchGesture` tap (the service's CAN_PERFORM_GESTURES
+    capability — never a scripted resolution)),
+    `OverlayProbeActivity` (MAIN source, test-only helper: the scenarios' blank
+    full-screen touch SENTINEL, exported=false; the phase doc's "instrumented" gates
+    run through the adb-driven runner instead — recorded deviation),
+    `OverlayDebugReceiver` + `OverlayDebugState` (DEBUG-ONLY adb surface (CaptureReceiver
+    precedent): the window commands (show/hide/append/plan/cards) AND the GATE91..94
+    gate-runner actions — each runs its scenario on a background thread and logcats
+    `GATE9x RESULT: PASS|FAIL <summary>` + `GATE9x CHECK: <name> PASS|FAIL - <detail>`
+    under the `NavigatorGates` tag; refused unless debuggable)
+  * `src/main/kotlin/navigator/app/setup/` — the setup wizard (Phase 9, §2.2):
+    `SetupLogic` (PURE state derivation, JVM-pinned: the a11y-enabled check string
+    parsing, the Samsung-only battery branching — non-Samsung passes with an info line
+    so the wizard completes green on the emulator, presence-only key state, the
+    informational eval-only model check that NEVER gates, the all-required-green
+    summary), `SetupActivity` (the re-runnable four-check Compose wizard: a11y enable
+    deep-links with the Android 13+ "Allow restricted settings" path explained, the
+    TEXT-GUIDED Samsung battery whitelist (no programmatic whitelist on stock Android
+    is lawful), the password-transformed key entry, the model status; STARTS the
+    foreground service from the foreground (the FGS background-start law) and triggers
+    the goal overlay for the notification's "New task" action),
+    `OpenRouterKeyStore` (`EncryptedSharedPreferences` — the key is LOCAL ONLY, never
+    logged, never rendered back)
   * `src/main/kotlin/navigator/app/observe/` — observation layer (Phase 1,
     vision 03): `NavigatorAccessibilityService` (fresh-root reads of the
     PACKAGE_ALLOWLIST browsers; Phase 6 added `observeForLoop()` = the same fresh
@@ -59,7 +122,10 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     RC2 fix marks the omnibox/URL-bar subtree `browserChrome` in the snapshot (the
     `com.android.chrome:id/url_bar` viewId and its descendants — the gate never
     credential-classifies it), and `observeForLoop()` reports the ACTIVE window's
-    package (`LoopObservation.windowPackage`) — the RC1 readiness signal);
+    package (`LoopObservation.windowPackage`) — the RC1 readiness signal; Phase 9:
+    `onServiceConnected` creates the `overlay/` `OverlayManager` host (all product
+    overlay windows are added from THIS service's WindowManager) and `onDestroy`
+    tears it down — no leaked windows);
     `BrowserPackages` (the PURE allowlist decision beside the service's
     `PACKAGE_ALLOWLIST`, which delegates to it — `isBrowser(pkg)` is what the
     executor's focus gate and the loop's readiness consume; JVM-pinnable), `A11ySnapshot` +
@@ -260,7 +326,19 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
     `JevSpendRecorder` (records each call's
     PROVIDER-REPORTED wire usage into the budget meter, fed by a `UsageFeed` bridge
     from `SystemOneClient(onUsage = ...)`; a completed call with no reported usage
-    fails loudly — never a silent $0 on live spend); Phase 8 added `ShadowRouter` (vision 02 §4):
+    fails loudly — never a silent $0 on live spend); Phase 9 added the ADDITIVE
+    `LoopUiListener` (own file, `LoopUiListener.kt` — the product overlay's live view
+    as ONE nullable loop constructor param, default null = byte-identical existing
+    paths: `onThinking(active)` pairs around EVERY engine consult (triage, per-step
+    decide, the anchored judge, the additive consult — the spinner is always truthful),
+    `onPlan` at triage when a plan was proposed, `onStep(StepFacts)` AT the LOG step
+    with the COMPACT product facts (step number, verb, label MASKED AT SOURCE through
+    the same sanctioned-secret redaction fold as the step log — doc 05 §2 / doc 06 §2a:
+    a post-injection echo can never reach the overlay — the primary's logged
+    confidence, the gate marker "—" / class+decision+trust from `gateMarker`),
+    `onTaskState` at the single `finish()` funnel; `compactLine` renders the phase
+    doc's live-log shape; the listener is fire-and-forget and can never steer the loop,
+    ART-2); Phase 8 added `ShadowRouter` (vision 02 §4):
     implements `DecisionEngine`, returns the PRIMARY's answer synchronously, fires the
     shadow async on a single-thread `laya-shadow` dispatcher, every-Nth sampling with
     the thermal/battery every-3rd toggle (`SamplingPolicy`), and a `sink()` decorator
@@ -385,7 +463,16 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
   INTERNET + SYSTEM_ALERT_WINDOW permissions, `<queries>` for the two
   allowlisted browsers, and the exported debug `HarnessActivity`; 2026-10-06 added
   POST_NOTIFICATIONS + VIBRATE — harness-debug notifications and the run-over buzz
-  only, never product notification code)
+  only, never product notification code; Phase 9 added `canTakeScreenshot` to the
+  service config (the goal input's blurred screenshot capability), the
+  `.overlay.NavigatorService` specialUse foreground service (FOREGROUND_SERVICE +
+  FOREGROUND_SERVICE_SPECIAL_USE + the `PROPERTY_SPECIAL_USE_FGS_SUBTYPE` property,
+  targetSdk-36 law), the DEBUG-ONLY exported `OverlayDebugReceiver` (its filter carries
+  the GATE91..94 gate-runner actions), the non-exported `.overlay.OverlayProbeActivity`
+  (the gate scenarios' touch sentinel) and the non-exported `.setup.SetupActivity`
+  (the Phase-9 wizard; MainActivity is a thin launcher onto it — the declaration was
+  briefly lost in the Phase-9 restructure and its absence crashed every fresh-install
+  launch; restored 2026-10-09)
 * `src/main/kotlin/navigator/app/log/` — Room persistence for the DecisionLog
   (Phase 5, vision 05 §2): `DecisionLogDb.kt` — `DecisionLogEntity` (nested log objects
   as `DECISION_LOG_JSON` columns), `DecisionLogConverters` (row ↔ entity, loud decode),
@@ -414,7 +501,11 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
   plan-provenance JSON; pre-v7 rows decode plan=null); law:
   `Project Vision/05` §2, §5
 * `build.gradle.kts` — Android build config (minSdk 34, compile/targetSdk 36, Compose;
-  Room compiler wired via KSP; kotlinx-serialization + coroutines plugins/deps)
+  Room compiler wired via KSP; kotlinx-serialization + coroutines plugins/deps;
+  Phase 9 added `androidx.security:security-crypto` (the 1.1.x line is alpha-only
+  upstream — alpha06 is the newest published artifact; deviation recorded in the phase
+  status file) and the instrumented-gate androidTest stack (ext-junit + runner + core +
+  uiautomator, the `AndroidJUnitRunner` wired)
 
 ## Local Contracts
 
@@ -447,6 +538,14 @@ Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
   `ShadowRouter` replaces the same reference with zero loop changes
 * Auto-deny and the ScriptedGatePresenter are HARNESS-ONLY test modes; the Phase 9
   product UI has no auto modes (phase doc §2.1)
+* Product overlay law (Phase 9): overlay windows are `TYPE_ACCESSIBILITY_OVERLAY` added
+  ONLY from the observation service's WindowManager (product overlays need NO
+  SYSTEM_ALERT_WINDOW grant — the harness dialog permission stays harness-only);
+  the goal input's blur bitmap is in-memory for the input session only (ART-8: zero
+  file/log/network — Gate 9.2 proves it on-device); the listener/carried lines obey the
+  doc 05 §2 render law (labels masked at source through the loop's redaction fold);
+  the 30s constants stay in code (ART-5); the FGS starts from FOREGROUND contexts only
+  and the goal submit rides the in-process channel (no background FGS start)
 * All budget/spend arithmetic is integer micro-dollars in `TaskBudget`/`SpendPrices`
   (ART-5); spend comes from recorded token counts — the provider-reported `usage` of
   each wire call — never a billing API
@@ -656,6 +755,38 @@ tracked as last-known (normalized) and serves on an empty card URL, and garbage
   GUARD_ABORT fail-closed twin), the bait gating with zero executions and the injected
   text riding the untrusted block, the cheapest listing selected ungated with the
   code-side price-ranking seam pinning the $6.25 minimum — all $0 scripted stubs)
+* Phase 9 gates (Overlay UX): JVM-green parts — `LoopUiListenerTest` (the compact
+  line's formatting law: ungated marker "—", class+decision+trust gate markers,
+  two-decimal confidence, the masked label rendering verbatim — masking happens at
+  source), `NavigationLoopListenerTest` (the ADDITIVE listener wired in the REAL loop:
+  step facts AT the LOG step with the logged confidence + gate markers incl.
+  per-task trust, the (true,false) thinking pairs around every engine consult, the
+  plan + terminal state reaching the listener, the echoed card secret NEVER reaching a
+  step line (masked `[credential-redacted]` at source), and the default-null listener
+  byte-identical), `SetupLogicTest` (wizard state: the colon-separated
+  enabled-services parsing, Samsung-only battery branching, presence-only key state,
+  the never-gating model check, the all-required-green summary);
+  `./gradlew :app:assembleDebug :app:assembleDebugAndroidTest` build the debug APK +
+  the instrumented-test APK. Gates 9.1-9.4: the ASSERTION LOGIC lives ONCE in
+  `overlay/GateScenarios.kt` (main source); EVIDENCE = the in-app debug runner driven
+  by adb OUTSIDE instrumentation — `adb shell am broadcast -a
+  navigator.app.action.GATE91..94 -n navigator.app/.overlay.OverlayDebugReceiver` →
+  `logcat -s NavigatorGates` (`GATE9x RESULT: PASS|FAIL <summary>` + per-check lines) —
+  because the instrumented shell is platform-blocked on the API 35 emulator (the a11y
+  service binds under `am instrument` but the in-process handshake never completes;
+  UiAutomation-identity settings writes never rebind; measured 2026-10-09, full trail
+  in `.state/phase-9-status.json` — recorded deviation from the phase doc's
+  "(instrumented)" harness type). The androidTest classes are THIN wrappers around the
+  scenarios (kept compiling for devices where the handshake works). Scenario coverage:
+  9.1 mechanics (show/hide per window incl. blur attempt, dispatchGesture pass-through
+  to the probe activity when hidden, live-log non-interception outside its bounds +
+  tap-toggle, gate/completion card focusable + blocking while counting), 9.2 blur
+  privacy (zero file deltas internal/external/cache, zero uid TX/RX delta), 9.3 card
+  wiring (Approve via a real dispatchGesture tap on the card's own button → exactly one
+  APPROVED → REAL TaskGate EXECUTE; untouched card expires by its REAL 30s countdown
+  ±1.5s → TIMEOUT → SKIP; credential empty-approve → DENIED → SKIP; PLAN display held),
+  9.4 latency (≥20 receipt→rendered events through the real append→pre-draw path,
+  p95 ≤ 1000ms, all samples in the evidence line)
 * Gate 8J (on-device smoke): the `exit-reliability-1` harness goal (stub engine, auto
   keep-going) runs the scripted finish path end-to-end on the emulator — refusals with
   the anti-oscillation window, one completion card answered keep-going, then the

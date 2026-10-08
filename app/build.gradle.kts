@@ -27,6 +27,8 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
+        // Phase 9 instrumented gates (9.1-9.4) run through the AndroidX runner.
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
@@ -81,6 +83,9 @@ dependencies {
 
     implementation(project(":core"))
 
+    // Phase 9: the owner's OpenRouter key storage (encrypted, local-only — ART-8).
+    implementation(libs.security.crypto)
+
     // JVM unit tests (Gates 1.1/1.2 are Robolectric-free: pure Kotlin over fakes)
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.kotlin.test.junit5)
@@ -95,6 +100,15 @@ dependencies {
     testImplementation(libs.androidx.test.junit)
     testImplementation(libs.junit.vintage.engine)
     testImplementation(libs.kotlinx.coroutines.core)
+
+    // Phase 9 instrumented gates (9.1-9.4): overlay mechanics/privacy/wiring/latency,
+    // driven on-device by the orchestrator (androidTest compiles green here; the
+    // connected run is the gate's executor).
+    androidTestImplementation(libs.androidx.test.junit)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.androidx.test.uiautomator)
+    androidTestImplementation(libs.kotlinx.coroutines.core)
 }
 
 tasks.withType<Test>().configureEach {

@@ -35,6 +35,16 @@ onnxruntimeDesktop = "1.20.0"
 composeBom = "2025.12.01"
 activityCompose = "1.13.0"
 
+# Phase 9: the owner's OpenRouter key storage (EncryptedSharedPreferences). The 1.1.x
+# line is alpha-only upstream (there is no stable 1.1.0) — alpha06 is the newest
+# published artifact of the line (deviation noted in the phase status file).
+securityCrypto = "1.1.0-alpha06"
+# Phase 9 instrumented gates (9.1-9.4): AndroidX test runner + ext-junit + uiautomator
+# (UiDevice/UiAutomation for the injected taps and the through-touch assertions).
+androidxTestRunner = "1.6.2"
+androidxTestCore = "1.6.1"
+uiautomator = "2.3.0"
+
 [libraries]
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 
@@ -61,6 +71,12 @@ compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = 
 compose-ui = { group = "androidx.compose.ui", name = "ui" }
 compose-material3 = { group = "androidx.compose.material3", name = "material3" }
 activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
+
+# Phase 9: encrypted key storage + the instrumented-gate test stack
+security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
+androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidxTestRunner" }
+androidx-test-core = { group = "androidx.test", name = "core", version.ref = "androidxTestCore" }
+androidx-test-uiautomator = { group = "androidx.test.uiautomator", name = "uiautomator", version.ref = "uiautomator" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -16,12 +16,26 @@ import android.view.accessibility.AccessibilityNodeInfo
  */
 class NavigatorAccessibilityService : AccessibilityService() {
 
+    /**
+     * The Phase-9 product overlay host (all overlay windows are added from THIS
+     * service's WindowManager — no SYSTEM_ALERT_WINDOW grant). Null when the service is
+     * not connected; torn down (every window removed) in [onDestroy].
+     */
+    @Volatile
+    var overlayManager: navigator.app.overlay.OverlayManager? = null
+        private set
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
+        // Phase 9: no window is added until a surface is shown; teardown in [onDestroy].
+        overlayManager = navigator.app.overlay.OverlayManager(this)
     }
 
     override fun onDestroy() {
+        // No leaked windows: every overlay surface is removed here (phase doc §2.1).
+        overlayManager?.teardown()
+        overlayManager = null
         instance = null
         super.onDestroy()
     }

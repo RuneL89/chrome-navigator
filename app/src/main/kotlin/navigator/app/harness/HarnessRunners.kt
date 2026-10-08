@@ -290,8 +290,13 @@ object HarnessEngineFactory {
         }
     }
 
-    /** The LIVE/LAYA_FB_JEV key resolution + recorded Jev engine (one wire client). */
-    private fun jevSpendRecordedEngine(
+    /**
+     * The LIVE/LAYA_FB_JEV key resolution + recorded Jev engine (one wire client).
+     * Internal (not private) since Phase 9: the product [navigator.app.overlay.NavigatorService]
+     * builds the SAME recorded Jev engine over the Setup-stored key (one wiring, one
+     * redaction law — the key's value never surfaces, only its source).
+     */
+    internal fun jevSpendRecordedEngine(
         deliveredKey: String?,
         env: Map<String, String>,
         keysFile: java.nio.file.Path,
@@ -329,7 +334,7 @@ object HarnessEngineFactory {
         )
     }
 
-    private data class WiredJev(
+    internal data class WiredJev(
         val clientEngine: DecisionEngine,
         val meter: SpendMeter,
         val keySource: HarnessKeySource,

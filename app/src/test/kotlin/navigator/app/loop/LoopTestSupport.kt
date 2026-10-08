@@ -232,6 +232,11 @@ class LoopFixture(
     /** Phase-08G plan-proposal seam (vision 04 §1); defaults to NO plan. */
     val planSource: PlanSource = PlanSource.None,
     /**
+     * The Phase-9 product-UI listener (phase doc §2.1); default null keeps every
+     * existing fixture byte-identical.
+     */
+    val uiListener: LoopUiListener? = null,
+    /**
      * Optional engine decorator (the additive-consult masking pins wrap the stub to
      * capture the question the engine RECEIVED); the identity default leaves every
      * existing fixture byte-identical.
@@ -266,6 +271,7 @@ class LoopFixture(
         browserProbe = browserProbe,
         browserLauncher = browserLauncher,
         planSource = planSource,
+        uiListener = uiListener,
     )
 }
 

@@ -111,6 +111,14 @@ class NavigationLoop(
      * (ART-2: context, never executor) — it rides the log rows and the run report.
      */
     private val planSource: PlanSource = PlanSource.None,
+    /**
+     * The ADDITIVE product-UI listener (Phase 9, phase doc §2.1): the overlay surface's
+     * live facts ([LoopUiListener]). Default null ⇒ every existing path (all JVM tests,
+     * the harness) is byte-identical; a wired listener is fire-and-forget presentation —
+     * it can never steer the loop. Labels ride the redaction fold at source (doc 05 §2 /
+     * doc 06 §2a), so a sanctioned secret echo can never reach the overlay.
+     */
+    private val uiListener: LoopUiListener? = null,
 ) {
 
     /**
@@ -387,6 +395,8 @@ class NavigationLoop(
 
         fun finish(terminal: TerminalState, detail: String, steps: Int): RunResult {
             line("terminal: $terminal - $detail")
+            // Phase 9: the overlay surface learns the one terminal state (fire-and-forget).
+            uiListener?.onTaskState(LoopUiListener.TaskStateUpdate(terminal, detail))
             // doc 06 §2a render law (via doc 05 §2): reports render credential-sourced
             // text as [credential-redacted]. Construction keeps the value out of every
             // line (the masking seams above); this render-boundary pass guarantees it
@@ -554,7 +564,10 @@ class NavigationLoop(
 
         // -- TRIAGE (vision 04 §1: ONE choose over the goal text) ----------------------
         line("triage: asking the engine over the goal text")
-        when (val triage = Triage.interpret(engine.choose(goal, Triage.question()))) {
+        uiListener?.onThinking(true)
+        val triageChoice = engine.choose(goal, Triage.question())
+        uiListener?.onThinking(false)
+        when (val triage = Triage.interpret(triageChoice)) {
             is Triage.Result.Impossible -> {
                 triageLabel = triage.chosenId
                 line("triage: IMPOSSIBLE ('${triage.chosenId}') - explain and abort pre-navigation")
@@ -592,6 +605,9 @@ class NavigationLoop(
                         "plan: proposed v${it.version} with ${it.subgoals.size} subgoal(s) - " +
                             "provenance only, ART-2 (state rendering is Phase 08H)",
                     )
+                    // Phase 9: the overlay surface shows the plan (context transparency,
+                    // ART-2 — provenance, never executor).
+                    uiListener?.onPlan(it.subgoals)
                 }
                 line("guard state: ${guards.describe()}")
             }
@@ -706,7 +722,9 @@ class NavigationLoop(
             if (recoveryArmed) {
                 recoveryArmed = false
                 question = RECOVERY_QUESTION
+                uiListener?.onThinking(true)
                 choice = engine.choose(state.text, question)
+                uiListener?.onThinking(false)
                 escalation = readEscalation(question.name)
                 line("decide: recovery set -> '${choice.chosenId}'" + escalationSuffix(escalation))
             } else {
@@ -714,7 +732,9 @@ class NavigationLoop(
                 // redaction as the state text (doc 05 §2: the value is never stored —
                 // a page-side echo of an injected secret must not reach the row).
                 question = actionQuestion(candidates, redactionKeys())
+                uiListener?.onThinking(true)
                 choice = engine.choose(state.text, question)
+                uiListener?.onThinking(false)
                 escalation = readEscalation(question.name)
                 line("decide: action -> '${choice.chosenId}'" + escalationSuffix(escalation))
             }
@@ -753,6 +773,17 @@ class NavigationLoop(
                             gateEvent = null,
                             outcome = outcome,
                             escalation = escalation,
+                        )
+                        // Phase 9: recovery steps stream to the live log too (recovery
+                        // actions are never gated, so the marker is the ungated "—").
+                        uiListener?.onStep(
+                            LoopUiListener.StepFacts(
+                                stepIndex = stepIndex,
+                                verb = kind.name.lowercase(),
+                                label = recovery.serial(),
+                                confidence = choice.confidence,
+                                gateMarker = LoopUiListener.gateMarker(null),
+                            ),
                         )
                         history.add("step $stepIndex: recovery ${recovery.serial()} -> ${serial(outcome)}")
                         stuck.record(
@@ -827,7 +858,9 @@ class NavigationLoop(
                     obs.title,
                     obs.url,
                 )
+                uiListener?.onThinking(true)
                 val noul = engine.judge(state.text, noulQuestion)
+                uiListener?.onThinking(false)
                 // The noul escalation is captured IMMEDIATELY (the engine's single slot):
                 // the anchored judge is its own decision, separate from the step's choose.
                 val noulEscalation = readEscalation(noulQuestion.name)
@@ -1046,12 +1079,13 @@ class NavigationLoop(
                                 "masked (${TextSource.REDACTED}) before the engine",
                         )
                     }
-                    band(
-                        engine.judge(
-                            state.text,
-                            NoulQuestion(AdditiveEngineCheck.QUESTION_NAME, masked),
-                        ).pTrue,
-                    )
+                    uiListener?.onThinking(true)
+                    val consultPTrue = engine.judge(
+                        state.text,
+                        NoulQuestion(AdditiveEngineCheck.QUESTION_NAME, masked),
+                    ).pTrue
+                    uiListener?.onThinking(false)
+                    band(consultPTrue)
                 }
                 hclass = AdditiveEngineCheck.resolve(codeClass, verdict)
                 gateTrigger = GATE_TRIGGER_ADDITIVE_ENGINE
@@ -1332,6 +1366,19 @@ class NavigationLoop(
                 // supplied via the gate card — the VALUE is never stored (the row
                 // carries the flag, the step log renders [credential-redacted]).
                 typedSecret = proceed && textSource is TextSource.GateSuppliedSecret,
+            )
+            // Phase 9: the live-log line (compact product facts) fires AT the LOG step.
+            // The acted-on label masks through the SAME sanctioned-secret redaction fold
+            // the execute line uses (doc 05 §2 / doc 06 §2a) — masked at source, so a
+            // post-injection page echo can never reach the overlay through a label.
+            uiListener?.onStep(
+                LoopUiListener.StepFacts(
+                    stepIndex = stepIndex,
+                    verb = kind.name.lowercase(),
+                    label = redactedLabel(candidate.label, redactionKeys()),
+                    confidence = choice.confidence,
+                    gateMarker = LoopUiListener.gateMarker(gateEvent),
+                ),
             )
             // The history digest quotes the acted-on label — page text that can carry a
             // sanctioned post-injection echo (the acted-on field's own a11y text IS the
