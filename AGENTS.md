@@ -87,6 +87,7 @@ When the user requests a durable behavior change, record it here or in the relev
 
 ## Child DOX Index
 
+* `BACKLOG_AND_KNOWN_DEFECTS.md` — the durable backlog of known-but-deferred defects, environment limitations, and parked owner-UAT items (KD-1…KD-n), each with evidence, impact, and recovery candidates; pick up from here before re-deriving. Owner-owned triage.
 * `Project Vision/` — canonical vision and specification documents (01–07, ratified 2026-10-03); the source of truth for implementation compliance. See `Project Vision/AGENTS.md`
 * `Implementation Plan/` — phased implementation plan (Phases 0–13 to v1), master index, and agent prompts. See `Implementation Plan/AGENTS.md`
 * `.state/` — phase status files, compliance log, verification reports, eval reports; the project's durable memory. See `.state/AGENTS.md`

@@ -18,6 +18,7 @@
     android:canRetrieveWindowContent="true"
     android:canPerformGestures="true"
     android:canRequestEnhancedWebAccessibility="true"
+    android:isAccessibilityTool="true"
     android:notificationTimeout="100"
     android:packageNames="com.android.chrome,org.chromium.webview_shell"
     android:description="@string/a11y_service_description"
