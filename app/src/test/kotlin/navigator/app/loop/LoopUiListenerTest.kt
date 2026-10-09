@@ -114,4 +114,35 @@ class LoopUiListenerTest {
             ),
         )
     }
+
+    // -- the terminal task-state line (UAT 9.1 close-out: the ⏹ control) --------------
+
+    @Test
+    fun `the owner-cancel terminal renders the by-owner line`() {
+        assertEquals(
+            "task CANCELLED — by owner",
+            LoopUiListener.taskStateLine(
+                LoopUiListener.TaskStateUpdate(
+                    TerminalState.USER_CANCEL,
+                    "cancelled before step 3",
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun `every other terminal renders the loop's own terminal and detail`() {
+        assertEquals(
+            "task GOAL_ACHIEVED — anchored HIGH",
+            LoopUiListener.taskStateLine(
+                LoopUiListener.TaskStateUpdate(TerminalState.GOAL_ACHIEVED, "anchored HIGH"),
+            ),
+        )
+        assertEquals(
+            "task BUDGET_EXHAUSTED — steps: 40",
+            LoopUiListener.taskStateLine(
+                LoopUiListener.TaskStateUpdate(TerminalState.BUDGET_EXHAUSTED, "steps: 40"),
+            ),
+        )
+    }
 }

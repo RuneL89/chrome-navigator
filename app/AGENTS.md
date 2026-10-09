@@ -87,7 +87,16 @@ setup wizard (`setup/`).
     rides the nav bar's bottom inset, TOP-right the status bar's top — the owner
     screenshot had the log over the gesture-nav area), re-read per anchor application
     from the manager's `systemBarInsets()` (maximum window metrics, no focus needed);
-    offset arithmetic pure in [LiveLogAnchor.yOffsetPx]),
+    offset arithmetic pure in [LiveLogAnchor.yOffsetPx]; the UAT close-out header
+    controls: a compact header row with ✕ (closes the VIEWER only — a run CONTINUES;
+    the log is re-summoned by the next goal submit/run start's showLiveLog) and ⏹
+    (cancels the ACTIVE run, visible ONLY while one runs via `setTaskRunning` — the
+    tap rides `OverlayManager.onStopTask` into the service's `TaskCancelFlag`;
+    stopping with no task is structurally impossible — the button is GONE; the log
+    STAYS up through a cancel showing the task-state line); both controls live in
+    every state (collapsed + expanded), are clickable children (in-window touches
+    already reach the NOT_TOUCH_MODAL window — no focusability change), and ride
+    every anchor move),
     `LiveLogAnchor` (the PURE anchor decision beside it — edges
     BOTTOM_RIGHT↔TOP_RIGHT, null on non-edges; `SystemBars` + `yOffsetPx` the pure
     bar-clearance offsets; JVM-pinned, no Android types),
@@ -107,8 +116,13 @@ setup wizard (`setup/`).
     (onThinking→spinner, onPlan→PLAN display, onStep→measured live-log line,
     onTaskState→log line + notification); the goal submit hands over via the
     IN-PROCESS channel (no background FGS start ever — foreground starts only, from
-    the wizard / the notification action); DEBUG-ONLY stub override for the Gate 9.3
-    $0 emulator flow), `GateScenarios.kt` (MAIN source — the four gates' assertion
+    the wizard / the notification action); UAT close-out: every run wires the ⏹
+    control — `manager.onStopTask` → the service's `TaskCancelFlag`, `beginTask` at
+    every task start, `isCancelled = flag::isCancelled` into the loop's seam,
+    `setTaskRunning(true/false)` around the run (finally), the task-state line
+    rendered through `LoopUiListener.taskStateLine`; DEBUG-ONLY stub override for the Gate 9.3
+    $0 emulator flow (its run is wrapped loud-but-polite — a stub mismatch fails the
+    RUN, never the PROCESS the a11y service lives in)), `GateScenarios.kt` (MAIN source — the four gates' assertion
     bodies written ONCE, debug-gated at the caller; returns
     `Result {gate, checks}` (per-check name/pass/detail + measured numbers); the
     EVIDENCE path is the in-app debug runner driven by adb OUTSIDE instrumentation,
@@ -376,8 +390,15 @@ setup wizard (`setup/`).
     a post-injection echo can never reach the overlay — the primary's logged
     confidence, the gate marker "—" / class+decision+trust from `gateMarker`),
     `onTaskState` at the single `finish()` funnel; `compactLine` renders the phase
-    doc's live-log shape; the listener is fire-and-forget and can never steer the loop,
-    ART-2); Phase 8 added `ShadowRouter` (vision 02 §4):
+    doc's live-log shape, `taskStateLine` the terminal line (UAT close-out: USER_CANCEL
+    renders "task CANCELLED — by owner", every other terminal the loop's own
+    "task <TERMINAL> — <detail>"); the listener is fire-and-forget and can never steer the loop,
+    ART-2); Phase 9 close-out added `TaskCancelFlag` (own file — the ⏹ control's atomic
+    cancellation flag the NavigatorService hands to the loop's `isCancelled` seam:
+    `beginTask` RESETS at every task start so a stale cancel never kills the next task,
+    `cancelActive` is idempotent, the loop polls at each step boundary and exits
+    USER_CANCEL — the lawful owner exit, vision 04 §3; the flag only ever STOPS the
+    loop, ART-4 intact; JVM-pinned); Phase 8 added `ShadowRouter` (vision 02 §4):
     implements `DecisionEngine`, returns the PRIMARY's answer synchronously, fires the
     shadow async on a single-thread `laya-shadow` dispatcher, every-Nth sampling with
     the thermal/battery every-3rd toggle (`SamplingPolicy`), and a `sink()` decorator
@@ -817,7 +838,10 @@ tracked as last-known (normalized) and serves on an empty card URL, and garbage
   edges: IME up → TOP-right, IME gone → bottom-right, non-edges null — the
   hysteresis that keeps idle polls layout-silent; the UAT W2 bar-clearance offsets:
   bottom rides the nav-bar inset, top the status-bar inset, zero insets degrade to
-  the bare margin));
+  the bare margin)), `TaskCancelFlagTest` (the ⏹ flag law: a stale cancel never
+  kills the next task — beginTask resets; cancelActive idempotent), `LoopUiListenerTest`
+  (+ the terminal task-state line: USER_CANCEL renders "task CANCELLED — by owner",
+  other terminals the loop's own detail));
   `./gradlew :app:assembleDebug :app:assembleDebugAndroidTest` build the debug APK +
   the instrumented-test APK. Gates 9.1-9.4: the ASSERTION LOGIC lives ONCE in
   `overlay/GateScenarios.kt` (main source); EVIDENCE = the in-app debug runner driven

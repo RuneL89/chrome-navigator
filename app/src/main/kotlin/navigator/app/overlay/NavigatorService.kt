@@ -30,6 +30,7 @@ import navigator.app.loop.GestureExecutor
 import navigator.app.loop.LoopUiListener
 import navigator.app.loop.NavigationLoop
 import navigator.app.loop.SpendMeter
+import navigator.app.loop.TaskCancelFlag
 import navigator.app.observe.CaptureMode
 import navigator.app.observe.NavigatorAccessibilityService
 import navigator.app.setup.OpenRouterKeyStore
@@ -64,6 +65,13 @@ class NavigatorService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val goals = Channel<String>(capacity = 8)
     private var pumpStarted = false
+
+    /**
+     * The ⏹ control's cancellation flag (UAT 9.1 close-out): consumed by the loop's
+     * `isCancelled` seam — USER_CANCEL at the next step boundary; reset at every task
+     * start (a stale cancel never kills the next task).
+     */
+    private val taskCancelFlag = TaskCancelFlag()
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -161,58 +169,77 @@ class NavigatorService : Service() {
         )
         notifyState(NOTIFICATION_WORKING, "Navigator working")
         manager.showLiveLog()
-
-        // The engine triple (ART-2: the loop cannot tell stub from live).
-        val engine: navigator.core.decision.DecisionEngine
-        val identity: EngineIdentity
-        val meter: navigator.app.loop.SpendMeter
-        if (stubGoal != null) {
-            // DEBUG-ONLY (the caller checked debuggable): the $0 scripted engine.
-            engine = navigator.app.stub.StubEngine(stubGoal.stubScript())
-            identity = EngineIdentity(
-                HarnessEngineFactory.STUB_CONFIG_ID,
-                HarnessEngineFactory.STUB_MODEL,
-            )
-            meter = navigator.app.loop.SpendMeter()
-        } else {
-            val key = OpenRouterKeyStore.load(this)
-            if (key.isNullOrBlank()) {
-                // The polite refusal (phase doc §2.3): never a silent no-op.
-                Log.e(TAG, "product run refused: no OpenRouter key saved - open setup")
-                manager.appendLogLine("no OpenRouter key saved — open the app (setup) to add it")
-                notifyState(NOTIFICATION_READY, "Navigator ready — no key (open setup)")
-                return
+        // UAT 9.1 close-out: the ⏹ control's wiring. The flag resets HERE (a stale
+        // cancel from before this task never kills it — TaskCancelFlag's law), the
+        // stop callback rides the manager into the log's header control, and the loop
+        // consumes the flag through its isCancelled seam (USER_CANCEL at the next
+        // step boundary — the lawful owner exit, vision 04 §3; the flag only ever
+        // STOPS the loop, it never decides or acts).
+        manager.onStopTask = { taskCancelFlag.cancelActive() }
+        taskCancelFlag.beginTask()
+        manager.setTaskRunning(true)
+        try {
+            // The engine triple (ART-2: the loop cannot tell stub from live).
+            val engine: navigator.core.decision.DecisionEngine
+            val identity: EngineIdentity
+            val meter: navigator.app.loop.SpendMeter
+            if (stubGoal != null) {
+                // DEBUG-ONLY (the caller checked debuggable): the $0 scripted engine.
+                engine = navigator.app.stub.StubEngine(stubGoal.stubScript())
+                identity = EngineIdentity(
+                    HarnessEngineFactory.STUB_CONFIG_ID,
+                    HarnessEngineFactory.STUB_MODEL,
+                )
+                meter = navigator.app.loop.SpendMeter()
+            } else {
+                val key = OpenRouterKeyStore.load(this)
+                if (key.isNullOrBlank()) {
+                    // The polite refusal (phase doc §2.3): never a silent no-op.
+                    Log.e(TAG, "product run refused: no OpenRouter key saved - open setup")
+                    manager.appendLogLine("no OpenRouter key saved — open the app (setup) to add it")
+                    notifyState(NOTIFICATION_READY, "Navigator ready — no key (open setup)")
+                    return
+                }
+                // The SAME recorded Jev primary the harness builds (one wiring, one
+                // redaction law — the key's value never surfaces, only its source).
+                val wiredJev = HarnessEngineFactory.jevSpendRecordedEngine(
+                    deliveredKey = key,
+                    env = emptyMap(),
+                    keysFile = DefaultEngineConfigs.DEFAULT_KEYS_FILE,
+                    transport = navigator.core.wire.OkHttpWireTransport(),
+                )
+                engine = wiredJev.clientEngine
+                meter = wiredJev.meter
+                identity = EngineIdentity(
+                    HarnessEngineFactory.LIVE_CONFIG_ID,
+                    DefaultEngineConfigs.OPENROUTER_MODEL,
+                )
             }
-            // The SAME recorded Jev primary the harness builds (one wiring, one
-            // redaction law — the key's value never surfaces, only its source).
-            val wiredJev = HarnessEngineFactory.jevSpendRecordedEngine(
-                deliveredKey = key,
-                env = emptyMap(),
-                keysFile = DefaultEngineConfigs.DEFAULT_KEYS_FILE,
-                transport = navigator.core.wire.OkHttpWireTransport(),
-            )
-            engine = wiredJev.clientEngine
-            meter = wiredJev.meter
-            identity = EngineIdentity(
-                HarnessEngineFactory.LIVE_CONFIG_ID,
-                DefaultEngineConfigs.OPENROUTER_MODEL,
-            )
-        }
 
-        val loop = NavigationLoop(
-            engine = engine,
-            observer = HarnessObserver(a11y),
-            executor = GestureExecutor(a11y),
-            // PRODUCT presenters: the overlay cards, no auto modes (phase doc §2.1).
-            gatePresenter = OverlayGatePresenter(a11y),
-            completionCardPresenter = OverlayCompletionCardPresenter(a11y),
-            logSink = RoomDecisionLogSink(this),
-            spendMeter = meter,
-            uiListener = OverlayUiListener(manager) { notifyState(NOTIFICATION_READY, "Navigator ready") },
-            browserProbe = BrowserProbe { HarnessObserver.browserState(a11y, this) },
-            browserLauncher = BrowserLauncher { url -> openBrowser(url) },
-        )
-        loop.run(goal = goalText, goalId = stubGoal?.id, engineIdentity = identity)
+            val loop = NavigationLoop(
+                engine = engine,
+                observer = HarnessObserver(a11y),
+                executor = GestureExecutor(a11y),
+                // PRODUCT presenters: the overlay cards, no auto modes (phase doc §2.1).
+                gatePresenter = OverlayGatePresenter(a11y),
+                completionCardPresenter = OverlayCompletionCardPresenter(a11y),
+                logSink = RoomDecisionLogSink(this),
+                spendMeter = meter,
+                uiListener = OverlayUiListener(manager) { notifyState(NOTIFICATION_READY, "Navigator ready") },
+                browserProbe = BrowserProbe { HarnessObserver.browserState(a11y, this) },
+                browserLauncher = BrowserLauncher { url -> openBrowser(url) },
+            )
+            loop.run(
+                goal = goalText,
+                goalId = stubGoal?.id,
+                engineIdentity = identity,
+                isCancelled = taskCancelFlag::isCancelled,
+            )
+        } finally {
+            // The terminal (whichever it is, including the owner's USER_CANCEL) hides
+            // the ⏹ control; the log itself STAYS up showing the task-state line.
+            manager.setTaskRunning(false)
+        }
     }
 
     /** DEBUG-ONLY: the Gate 9.3 $0 emulator flow — a product run over a catalog goal. */
@@ -235,6 +262,16 @@ class NavigatorService : Service() {
             val server = HarnessPagesServer(this@NavigatorService).also { it.start() }
             try {
                 runProductTask(goal.goal, stubGoal = goal)
+            } catch (t: Throwable) {
+                // The DEBUG path mirrors the pump's loud-but-polite catch: a stub
+                // mismatch (the fixture page not in front — an environment race) must
+                // fail the RUN, never kill the PROCESS (the a11y service and the
+                // overlay host live here too).
+                Log.e(TAG, "product run FAILED loudly: ${t::class.simpleName}: ${t.message}")
+                NavigatorAccessibilityService.instance?.overlayManager?.appendLogLine(
+                    "run failed: ${t::class.simpleName} — open the harness logcat for detail",
+                )
+                notifyState(NOTIFICATION_READY, "Navigator ready (last run failed)")
             } finally {
                 server.stop()
             }
@@ -328,7 +365,7 @@ class NavigatorService : Service() {
         }
 
         override fun onTaskState(state: LoopUiListener.TaskStateUpdate) {
-            manager.setTaskStateLine("task ${state.terminal.name} — ${state.detail}")
+            manager.setTaskStateLine(LoopUiListener.taskStateLine(state))
             onTerminal(state)
         }
     }

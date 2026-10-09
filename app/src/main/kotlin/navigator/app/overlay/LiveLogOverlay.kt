@@ -9,6 +9,7 @@ import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -51,7 +52,21 @@ import navigator.app.observe.NavigatorAccessibilityService
  *    bar's bottom inset, TOP-right the status bar's top inset (the owner screenshot:
  *    with no IME up the log sat over the gesture-nav area). The insets are re-read on
  *    every anchor application (rotation/fold) from the service's maximum window
- *    metrics; the offset arithmetic is pure ([LiveLogAnchor.yOffsetPx]).
+ *    metrics; the offset arithmetic is pure ([LiveLogAnchor.yOffsetPx]);
+ *  - UAT 9.1 CLOSE-OUT — the on-window controls (a header row, both collapsed and
+ *    expanded states): the ✕ CLOSES THE VIEWER ONLY — a run, if any, CONTINUES (the
+ *    compact lines are presentation; ART-2), and the log is re-summoned by the next
+ *    goal submit / run start (NavigatorService's showLiveLog at every task start);
+ *    the ⏹ cancels the ACTIVE run and is visible ONLY while one runs
+ *    ([setTaskRunning], driven by NavigatorService around every run) — it rides the
+ *    manager's [OverlayManager.onStopTask] callback into the service's cancellation
+ *    flag, the loop's `isCancelled` seam exits the task USER_CANCEL at the next step
+ *    boundary (vision 04 §3's lawful owner exit; ART-4 intact — the flag only ever
+ *    STOPS the loop), the task-state line reads "task CANCELLED — by owner", the
+ *    notification returns to ready, and the log STAYS visible (the owner just acted
+ *    on it — the viewer is not yanked away). The controls are clickable children of
+ *    the window: in-window touches already reach it (the expand/collapse tap proves
+ *    it), so no focusability change was needed, and they ride every anchor move.
  *
  * Presentation only: nothing here decides, executes, or logs page data — the compact
  * lines arrive already masked at source (doc 05 §2 / doc 06 §2a).
@@ -61,6 +76,13 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
     private var view: LinearLayout? = null
     private var linesView: TextView? = null
     private var thinkingView: TextView? = null
+
+    /** The ⏹ control (present only while a task runs — see [setTaskRunning]). */
+    private var stopButton: TextView? = null
+
+    /** Whether a task is running (the ⏹ control's state; see [setTaskRunning]). */
+    @Volatile
+    private var taskRunning: Boolean = false
 
     /** The live window params (retained so the IME-watch can move the window). */
     private var windowParams: WindowManager.LayoutParams? = null
@@ -121,6 +143,44 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
                 // Toggles expanded/collapsed (inside-bounds touches belong to the log).
                 setOnClickListener { toggleExpanded() }
             }
+            // UAT 9.1 close-out: the header row with the on-window controls. The ✕ is
+            // the viewer-only close (the run CONTINUES; recall = the next goal
+            // submit/run start, which calls showLiveLog again); the ⏹ cancels the
+            // ACTIVE run and exists ONLY while a task is running. Both stay visible in
+            // collapsed AND expanded states, ride every anchor move (they are views of
+            // this window), and are clickable children — taps on them never toggle.
+            val header = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.END or Gravity.CENTER_VERTICAL
+            }
+            val stop = controlButton(context, "⏹ stop").apply {
+                visibility = if (taskRunning) View.VISIBLE else View.GONE
+                setOnClickListener { manager.onStopTask?.invoke() }
+            }
+            val close = controlButton(context, "✕").apply {
+                setOnClickListener { manager.hideLiveLog() }
+            }
+            header.addView(
+                stop,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                ).apply { marginEnd = dp(6) },
+            )
+            header.addView(
+                close,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                ),
+            )
+            container.addView(
+                header,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                ),
+            )
             val thinking = TextView(context).apply {
                 text = THINKING_LINE
                 setTextColor(Color.rgb(255, 214, 92))
@@ -160,6 +220,7 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
             view = container
             windowParams = params
             anchoredTop = false
+            stopButton = stop
             linesView = linesText
             thinkingView = thinking
             renderLines()
@@ -167,15 +228,47 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
         }
     }
 
+    /**
+     * The ⏹ control's state (UAT 9.1 close-out): visible ONLY while a task runs — the
+     * NavigatorService sets it around every run (and resets it in its finally), so
+     * stopping with no task running is structurally impossible (the button is gone).
+     */
+    fun setTaskRunning(active: Boolean) {
+        taskRunning = active
+        manager.postOnMainThread {
+            stopButton?.visibility = if (active) View.VISIBLE else View.GONE
+        }
+    }
+
+    /** One compact header control (viewer-styled; clickable child of the log window). */
+    private fun controlButton(context: android.content.Context, label: String): TextView =
+        TextView(context).apply {
+            text = label
+            setTextColor(Color.rgb(232, 232, 232))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+            typeface = Typeface.MONOSPACE
+            setPadding(dp(8), dp(2), dp(8), dp(2))
+            background = GradientDrawable().apply {
+                setColor(Color.argb(220, 58, 58, 66))
+                cornerRadius = dp(6f)
+            }
+            isClickable = true
+            isFocusable = false
+        }
+
     fun hide() {
         if (!visible) return
         visible = false
         stopImeWatch()
+        // The viewer closed (✕ or programmatic): the running-indication resets with it.
+        // A run, if any, CONTINUES (✕ is viewer-only); the next run re-sets the state.
+        taskRunning = false
         manager.postOnMainThread {
             view?.let { manager.removeViewFromWindow(it) }
             view = null
             linesView = null
             thinkingView = null
+            stopButton = null
             windowParams = null
         }
     }
@@ -229,12 +322,14 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
     fun teardown() {
         visible = false
         thinkingActive = false
+        taskRunning = false
         stopImeWatch()
         manager.postOnMainThread {
             view?.let { manager.removeViewFromWindow(it) }
             view = null
             linesView = null
             thinkingView = null
+            stopButton = null
             windowParams = null
         }
         lines.clear()

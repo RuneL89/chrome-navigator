@@ -206,6 +206,17 @@ class OverlayManager(private val service: AccessibilityService) {
 
     fun hideLiveLog() = liveLog.hide()
 
+    /**
+     * The ⏹ wiring (UAT 9.1 close-out): set by NavigatorService — a tap on the log's
+     * stop control lands here and cancels the ACTIVE run through the service's
+     * cancellation flag (the loop's `isCancelled` seam; USER_CANCEL at the next step
+     * boundary). Null = no service wired → the tap is a no-op.
+     */
+    var onStopTask: (() -> Unit)? = null
+
+    /** The ⏹ control's visibility state (only while a task runs — see LiveLogOverlay). */
+    fun setTaskRunning(active: Boolean) = liveLog.setTaskRunning(active)
+
     /** Streams one (already masked) compact line to the corner log. */
     fun appendLogLine(line: String) = liveLog.append(line)
 

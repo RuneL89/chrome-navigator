@@ -105,5 +105,18 @@ interface LoopUiListener {
             return "#${facts.stepIndex} ${facts.verb} '${facts.label}' · $confidence · " +
                 "gate: ${facts.gateMarker}"
         }
+
+        /**
+         * The terminal task-state line (the log's last line). USER_CANCEL renders the
+         * owner-directive text "task CANCELLED — by owner" (the ⏹ control cancelled the
+         * run — vision 04 §3's lawful owner exit); every other terminal renders the
+         * loop's own "task <TERMINAL> — <detail>". Pure so the format is JVM-pinnable.
+         */
+        fun taskStateLine(state: TaskStateUpdate): String =
+            if (state.terminal == TerminalState.USER_CANCEL) {
+                "task CANCELLED — by owner"
+            } else {
+                "task ${state.terminal.name} — ${state.detail}"
+            }
     }
 }
