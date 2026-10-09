@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The setup wizard's warm-dark canvas (matches NavigatorColors.Canvas in
+         SetupActivity.kt). -->
+    <color name="setup_window_background">#FF14110D</color>
+</resources>

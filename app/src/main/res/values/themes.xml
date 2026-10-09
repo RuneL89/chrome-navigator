@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!-- The setup wizard runs DARK-FIRST (owner UI direction 2026-10-09): the app-default
+     platform theme is LIGHT, so the wizard carries its own dark theme — dark window +
+     system bars with light icons, no light flash at launch. Scoped to .SetupActivity
+     only (the harness keeps the app-default theme). The canvas color matches the
+     Compose NavigatorColors.Canvas in SetupActivity.kt. -->
+<resources>
+    <style name="Theme.Navigator.Setup" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:colorBackground">@color/setup_window_background</item>
+        <item name="android:windowBackground">@color/setup_window_background</item>
+        <item name="android:statusBarColor">@color/setup_window_background</item>
+        <item name="android:navigationBarColor">@color/setup_window_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+</resources>

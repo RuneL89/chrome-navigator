@@ -267,7 +267,7 @@ class OverlayManager(private val service: AccessibilityService) {
     // -- task-state line ------------------------------------------------------------------
 
     /** One terminal task-state line in the corner log (the run is over). */
-    fun setTaskStateLine(text: String) = liveLog.append("▶ $text")
+    fun setTaskStateLine(text: String) = liveLog.append(LiveLogOverlay.TERMINAL_PREFIX + text)
 
     // -- teardown + test surface ----------------------------------------------------------
 

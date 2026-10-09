@@ -5,6 +5,9 @@ import android.graphics.PixelFormat
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.SystemClock
+import android.text.SpannableStringBuilder
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
 import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
@@ -15,6 +18,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.view.OneShotPreDrawListener
 import java.util.concurrent.ConcurrentLinkedQueue
+import navigator.app.loop.LoopUiListener
 import navigator.app.observe.NavigatorAccessibilityService
 
 /**
@@ -70,6 +74,12 @@ import navigator.app.observe.NavigatorAccessibilityService
  *
  * Presentation only: nothing here decides, executes, or logs page data — the compact
  * lines arrive already masked at source (doc 05 §2 / doc 06 §2a).
+ *
+ * Presentation styling (owner design pass 2026-10-09, ai-ui-design-skills interview:
+ * warm brand-forward, dark compact): warm-dark panel + the runtime amber as the brand
+ * accent, with per-segment color spans in [renderLines] — the TEXT of every line stays
+ * byte-identical (the compact-line formatting law lives in [LoopUiListener] and is
+ * never touched here; only presentation color is added).
  */
 internal class LiveLogOverlay(private val manager: OverlayManager) {
 
@@ -138,7 +148,7 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
             val context = manager.serviceContext()
             val container = LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
-                setPadding(dp(8), dp(4), dp(8), dp(6))
+                setPadding(dp(10), dp(8), dp(10), dp(10))
                 background = roundedBackground()
                 // Toggles expanded/collapsed (inside-bounds touches belong to the log).
                 setOnClickListener { toggleExpanded() }
@@ -149,17 +159,37 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
             // ACTIVE run and exists ONLY while a task is running. Both stay visible in
             // collapsed AND expanded states, ride every anchor move (they are views of
             // this window), and are clickable children — taps on them never toggle.
+            // The brand overline title sits at the start (2026-10-09 design pass);
+            // the weight spacer between it and the controls is not clickable, so a
+            // tap there still toggles through the container's click listener.
             val header = LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.END or Gravity.CENTER_VERTICAL
+                gravity = Gravity.CENTER_VERTICAL
             }
-            val stop = controlButton(context, "⏹ stop").apply {
+            val title = TextView(context).apply {
+                text = HEADER_TITLE
+                setTextColor(COLOR_ACCENT)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
+                typeface = Typeface.MONOSPACE
+                letterSpacing = 0.14f
+            }
+            val stop = controlButton(context, "⏹ stop", danger = true).apply {
                 visibility = if (taskRunning) View.VISIBLE else View.GONE
                 setOnClickListener { manager.onStopTask?.invoke() }
             }
-            val close = controlButton(context, "✕").apply {
-                setOnClickListener { manager.hideLiveLog() }
-            }
+            val close = controlButton(context, "✕")
+            close.setOnClickListener { manager.hideLiveLog() }
+            header.addView(
+                title,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                ),
+            )
+            header.addView(
+                View(context),
+                LinearLayout.LayoutParams(0, 1, 1f),
+            )
             header.addView(
                 stop,
                 LinearLayout.LayoutParams(
@@ -183,16 +213,21 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
             )
             val thinking = TextView(context).apply {
                 text = THINKING_LINE
-                setTextColor(Color.rgb(255, 214, 92))
+                setTextColor(COLOR_ACCENT)
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
                 typeface = Typeface.MONOSPACE
                 visibility = View.GONE
             }
             val linesText = TextView(context).apply {
-                setTextColor(Color.rgb(232, 232, 232))
+                setTextColor(COLOR_LINE)
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
                 typeface = Typeface.MONOSPACE
-                maxLines = COLLAPSED_LINES
+                setLineSpacing(dp(2).toFloat(), 1f)
+                // The collapsed/expanded "N lines" law is applied by SLICING the kept
+                // lines in renderLines (latest N always visible — TextView maxLines
+                // clips from the TOP, which would hide the newest lines under any
+                // wrapping); this cap is only a sanity guard.
+                maxLines = MAX_KEPT_LINES
             }
             container.addView(thinking)
             container.addView(linesText)
@@ -240,17 +275,22 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
         }
     }
 
-    /** One compact header control (viewer-styled; clickable child of the log window). */
-    private fun controlButton(context: android.content.Context, label: String): TextView =
+    /**
+     * One compact header control (viewer-styled pill; clickable child of the log
+     * window). The ⏹ [danger] variant gets the red-tinted pill — semantic color for
+     * the one destructive action, everything else stays neutral.
+     */
+    private fun controlButton(context: android.content.Context, label: String, danger: Boolean = false): TextView =
         TextView(context).apply {
             text = label
-            setTextColor(Color.rgb(232, 232, 232))
+            setTextColor(if (danger) COLOR_STOP_TEXT else COLOR_CONTROL_TEXT)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
             typeface = Typeface.MONOSPACE
-            setPadding(dp(8), dp(2), dp(8), dp(2))
+            setPadding(dp(10), dp(4), dp(10), dp(4))
             background = GradientDrawable().apply {
-                setColor(Color.argb(220, 58, 58, 66))
-                cornerRadius = dp(6f)
+                setColor(if (danger) COLOR_STOP_BG else COLOR_CONTROL_BG)
+                cornerRadius = dp(13f)
+                setStroke(dp(1), COLOR_PILL_STROKE)
             }
             isClickable = true
             isFocusable = false
@@ -315,7 +355,7 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
     fun toggleExpanded() {
         expanded = !expanded
         manager.postOnMainThread {
-            linesView?.maxLines = if (expanded) EXPANDED_LINES else COLLAPSED_LINES
+            renderLines()
         }
     }
 
@@ -377,13 +417,89 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
     }
 
     private fun renderLines() {
-        linesView?.text = lines.joinToString("\n")
+        linesView?.text = styledLines()
+    }
+
+    /**
+     * The rendered slice: the LATEST 6 logical lines collapsed / latest 14 expanded
+     * (the phase doc's collapsed/expanded law — applied here by slicing, never by
+     * TextView maxLines, which would clip the newest lines from the top under
+     * wrapping).
+     */
+    private fun renderedSlice(): List<String> =
+        if (expanded) lines.takeLast(EXPANDED_LINES) else lines.takeLast(COLLAPSED_LINES)
+
+    /**
+     * The kept lines' latest slice as one CharSequence — the text is byte-identical
+     * to the plain newline join (the formatting law lives in [LoopUiListener]); this
+     * only ADDS per-segment presentation color: the step number in the brand amber,
+     * and a gated step's gate marker in its outcome color (denied = danger,
+     * approved = success, other = amber). Ungated steps ("gate: —") and terminal
+     * lines keep the coloring described in [applyLineColors].
+     */
+    private fun styledLines(): CharSequence {
+        val builder = SpannableStringBuilder()
+        renderedSlice().forEachIndexed { index, line ->
+            if (index > 0) builder.append("\n")
+            val start = builder.length
+            builder.append(line)
+            applyLineColors(builder, start, line)
+        }
+        return builder
+    }
+
+    /** Adds one line's presentation color spans (never changes the text). */
+    private fun applyLineColors(builder: SpannableStringBuilder, start: Int, line: String) {
+        when {
+            line.startsWith(TERMINAL_PREFIX) -> {
+                val color = when {
+                    line.contains("GOAL_ACHIEVED") -> COLOR_SUCCESS
+                    line.contains("CANCELLED") -> COLOR_DANGER
+                    else -> COLOR_ACCENT
+                }
+                builder.setSpan(
+                    ForegroundColorSpan(color),
+                    start,
+                    start + line.length,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+                )
+            }
+            line.startsWith("#") -> {
+                val stepEnd = line.indexOf(' ')
+                if (stepEnd > 0) {
+                    builder.setSpan(
+                        ForegroundColorSpan(COLOR_ACCENT),
+                        start,
+                        start + stepEnd,
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+                    )
+                }
+                val gateIdx = line.lastIndexOf(GATE_PREFIX)
+                if (gateIdx >= 0) {
+                    val marker = line.substring(gateIdx + GATE_PREFIX.length)
+                    if (marker != LoopUiListener.UNGATED_MARKER) {
+                        val color = when {
+                            marker.contains("denied") -> COLOR_DANGER
+                            marker.contains("approved") -> COLOR_SUCCESS
+                            else -> COLOR_ACCENT
+                        }
+                        builder.setSpan(
+                            ForegroundColorSpan(color),
+                            start + gateIdx,
+                            start + line.length,
+                            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+                        )
+                    }
+                }
+            }
+        }
     }
 
     private fun roundedBackground(): GradientDrawable =
         GradientDrawable().apply {
-            setColor(Color.argb(200, 16, 16, 20))
-            cornerRadius = dp(8f)
+            setColor(COLOR_PANEL_BG)
+            cornerRadius = dp(12f)
+            setStroke(dp(1), COLOR_PANEL_STROKE)
         }
 
     private fun dp(value: Int): Int = manager.dp(value)
@@ -399,6 +515,34 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
         const val EXPANDED_LINES = 14
         private const val MAX_KEPT_LINES = 40
         const val THINKING_LINE = "… deciding"
+
+        /**
+         * The terminal task-state line's prefix (OverlayManager.setTaskStateLine
+         * prepends it; the colored-span rendering keys on it).
+         */
+        const val TERMINAL_PREFIX = "▶ "
+
+        /** The compact line's gate-marker segment prefix (presentation parse only). */
+        private const val GATE_PREFIX = "gate: "
+
+        /** The header's brand overline (2026-10-09 design pass). */
+        private const val HEADER_TITLE = "NAVIGATOR"
+
+        /**
+         * The warm-dark presentation tokens (2026-10-09 design pass; warm-tinted
+         * neutrals, the amber brand accent, semantic green/red for outcomes only).
+         */
+        private val COLOR_PANEL_BG = Color.argb(234, 20, 16, 12)
+        private val COLOR_PANEL_STROKE = Color.argb(255, 58, 47, 34)
+        private val COLOR_ACCENT = Color.rgb(242, 184, 75)
+        private val COLOR_SUCCESS = Color.rgb(76, 195, 138)
+        private val COLOR_DANGER = Color.rgb(240, 113, 108)
+        private val COLOR_LINE = Color.rgb(233, 226, 214)
+        private val COLOR_CONTROL_BG = Color.argb(235, 46, 38, 28)
+        private val COLOR_CONTROL_TEXT = Color.rgb(207, 198, 184)
+        private val COLOR_STOP_BG = Color.argb(235, 62, 26, 24)
+        private val COLOR_STOP_TEXT = Color.rgb(245, 158, 148)
+        private val COLOR_PILL_STROKE = Color.argb(200, 74, 62, 44)
 
         /** The normal screen-edge margin (dp) for the bottom-right anchor. */
         private const val SCREEN_MARGIN_DP = 8

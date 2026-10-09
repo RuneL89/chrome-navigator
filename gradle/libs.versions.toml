@@ -70,6 +70,9 @@ junit-vintage-engine = { group = "org.junit.vintage", name = "junit-vintage-engi
 compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
 compose-ui = { group = "androidx.compose.ui", name = "ui" }
 compose-material3 = { group = "androidx.compose.material3", name = "material3" }
+# The core icon set (Check/Warning/Info/Lock) — newer material3 BOMs stopped shipping
+# it transitively; the setup wizard's status chips consume it.
+compose-icons-core = { group = "androidx.compose.material", name = "material-icons-core" }
 activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 
 # Phase 9: encrypted key storage + the instrumented-gate test stack

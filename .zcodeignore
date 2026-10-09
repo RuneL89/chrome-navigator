@@ -1,0 +1,64 @@
+# Gradle
+.gradle/
+build/
+
+# Wrapper bootstrap: the one-time Gradle dist used to generate the wrapper
+# (the wrapper jar itself under gradle/wrapper/ IS committed).
+# Also carries the EVAL-ONLY laya storage (.tools/laya-v32b/ — the demoted v32b
+# checkpoint + tokenizer, NOT packaged into the APK; see PROVENANCE.txt)
+.tools/
+
+# Local config
+local.properties
+.env
+keys.env
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Android
+captures/
+.cxx/
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Phase 8: the ~0.5GB laya shadow model lives OUT of git (tools/fetch_laya.py rebuilds it;
+# app/src/main/assets/laya/PROVENANCE.txt pins its sha256)
+app/src/main/assets-local/
+
+# ===== ↑ 以上同步自 .gitignore（「从 .gitignore 同步」只重写以上部分）=====
+.git/
+.hg/
+.svn/
+node_modules/
+bower_components/
+jspm_packages/
+__pycache__/
+site-packages/
+venv/
+coverage/
+htmlcov/
+lcov-report/
+cmakefiles/
+cmake-build-*/
+bazel-*/
+pods/
+deriveddata/
+storybook-static/
+playwright-report/
+test-results/
+allure-results/
+allure-report/
+cdk.out/
+*.egg-info/
+*.dist-info/
+eggs/
+pip-wheel-metadata/
+wheels/
+# ----- ↑ 以上为 ZCode 默认排除规则（自定义规则请写在本行下方，不会被同步/恢复改动）-----
+# 自定义规则写在下方（本行提示可删除）

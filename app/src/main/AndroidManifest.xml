@@ -49,11 +49,13 @@
         <!-- The guided setup wizard (Phase 9, phase doc §2.2): a11y enable + restricted-
              settings path, Samsung battery whitelist, key entry, model status. Re-runnable;
              MainActivity is a thin launcher onto it and the NavigatorService notification
-             deep-links here. -->
+             deep-links here. Dark-first platform theme (owner UI direction 2026-10-09):
+             the app default is the platform LIGHT theme. -->
         <activity
             android:name=".setup.SetupActivity"
             android:exported="false"
-            android:label="Navigator Setup" />
+            android:label="Navigator Setup"
+            android:theme="@style/Theme.Navigator.Setup" />
 
         <!-- Debug-only navigation harness (Phase 6). Exported for adb-driven headless
              runs; it drives the loop, streams the step log, and exports run reports.

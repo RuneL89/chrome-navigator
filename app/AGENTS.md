@@ -97,6 +97,18 @@ setup wizard (`setup/`).
     every state (collapsed + expanded), are clickable children (in-window touches
     already reach the NOT_TOUCH_MODAL window — no focusability change), and ride
     every anchor move),
+    the 2026-10-09 owner design pass (ai-ui-design-skills interview: warm
+    brand-forward, dark compact): warm-dark panel + the amber brand accent
+    (`NAVIGATOR` overline in the header), per-segment COLOR SPANS in
+    `styledLines` (step number amber; a gated step's marker denied=red /
+    approved=green / other=amber; terminal lines GOAL_ACHIEVED=green /
+    CANCELLED=red / else amber) — the line TEXT stays byte-identical (the
+    formatting law lives in `LoopUiListener`; only presentation color is added),
+    and the collapsed/expanded "latest N" law (`COLLAPSED_LINES` 6 /
+    `EXPANDED_LINES` 14) is applied by SLICING (`renderedSlice()` takeLast) —
+    TextView `maxLines` clips from the TOP and hid the newest lines under
+    wrapping (measured on the emulator); `TERMINAL_PREFIX` (`"▶ "`) is a public
+    const here, consumed by `OverlayManager.setTaskStateLine`),
     `LiveLogAnchor` (the PURE anchor decision beside it — edges
     BOTTOM_RIGHT↔TOP_RIGHT, null on non-edges; `SystemBars` + `yOffsetPx` the pure
     bar-clearance offsets; JVM-pinned, no Android types),
@@ -159,6 +171,17 @@ setup wizard (`setup/`).
     replace" / "Replace key" wording (R5 — no echo, no length leak); STARTS the
     foreground service from the foreground (the FGS background-start law) and triggers
     the goal overlay for the notification's "New task" action),
+    the 2026-10-09 owner design pass (ai-ui-design-skills interview: warm
+    brand-forward, dark-first compact, restructure + polish): `NavigatorColors` +
+    `SetupColorScheme` warm-dark tokens (amber = the ONE brand accent; green/red for
+    status only), page header + required-checks progress strip + card-per-check
+    layout (status chip, title, status word, detail, controls — every UAT behavior
+    and string unchanged), `Theme.Navigator.Setup` (`res/values/themes.xml` +
+    `res/values/colors.xml` — dark window/system bars; the app default stays the
+    platform LIGHT theme; wired on `.SetupActivity` in the manifest), and
+    `WindowInsets.safeDrawing` padding — targetSdk 36 ENFORCES edge-to-edge, so the
+    theme's bar-color items are ignored on API 35+ and the content pads itself
+    (measured: the first cut drew under the status bar),
     `OpenRouterKeyStore` (`EncryptedSharedPreferences` — the key is LOCAL ONLY, never
     logged, never rendered back)
   * `src/main/kotlin/navigator/app/observe/` — observation layer (Phase 1,
@@ -567,7 +590,10 @@ setup wizard (`setup/`).
   Phase 9 added `androidx.security:security-crypto` (the 1.1.x line is alpha-only
   upstream — alpha06 is the newest published artifact; deviation recorded in the phase
   status file) and the instrumented-gate androidTest stack (ext-junit + runner + core +
-  uiautomator, the `AndroidJUnitRunner` wired)
+  uiautomator, the `AndroidJUnitRunner` wired); 2026-10-09 added
+  `androidx.compose.material:material-icons-core` (BOM-managed, `compose-icons-core` in
+  the version catalog — newer material3 BOMs stopped shipping it transitively; the
+  wizard's status chips consume it)
 
 ## Local Contracts
 
@@ -862,7 +888,13 @@ tracked as last-known (normalized) and serves on an empty card URL, and garbage
   APPROVED → REAL TaskGate EXECUTE; untouched card expires by its REAL 30s countdown
   ±1.5s → TIMEOUT → SKIP; credential empty-approve → DENIED → SKIP; PLAN display held),
   9.4 latency (≥20 receipt→rendered events through the real append→pre-draw path,
-  p95 ≤ 1000ms, all samples in the evidence line)
+  p95 ≤ 1000ms, all samples in the evidence line).
+  Re-run 2026-10-09 after the owner design pass (setup restyle + live-log restyle and
+  latest-N slice): GATE91 PASS 7/7 (incl. live-log non-interception + tap-toggle over
+  the new header) and GATE94 PASS 2/2 (25/25 events, p95=47ms) on the API 35 emulator;
+  the Phase-9 JVM pins (`SetupLogicTest`, `LiveLogAnchorTest`, `LoopUiListenerTest`,
+  `TaskCancelFlagTest`, `NavigationLoopListenerTest`) green; emulator screenshots in
+  `.state/uidesign-*.png`
 * Gate 8J (on-device smoke): the `exit-reliability-1` harness goal (stub engine, auto
   keep-going) runs the scripted finish path end-to-end on the emulator — refusals with
   the anti-oscillation window, one completion card answered keep-going, then the

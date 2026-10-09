@@ -85,6 +85,13 @@ Default section order:
 
 When the user requests a durable behavior change, record it here or in the relevant child AGENTS.md
 
+* MANDATORY DESIGN INTERVIEW (owner, 2026-10-09): any UI/UX design, redesign, or UI-review
+  task ALWAYS starts with the `ai-ui-design-skills:design-interview` skill's full interview
+  (both rounds) BEFORE any design work — no exceptions, even when the vision seems already
+  established by the request, project docs, or prior UAT. Skipping it once triggered this
+  rule; do not rationalize a skip again. Capture the answers, then route to the selected
+  skills and carry the captured vision into every downstream decision.
+
 ## Child DOX Index
 
 * `BACKLOG_AND_KNOWN_DEFECTS.md` — the durable backlog of known-but-deferred defects, environment limitations, and parked owner-UAT items (KD-1…KD-n), each with evidence, impact, and recovery candidates; pick up from here before re-deriving. Owner-owned triage.
@@ -127,7 +134,9 @@ When the user requests a durable behavior change, record it here or in the relev
   platform-blocked on the API 35 emulator; evidence = `logcat -s NavigatorGates`)) and
   the setup wizard (`setup/` — the four-check
   wizard + `EncryptedSharedPreferences` key store; `MainActivity` is a thin launcher
-  into it); UAT ACCEPTED 2026-10-09 (owner on-device, two revision rounds); the result
-  screen stays Phase 11). See `app/AGENTS.md`
+  into it); UAT ACCEPTED 2026-10-09 (owner on-device, two revision rounds); a 2026-10-09
+  owner design pass (warm brand-forward, dark-first compact) restyled the setup wizard
+  (card layout + progress) and the corner live log (amber accent, outcome-colored
+  segments, latest-N slice); the result screen stays Phase 11). See `app/AGENTS.md`
 * `tools/` — Phase-8/8C model-acquisition + reference-vector scripts (uv-driven; build-time
   HF downloads only). See `tools/AGENTS.md`
