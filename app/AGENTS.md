@@ -60,7 +60,11 @@ setup wizard (`setup/`).
     `snapshot()` is the adb-driven gate runner's machine-readable state; the
     goal-input session HIDES the live log and restores it when the input really
     dismisses — the UAT 9.1 R2 fix: the log never floats over the keyboard; the
-    restore rides GoalInputOverlay's `onDismissed` hook, teardown never fires it),
+    restore rides GoalInputOverlay's `onDismissed` hook, teardown never fires it;
+    `inputMethodWindowTop()` is the IME PRESENCE probe for the live log's avoidance
+    (the service's `getWindows()` scanned for `TYPE_INPUT_METHOD` — the log window is
+    `FLAG_NOT_FOCUSABLE`, so it never receives IME insets), plus the
+    `updateViewLayout`/delayed-post wrappers the watch uses),
     `GoalInputOverlay` (full-screen translucent backdrop + the a11y `takeScreenshot`
     blurred IN-PROCESS by downscale/upscale — the bitmap lives in MEMORY for the input
     session only, released on submit/cancel/dismiss; ZERO file/log/network (ART-8);
@@ -72,7 +76,15 @@ setup wizard (`setup/`).
     `FLAG_NOT_FOCUSABLE|NOT_TOUCH_MODAL` window streaming the compact step lines,
     latest-6 collapsed / tap-toggles 14, never obscures the center; the thinking
     spinner line; `appendMeasured` measures decision-receipt → line-RENDERED into the
-    Gate 9.4 evidence + logcats `NAVIGATOR-G94`),
+    Gate 9.4 evidence + logcats `NAVIGATOR-G94`; the UAT 9.1 R2 FOLLOW-UP (the
+    agent's TYPE action raises the IME mid-run and the log must never overlap it):
+    while visible a 300ms poll reads IME PRESENCE through the manager and moves the
+    window on EDGES only — IME up re-anchors TOP-right, IME gone restores
+    bottom-right, non-edges do zero layout work (hysteresis; the Gate 9.4 measurement
+    stays truthful); bound-geometry anchoring was measured UNRELIABLE (the a11y IME
+    window's bounds sat ~294px below the drawn keyboard's visual top) — presence-only
+    it is), `LiveLogAnchor` (the PURE anchor decision beside it — edges
+    BOTTOM_RIGHT↔TOP_RIGHT, null on non-edges; JVM-pinned, no Android types),
     `GateCardOverlay.kt` (`GateCardWindow`/`CompletionCardWindow` — the product cards
     rendering `GateCard` VERBATIM + Approve/Deny + a 30s countdown RING, timeout =
     deny (vision 06 §2); the credential variant's masked input (doc 06 §2a) with the
@@ -469,13 +481,15 @@ setup wizard (`setup/`).
     20s service-await window (measured 2026-10-05; the runbook for every headless run)
 * `src/main/AndroidManifest.xml` — application manifest (service + debug capture
   activity/receiver declarations; service config XML in `src/main/res/xml/` — the
-  2026-10-08 pre-UAT observation widening: `android:packageNames` lists the manifest's
-  TWO allowlisted browsers `com.android.chrome,org.chromium.webview_shell` (COMMA
-  separated — the platform parser splits on commas) and adds
-  `android:canRequestEnhancedWebAccessibility` so the AVD's WebView Browser Tester
-  serves its web-content tree and shell window events to the bound service (real Chrome
-  ignores the capability — additive and safe; the code-side `PACKAGE_ALLOWLIST` stays
-  authoritative); Phase 6 added
+  2026-10-09 UAT R2 follow-up REMOVED `android:packageNames` from the service config
+  (measured on the API 35 emulator: the filter does not only gate event delivery, it
+  also STRIPS the service's `getWindows()` window list — the IME window was invisible
+  to the live log's IME watch with it set). The code-side filter stays authoritative:
+  `PACKAGE_ALLOWLIST` gates every observation read and `onAccessibilityEvent` is a
+  deliberate no-op, so unfiltered event delivery is inert. The 2026-10-08 pre-UAT
+  widening keeps `android:canRequestEnhancedWebAccessibility` so the AVD's WebView
+  Browser Tester serves its web-content tree and shell window events to the bound
+  service (real Chrome ignores the capability — additive and safe); Phase 9 added
   INTERNET + SYSTEM_ALERT_WINDOW permissions, `<queries>` for the two
   allowlisted browsers, and the exported debug `HarnessActivity`; 2026-10-06 added
   POST_NOTIFICATIONS + VIBRATE — harness-debug notifications and the run-over buzz
@@ -784,7 +798,9 @@ tracked as last-known (normalized) and serves on an empty card URL, and garbage
   the never-gating model check, the all-required-green summary; the UAT 9.2
   revision-contract pins: the battery-ack persistence keys, the restored-ack
   derivation, and the FIXED saved-key dot indicator (exact constant, presence only,
-  never key-material-shaped detail));
+  never key-material-shaped detail)), `LiveLogAnchorTest` (the live log's IME-avoidance
+  edges: IME up → TOP-right, IME gone → bottom-right, non-edges null — the
+  hysteresis that keeps idle polls layout-silent));
   `./gradlew :app:assembleDebug :app:assembleDebugAndroidTest` build the debug APK +
   the instrumented-test APK. Gates 9.1-9.4: the ASSERTION LOGIC lives ONCE in
   `overlay/GateScenarios.kt` (main source); EVIDENCE = the in-app debug runner driven

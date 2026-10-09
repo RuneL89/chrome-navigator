@@ -2,10 +2,12 @@ package navigator.app.overlay
 
 import android.accessibilityservice.AccessibilityService
 import android.graphics.Point
+import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
 import android.view.View
 import android.view.WindowManager
+import android.view.accessibility.AccessibilityWindowInfo
 import kotlinx.coroutines.CompletableDeferred
 import navigator.app.loop.CompletionCard
 import navigator.app.loop.CompletionResolution
@@ -87,9 +89,43 @@ class OverlayManager(private val service: AccessibilityService) {
         windowManager.addView(view, params)
     }
 
+    internal fun updateViewLayout(view: View, params: WindowManager.LayoutParams) {
+        runCatching { windowManager.updateViewLayout(view, params) }
+            .onFailure { android.util.Log.w(TAG, "overlay window update: ${it::class.simpleName}") }
+    }
+
     internal fun removeViewFromWindow(view: View) {
         runCatching { windowManager.removeView(view) }
             .onFailure { android.util.Log.w(TAG, "overlay window removal: ${it::class.simpleName}") }
+    }
+
+    /** Delayed main-thread post (the live log's IME-watch poll; see LiveLogOverlay). */
+    internal fun postDelayedOnMainThread(delayMs: Long, block: Runnable) {
+        mainHandler.postDelayed(block, delayMs)
+    }
+
+    internal fun cancelMainThreadCallbacks(block: Runnable) {
+        mainHandler.removeCallbacks(block)
+    }
+
+    /**
+     * The top edge (screen y) of the visible IME window, or null when none is up —
+     * read through the service's window observation (`getWindows()`,
+     * `TYPE_INPUT_METHOD`). This is the ONLY IME signal available to the live log:
+     * its window is `FLAG_NOT_FOCUSABLE`, so it never becomes the IME inset target
+     * (the UAT 9.1 R2 follow-up — during a run the agent's TYPE action raises the
+     * keyboard and the log must move, insets cannot tell it).
+     */
+    internal fun inputMethodWindowTop(): Int? {
+        val windows = service.windows ?: return null
+        for (window in windows) {
+            if (window.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD) {
+                val bounds = Rect()
+                window.getBoundsInScreen(bounds)
+                return bounds.top
+            }
+        }
+        return null
     }
 
     /**

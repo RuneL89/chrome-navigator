@@ -30,7 +30,23 @@ import navigator.app.observe.NavigatorAccessibilityService
  *    the append path posts immediately, no batching);
  *  - Gate 9.4: [appendMeasured] measures decision receipt → line RENDERED (the pre-draw
  *    callback of the frame carrying the new line) and records + logcats it under the
- *    greppable `NAVIGATOR-G94` tag.
+ *    greppable `NAVIGATOR-G94` tag;
+ *  - UAT 9.1 revision R2 FOLLOW-UP (the owner's mid-RUN S25+ screenshot: the AGENT's
+ *    TYPE action raised the IME and the bottom-right log floated over it): the log
+ *    window is `FLAG_NOT_FOCUSABLE`, so it NEVER receives IME insets (the goal-input
+ *    route is unavailable by construction), and the platform's IME window bounds
+ *    proved unreliable for geometry (measured: the a11y IME bound sat ~294px below
+ *    the drawn keyboard's visual top). So the signal is IME PRESENCE via the
+ *    SERVICE's window observation — a light poll ([IME_POLL_INTERVAL_MS]) scans
+ *    `getWindows()` for `TYPE_INPUT_METHOD` while visible — and the pure
+ *    [LiveLogAnchor] decision moves the window on EDGES only: an IME up re-anchors
+ *    the log TOP-right (no overlap, any device/IME); IME gone restores bottom-right;
+ *    a non-edge state moves NOTHING (hysteresis; idle polls do zero layout work so
+ *    the Gate 9.4 measurement stays truthful). The poll lives and dies with the log's
+ *    visibility. NOTE: `getWindows()` only surfaces the IME window because the
+ *    service config's `packageNames` event filter was REMOVED (measured: the filter
+ *    strips the window list too — see the service config XML); every observation
+ *    consumer stays filtered by the code-side `PACKAGE_ALLOWLIST`.
  *
  * Presentation only: nothing here decides, executes, or logs page data — the compact
  * lines arrive already masked at source (doc 05 §2 / doc 06 §2a).
@@ -40,6 +56,26 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
     private var view: LinearLayout? = null
     private var linesView: TextView? = null
     private var thinkingView: TextView? = null
+
+    /** The live window params (retained so the IME-watch can move the window). */
+    private var windowParams: WindowManager.LayoutParams? = null
+
+    /** Whether the window is currently anchored TOP-right (the IME-avoidance state). */
+    @Volatile
+    private var anchoredTop: Boolean = false
+
+    /**
+     * The IME watch (UAT 9.1 R2 follow-up): a light poll ONLY while visible — reads the
+     * service's window observation through the manager and applies the pure
+     * [LiveLogAnchor] decision (edge moves only; a null decision = no layout work).
+     */
+    private val imeWatch: Runnable = object : Runnable {
+        override fun run() {
+            if (!visible) return
+            applyImeAnchor()
+            manager.postDelayedOnMainThread(IME_POLL_INTERVAL_MS, this)
+        }
+    }
 
     /** Collapsed vs expanded (a tap on the viewer toggles it). */
     @Volatile
@@ -105,25 +141,30 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
                 PixelFormat.TRANSLUCENT,
             ).apply {
                 gravity = Gravity.BOTTOM or Gravity.END
-                x = dp(8)
-                y = dp(8)
+                x = dp(SCREEN_MARGIN_DP)
+                y = dp(SCREEN_MARGIN_DP)
             }
             manager.addViewToWindow(container, params)
             view = container
+            windowParams = params
+            anchoredTop = false
             linesView = linesText
             thinkingView = thinking
             renderLines()
+            manager.postDelayedOnMainThread(IME_POLL_INTERVAL_MS, imeWatch)
         }
     }
 
     fun hide() {
         if (!visible) return
         visible = false
+        stopImeWatch()
         manager.postOnMainThread {
             view?.let { manager.removeViewFromWindow(it) }
             view = null
             linesView = null
             thinkingView = null
+            windowParams = null
         }
     }
 
@@ -176,14 +217,48 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
     fun teardown() {
         visible = false
         thinkingActive = false
+        stopImeWatch()
         manager.postOnMainThread {
             view?.let { manager.removeViewFromWindow(it) }
             view = null
             linesView = null
             thinkingView = null
+            windowParams = null
         }
         lines.clear()
         expanded = false
+    }
+
+    /**
+     * Applies one poll's [LiveLogAnchor] decision: a null decision (no IME edge) does
+     * NOTHING; an IME up re-anchors the window TOP-right; IME gone restores
+     * bottom-right. Both anchors keep the same margins and x.
+     */
+    private fun applyImeAnchor() {
+        val current = view ?: return
+        val params = windowParams ?: return
+        val imeVisible = manager.inputMethodWindowTop() != null
+        val decision = LiveLogAnchor.decide(
+            current = if (anchoredTop) LiveLogAnchor.Anchor.TOP_RIGHT else LiveLogAnchor.Anchor.BOTTOM_RIGHT,
+            imeVisible = imeVisible,
+        ) ?: return
+        anchoredTop = decision == LiveLogAnchor.Anchor.TOP_RIGHT
+        params.gravity = if (anchoredTop) Gravity.TOP or Gravity.END else Gravity.BOTTOM or Gravity.END
+        params.y = dp(SCREEN_MARGIN_DP)
+        manager.updateViewLayout(current, params)
+        Log.i(
+            TAG_LIVELOG,
+            if (anchoredTop) {
+                "live log re-anchored TOP-right (IME visible)"
+            } else {
+                "live log restored to the bottom-right corner (IME gone)"
+            },
+        )
+    }
+
+    private fun stopImeWatch() {
+        manager.cancelMainThreadCallbacks(imeWatch)
+        anchoredTop = false
     }
 
     private fun renderLines() {
@@ -201,10 +276,22 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
     private fun dp(value: Float): Float = manager.dpF(value)
 
     companion object {
+        /** Edge-transition log tag (window geometry only — never page data). */
+        private const val TAG_LIVELOG = "LiveLogOverlay"
+
         const val G94_TAG = "NAVIGATOR-G94"
         const val COLLAPSED_LINES = 6
         const val EXPANDED_LINES = 14
         private const val MAX_KEPT_LINES = 40
         const val THINKING_LINE = "… deciding"
+
+        /** The normal screen-edge margin (dp) for the bottom-right anchor. */
+        private const val SCREEN_MARGIN_DP = 8
+
+        /**
+         * The IME-watch poll cadence (UAT R2 follow-up): light, ONLY while the log is
+         * visible, and each idle tick does zero layout work (edges move the window).
+         */
+        const val IME_POLL_INTERVAL_MS = 300L
     }
 }

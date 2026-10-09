@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Observation service config (vision 03 §1). packageNames only filters event delivery;
-     the authoritative code-side observation filter is
-     NavigatorAccessibilityService.PACKAGE_ALLOWLIST (the harness widens that constant).
-     2026-10-08 pre-UAT fix: org.chromium.webview_shell joins com.android.chrome (the
-     manifest <queries>' two allowlisted browsers) so the AVD's WebView Browser Tester
-     delivers shell window events, and canRequestEnhancedWebAccessibility unlocks the
-     webview-shell's web-content tree for bound services — real Chrome ignores the
-     capability (browser-level a11y), so this is additive and safe for production. NB:
-     packageNames is COMMA-separated (the platform splits it on commas; a pipe would
-     form one non-matching package name). The platform has no "typeWindowScrollChanged"
-     token — the scroll event type is typeViewScrolled
-     (AccessibilityEvent.TYPE_VIEW_SCROLLED). Phase 9 adds android:canTakeScreenshot —
-     the capability behind the goal input's blurred screenshot (a11y takeScreenshot,
-     API 30+); the bitmap lives in memory for the input session only (ART-8). -->
+<!-- Observation service config (vision 03 §1). 2026-10-09 UAT R2 follow-up: the
+     android:packageNames event filter was REMOVED — measured on the API 35 emulator,
+     the filter does not only gate event delivery, it also strips the service's
+     getWindows() window list (the IME window was invisible to the live log's IME
+     watch with it set). The code-side filter stays authoritative and unchanged:
+     NavigatorAccessibilityService.PACKAGE_ALLOWLIST (delegating to the pure
+     BrowserPackages.ALLOWLIST) gates every observation read, and onAccessibilityEvent
+     is a deliberate no-op, so unfiltered event delivery is inert. The Chromium
+     webview-shell browser remains on that allowlist for the AVD's WebView Browser
+     Tester (real Chrome ignores the enhanced-web-accessibility capability — additive
+     and safe). packageNames was COMMA-separated when present (the platform splits on
+     commas). Phase 9 adds android:canTakeScreenshot — the capability behind the goal
+     input's blurred screenshot (a11y takeScreenshot, API 30+); the bitmap lives in
+     memory for the input session only (ART-8). -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeViewScrolled"
     android:accessibilityFeedbackType="feedbackGeneric"
@@ -23,6 +23,5 @@
     android:canRequestEnhancedWebAccessibility="true"
     android:isAccessibilityTool="true"
     android:notificationTimeout="100"
-    android:packageNames="com.android.chrome,org.chromium.webview_shell"
     android:description="@string/a11y_service_description"
     android:summary="@string/a11y_service_summary" />

@@ -175,3 +175,14 @@ narrows to UAT-only. Nits N1 (status-vs-log number drift) + N2 (two AGENTS.md wo
 non-blocking. No new defects. No commits, no source edits, emulator untouched, $0 spend.
 
 **Blockers to close: UAT 9.1 (overlay feel), UAT 9.2 (setup-wizard walkthrough) — owner judgment.**
+
+## Revision round R1–R5 (canon-verifier, cold, 2026-10-09) — REVISION ROUND PASS
+
+R1 goal-input Submit above the IME (live ime-inset padding, `GoalInputOverlay.kt:157-167`);
+R2 live log hides during goal input, restores only on real dismiss (`OverlayManager.kt:130-146`,
+no cross-task leak); R3 wizard re-checks on onResume + window focus
+(`SetupActivity.kt:85-96`); R4 battery acknowledgement persisted, plain prefs lawful,
+no secret in that file; R5 saved-key FIXED 8-dot indicator, no value/length leak by
+construction (grep-clean path). Doc 04 goal-summary amendment consistent with PHASE_10
+v2.1.0. Independent runs: 718/0 (312+406), assembleDebug green. No blocking defects;
+nits non-blocking. Remaining: owner on-device re-check of R1–R5.
