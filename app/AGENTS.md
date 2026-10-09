@@ -83,8 +83,14 @@ setup wizard (`setup/`).
     bottom-right, non-edges do zero layout work (hysteresis; the Gate 9.4 measurement
     stays truthful); bound-geometry anchoring was measured UNRELIABLE (the a11y IME
     window's bounds sat ~294px below the drawn keyboard's visual top) — presence-only
-    it is), `LiveLogAnchor` (the PURE anchor decision beside it — edges
-    BOTTOM_RIGHT↔TOP_RIGHT, null on non-edges; JVM-pinned, no Android types),
+    it is; the UAT W2 bar clearance: BOTH anchors clear the system bars (bottom-right
+    rides the nav bar's bottom inset, TOP-right the status bar's top — the owner
+    screenshot had the log over the gesture-nav area), re-read per anchor application
+    from the manager's `systemBarInsets()` (maximum window metrics, no focus needed);
+    offset arithmetic pure in [LiveLogAnchor.yOffsetPx]),
+    `LiveLogAnchor` (the PURE anchor decision beside it — edges
+    BOTTOM_RIGHT↔TOP_RIGHT, null on non-edges; `SystemBars` + `yOffsetPx` the pure
+    bar-clearance offsets; JVM-pinned, no Android types),
     `GateCardOverlay.kt` (`GateCardWindow`/`CompletionCardWindow` — the product cards
     rendering `GateCard` VERBATIM + Approve/Deny + a 30s countdown RING, timeout =
     deny (vision 06 §2); the credential variant's masked input (doc 06 §2a) with the
@@ -264,8 +270,13 @@ setup wizard (`setup/`).
     derivation and the decision are ALWAYS logged and ride the step log/run report),
     `CompletionGuards` (per-triage-class code state machines — ART-4; Phase 8J Guard
     2.0: `TargetEntity` — deterministic code extraction of the goal's target
-    (quoted spans, "article/page titled|named|about X" cues, capitalized multi-word
-    runs, NO site names hardcoded) and the STRONG match (exact word-boundary or >=0.9
+    (quoted spans, "article/page titled|named|about X" cues, the goal's URL — UAT W1:
+    the LAST path segment with `_`/`-` as spaces ("World_War_II" -> "World War II"),
+    host/domain fallback when the path is empty/short; quoted/cue names win over the
+    URL path; the evidence-backed defect it fixed: the owner's "open <url>" goal
+    extracted NULL so STRONG was unreachable and the run could not formally complete —
+    capitalized multi-word runs remain the last fallback; NO site names hardcoded)
+    and the STRONG match (exact word-boundary or >=0.9
     token overlap) over the page TITLE or URL ONLY (normalizing `_-/.` to spaces) —
     Round 2, vision 04 §3 v1.3.0: a content-only mention NEVER yields STRONG ("a
     mention is not arrival"; the Test-2′ Apple-pie mention page is a permanent
@@ -718,7 +729,11 @@ tracked as last-known (normalized) and serves on an empty card URL, and garbage
   in the real loop) + the Phase-8J exit gates (`ExitPolicyTest` Gate 8J.1 policy
   matrix: path boundaries per Bands semantics, K-consecutive counting, once-per-task
   card, M=2 window + hash-change clearing; `TargetEntityTest` + `SpecimenReplayTest`
-  Gate 8J.2 (+8J.6 Round 2): entity extraction, the STRONG/WEAK/NONE matrix — STRONG
+  Gate 8J.2 (+8J.6 Round 2): entity extraction — the UAT W1 URL-goal pins (the live
+  "open https://en.wikipedia.org/wiki/World_War_II" goal extracts "World War II" and
+  matchesIn matches the read URL line; hyphen paths, host/short-path fallback,
+  domain-only goals, query/fragment stripping; quoted and cue names still win over
+  the URL path; no-URL goals extract exactly as before) — the STRONG/WEAK/NONE matrix — STRONG
   is a TITLE/URL identity match only, a content-only mention is WEAK, never STRONG
   (v1.3.0 "a mention is not arrival") — and the Test-1 specimen
   replay — the recorded series never exits, the extended series accepts SUSTAINED
@@ -800,7 +815,9 @@ tracked as last-known (normalized) and serves on an empty card URL, and garbage
   derivation, and the FIXED saved-key dot indicator (exact constant, presence only,
   never key-material-shaped detail)), `LiveLogAnchorTest` (the live log's IME-avoidance
   edges: IME up → TOP-right, IME gone → bottom-right, non-edges null — the
-  hysteresis that keeps idle polls layout-silent));
+  hysteresis that keeps idle polls layout-silent; the UAT W2 bar-clearance offsets:
+  bottom rides the nav-bar inset, top the status-bar inset, zero insets degrade to
+  the bare margin));
   `./gradlew :app:assembleDebug :app:assembleDebugAndroidTest` build the debug APK +
   the instrumented-test APK. Gates 9.1-9.4: the ASSERTION LOGIC lives ONCE in
   `overlay/GateScenarios.kt` (main source); EVIDENCE = the in-app debug runner driven

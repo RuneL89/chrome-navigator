@@ -5,6 +5,7 @@ import navigator.app.overlay.LiveLogAnchor.Anchor.TOP_RIGHT
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
  * The live log's IME-avoidance anchor decision (UAT 9.1 revision R2 follow-up): while
@@ -38,5 +39,37 @@ class LiveLogAnchorTest {
     @Test
     fun `a still-present IME while top-anchored moves nothing - no jitter`() {
         assertNull(LiveLogAnchor.decide(TOP_RIGHT, imeVisible = true))
+    }
+
+    // -- UAT 9.1 W2: the anchors clear the system bars ---------------------------------
+
+    @Test
+    fun `the bottom anchor rides the nav-bar inset plus the margin`() {
+        val bars = LiveLogAnchor.SystemBars(navBarBottomPx = 63, statusBarTopPx = 66)
+        assertEquals(63 + 21, LiveLogAnchor.yOffsetPx(BOTTOM_RIGHT, bars, marginPx = 21))
+    }
+
+    @Test
+    fun `the top anchor rides the status-bar inset plus the margin`() {
+        val bars = LiveLogAnchor.SystemBars(navBarBottomPx = 63, statusBarTopPx = 66)
+        assertEquals(66 + 21, LiveLogAnchor.yOffsetPx(TOP_RIGHT, bars, marginPx = 21))
+    }
+
+    @Test
+    fun `zero insets degrade to the bare margin - never negative`() {
+        val bars = LiveLogAnchor.SystemBars(navBarBottomPx = 0, statusBarTopPx = 0)
+        assertEquals(21, LiveLogAnchor.yOffsetPx(BOTTOM_RIGHT, bars, marginPx = 21))
+        assertEquals(21, LiveLogAnchor.yOffsetPx(TOP_RIGHT, bars, marginPx = 21))
+    }
+
+    @Test
+    fun `a rotation-sized nav bar changes the offset - re-read per application`() {
+        val portrait = LiveLogAnchor.SystemBars(navBarBottomPx = 48, statusBarTopPx = 66)
+        val landscape = LiveLogAnchor.SystemBars(navBarBottomPx = 63, statusBarTopPx = 27)
+        // The overlay re-reads the insets per anchor application; the arithmetic tracks.
+        assertTrue(
+            LiveLogAnchor.yOffsetPx(BOTTOM_RIGHT, portrait, 21) !=
+                LiveLogAnchor.yOffsetPx(BOTTOM_RIGHT, landscape, 21),
+        )
     }
 }

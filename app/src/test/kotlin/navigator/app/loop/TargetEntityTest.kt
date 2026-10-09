@@ -4,6 +4,7 @@ import navigator.core.log.TriageClass
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -63,6 +64,80 @@ class TargetEntityTest {
         val entity = TargetEntity.extract("Open Wikipedia article Tarte Tatin.")
         assertEquals("Tarte Tatin", entity?.text)
         assertEquals(listOf("tarte", "tatin"), entity?.tokens)
+    }
+
+    // -- URL-goal extraction (UAT 9.1 W1) ---------------------------------------------
+
+    @Test
+    fun `the live URL goal extracts World War II from the path segment`() {
+        val entity = TargetEntity.extract("open https://en.wikipedia.org/wiki/World_War_II")
+        assertEquals("World War II", entity?.text)
+        assertEquals(listOf("world", "war", "ii"), entity?.tokens)
+    }
+
+    @Test
+    fun `the extracted URL entity matches the live state's URL line`() {
+        // The owner's run: the omnibox read en.wikipedia.org/wiki/World_War_II while the
+        // extract returned null. The full chain must now close: extract -> STRONG match.
+        val entity = TargetEntity.extract("open https://en.wikipedia.org/wiki/World_War_II")
+        assertNotNull(entity)
+        assertTrue(
+            TargetEntity.matchesIn(entity, title = "", url = "en.wikipedia.org/wiki/World_War_II"),
+            "the entity must match the URL the loop actually read",
+        )
+        // The state-text line shape (the URL section carries underscores) matches too.
+        assertTrue(TargetEntity.matchesText(entity, "URL: en.wikipedia.org/wiki/World_War_II"))
+    }
+
+    @Test
+    fun `hyphenated path segments read as words`() {
+        assertEquals(
+            "some page",
+            TargetEntity.extract("open https://docs.test/manuals/some-page")?.text,
+        )
+    }
+
+    @Test
+    fun `a quoted name still wins over the URL path`() {
+        assertEquals(
+            "Ada Lovelace",
+            TargetEntity.extract("open \"Ada Lovelace\" https://en.wikipedia.org/wiki/World_War_II")?.text,
+        )
+    }
+
+    @Test
+    fun `an explicit cue still wins over the URL path`() {
+        assertEquals(
+            "Tarte Tatin",
+            TargetEntity.extract("open the article titled Tarte Tatin at https://recipes.test/tarte-tatin-recipe")?.text,
+        )
+    }
+
+    @Test
+    fun `an empty or short path falls back to the host`() {
+        assertEquals("en.wikipedia.org", TargetEntity.extract("open https://en.wikipedia.org/")?.text)
+        assertEquals("en.wikipedia.org", TargetEntity.extract("open https://en.wikipedia.org")?.text)
+        assertEquals("x.test", TargetEntity.extract("open https://x.test/a")?.text)
+    }
+
+    @Test
+    fun `a domain-only goal extracts the host`() {
+        assertEquals("example.com", TargetEntity.extract("open example.com")?.text)
+        assertEquals("example.com", TargetEntity.extract("open www.example.com")?.text)
+    }
+
+    @Test
+    fun `query strings and fragments never leak into the entity`() {
+        assertEquals(
+            "World War II",
+            TargetEntity.extract("open https://en.wikipedia.org/wiki/World_War_II?uselang=en#History")?.text,
+        )
+    }
+
+    @Test
+    fun `goals without a URL or domain extract exactly as before`() {
+        assertNull(TargetEntity.extract("check the weather and tell me if it rains"))
+        assertNull(TargetEntity.extract("find a recipe for apple pie"))
     }
 
     // -- matching (STRONG) ------------------------------------------------------------

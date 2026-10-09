@@ -46,7 +46,12 @@ import navigator.app.observe.NavigatorAccessibilityService
  *    visibility. NOTE: `getWindows()` only surfaces the IME window because the
  *    service config's `packageNames` event filter was REMOVED (measured: the filter
  *    strips the window list too — see the service config XML); every observation
- *    consumer stays filtered by the code-side `PACKAGE_ALLOWLIST`.
+ *    consumer stays filtered by the code-side `PACKAGE_ALLOWLIST`;
+ *  - UAT 9.1 W2: BOTH anchors clear the SYSTEM BARS — bottom-right rides the nav
+ *    bar's bottom inset, TOP-right the status bar's top inset (the owner screenshot:
+ *    with no IME up the log sat over the gesture-nav area). The insets are re-read on
+ *    every anchor application (rotation/fold) from the service's maximum window
+ *    metrics; the offset arithmetic is pure ([LiveLogAnchor.yOffsetPx]).
  *
  * Presentation only: nothing here decides, executes, or logs page data — the compact
  * lines arrive already masked at source (doc 05 §2 / doc 06 §2a).
@@ -132,6 +137,7 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
             container.addView(thinking)
             container.addView(linesText)
             val screen = manager.screenMetrics()
+            val marginPx = dp(SCREEN_MARGIN_DP)
             val params = WindowManager.LayoutParams(
                 Math.min((screen.x * 0.6f).toInt(), dp(340)),
                 WindowManager.LayoutParams.WRAP_CONTENT,
@@ -141,8 +147,14 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
                 PixelFormat.TRANSLUCENT,
             ).apply {
                 gravity = Gravity.BOTTOM or Gravity.END
-                x = dp(SCREEN_MARGIN_DP)
-                y = dp(SCREEN_MARGIN_DP)
+                x = marginPx
+                // W2: the bottom anchor clears the system navigation bar from the start
+                // (the first poll tick would correct it 300ms later; do it right away).
+                y = LiveLogAnchor.yOffsetPx(
+                    LiveLogAnchor.Anchor.BOTTOM_RIGHT,
+                    manager.systemBarInsets(),
+                    marginPx,
+                )
             }
             manager.addViewToWindow(container, params)
             view = container
@@ -230,9 +242,10 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
     }
 
     /**
-     * Applies one poll's [LiveLogAnchor] decision: a null decision (no IME edge) does
-     * NOTHING; an IME up re-anchors the window TOP-right; IME gone restores
-     * bottom-right. Both anchors keep the same margins and x.
+     * Applies one poll's results: the [LiveLogAnchor] IME-edge decision (null = no IME
+     * edge) AND the W2 bar-clearance offsets (re-read every application, so rotation
+     * and fold changes are honored without waiting for an IME edge). Nothing is
+     * laid out when BOTH are unchanged — idle polls do zero layout work.
      */
     private fun applyImeAnchor() {
         val current = view ?: return
@@ -241,19 +254,26 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
         val decision = LiveLogAnchor.decide(
             current = if (anchoredTop) LiveLogAnchor.Anchor.TOP_RIGHT else LiveLogAnchor.Anchor.BOTTOM_RIGHT,
             imeVisible = imeVisible,
-        ) ?: return
-        anchoredTop = decision == LiveLogAnchor.Anchor.TOP_RIGHT
-        params.gravity = if (anchoredTop) Gravity.TOP or Gravity.END else Gravity.BOTTOM or Gravity.END
-        params.y = dp(SCREEN_MARGIN_DP)
-        manager.updateViewLayout(current, params)
-        Log.i(
-            TAG_LIVELOG,
-            if (anchoredTop) {
-                "live log re-anchored TOP-right (IME visible)"
-            } else {
-                "live log restored to the bottom-right corner (IME gone)"
-            },
         )
+        val target = decision
+            ?: (if (anchoredTop) LiveLogAnchor.Anchor.TOP_RIGHT else LiveLogAnchor.Anchor.BOTTOM_RIGHT)
+        // W2: both anchors clear the system bars (nav bar bottom / status bar top).
+        val desiredY = LiveLogAnchor.yOffsetPx(target, manager.systemBarInsets(), dp(SCREEN_MARGIN_DP))
+        if (decision == null && params.y == desiredY) return
+        anchoredTop = target == LiveLogAnchor.Anchor.TOP_RIGHT
+        params.gravity = if (anchoredTop) Gravity.TOP or Gravity.END else Gravity.BOTTOM or Gravity.END
+        params.y = desiredY
+        manager.updateViewLayout(current, params)
+        if (decision != null) {
+            Log.i(
+                TAG_LIVELOG,
+                if (anchoredTop) {
+                    "live log re-anchored TOP-right (IME visible)"
+                } else {
+                    "live log restored to the bottom-right corner (IME gone)"
+                },
+            )
+        }
     }
 
     private fun stopImeWatch() {

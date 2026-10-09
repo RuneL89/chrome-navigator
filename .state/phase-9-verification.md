@@ -186,3 +186,14 @@ no secret in that file; R5 saved-key FIXED 8-dot indicator, no value/length leak
 construction (grep-clean path). Doc 04 goal-summary amendment consistent with PHASE_10
 v2.1.0. Independent runs: 718/0 (312+406), assembleDebug green. No blocking defects;
 nits non-blocking. Remaining: owner on-device re-check of R1–R5.
+
+## W1+W2 follow-up (canon-verifier, cold, 2026-10-09) — PASS
+
+W1 URL-goal entity extraction: ordering law kept (quoted/cue win), live-goal
+extract→matchesIn chain closes STRONG against the state-text URL line, no-URL goals
+byte-unchanged (old specimen pins untouched), ART-4 intact (no finish-initiation in the
+diff). W2 system-bar clearance: pure offset arithmetic (pinned), maximumWindowMetrics
+read per anchor application, idle polls layout-silent. DOX consistent. Independent:
+735/0 (312+423), assembleDebug green. Defects: nits only (D1 unpinned port-strip, D2–D4
+cosmetic). Device-dependent claims (gate re-runs, emulator screenshots) UNVERIFIED here —
+owner on-device re-check is the closer.

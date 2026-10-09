@@ -199,7 +199,8 @@ enum class GuardLevel { NONE, WEAK, STRONG }
 
 /**
  * The triage-extracted target entity (vision 04 §3 v1.2.0): the goal's named target,
- * found by DETERMINISTIC code — quoted spans, "article/page X" cue patterns, then
+ * found by DETERMINISTIC code — quoted spans, "article/page X" cue patterns, then the
+ * goal's URL (UAT W1: last path segment, `_`/`-` as spaces; host/domain fallback), then
  * capitalized multi-word runs. No site names, no model, no per-goal hardcoding.
  *
  * Matching (the STRONG guard, vision 04 §3 v1.3.0): the entity matched in the page
@@ -241,6 +242,21 @@ data class TargetEntity(val text: String) {
          *  is stripped by the extractor, never inside a word). */
         private val CAPITALIZED_WORD = Regex("""[A-Z][\w'’-]*""")
 
+        /** The goal's explicit http(s) URL ("open https://en.wikipedia.org/wiki/…") —
+         *  ColdStart.GOAL_URL's pinned shape, local copy (this file stays pure). */
+        private val GOAL_URL = Regex("""https?://[^\s"'<>]+""")
+
+        /** A bare domain in the goal ("open example.com") — ColdStart.GOAL_DOMAIN's
+         *  shape (common generic TLDs only), so the fallback never grabs arbitrary
+         *  dotted text. */
+        private val GOAL_DOMAIN = Regex(
+            """(?:^|[\s"'])(([A-Za-z0-9][A-Za-z0-9-]*(?:\.[A-Za-z0-9][A-Za-z0-9-]*)*)\.(com|net|org|edu|gov|io|co)(/[^\s"'<>]*)?)(?=$|[\s"'.!?,:;])""",
+        )
+
+        /** A URL path segment shorter than this (after `_`/`-` -> spaces) falls back to
+         *  the host ("…/a" carries no identity). */
+        private const val SHORT_SEGMENT_MIN = 3
+
         /** Sentence-boundary marker for the capitalized-run fallback: a run may not
          *  include the goal's first word (sentence-start capitalization is not evidence). */
         fun extract(goal: String): TargetEntity? {
@@ -255,7 +271,40 @@ data class TargetEntity(val text: String) {
             CUE_BARE.find(trimmed)?.let { match ->
                 return quoted(match.groupValues[1])
             }
+            urlEntity(trimmed)?.let { return it }
             return capitalizedRun(trimmed)?.let { TargetEntity(it) }
+        }
+
+        /**
+         * The URL-goal entity (UAT 9.1 W1, evidence-backed: the owner's
+         * "open https://en.wikipedia.org/wiki/World_War_II" run extracted NO entity, so
+         * STRONG could never fire and the run could not formally complete). The URL's
+         * LAST non-empty path segment with `_`/`-` read as spaces ("World_War_II" ->
+         * "World War II"); the host (www. stripped, port stripped) when the path is
+         * empty/short; the bare domain for domain-only goals ("open example.com").
+         * Runs AFTER the quoted/cue patterns (an explicitly named target wins over a
+         * URL path) and BEFORE the capitalized-run fallback.
+         */
+        private fun urlEntity(goal: String): TargetEntity? {
+            GOAL_URL.find(goal)?.let { match ->
+                val url = match.value.trimEnd('.', ',', ')', ']', '!', '?', ';', ':')
+                val afterScheme = url.substringAfter("://")
+                val host = afterScheme.substringBefore('/').substringBefore(':').removePrefix("www.")
+                val path = afterScheme.substringAfter('/', "").substringBefore('?').substringBefore('#')
+                val segment = path.split('/').filter { it.isNotEmpty() }.lastOrNull()
+                if (segment != null) {
+                    val words = segment.replace('_', ' ').replace('-', ' ').trim()
+                    if (words.length >= SHORT_SEGMENT_MIN) return quoted(words)
+                }
+                return quoted(host)
+            }
+            GOAL_DOMAIN.find(goal)?.let { match ->
+                val host = match.groupValues[1].substringBefore('/')
+                    .trimEnd('.', ',', ')', ']', '!', '?', ';', ':')
+                    .removePrefix("www.")
+                return quoted(host)
+            }
+            return null
         }
 
         /** Normalizes and validates one candidate span; null when it normalizes away. */

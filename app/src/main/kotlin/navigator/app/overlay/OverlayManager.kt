@@ -6,6 +6,7 @@ import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
 import android.view.View
+import android.view.WindowInsets
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityWindowInfo
 import kotlinx.coroutines.CompletableDeferred
@@ -150,6 +151,22 @@ class OverlayManager(private val service: AccessibilityService) {
                     onFailure(errorCode)
                 }
             },
+        )
+    }
+
+    /**
+     * The system-bar insets the live log's anchors must clear (UAT 9.1 W2): the nav
+     * bar's bottom + the status bar's top, read from the service context's maximum
+     * window metrics (API 30+; needs no window focus). Re-read per anchor application
+     * (rotation/fold changes the values).
+     */
+    internal fun systemBarInsets(): LiveLogAnchor.SystemBars {
+        val wm = service.getSystemService(AccessibilityService.WINDOW_SERVICE) as WindowManager
+        val metrics = wm.maximumWindowMetrics
+        val insets = metrics.windowInsets
+        return LiveLogAnchor.SystemBars(
+            navBarBottomPx = insets.getInsets(WindowInsets.Type.navigationBars()).bottom,
+            statusBarTopPx = insets.getInsets(WindowInsets.Type.statusBars()).top,
         )
     }
 
