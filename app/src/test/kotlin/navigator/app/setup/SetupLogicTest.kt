@@ -93,6 +93,49 @@ class SetupLogicTest {
         assertTrue(red.required)
     }
 
+    // -- UAT 9.2 revision R4: the battery acknowledgement's persistence contract -----
+
+    @Test
+    fun `the battery-acknowledgement persistence keys are stable and non-blank`() {
+        assertTrue(SetupLogic.BATTERY_ACK_PREFS_FILE.isNotBlank())
+        assertTrue(SetupLogic.BATTERY_ACK_PREF_KEY.isNotBlank())
+        assertEquals("navigator-setup", SetupLogic.BATTERY_ACK_PREFS_FILE)
+        assertEquals("battery-acknowledged", SetupLogic.BATTERY_ACK_PREF_KEY)
+    }
+
+    @Test
+    fun `the persisted acknowledgement restores the battery step green on Samsung`() {
+        // The persisted boolean feeds straight back into the same pure derivation the
+        // wizard renders — a restart with the flag set shows the step still GREEN.
+        val restored = SetupLogic.batteryCheck("samsung", acknowledged = true)
+        assertEquals(SetupLogic.Status.GREEN, restored.status)
+        assertTrue(SetupLogic.allRequiredGreen(
+            listOf(
+                SetupLogic.accessibilityCheck(true),
+                restored,
+                SetupLogic.keyCheck(true),
+                SetupLogic.modelCheck(false),
+            ),
+        ))
+    }
+
+    // -- UAT 9.2 revision R5: the fixed saved-key indicator ---------------------------
+
+    @Test
+    fun `the saved-key indicator is a FIXED dot string - never derived from the value`() {
+        // Redaction law: presence only — the exact constant, independent of any input.
+        assertEquals("••••••••", SetupLogic.SAVED_KEY_INDICATOR)
+        assertEquals(8, SetupLogic.SAVED_KEY_INDICATOR.length)
+    }
+
+    @Test
+    fun `the saved key detail shows only the fixed dots and names the replace path`() {
+        val saved = SetupLogic.keyCheck(true)
+        assertTrue(saved.detail.contains(SetupLogic.SAVED_KEY_INDICATOR))
+        assertTrue(saved.detail.contains("replaces"))
+        assertFalse(saved.detail.contains("sk-"), "no key-material shape may ever render")
+    }
+
     @Test
     fun `the model check is informational and never gates - Jev is primary`() {
         val present = SetupLogic.modelCheck(true)

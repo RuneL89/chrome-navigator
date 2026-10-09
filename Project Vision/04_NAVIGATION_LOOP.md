@@ -18,10 +18,11 @@ goal → GOAL RESTRUCTURE (writer LLM, code-validated) → LADDER EXECUTION (ste
 
 **Goal restructure (writer LLM proposes, code validates, engines execute)** — every goal
 enters through one writer-LLM call that turns the free-text goal into a **task ladder**:
-an ordered list of subtasks, each = a free-text instruction + one **machine-checkable
-IS-DONE condition** drawn from the done-condition whitelist (URL host, marker text on
-page, element presence, working-memory counts — e.g. "accounts followed ≥ 5"). The owner
-interview pins three absolutes:
+a one-sentence **goal summary** (the user's text rewritten short — the ladder's title),
+plus an ordered list of subtasks, each = a free-text instruction + one
+**machine-checkable IS-DONE condition** drawn from the done-condition whitelist (URL
+host, marker text on page, element presence, working-memory counts — e.g. "accounts
+followed ≥ 5"). The owner interview pins three absolutes:
 
 - **Task independence:** the machinery is identical for "open Wikipedia and open the
   world war 2 page" and "follow 5 new accounts on YouTube that make videos about

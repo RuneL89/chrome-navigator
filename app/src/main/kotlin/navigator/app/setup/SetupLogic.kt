@@ -110,7 +110,8 @@ object SetupLogic {
         CheckState(
             id = CHECK_KEY,
             status = Status.GREEN,
-            detail = "OpenRouter key saved (stored encrypted on this device; shown only as saved).",
+            detail = "OpenRouter key saved ($SAVED_KEY_INDICATOR — stored encrypted on " +
+                "this device, shown only as these fixed dots; saving a new key replaces it).",
             required = true,
         )
     } else {
@@ -147,4 +148,22 @@ object SetupLogic {
     const val CHECK_BATTERY = "battery"
     const val CHECK_KEY = "key"
     const val CHECK_MODEL = "model"
+
+    /**
+     * UAT 9.2 revision R4 — the battery "Done" acknowledgement's persistence location:
+     * a PLAIN SharedPreferences file + key (a user acknowledgement, not a secret —
+     * nothing here ever holds key material or log data). Pure string constants so the
+     * JVM tests pin the persistence contract.
+     */
+    const val BATTERY_ACK_PREFS_FILE = "navigator-setup"
+    const val BATTERY_ACK_PREF_KEY = "battery-acknowledged"
+
+    /**
+     * UAT 9.2 revision R5 — the saved-key indicator: a FIXED dot string shown while a
+     * key is stored. REDACTION LAW: presence only — it must never be derived from the
+     * stored value or its true length (the key itself stays encrypted on-device in
+     * [OpenRouterKeyStore], is never rendered, and tapping the entry field never
+     * echoes it).
+     */
+    const val SAVED_KEY_INDICATOR = "••••••••"
 }

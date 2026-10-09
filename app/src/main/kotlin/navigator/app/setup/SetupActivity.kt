@@ -76,6 +76,37 @@ class SetupActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * UAT 9.2 revision R3: the wizard must live-update. Every resume — and every
+     * window-focus gain (the return from a Settings deep-link) — bumps [refreshTick],
+     * which re-runs ALL checks. A check flips green the moment the user comes back
+     * with it satisfied; no app restart needed.
+     */
+    override fun onResume() {
+        super.onResume()
+        refreshTick++
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) refreshTick++
+    }
+
+    /** Bumped on resume/focus (R3); the wizard's refresh [LaunchedEffect] keys on it. */
+    private var refreshTick by mutableStateOf(0)
+
+    /** R4: the persisted battery "Done" acknowledgement (plain prefs — see SetupLogic). */
+    private fun readBatteryAck(): Boolean =
+        getSharedPreferences(SetupLogic.BATTERY_ACK_PREFS_FILE, MODE_PRIVATE)
+            .getBoolean(SetupLogic.BATTERY_ACK_PREF_KEY, false)
+
+    private fun writeBatteryAck(acknowledged: Boolean) {
+        getSharedPreferences(SetupLogic.BATTERY_ACK_PREFS_FILE, MODE_PRIVATE)
+            .edit()
+            .putBoolean(SetupLogic.BATTERY_ACK_PREF_KEY, acknowledged)
+            .apply()
+    }
+
     /** FOREGROUND-context FGS start (the activity is visible) + optional goal input. */
     private fun startNavigatorService(showGoalInput: Boolean) {
         val service = Intent(this, NavigatorService::class.java).apply {
@@ -87,9 +118,12 @@ class SetupActivity : ComponentActivity() {
     @Composable
     private fun SetupScreen() {
         val checks = remember { mutableStateListOf<SetupLogic.CheckState>() }
-        var batteryAcknowledged by remember { mutableStateOf(false) }
+        // R4: restore the persisted acknowledgement so a restart shows the battery
+        // step still acknowledged.
+        var batteryAcknowledged by remember { mutableStateOf(readBatteryAck()) }
         var keyInput by remember { mutableStateOf("") }
         var keySaved by remember { mutableStateOf(false) }
+        var keyPresent by remember { mutableStateOf(OpenRouterKeyStore.has(this@SetupActivity)) }
 
         fun refresh() {
             val enabledServices = Settings.Secure.getString(
@@ -99,16 +133,21 @@ class SetupActivity : ComponentActivity() {
             val modelPresent = runCatching {
                 assets.list(LAYA_ASSET_DIR)?.contains(LAYA_ASSET_FILE) == true
             }.getOrDefault(false)
+            val keyStored = OpenRouterKeyStore.has(this@SetupActivity)
             checks.clear()
             checks.add(SetupLogic.accessibilityCheck(
                 SetupLogic.isAccessibilityServiceEnabled(enabledServices, packageName),
             ))
             checks.add(SetupLogic.batteryCheck(Build.MANUFACTURER, batteryAcknowledged))
-            checks.add(SetupLogic.keyCheck(OpenRouterKeyStore.has(this)))
+            checks.add(SetupLogic.keyCheck(keyStored))
             checks.add(SetupLogic.modelCheck(modelPresent))
+            keyPresent = keyStored
         }
 
-        LaunchedEffect(batteryAcknowledged, keySaved) { refresh() }
+        // R3: the tick re-runs every check on resume/window-focus (returning from a
+        // Settings deep-link flips the row immediately); the other keys re-run on the
+        // checkbox and the save button.
+        LaunchedEffect(batteryAcknowledged, keySaved, refreshTick) { refresh() }
 
         Surface(modifier = Modifier.fillMaxSize()) {
             Column(
@@ -169,17 +208,44 @@ class SetupActivity : ComponentActivity() {
                                     }) { Text("Open Battery settings") }
                                     Checkbox(
                                         checked = batteryAcknowledged,
-                                        onCheckedChange = { batteryAcknowledged = it },
+                                        // R4: the acknowledgement is remembered across
+                                        // restarts (plain prefs).
+                                        onCheckedChange = { checked ->
+                                            writeBatteryAck(checked)
+                                            batteryAcknowledged = checked
+                                        },
                                     )
                                     Text("Done (Never sleeping + Unrestricted)")
                                 }
                             }
 
                             SetupLogic.CHECK_KEY -> Column {
+                                if (keyPresent) {
+                                    // R5: the saved-key indicator — a FIXED dot string,
+                                    // presence only. Never the value, never its true
+                                    // length; the field below stays EMPTY (tapping in
+                                    // echoes nothing).
+                                    Text(
+                                        text = "Saved: ${SetupLogic.SAVED_KEY_INDICATOR}",
+                                        style = MaterialTheme.typography.titleSmall,
+                                    )
+                                    Text(
+                                        text = "Saving again replaces the stored key.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                }
                                 OutlinedTextField(
                                     value = keyInput,
                                     onValueChange = { keyInput = it },
-                                    label = { Text("OpenRouter key") },
+                                    label = {
+                                        Text(
+                                            if (keyPresent) {
+                                                "OpenRouter key (type a new one to replace)"
+                                            } else {
+                                                "OpenRouter key"
+                                            },
+                                        )
+                                    },
                                     visualTransformation = PasswordVisualTransformation(),
                                     singleLine = true,
                                     modifier = Modifier.fillMaxWidth(),
@@ -194,7 +260,7 @@ class SetupActivity : ComponentActivity() {
                                         }
                                     },
                                     enabled = keyInput.isNotBlank(),
-                                ) { Text("Save key") }
+                                ) { Text(if (keyPresent) "Replace key" else "Save key") }
                             }
                         }
                     }

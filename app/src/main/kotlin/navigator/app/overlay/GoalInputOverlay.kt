@@ -8,6 +8,7 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.EditText
@@ -60,6 +61,14 @@ internal class GoalInputOverlay(private val manager: OverlayManager) {
     @Volatile
     var visible: Boolean = false
         private set
+
+    /**
+     * UAT 9.1 revision R2: fired ONCE when an open session actually dismisses
+     * (submit/cancel/external hide — not teardown). The manager sets it as the
+     * live-log restore hook; the overlay itself never touches the log.
+     */
+    @Volatile
+    var onDismissed: (() -> Unit)? = null
 
     fun show(onSubmit: (String) -> Unit, onCancel: () -> Unit) {
         if (visible) return
@@ -144,6 +153,17 @@ internal class GoalInputOverlay(private val manager: OverlayManager) {
                 dimAmount = 0.4f
                 softInputMode = WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE or
                     WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+            }
+            // UAT 9.1 revision R1: with the keyboard open, Submit/Cancel must stay
+            // reachable. `SOFT_INPUT_ADJUST_RESIZE` alone proved unreliable for a11y
+            // overlay windows (measured on the owner's S25+: the window never resized
+            // and the buttons sat behind the IME), so the IME INSET is the signal:
+            // pad the container's bottom by it so the gravity-centered panel
+            // re-centers inside the IME-visible region. When no IME is up the inset
+            // is 0 and the layout is byte-identical to the pre-fix centering.
+            container.setOnApplyWindowInsetsListener { view, insets ->
+                view.setPadding(0, 0, 0, insets.getInsets(WindowInsets.Type.ime()).bottom)
+                insets
             }
             submit.setOnClickListener {
                 val goal = field.text?.toString().orEmpty().trim()
@@ -245,7 +265,9 @@ internal class GoalInputOverlay(private val manager: OverlayManager) {
     /** Collapses the input, releases the blur, Chrome fully visible again. */
     fun hide() {
         if (!visible && root == null) return
+        val wasVisible = visible
         visible = false
+        if (wasVisible) onDismissed?.invoke()
         manager.postOnMainThread {
             releaseBlurLocked()
             root?.let { manager.removeViewFromWindow(it) }

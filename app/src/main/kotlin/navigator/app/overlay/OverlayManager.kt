@@ -119,9 +119,30 @@ class OverlayManager(private val service: AccessibilityService) {
 
     // -- goal input -----------------------------------------------------------------------
 
+    /**
+     * UAT 9.1 revision R2: the live log must never float over the keyboard while the
+     * goal input is up (it has nothing to show pre-submit and it blocked typing
+     * surfaces). So [showGoalInput] remembers whether the log was visible, hides it
+     * for the input session, and restores it when the input dismisses (submit,
+     * cancel, or an external [hideGoalInput] — every real dismiss path fires the
+     * goal input's [GoalInputOverlay.onDismissed] hook; teardown never does).
+     */
+    @Volatile
+    private var liveLogVisibleBeforeGoalInput: Boolean = false
+
     /** Shows the blurred-backdrop goal input; submit/cancel ride the callbacks. */
     fun showGoalInput(onSubmit: (String) -> Unit, onCancel: () -> Unit) {
+        if (!goalInput.visible) {
+            liveLogVisibleBeforeGoalInput = liveLog.visible
+            goalInput.onDismissed = { restoreLiveLogAfterGoalInput() }
+            if (liveLog.visible) liveLog.hide()
+        }
         goalInput.show(onSubmit, onCancel)
+    }
+
+    private fun restoreLiveLogAfterGoalInput() {
+        if (liveLogVisibleBeforeGoalInput && !liveLog.visible) liveLog.show()
+        liveLogVisibleBeforeGoalInput = false
     }
 
     fun hideGoalInput() = goalInput.hide()

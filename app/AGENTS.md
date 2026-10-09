@@ -51,17 +51,24 @@ setup wizard (`setup/`).
     mirror it exactly; the script's stdlib-only `--state-view-parity` mode generates
     `state-view-parity.json`, the cross-language derivation fixture the
     `LayaStateViewParityTest` must match byte-for-byte
-  * `src/main/kotlin/navigator/app/overlay/` — the PRODUCT overlay UX (Phase 9,
+    * `src/main/kotlin/navigator/app/overlay/` — the PRODUCT overlay UX (Phase 9,
     phase doc §2.1, pre-check readings a/b): `OverlayManager` (owns the three
     `TYPE_ACCESSIBILITY_OVERLAY` windows — added/removed through the observation
     service's WindowManager, NO SYSTEM_ALERT_WINDOW grant for product overlays; created
     in the service's `onServiceConnected`, torn down (every window removed, pending
     cards fail-safe) in `onDestroy`; hold the 08G plan for the cards' PLAN display;
-    `snapshot()` is the adb-driven gate runner's machine-readable state),
+    `snapshot()` is the adb-driven gate runner's machine-readable state; the
+    goal-input session HIDES the live log and restores it when the input really
+    dismisses — the UAT 9.1 R2 fix: the log never floats over the keyboard; the
+    restore rides GoalInputOverlay's `onDismissed` hook, teardown never fires it),
     `GoalInputOverlay` (full-screen translucent backdrop + the a11y `takeScreenshot`
     blurred IN-PROCESS by downscale/upscale — the bitmap lives in MEMORY for the input
     session only, released on submit/cancel/dismiss; ZERO file/log/network (ART-8);
-    text box + Submit/Cancel), `LiveLogOverlay` (small bottom-right
+    text box + Submit/Cancel; the UAT 9.1 R1 fix: the container pads its bottom by
+    the LIVE `WindowInsets.Type.ime()` inset so the gravity-centered panel re-centers
+    above the keyboard — `SOFT_INPUT_ADJUST_RESIZE` alone proved unreliable for a11y
+    overlay windows (measured on the owner's S25+); no IME up = 0 inset = unchanged
+    layout; Submit/Cancel stay reachable with the keyboard open), `LiveLogOverlay` (small bottom-right
     `FLAG_NOT_FOCUSABLE|NOT_TOUCH_MODAL` window streaming the compact step lines,
     latest-6 collapsed / tap-toggles 14, never obscures the center; the thinking
     spinner line; `appendMeasured` measures decision-receipt → line-RENDERED into the
@@ -105,10 +112,19 @@ setup wizard (`setup/`).
     parsing, the Samsung-only battery branching — non-Samsung passes with an info line
     so the wizard completes green on the emulator, presence-only key state, the
     informational eval-only model check that NEVER gates, the all-required-green
-    summary), `SetupActivity` (the re-runnable four-check Compose wizard: a11y enable
+    summary; the UAT 9.2 revision constants: `BATTERY_ACK_PREFS_FILE`/`BATTERY_ACK_PREF_KEY`
+    — the battery "Done" acknowledgement's PLAIN-SharedPreferences location (a user
+    acknowledgement, not a secret) — and `SAVED_KEY_INDICATOR`, the FIXED 8-dot
+    saved-key marker that must never be derived from the stored value or its true
+    length), `SetupActivity` (the re-runnable four-check Compose wizard: a11y enable
     deep-links with the Android 13+ "Allow restricted settings" path explained, the
     TEXT-GUIDED Samsung battery whitelist (no programmatic whitelist on stock Android
-    is lawful), the password-transformed key entry, the model status; STARTS the
+    is lawful), the password-transformed key entry, the model status; the UAT 9.2
+    revisions live here: ALL checks re-evaluate on onResume AND window-focus gain
+    (the R3 live-update — a row flips the moment the user returns from Settings), the
+    battery acknowledgement persists across restarts (R4), and a saved key renders as
+    the FIXED dot row beside the always-EMPTY entry field with "type a new one to
+    replace" / "Replace key" wording (R5 — no echo, no length leak); STARTS the
     foreground service from the foreground (the FGS background-start law) and triggers
     the goal overlay for the notification's "New task" action),
     `OpenRouterKeyStore` (`EncryptedSharedPreferences` — the key is LOCAL ONLY, never
@@ -765,7 +781,10 @@ tracked as last-known (normalized) and serves on an empty card URL, and garbage
   step line (masked `[credential-redacted]` at source), and the default-null listener
   byte-identical), `SetupLogicTest` (wizard state: the colon-separated
   enabled-services parsing, Samsung-only battery branching, presence-only key state,
-  the never-gating model check, the all-required-green summary);
+  the never-gating model check, the all-required-green summary; the UAT 9.2
+  revision-contract pins: the battery-ack persistence keys, the restored-ack
+  derivation, and the FIXED saved-key dot indicator (exact constant, presence only,
+  never key-material-shaped detail));
   `./gradlew :app:assembleDebug :app:assembleDebugAndroidTest` build the debug APK +
   the instrumented-test APK. Gates 9.1-9.4: the ASSERTION LOGIC lives ONCE in
   `overlay/GateScenarios.kt` (main source); EVIDENCE = the in-app debug runner driven
