@@ -933,3 +933,7 @@ a new dated entry. Format per `Implementation Plan/MASTER_IMPLEMENTATION_PROMPT.
   Changed (plan): Implementation Plan/PHASE_10_cloud_llm_roles.md rewritten to v2.0.0 (objective/decision record, GenClient + LadderSchema, ladder execution, format v3, overlay hooks, Gates 10.1–10.4, UATs 10.1–10.2, checklist); IMPLEMENTATION_PLAN_MASTER_INDEX.md row 10 + MASTER_IMPLEMENTATION_PROMPT.md mapping row 10 updated.
   Result: AMENDMENT RECORD COMPLIANT — owner decisions are the ratification trail; no contradiction remains (the superseded texts are marked as superseded, not deleted). Nothing implements until the Phase 9 UAT verdicts land (decision 11).
   Checked By: orchestrator (interview + drafting); owner = ratifier
+
+[2026-10-09 09:40] Phase 10 doc v2.1.0 — corner-log ladder display (owner directive)
+  Owner directive: during Phase 10 runs the subgoal ladder is permanently displayed in the bottom-right live log — `GOAL:` (the LLM's one-sentence rewrite of the user's text) + `Sub Task N [x]/[ ]` checklist tracking the pointer. Implemented in the phase doc as: Ladder schema gains `summary` (display-only, schema-validated, never feeds decisions); §2.4 specifies the block verbatim (marks/layout revisable per the open Phase 9 overlay-feel verdicts — the door stays open); Gates 10.2/10.4 assert the block renders + tracks. Doc-only change to the DRAFT phase doc; no law text touched; nothing implements until the Phase 9 verdicts land.
+  Checked By: orchestrator (owner directive recorded verbatim in the doc's version note)

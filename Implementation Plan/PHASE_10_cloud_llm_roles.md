@@ -1,10 +1,7 @@
 # Phase 10: Goal Restructuring & Answer Extraction (the task ladder)
 
 **Document ID:** `NAVIGATOR-IMPL-PHASE-10`
-**Version:** 2.0.0 *(rewritten 2026-10-09 per the owner interview — 12 ratified decisions;
-supersedes v1.0.0's four-role scope. The altered phase ships TWO writer roles: goal
-restructuring (the centerpiece) and answer extraction. Typed-text phrasing, page
-compression, and the rescue coach are explicitly OUT of this phase.)*
+**Version:** 2.1.0 *(v2.0.0 rewritten 2026-10-09 per the owner interview — 12 ratified decisions; supersedes v1.0.0's four-role scope: the altered phase ships TWO writer roles, goal restructuring (the centerpiece) and answer extraction — typed-text phrasing, page compression, and the rescue coach are explicitly OUT. v2.1.0 amends the same day: the owner directive — the ladder is permanently displayed in the bottom-right live log as a `GOAL:` summary line (the LLM's one-sentence rewrite of the user's text) plus a `Sub Task N [x]/[ ]` checklist tracking the pointer; exact wording/marks stay revisable per the open Phase 9 overlay-feel verdicts.)*
 **Status:** Draft
 **Date:** 2026-10-09
 **Dependencies:** Phase 6 (loop), Phase 9 (overlay surfaces + NavigatorService run path)
@@ -44,7 +41,10 @@ counter restart) · scope = restructuring + answer extraction.
   `EngineConfig`-style config (same pinning law as doc 02 §5 — upgrades gate on eval).
 - `restructure(goal): Ladder` — ONE call; versioned prompt constant (`PROMPT_VERSION`
   logged with every row, doc 05). Output = the task ladder:
-  `{ subtasks: [{ instruction: String, done: DoneCondition }], taskClass }`.
+  `{ summary, subtasks: [{ instruction: String, done: DoneCondition }], taskClass }`.
+  - **`summary`** — the user's goal rewritten by the LLM into ONE short sentence; it is
+    the ladder's display header (§2.4). Schema-validated: non-blank, single line, no
+    done-condition semantics (display only — never feeds decisions or checks).
   - **DoneCondition whitelist (ART-4 — schema-rejected otherwise):** `urlHost(host)`,
     `markerText(text)` (page contains a literal), `elementPresent(desc)` (an enumerable
     candidate matches a description), `count(target, n)` (working-memory counter, e.g.
@@ -96,8 +96,25 @@ counter restart) · scope = restructuring + answer extraction.
 
 ### 2.4 Overlay surfaces (Phase 9 hooks)
 
-- The corner log and gate cards show the active subtask (Phase 9's PLAN display becomes
-  the ACTIVE-SUBTASK display) — the owner always sees what the agent thinks it is doing.
+- **The ladder lives in the corner log (owner directive, 2026-10-09):** the
+  LiveLogOverlay renders the ladder block as its header, above the streaming step
+  lines, in exactly this shape:
+
+  ```
+  GOAL: <the LLM's one-sentence rewrite of the user's goal>
+  Sub Task 1 [x]
+  Sub Task 2 [ ]
+  Sub Task 3 [ ]
+  Sub Task 4 [ ]
+  ```
+
+  `[x]` = verified IS-DONE, `[ ]` = not yet; the ACTIVE subtask is visually
+  distinguishable (exact marks/layout revisable — this builds on the open Phase 9
+  overlay-feel verdicts, and the block must stay readable at corner size in both the
+  collapsed and expanded log states). Re-plans re-render the block with the new
+  ladder's summary + subtasks (generation count shown, e.g. "re-plan 2").
+- The gate cards show the active subtask (Phase 9's PLAN display becomes the
+  ACTIVE-SUBTASK display) — the owner always sees what the agent thinks it is doing.
 - The owner escalation card ("Retry / Re-plan / Stop") rides the Phase-9 card window.
 
 ## 3. Technical Approval Gates
@@ -122,7 +139,9 @@ advance (and vice versa); count-shaped done-conditions track working memory
 failure path: 2 re-plans then the owner-card escalation (scripted resolutions for
 Retry/Re-plan/Stop); budget caps hold (writer cap separate from decision spend).
 
-**Pass Criteria:** all JVM ladder tests green; no float drift (integer micro-dollars).
+**Pass Criteria:** all JVM ladder tests green; no float drift (integer micro-dollars);
+the corner-log ladder block (GOAL summary + `Sub Task N [x]/[ ]`) renders correctly
+from the pure formatter, including pointer-advance and re-plan regeneration.
 
 ### Gate 10.3: State format v3 (isolation + eval)
 
@@ -139,7 +158,9 @@ ladder (site-entry via VIEW intent or URL entry per mechanism choice) executed l
 restructuring + per-subtask IS-DONE + one answer extraction; all calls logged with
 tokens + cost.
 
-**Pass Criteria:** ladder completes on-device; spend recorded; ≤ $1 of the cap.
+**Pass Criteria:** ladder completes on-device; the corner log shows the live ladder
+block (GOAL summary + subtask checklist tracking the pointer) throughout; spend
+recorded; ≤ $1 of the cap.
 
 ## 4. User Acceptance Tests (UAT)
 
