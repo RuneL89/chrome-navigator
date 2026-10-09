@@ -1,8 +1,8 @@
 # Navigation Loop
 
 **Document ID:** `NAVIGATOR-VISION-004`
-**Version:** 1.3.0 *(amended 2026-10-07: STRONG guard tightened to page-identity only — the target entity must match in the page title or URL; a content-only mention never yields STRONG ("a mention is not arrival"); owner-ratified after the Test-2′ false GOAL_ACHIEVED on a content mention)*
-**Status:** Ratified (2026-10-03; amendments 2026-10-06, 2026-10-07)
+**Version:** 1.4.0 *(amended 2026-10-09: goal restructuring — the pipeline opens with a writer-LLM restructure stage that turns the free-text goal into a validated task ladder (ordered subtasks, each with a machine-checkable IS-DONE condition); the loop executes over the ACTIVE subtask with the §3 exit law applied at subtask granularity; cold-start folds into the outcome-based site-entry mechanism; triage and the 08G context-plan are subsumed. Owner-ratified via the Phase-10 interview (12 decisions, 2026-10-09).)*
+**Status:** Ratified (2026-10-03; amendments 2026-10-06, 2026-10-07, 2026-10-09)
 **Date:** 2026-10-03
 **Implements:** ART-4 (no self-report completion), ART-5 (numbers in code), ART-9 (bounded
 tasks), ART-2 (one decision gateway)
@@ -12,36 +12,52 @@ tasks), ART-2 (one decision gateway)
 ## 1. Task lifecycle
 
 ```
-goal → COLD-START (code) → TRIAGE → [PLAN PROPOSAL] → step loop → EXIT → result extraction
+goal → GOAL RESTRUCTURE (writer LLM, code-validated) → LADDER EXECUTION (step loop
+        over the ACTIVE subtask) → EXIT → result extraction
 ```
 
-**Cold-start (code, deterministic)** — if the goal names a site (or the task needs one)
-and Chrome is absent or on an unrelated page, the loop issues a VIEW intent for the
-goal-derived start URL before the first OBSERVE. No engine is consulted for opening the
-browser; the start-URL derivation is deterministic code (with extraction helpers where
-needed) and is logged.
+**Goal restructure (writer LLM proposes, code validates, engines execute)** — every goal
+enters through one writer-LLM call that turns the free-text goal into a **task ladder**:
+an ordered list of subtasks, each = a free-text instruction + one **machine-checkable
+IS-DONE condition** drawn from the done-condition whitelist (URL host, marker text on
+page, element presence, working-memory counts — e.g. "accounts followed ≥ 5"). The owner
+interview pins three absolutes:
 
-**Triage** — one `DecisionEngine.choose` over the goal text:
-`lookup | research-multi-step | form-fill | action | action-multi | impossible`.
-- `action` — a single consequential operation on the user's accounts/content/data
-  (payment, login, one unsubscribe, one booking…).
-- `action-multi` — one operation applied to a **set of targets** enumerated from a page
-  ("unsubscribe from all food channels", "unfriend every X") — targets are discovered
-  from the UI at run time, never assumed.
-- `impossible` (or anything outside scope) → explain and abort before any navigation.
-Triage result is logged.
+- **Task independence:** the machinery is identical for "open Wikipedia and open the
+  world war 2 page" and "follow 5 new accounts on YouTube that make videos about
+  nature" — **no site- or scenario-specific logic anywhere** (doc 01 §5 non-goals).
+- **Outcome-based subtasks:** a subtask states the OUTCOME ("wikipedia.org loaded"),
+  never the mechanics; CODE chooses the mechanism — a VIEW intent when a URL is
+  resolved, URL-bar entry otherwise. No hardcoded navigation logic.
+- **Managed context (ART-2 intact):** the ladder re-scopes the objective — the ACTIVE
+  subtask's instruction rides the state text (doc 03 §4) and Jev still decides every
+  single step; the loop advances the subtask pointer only on a VERIFIED IS-DONE. The
+  LLM defines what "done" means; it never chooses actions. The former code-only
+  cold-start and the 08G context-plan are subsumed: the ladder is the plan, and the
+  task class for budgets (§5) is derived from the validated ladder (single-target vs
+  multi-target, per the done-condition shapes). The restructure prompt surface is
+  versioned; its provenance rides every row (doc 05).
 
-**Plan proposal (LLM proposes, engines execute)** — for multi-step goals, the generative
-LLM may draft a **subgoal plan** at triage (versioned prompt surface; logged with its own
-provenance). The plan rides the state text as the `PLAN:` section — **context, never
-executor**: every step's action is still chosen by the primary `DecisionEngine` (ART-2
-intact; the plan may only inform, like the L3 rescue-coach precedent). Until the writer
-role ships (Phase 10), a deterministic `PlanSource` default supplies no plan.
+**Failure path (bounded):** a subtask whose IS-DONE cannot be verified (stuck, denied,
+unexpected page shape) triggers at most **2 restructure calls per task** (re-plan);
+after **3 consecutive subtask failures** the loop raises an owner card ("Retry /
+Re-plan / Stop") instead of dying silently. Gate denials keep §2 step-4 semantics
+(double-deny aborts). Writer calls are capped by a **separate per-task writer budget**
+beside the decision-spend budget (§5; ART-5/ART-9).
 
-**Task working memory (code)** — for `action-multi` tasks, a code-owned tracker
-enumerates target rows from the page, records processed/pending, and survives scrolls
-and navigation; the guard (§3) and the `TASK PROGRESS` state section (doc 03 v2) read
-from it. The 3-line HISTORY digest is never the memory of record for multi-target work.
+**Untrusted-ladder law (ART-4):** the ladder is untrusted input. Done-conditions may
+reference ONLY code-checkable facts (the whitelist above) — an opinion-phrased
+done-condition is rejected at schema validation, so a hostile page can never "be" done.
+The active-subtask text rides the state labeled as plan context with the existing caps,
+the gate cards show the active subtask (the owner always sees what the agent thinks
+it is doing), and the restructure prompt/output carry adversarial eval rows (hostile
+goal texts must produce schema-valid ladders only — never directives that suppress
+gates or weaken done-checks; doc 07).
+
+**Task working memory (code)** — for multi-target ladders, a code-owned tracker
+enumerates target rows from the page, records processed/pending, counts completed
+against count-shaped done-conditions, and survives scrolls and navigation; the guard
+(§3) and the state's progress section (doc 03 v3) read from it.
 
 ## 2. The step (strict order)
 
@@ -65,10 +81,17 @@ from it. The 3-line HISTORY digest is never the memory of record for multi-targe
 6. **LOG** (code) — the DecisionLog row (doc 05), including guard outcomes, execution
    result, both engines' answers, and plan/progress provenance.
 
-## 3. Exit conditions (amended 2026-10-06 — exit reliability; 2026-10-07 — STRONG page-identity)
+## 3. Exit conditions (amended 2026-10-06 — exit reliability; 2026-10-07 — STRONG page-identity; 2026-10-09 — per-subtask granularity)
 
 A task ends by exactly one of: **goal-achieved**, **budget exhausted**, **stuck-kill**,
-**guard abort**, **user cancel**.
+**guard abort**, **user cancel** — and (v1.4.0) each **subtask** of the ladder ends by
+verified IS-DONE, subtask abort (owner card path), or task-level exit. The SAME
+discipline applies at subtask granularity: the goal-achieved proposition is anchored to
+the **ACTIVE subtask's done-condition** ("the URL host is wikipedia.org", "the marker
+'Mediterranean cuisine' is on the page", "3 of 5 accounts followed"), and a subtask is
+done only when the engine noul check passes AND the code guard on the done-condition
+holds — the ladder's own claim of completion is never evidence (ART-4). The final
+subtask's IS-DONE is the task's goal-achieved.
 
 **Guard levels (code-only):**
 - **WEAK** — the per-triage-class contentful predicates: lookup/research (a non-empty
@@ -118,16 +141,22 @@ engine re-orients to pending targets.
 
 ## 5. TaskBudget (code) — per-class profiles
 
-Budgets scale by triage class (**BudgetProfile**, initial values; tunable by amendment):
+Budgets scale by task class (**BudgetProfile**, derived from the validated ladder:
+single-target read/lookup → Standard, single consequential operation → Action,
+multi-target ladder → Multi; initial values, tunable by amendment):
 
-| Profile | Classes | Steps soft/hard | Wall clock soft/hard | Cloud spend soft/hard |
+| Profile | Ladder shape | Steps soft/hard | Wall clock soft/hard | Decision spend soft/hard |
 |---|---|---|---|---|
-| Standard | lookup · research · form-fill | 40 / 60 | 5 / 10 min | $0.20 / $0.25 |
-| Action | action | 60 / 100 | 10 / 15 min | $0.20 / $0.25 |
-| Multi | action-multi | 150 / 300 | 15 / 30 min | $0.50 / $0.75 |
+| Standard | single-target, read/lookup | 40 / 60 | 5 / 10 min | $0.20 / $0.25 |
+| Action | single consequential operation | 60 / 100 | 10 / 15 min | $0.20 / $0.25 |
+| Multi | multi-target ladder | 150 / 300 | 15 / 30 min | $0.50 / $0.75 |
 
 - All arithmetic and enforcement in code (ART-5); on any hard stop: clean stop, partial
   results, everything logged. Shadow calls remain free and unbudgeted.
+- **Writer budget (v1.4.0):** restructure/re-plan calls + answer extraction meter into a
+  SEPARATE per-task writer cap (code config, initial $0.05 soft / $0.10 hard), beside the
+  decision-spend budget above — expensive re-planning never starves navigation, and
+  neither cap can be exceeded silently (ART-5/ART-9).
 
 ## 6. Result presentation
 

@@ -1,7 +1,7 @@
 # Chrome Navigator (working title) — Product Vision and Architecture
 
 **Document ID:** `NAVIGATOR-VISION-001`
-**Version:** 1.3.1 *(amended 2026-10-06: Road L fine-tune minimum is format-scoped and the corpus carries noul cases — doc 05 §4; owner-directed fine-tuning audit; supersedes nothing in the v1.3.0 foundations)*
+**Version:** 1.4.0 *(amended 2026-10-09: goal restructuring — the writer LLM turns every free-text goal into a validated task ladder with per-subtask IS-DONE conditions (doc 04 §1 v1.4.0); supersedes the cold-start/triage/plan-proposal pipeline; owner-ratified via the Phase-10 interview)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-03, 2026-10-06)
 **Date:** 2026-10-03
 
@@ -85,15 +85,12 @@ Ratified Round 3 (+ article 11). Each article is citable as `ART-n` in complianc
 GOAL typed in overlay (a11y-overlay window)
    │
    ▼
-COLD-START (code) — goal names a site + Chrome absent → VIEW intent (no engine consulted)
+GOAL RESTRUCTURE (writer LLM, ONE call; code validates) — free-text goal → task ladder:
+               ordered subtasks (instruction + machine-checkable IS-DONE condition);
+               task class + writer budget derived from the validated ladder
+               (owner-ratified 2026-10-09 — doc 04 §1; outcome-based, task-independent)
    ▼
-TASK TRIAGE — DecisionEngine.choose: lookup / research-multi-step / form-fill / action /
-               action-multi / impossible
-   ▼
-PLAN PROPOSAL (optional) — writer LLM drafts subgoals; PLAN rides the state as CONTEXT;
-               engines still decide every step (ART-2)
-   ▼
-NAVIGATION LOOP (per step):
+NAVIGATION LOOP (per step, over the ACTIVE subtask):
    1. OBSERVE        (code) AccessibilityService reads Chrome a11y tree + URL bar + content excerpt
    2. ENUMERATE      (code) bucket candidates, ≤20/bucket, deterministic order
    3. DECIDE         ShadowRouter → primary (flat list, ≤255 opts)
@@ -103,7 +100,9 @@ NAVIGATION LOOP (per step):
                      locally on the card (doc 06 §2a)
    5. EXECUTE        (code) gestures / text entry (writer LLM phrases ordinary text;
                      gate-supplied secrets are redacted everywhere)
-   6. LOG            DecisionLog row (RLCD-compatible; plan/progress provenance)
+   6. LOG            DecisionLog row (RLCD-compatible; ladder/progress provenance)
+   ▼
+SUBTASK IS-DONE (exit law per subtask — doc 04 §3) → advance the ladder pointer
    ▼
 RESULT SCREEN: answer + replayable decision log + local/cloud counter + agreement metric
 ```
@@ -120,6 +119,7 @@ RESULT SCREEN: answer + replayable decision log + local/cloud counter + agreemen
 | Recovery-strategy choice | DecisionEngine (`choice` over recovery set) | Model chooses within code-defined options |
 | Text phrasing (what to type — ordinary text only; NEVER secrets, doc 06 §2a) | Cloud LLM (generative) | Locked decision #4 |
 | Plan proposal (subgoal drafts for complex goals — context only) | Cloud LLM (generative, versioned); engines decide every step | Owner decision 2026-10-06: LLM proposes, engines execute |
+| **Goal restructuring (v1.4.0, 2026-10-09 — supersedes the plan-proposal row above)**: free-text goal → validated task ladder (ordered subtasks, each with a machine-checkable IS-DONE condition); outcome-based, task-independent; the ACTIVE subtask rides the state, Jev still decides every step, code verifies every IS-DONE (ART-2/ART-4) | Cloud LLM (generative, versioned) + code schema/done-condition validation | Owner interview 2026-10-09 (12 ratified decisions); cold-start and triage subsumed |
 | Page compression (oversized trees) | Cloud LLM (generative) | Perception assist only |
 | Final answer extraction | Cloud LLM (generative) | Reads result page, phrases answer |
 | Rescue coach | Cloud LLM (generative, level-3 stuck only) | Last resort |
@@ -225,8 +225,10 @@ dummy credentials; the harness never touches real accounts or real payments (doc
   (H1–H9, incl. the general persistent-state-mutation class H9 with additive-only engine
   triggering) plus the user-acceptance confirmation card, per-task class trust, and the
   credential-secret local-input law (doc 06).
-- **PLAN** — an optional subgoal list drafted by the writer LLM at triage; rides the state
-  text as context; engines decide every step (owner decision 2026-10-06).
+- **PLAN** — superseded by the **task ladder** (v1.4.0, doc 04 §1): the writer LLM's
+  validated decomposition of the goal into ordered subtasks, each with a
+  machine-checkable IS-DONE condition; the ACTIVE subtask rides the state text, Jev
+  decides every step, code verifies every IS-DONE.
 - **Task working memory** — the code-owned target/progress tracker for action-multi tasks
   (doc 04 §1); the guard and TASK PROGRESS section read from it.
 - **StuckDetector** — deterministic 5-signal/8-step-window detector with 3 escalation levels.

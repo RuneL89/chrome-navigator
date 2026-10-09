@@ -246,7 +246,7 @@ Phase documents live in `Implementation Plan/`; vision documents live in `Projec
 | 8H | `PHASE_08H_state_format_v2.md` | `03` v2.0.0, ART-7 | Format v2 + eval gate |
 | 8I | `PHASE_08I_eval_fixture_goals.md` | `07` v1.1.0 | 16-goal suite completion |
 | 9 | `PHASE_09_overlay_ux.md` | `01` §1, `06` §2 | Overlay law, gate card |
-| 10 | `PHASE_10_cloud_llm_roles.md` | `01` §3, `04`, `06` §4 | Role boundaries, budgets |
+| 10 | `PHASE_10_cloud_llm_roles.md` | `01` §3 v1.4.0, `03` §4 v2.2.0, `04` v1.4.0, `05` §4, `06` §4 | Ladder pipeline, per-subtask exit law, format v3, writer budget |
 | 11 | `PHASE_11_result_screen.md` | `04` §6, `05` §3 | Result presentation, agreement |
 | 12 | `PHASE_12_eval_tier_b.md` | `07_EVALUATION_HARNESS.md`, `04` §5 | Suite law, perf law |
 | 13 | `PHASE_13_hardening_release.md` | `06` §6, `01` §5 | Attribution, self-checks |

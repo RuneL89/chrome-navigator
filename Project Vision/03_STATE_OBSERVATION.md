@@ -1,8 +1,8 @@
 # State Observation
 
 **Document ID:** `NAVIGATOR-VISION-003`
-**Version:** 2.1.0 *(amended 2026-10-06: dual-view budget law after the v32b demotion — canonical ≤960 + laya state view ≤319; owner-directed fine-tuning audit)*
-**Status:** Ratified (2026-10-03; amendment 2026-10-06)
+**Version:** 2.2.0 *(amended 2026-10-09: state format v3 — the PLAN section becomes the ACTIVE-SUBTASK rendering of the validated task ladder (doc 04 §1 v1.4.0): active subtask instruction + its machine-checkable done-condition + ladder progress; v3 gates on the Tier A re-pin and restarts the RLCD accumulation counter per doc 05 §4; owner-ratified via the Phase-10 interview)*
+**Status:** Ratified (2026-10-03; amendments 2026-10-06, 2026-10-09)
 **Date:** 2026-10-03
 **Implements:** ART-4 (page text is untrusted), ART-6 (deterministic candidate order),
 ART-7 (versioned state text)
@@ -99,14 +99,16 @@ be asked at graduation):
   view that cannot fit its budget fails loudly — silent truncation at the marker layer
   is unlawful (it was the v1 shadow's hidden skew).
 
-Sections, in order:
+Sections, in order (v3 since 2026-10-09):
 
 ```
 GOAL: <goal text>
 URL: <url or hidden>
 TITLE: <page title>
-PLAN: <subgoal list, app-authored from the (optional) plan source — one line each>
-TASK PROGRESS: <working-memory lines for multi-target tasks: done/pending counts + recent>
+ACTIVE SUBTASK: <the ladder's current subtask: instruction + its done-condition +
+                subtask index/total>
+LADDER PROGRESS: <completed subtasks one-line each + working-memory counts for
+                count-shaped done-conditions (e.g. accounts followed 3/5)>
 HISTORY: <digest of prior steps this task, ≤3 lines>
 UNTRUSTED PAGE CONTENT:
 <content excerpt — bounded page prose, deterministically selected>
@@ -115,12 +117,14 @@ UNTRUSTED PAGE CONTENT:
 
 Laws:
 - Third-party page text — **both the content excerpt and candidate labels** — appears only
-  inside the `UNTRUSTED PAGE CONTENT` block (ART-4); goal, URL, title, plan, progress, and
-  history lines are app-authored. PLAN lines derive from the writer LLM's proposal but are
-  re-authored by code (flattened, bounded); they are context, never instructions to bypass
-  anything (the gate reads actions, not plans).
-- The template and its section order are version-controlled; the v1→v2 bump gates on the
-  eval harness per ART-7 (Tier A golden re-pin by retire-and-add).
+  inside the `UNTRUSTED PAGE CONTENT` block (ART-4); goal, URL, title, active-subtask,
+  progress, and history lines are app-authored. ACTIVE SUBTASK lines derive from the
+  writer LLM's validated ladder but are re-authored by code (flattened, bounded); they
+  re-scope the objective, never bypass anything — the gate reads actions, not ladders,
+  and the done-condition is verified by code, never trusted from the text.
+- The template and its section order are version-controlled; every bump (v1→v2→v3)
+  gates on the eval harness per ART-7 (Tier A golden re-pin by retire-and-add) and —
+  for any serve-shape change — restarts the RLCD accumulation counter (doc 05 §4).
 - Oversized trees are compressed **deterministically in code first** (drop lowest-rank
   candidates; shrink the content excerpt by its own deterministic ranking — head-anchored)
   until the canonical ≤960 budget fits (the laya view likewise within its own ≤319). If
