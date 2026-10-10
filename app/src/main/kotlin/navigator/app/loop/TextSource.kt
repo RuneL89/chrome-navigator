@@ -17,6 +17,15 @@ sealed interface TextSource {
     data class StubPhrase(val text: String) : TextSource
 
     /**
+     * The writer-phrased field content (Phase 10B, doc 04 §2 v1.6.0 — locked decision #4
+     * realized): ONE line ≤ [navigator.app.gen.Prompts.PHRASE_MAX_CHARS] chars, produced
+     * by `GenClient.phrase(subtask, maskedFieldLabel)` and validated by the client's
+     * content-only law. A phrase FAILURE never reaches here — it routes the fill-field
+     * step to recovery (never raw-goal typing).
+     */
+    data class LlmPhrase(val text: String) : TextSource
+
+    /**
      * The owner-typed card secret (doc 06 §2a). Constructed ONLY from a credential
      * card's [GateResolution.ApproveWithSecret] approval — there is no other lawful
      * source, and a credential-typing action with any other source fails closed.

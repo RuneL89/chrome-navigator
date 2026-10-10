@@ -118,8 +118,9 @@ class PreUAT25FocusAndBindingTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "form-fill"),
-                chooseByLabel("action", "Note"),
+                *intentStep("fill-field", target = "Note"),
             ),
+            phraseSource = navigator.app.stub.StubPhraseSource,
             observations = listOf(page),
             presenter = ScriptedGatePresenter(),
             config = NavigationLoop.Config(settleMs = 0, budget = NavigationLoop.BudgetLimits(stepsHard = 1)),
@@ -144,15 +145,17 @@ class PreUAT25FocusAndBindingTest {
     // -- RC2 end-to-end in the real loop -----------------------------------------------------
 
     /**
-     * THE live defect shape, end-to-end: the engine chooses the OMNIBOX (a browser-chrome
-     * editable whose label echoes the login URL) on a login page carrying an
-     * identifier+flagged-secret pair. Pre-fix this classified H4, presented the
-     * credential card, and injected the owner's secret into the URL bar. Post-fix the
-     * typing is ungated (no card — the auto-deny presenter would fail any), the stub
-     * phrase executes, and the flagged field's own typing still gates H4.
+     * THE live defect shape, end-to-end under the cascade: the OMNIBOX (a
+     * browser-chrome editable whose label echoes the login URL) on a login page carrying
+     * an identifier+flagged-secret pair. The RC2 law now has TWO layers in the loop:
+     * (1) STRUCTURAL — a browser-chrome candidate is never a stage-2 target (the slate
+     * builder excludes it), so a scripted gold on the omnibox fails the stage-2 loudly;
+     * (2) the GATE law itself stays pinned at the classifier level (:core's
+     * RiskGateTargetScopingTest). Typing into the identifier member of the live pair
+     * still gates H4 (auto-deny denies it — no secret can be injected).
      */
     @Test
-    fun `omnibox typing on a live login page runs ungated - no credential card, no secret`() = runBlocking {
+    fun `the omnibox is never a cascade target and the pair's identifier typing still gates H4`() = runBlocking {
         val loginUrl = "http://127.0.0.1:8099/login.html"
         val page = obs(
             loginUrl,
@@ -164,22 +167,41 @@ class PreUAT25FocusAndBindingTest {
             N("No real credentials are accepted here."),
             pageNodes = 8,
         )
-        // auto-deny: ANY presented card resolves DENY — a second same-class refusal
-        // aborts. The omnibox step must therefore present NO card at all.
+        // (1) the structural exclusion: the omnibox (n0) is not on ANY stage-2 slate —
+        // a scripted gold on it fails the batch loudly, never taps or types
+        val exclusion = LoopFixture(
+            script = scriptOf(
+                choose("triage", "form-fill"),
+                *intentStep("fill-field", target = "n0"), // the omnibox: NOT a lawful target
+            ),
+            observations = listOf(page),
+            presenter = ScriptedGatePresenter(),
+            config = NavigationLoop.Config(settleMs = 0, budget = NavigationLoop.BudgetLimits(stepsHard = 1)),
+        )
+        val error = assertThrows<IllegalStateException> {
+            exclusion.loop.run("Sign in to the fixture bank demo account.", "preuat25-omnibox", identity, exclusion.clock)
+        }
+        assertTrue(
+            error.message?.contains("n0") == true && error.message?.contains("no candidate matches") == true,
+            "the omnibox must not be a stage-2 target: ${error.message}",
+        )
+        assertTrue(exclusion.executor.calls.isEmpty(), "nothing was typed or tapped at the omnibox")
+
+        // (2) typing into the identifier member of the live pair still gates H4
+        // (auto-deny denies it — the credential card path is intact for real fields)
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "form-fill"),
-                choose("action", "n0"), // the omnibox
-                chooseByLabel("action", "Email or username"),
-                choose("action", "finish"),
+                *intentStep("fill-field", target = "Email or username"),
+                *intentStep("verify-done"),
                 noul(0.95),
             ),
             observations = listOf(page),
-            presenter = ScriptedGatePresenter(GateResolution.DENIED), // the step-1 H4 card
+            presenter = ScriptedGatePresenter(GateResolution.DENIED), // the H4 card
             config = NavigationLoop.Config(
                 settleMs = 0,
                 unusableRetryDelayMs = 0,
-                budget = NavigationLoop.BudgetLimits(stepsHard = 3),
+                budget = NavigationLoop.BudgetLimits(stepsHard = 2),
             ),
         )
         val result = fixture.loop.run(
@@ -188,23 +210,15 @@ class PreUAT25FocusAndBindingTest {
             identity,
             fixture.clock,
         )
-
-        // the denied email step leaves the form-fill guard without code evidence, so the
-        // finish refuses (ART-4) and the run ends at the step budget — the PINS are the
-        // two rows below, not the terminal
         assertEquals(TerminalState.BUDGET_EXHAUSTED, result.terminal)
-        // step 0: the omnibox typed the stub phrase UNGATED (no gateEvent, no card)
-        assertEquals(null, fixture.sink.rows[0].gateEvent, "the omnibox step must not gate")
-        assertFalse(fixture.sink.rows[0].typedSecret)
-        val typed = fixture.executor.calls.filter { it.startsWith("text(") }
-        assertTrue(typed.any { it.contains(phraseStub("Sign in to the fixture bank demo account.", "n0")) }, "typed=$typed")
-        assertTrue(typed.none { it.contains("fixture-secret-DO-NOT-USE") }, "no secret may be injected: $typed")
-        // step 1: typing into the identifier member of the live pair still gates H4
-        // (auto-deny denies it — the credential card path is intact for real fields)
-        val emailRow = fixture.sink.rows[1]
+        val emailRow = fixture.sink.rows[0]
         assertEquals(navigator.core.log.LoggedHClass.H4, emailRow.gateEvent?.hclass)
         assertEquals(navigator.core.log.LoggedGateDecision.DENIED, emailRow.gateEvent?.decision)
         assertFalse(emailRow.typedSecret)
+        assertTrue(
+            fixture.executor.calls.none { it.contains("fixture-secret-DO-NOT-USE") },
+            "no secret may be injected: ${fixture.executor.calls}",
+        )
     }
 
     // -- RC1: the pure executor window decision ----------------------------------------------

@@ -48,12 +48,15 @@ class LadderExecutionLoopTest {
         actionPicks: List<String> = emptyList(),
         noulValues: List<Double> = emptyList(),
         recoveryPicks: List<String> = emptyList(),
+        /** Pick -> intent id overrides (the intent view carries no candidate kinds). */
+        val intentHints: Map<String, String> = emptyMap(),
     ) : DecisionEngine {
         val states = mutableListOf<Pair<String, String>>() // question name -> state text
         val askedQuestions = mutableListOf<String>()
         private val actions = ArrayDeque(actionPicks)
         private val nouls = ArrayDeque(noulValues)
         private val recoveries = ArrayDeque(recoveryPicks)
+        private var currentPick: String? = null
 
         private fun choice(name: String, chosen: String, options: List<Option>) = ChoiceResult(
             chosenId = chosen,
@@ -74,6 +77,24 @@ class LadderExecutionLoopTest {
                     question.options,
                 )
 
+                // the cascade's stage-1: a scripted candidate pick becomes the intent
+                // its candidate's kinds imply (edit -> fill-field, else follow-link);
+                // the retired `finish` pick becomes the verify-done intent
+                navigator.core.decision.Intents.INTENT_QUESTION_NAME -> {
+                    val pick = actions.removeFirstOrNull()
+                        ?: throw IllegalStateException(
+                            "no scripted action answer for ${question.name} (asked ${askedQuestions.size}: $askedQuestions)",
+                        )
+                    currentPick = pick
+                    val pickedLine = state.lineSequence().firstOrNull { it.startsWith("[$pick]") }
+                    val intentId = intentHints[pick] ?: when {
+                        pick == "finish" -> navigator.core.decision.Intents.VERIFY_DONE
+                        pickedLine?.contains(" edit") == true -> navigator.core.decision.Intents.FILL_FIELD
+                        else -> navigator.core.decision.Intents.FOLLOW_LINK
+                    }
+                    choice(question.name, intentId, question.options)
+                }
+
                 else -> choice(
                     question.name,
                     actions.removeFirstOrNull()
@@ -81,6 +102,26 @@ class LadderExecutionLoopTest {
                             "no scripted action answer for ${question.name} (asked ${askedQuestions.size}: $askedQuestions)",
                         ),
                     question.options,
+                )
+            }
+        }
+
+        override suspend fun scoreBatch(
+            state: String,
+            questions: Map<String, ScoreQuestion>,
+        ): Map<String, ScoreResult> {
+            states += "stage2" to state
+            askedQuestions.add("stage2")
+            val gold = currentPick
+            currentPick = null
+            return questions.mapValues { (name, question) ->
+                val level = if (gold != null && name == "cand-$gold") 5 else 1
+                val levelProbabilities = question.levels.mapIndexed { index, _ ->
+                    (index + 1) to if (index + 1 == level) 1.0 else 0.0
+                }.toMap()
+                ScoreResult(
+                    expectedLevel = navigator.core.decision.scoreExpectedLevel(levelProbabilities),
+                    levelProbabilities = levelProbabilities,
                 )
             }
         }
@@ -208,7 +249,7 @@ class LadderExecutionLoopTest {
             observations = listOf(page0, page, page, page2),
         )
 
-        assertEquals(TerminalState.GOAL_ACHIEVED, result.terminal)
+        assertEquals(TerminalState.GOAL_ACHIEVED, result.terminal, result.stepLog.toString())
         val ladderReport = assertNotNull(result.ladder)
         assertEquals("test/gen1", ladderReport.version)
         assertEquals(1, ladderReport.generation)
@@ -226,8 +267,8 @@ class LadderExecutionLoopTest {
                 "(a satisfied guard alone never advances - ART-4 both ways)",
         )
         assertTrue(
-            result.stepLog.any { it.contains("decide: finish -> verification: noul=0.9") },
-            "the engine-initiated finish path is intact (shared verification)",
+            result.stepLog.any { it.contains("decide: verify-done -> verification: noul=0.9") },
+            "the engine-initiated done path is intact (shared verification)",
         )
         // The code check's refusal never withholds candidates (no engine-finish window):
         // the engine chose `finish` on the very next same-hash step.
@@ -338,7 +379,7 @@ class LadderExecutionLoopTest {
         assertEquals(TerminalState.GOAL_ACHIEVED, result.terminal)
         // finish after 2 processed: count 2 < 3 -> guard NONE -> refused ("2 of 3" does not
         // advance); after the 3rd: 3 >= 3 -> WEAK + HIGH -> the final subtask = goal-achieved.
-        assertTrue(result.stepLog.any { it.contains("finish REFUSED") })
+        assertTrue(result.stepLog.any { it.contains("verify-done REFUSED") })
         val countState = sink.rows.first { it.executedAction.kind.name == "FINISH" }.stateText
         assertTrue(
             "LADDER PROGRESS: accounts followed 2/3" in countState,
@@ -534,7 +575,7 @@ class LadderExecutionLoopTest {
         )
         val engine = ScriptedEngine(
             actionPicks = listOf("n2", "n2", "n2", "n2", "n2", "n2", "n2", "n2"),
-            noulValues = listOf(0.5, 0.9),
+            noulValues = listOf(0.5, 0.9, 0.9, 0.9, 0.9),
             recoveryPicks = listOf("give-up"),
         )
         val (result, sink) = runLadder(engine, source, observations = listOf(page, page, page2))
@@ -550,9 +591,10 @@ class LadderExecutionLoopTest {
         // AFTER the tap moved the screen to page2. Consult order proves it:
         // [code-check refuse, action decide, code-check re-fire(0.9), ...].
         assertEquals(
-            listOf("goal-achieved", "action", "goal-achieved"),
+            listOf("goal-achieved", "intent", "stage2"),
             engine.askedQuestions.take(3),
-            "one consult per page-hash: no re-fire until the hash changed",
+            "one CODE-check consult per page-hash (the fall-through decide is the cascade): " +
+                "no re-fire until the hash changed",
         )
         assertTrue(
             result.stepLog.any { it.contains("pointer advanced to 2/2") },
@@ -588,8 +630,11 @@ class LadderExecutionLoopTest {
             ),
         )
         val engine = ScriptedEngine(
-            actionPicks = List(8) { "n2" },
-            noulValues = listOf(0.5), // the code check refuses
+            actionPicks = List(12) { "n2" },
+            // the code check refuses at 0.5; the v1.6.0 held-hash re-checks re-fire on
+            // the same page every 3rd step (at most 3 per hash) and consume nouls too -
+            // all refused below HIGH or at the floor keeps the pointer still
+            noulValues = listOf(0.5, 0.5, 0.5, 0.5, 0.5),
             recoveryPicks = listOf("give-up"),
         )
         val (result, _) = runLadder(engine, source)
@@ -788,7 +833,10 @@ class LadderExecutionLoopTest {
         // at step 0; the second serves gen2's — the code checks consult the same judge.)
         val engine = ScriptedEngine(
             actionPicks = listOf("n2", "n3", "n3", "n3", "n3", "finish"),
-            noulValues = listOf(0.9, 0.9),
+            noulValues = listOf(0.9, 0.9, 0.9, 0.9, 0.9),
+            // n2 is the flagged password FIELD: the intent view carries no candidate
+            // kinds, so the fixture names the fill-field intent explicitly
+            intentHints = mapOf("n2" to navigator.core.decision.Intents.FILL_FIELD),
             recoveryPicks = listOf("give-up"),
         )
         val extractor = ScriptedExtractor()

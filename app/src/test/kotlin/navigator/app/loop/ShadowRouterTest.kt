@@ -11,32 +11,38 @@ import navigator.app.stub.StubScript
 import navigator.core.decision.ChoiceQuestion
 import navigator.core.decision.ChoiceResult
 import navigator.core.decision.DecisionEngine
+import navigator.core.decision.Intents
 import navigator.core.decision.NoulQuestion
 import navigator.core.decision.NoulResult
-import navigator.core.decision.Option
 import navigator.core.decision.ScoreQuestion
 import navigator.core.decision.ScoreResult
+import navigator.core.decision.TargetRubric
+import navigator.core.enumerate.CandidateList
 import navigator.core.log.DecisionLogRow
 import navigator.core.log.EngineIdentity
 import navigator.core.log.TriageClass
-import navigator.core.log.serialName
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * Gate 8.3 (PHASE_08 §3): router semantics — stub primary + REAL Laya (the shipped int8
- * graph over the desktop JVM ONNX Runtime):
+ * Gate 8.3 (PHASE_08 §3, re-pinned Phase 10B — the cascade router): router semantics —
+ * stub primary + REAL Laya (the shipped int8 graph over the desktop JVM ONNX Runtime):
  *
  * - primary latency is unaffected (p95 overhead <= +50 ms) and the router's synchronous
  *   answer is ALWAYS the primary's;
+ * - the structured handoff: the router fires on the FIXED intent form (recognized
+ *   structurally, never by parsing descriptions) and mirrors BOTH cascade stages — the
+ *   stage-2 batch attaches through [ShadowRouter.scoreBatch];
+ * - a NON-cascade choose question (triage, recovery) is refused LOUDLY: a counted
+ *   refusal + a log line + no sampling — never silent darkness;
  * - an artificial slow shadow makes every sampled row freeze as a shadowMiss
  *   (`shadowSampled=true`, `shadow=null`) inside the REAL loop — and the executor
  *   receives ONLY the primary's choices;
  * - every-3rd-step sampling produces exactly the expected shadowSampled row pattern;
- * - the thermal/battery toggle switches the sampling pattern (vision 02 §4.3);
- * - a completed shadow enriches the row with both engines' answers + agreement fields.
+ * - a completed shadow enriches the row with both engines' answers + agreement fields
+ *   (the headline top-1 is the stage-1 INTENT; targetAgreement rides the stage-2).
  */
 class ShadowRouterTest {
 
@@ -51,12 +57,14 @@ class ShadowRouterTest {
 
     /** Wraps the REAL laya with an artificial delay (the slow-shadow scenario). */
     private class SlowShadow(private val inner: LayaEngine, private val delayMs: Long) : ShadowDecisions {
-        override suspend fun chooseTwoStage(
-            state: String,
-            question: ChoiceQuestion,
-        ): LayaEngine.TwoStageAnswer {
+        override suspend fun chooseCascade(
+            intentState: String,
+            intentQuestion: ChoiceQuestion,
+            targetState: String?,
+            stage2: Map<String, ScoreQuestion>?,
+        ): LayaEngine.CascadeAnswer {
             delay(delayMs)
-            return inner.chooseTwoStage(state, question)
+            return inner.chooseCascade(intentState, intentQuestion, targetState, stage2)
         }
 
         override suspend fun judge(state: String, question: NoulQuestion): NoulResult =
@@ -66,27 +74,18 @@ class ShadowRouterTest {
             inner.score(state, question)
     }
 
-    /** The loop's action question stand-in: tagged options over two buckets + finish. */
-    private fun question(): ChoiceQuestion = ChoiceQuestion(
-        name = "action",
-        options = listOf(
-            Option("n0", "Apple Pies", "bucket=nav-links (270,300)"),
-            Option("n1", "Cakes", "bucket=nav-links (270,360)"),
-            Option("n2", "Start baking", "bucket=buttons (540,900)"),
-            Option("finish", "finish", "bucket=finish (0,0)"),
-        ),
-    )
-
-    /** A minimal recording primary: instant, fixed answer, call journal. */
+    /** A minimal recording primary over the intent form: instant, fixed, call journal. */
     private class RecordingPrimary(private val chosen: String) : DecisionEngine {
         val calls = mutableListOf<Long>()
+        var batchCalls = 0
 
         override suspend fun choose(state: String, question: ChoiceQuestion): ChoiceResult {
             calls.add(System.nanoTime())
+            val ids = question.options.map { it.id }
             return ChoiceResult(
-                chosenId = chosen,
-                probabilities = question.options.associate {
-                    if (it.id == chosen) it.id to 0.95 else it.id to 0.05 / (question.options.size - 1)
+                chosenId = if (chosen in ids) chosen else ids.first(),
+                probabilities = ids.associate { id ->
+                    id to if (id == chosen) 0.95 else 0.05 / (ids.size - 1).coerceAtLeast(1)
                 },
                 confidence = 0.95,
             )
@@ -96,7 +95,25 @@ class ShadowRouterTest {
 
         override suspend fun score(state: String, question: ScoreQuestion): ScoreResult =
             ScoreResult(1.0, mapOf(1 to 1.0))
+
+        override suspend fun scoreBatch(
+            state: String,
+            questions: Map<String, ScoreQuestion>,
+        ): Map<String, ScoreResult> {
+            batchCalls += 1
+            return questions.mapValues { ScoreResult(5.0, mapOf(1 to 0.0, 2 to 0.0, 3 to 0.0, 4 to 0.0, 5 to 1.0)) }
+        }
     }
+
+    /** A minimal lawful one-bucket shadow question (the row's shadow-question record). */
+    private fun companionShadowQuestion() = navigator.core.log.BucketedQuestion(
+        name = "shadow-action",
+        buckets = mapOf(
+            navigator.core.enumerate.Bucket.BUTTONS to listOf(
+                navigator.core.decision.Option("n4", "Unsubscribe", "bucket=buttons (540,320)"),
+            ),
+        ),
+    )
 
     private fun percentile(sorted: List<Long>, p: Int): Long {
         if (sorted.isEmpty()) return 0
@@ -107,7 +124,7 @@ class ShadowRouterTest {
 
     @Test
     fun `primary latency is unaffected by the async shadow (p95 overhead at most 50ms)`() = runBlocking {
-        val primary = RecordingPrimary("n1")
+        val primary = RecordingPrimary(Intents.FOLLOW_LINK)
         val laya = realLaya()
         var router: ShadowRouter? = null
         try {
@@ -118,15 +135,15 @@ class ShadowRouterTest {
             val routedChoices = mutableListOf<String>()
             repeat(30) {
                 val t0 = System.nanoTime()
-                primary.choose("STATE", question())
+                primary.choose("STATE", Intents.QUESTION)
                 direct.add(System.nanoTime() - t0)
                 val t1 = System.nanoTime()
-                routedChoices.add(router.choose("STATE-$it", question()).chosenId)
+                routedChoices.add(router.choose("STATE-$it", Intents.QUESTION).chosenId)
                 routed.add(System.nanoTime() - t1)
             }
-            assertEquals(30, router.snapshot().sampled, "every bucketable decision samples the shadow")
+            assertEquals(30, router.snapshot().sampled, "every cascade decision samples the shadow")
             // the synchronous answer is the primary's, always
-            assertTrue(routedChoices.all { it == "n1" })
+            assertTrue(routedChoices.all { it == Intents.FOLLOW_LINK })
             val p95Direct = percentile(direct.sorted(), 95)
             val p95Routed = percentile(routed.sorted(), 95)
             val overheadMs = (p95Routed - p95Direct) / 1_000_000
@@ -139,6 +156,39 @@ class ShadowRouterTest {
         } finally {
             // settle BEFORE close: OrtSession must never be closed under an in-flight run
             router?.awaitIdle(120_000)
+            laya.close()
+        }
+    }
+
+    // -- the loud refusal of non-cascade choose questions --------------------------------
+
+    @Test
+    fun `a non-cascade choose question is refused loudly - counted, never sampled`() = runBlocking {
+        val laya = realLaya()
+        var router: ShadowRouter? = null
+        try {
+            val primary = RecordingPrimary("back")
+            router = ShadowRouter(primary, laya)
+            val router = requireNotNull(router)
+            val recovery = ChoiceQuestion(
+                name = "recovery",
+                options = listOf(navigator.core.decision.Option("back", "back", "recovery action")),
+            )
+            val answered = router.choose("STATE", recovery)
+            assertEquals("back", answered.chosenId, "the PRIMARY's answer still escapes")
+            assertEquals(0, router.snapshot().sampled, "no sampling on a refused question")
+            assertEquals(1, router.snapshot().nonCascadeRefusals, "the refusal is counted loudly")
+            assertTrue(
+                router.snapshot().lastFailure!!.contains("recovery"),
+                "the last-failure record names the refused question",
+            )
+            // a score batch outside a tracked cascade decision is refused the same way
+            val batch = TargetRubric.stage2Questions(listOf("n1" to "Alpha"), "subtask text")
+            router.scoreBatch("STATE", batch)
+            assertEquals(2, router.snapshot().nonCascadeRefusals)
+            assertTrue(router.awaitIdle(60_000))
+        } finally {
+            router?.awaitIdle(60_000)
             laya.close()
         }
     }
@@ -164,9 +214,9 @@ class ShadowRouterTest {
                 StubScript(
                     scriptOf(
                         choose("triage", "lookup"),
-                        chooseByLabel("action", "Apple Pies"),
-                        chooseByLabel("action", "Cakes"),
-                        chooseByLabel("action", "Start baking"),
+                        *intentStep("follow-link", target = "Apple Pies"),
+                        *intentStep("follow-link", target = "Cakes"),
+                        *intentStep("activate-control", target = "Start baking"),
                     ),
                 ),
             )
@@ -193,6 +243,7 @@ class ShadowRouterTest {
                 assertEquals(null, row.shadowAnswer)
                 assertEquals(null, row.agreementExactMatch)
                 assertEquals(null, row.agreementKL)
+                assertEquals("intent", row.questionPrimary.name, "cascade rows carry the intent question")
             }
 
             // the executor received ONLY the primary's choices, in the primary's order
@@ -203,7 +254,7 @@ class ShadowRouterTest {
                 "executor calls must be exactly the stub primary's scripted picks",
             )
             val primaryChoices = sink.rows.map { it.teacherAnswer.chosen }
-            assertEquals(listOf("n3", "n4", "n5"), primaryChoices)
+            assertEquals(listOf("follow-link", "follow-link", "activate-control"), primaryChoices)
             for (row in sink.rows) {
                 assertEquals(TriageClass.LOOKUP, row.triageClass)
             }
@@ -242,9 +293,9 @@ class ShadowRouterTest {
                 StubScript(
                     scriptOf(
                         choose("triage", "lookup"),
-                        chooseByLabel("action", "Apple Pies"),
-                        chooseByLabel("action", "Cakes"),
-                        chooseByLabel("action", "Start baking"),
+                        *intentStep("follow-link", target = "Apple Pies"),
+                        *intentStep("follow-link", target = "Cakes"),
+                        *intentStep("activate-control", target = "Start baking"),
                     ),
                 ),
             )
@@ -263,8 +314,8 @@ class ShadowRouterTest {
                 config = NavigationLoop.Config(settleMs = 0, budget = NavigationLoop.BudgetLimits(stepsHard = 3)),
             )
             loop.run("pie to cake to buttons", "goal-sampling", identity, FakeClock())
-            // decision numbering: 1 = triage (no bucketed form, never shadowed),
-            // 2,3,4 = the three steps -> sampled exactly at decision 3 (step index 1)
+            // decision numbering: 1 = triage (refused, never sampled), 2,3,4 = the three
+            // cascade steps -> sampled exactly at decision 3 (step index 1)
             assertEquals(
                 listOf(false, true, false),
                 sink.rows.sortedBy { it.stepIndex }.map { it.shadowSampled },
@@ -273,6 +324,7 @@ class ShadowRouterTest {
             assertEquals(null, sampledRow.shadow, "a 2.5s shadow cannot beat a zero-settle row write")
             assertTrue(router.awaitIdle(60_000))
             assertEquals(1, router.snapshot().sampled, "exactly one decision ran the shadow")
+            assertEquals(1, router.snapshot().nonCascadeRefusals, "the triage ask was refused loudly")
         } finally {
             router?.awaitIdle(60_000)
             laya.close()
@@ -297,11 +349,11 @@ class ShadowRouterTest {
         val sink = CollectingLogSink()
         var router: ShadowRouter? = null
         try {
-            val primary = RecordingPrimary("n1")
+            val primary = RecordingPrimary(Intents.ACTIVATE_CONTROL)
             router = ShadowRouter(primary, laya)
             val router = requireNotNull(router)
-            val state = "GOAL: pick a cake page"
-            router.choose(state, question())
+            val intentState = "SUBTASK: unsubscribe from the first mailing list"
+            router.choose(intentState, Intents.QUESTION)
             assertTrue(router.awaitIdle(60_000))
             val row = DecisionLogRow(
                 rowId = "task-step-0",
@@ -309,21 +361,23 @@ class ShadowRouterTest {
                 goal = "goal",
                 stepIndex = 0,
                 timestamp = 1,
-                stateText = state,
+                stateText = intentState,
                 stateFormatVersion = navigator.core.STATE_FORMAT_VERSION,
-                triageClass = TriageClass.LOOKUP,
-                questionPrimary = question(),
-                questionShadow = navigator.app.laya.BucketedForms.fromPrimaryQuestion(question())!!,
+                triageClass = TriageClass.ACTION,
+                questionPrimary = Intents.QUESTION,
+                questionShadow = companionShadowQuestion(),
                 teacher = identity,
-                teacherAnswer = navigator.core.log.TeacherAnswer("n1", question().options.associate {
-                    if (it.id == "n1") it.id to 0.95 else it.id to 0.05 / 3
-                }, 0.95),
+                teacherAnswer = navigator.core.log.TeacherAnswer(
+                    Intents.ACTIVATE_CONTROL,
+                    Intents.IDS.associate { if (it == Intents.ACTIVATE_CONTROL) it to 0.95 else it to 0.05 / 8 },
+                    0.95,
+                ),
                 executedAction = navigator.core.log.ExecutedAction(
-                    "n1",
-                    navigator.core.log.LoggedActionKind.TAP,
+                    null,
+                    navigator.core.log.LoggedActionKind.FINISH,
                     navigator.core.log.ActionDisposition.EXECUTED,
                 ),
-                outcome = navigator.core.log.Outcome.PROGRESSED,
+                outcome = navigator.core.log.Outcome.NO_CHANGE,
                 shadowSampled = false,
             )
             router.sink(sink).write(row)
@@ -332,16 +386,18 @@ class ShadowRouterTest {
             assertEquals("laya", written.shadow!!.checkpoint)
             assertEquals(navigator.core.log.ShadowPrecision.INT8, written.shadow!!.precision)
             val shadowAnswer = assertNotNull(written.shadowAnswer)
-            // the two stages agree with each other: the element lives in the chosen bucket
-            val chosenBucketOptions = questionShadowOptions(written, shadowAnswer.bucket.chosen)
-            assertTrue(shadowAnswer.element.chosen in chosenBucketOptions)
-            assertEquals(true, written.agreementExactMatch == (written.teacherAnswer.chosen == shadowAnswer.element.chosen))
+            // the bucket stage IS the shadow's stage-1 INTENT (the cascade migration);
+            // the element mirrors the intent (this step ran no stage-2)
+            assertTrue(shadowAnswer.bucket.chosen in Intents.IDS)
+            assertEquals(shadowAnswer.bucket.chosen, shadowAnswer.element.chosen)
+            // the headline top-1 is the stage-1 INTENT vs the shadow's intent
             assertEquals(
-                written.teacherAnswer.chosen == shadowAnswer.element.chosen,
+                written.teacherAnswer.chosen == shadowAnswer.bucket.chosen,
                 written.agreementExactMatch,
             )
             assertNotNull(written.agreementKL)
             assertTrue(written.agreementKL!! >= 0.0)
+            assertEquals(null, written.targetAgreement, "no stage-2 ran - no target agreement")
             assertEquals(true, written.shadowSampled)
             assertTrue(router.snapshot().latenciesMs.isNotEmpty(), "latencies must be recorded")
         } finally {
@@ -350,8 +406,77 @@ class ShadowRouterTest {
         }
     }
 
-    /** The option ids of one bucket of the row's recorded shadow question. */
-    private fun questionShadowOptions(row: DecisionLogRow, bucketSerial: String): List<String> =
-        row.questionShadow.buckets.entries
-            .first { it.key.serialName == bucketSerial }.value.map { it.id }
+    // -- the stage-2 handoff: the batch attaches and the target agreement rides ----------
+
+    @Test
+    fun `the stage-2 batch attaches to the tracked decision and the row carries targetAgreement`() = runBlocking {
+        val laya = realLaya()
+        val sink = CollectingLogSink()
+        var router: ShadowRouter? = null
+        try {
+            val primary = RecordingPrimary(Intents.ACTIVATE_CONTROL)
+            router = ShadowRouter(primary, laya)
+            val router = requireNotNull(router)
+            val intentState = "SUBTASK: unsubscribe from the first mailing list"
+            router.choose(intentState, Intents.QUESTION)
+            val slate = listOf("n4" to "Unsubscribe from Cooking Classics", "n7" to "Unsubscribe from Star Log")
+            val batch = TargetRubric.stage2Questions(slate, "unsubscribe from the first mailing list")
+            val results = router.scoreBatch(
+                "SUBTASK: unsubscribe from the first mailing list\n[n4] \"Unsubscribe\" tap (540,320)",
+                batch,
+            )
+            assertEquals(2, results.size)
+            assertEquals(1, primary.batchCalls, "the primary answered ONE batched request")
+            assertTrue(router.awaitIdle(120_000))
+            val row = DecisionLogRow(
+                rowId = "task-step-1",
+                taskId = "task",
+                goal = "goal",
+                stepIndex = 1,
+                timestamp = 1,
+                stateText = intentState,
+                stateFormatVersion = navigator.core.STATE_FORMAT_VERSION,
+                triageClass = TriageClass.ACTION,
+                questionPrimary = Intents.QUESTION,
+                questionShadow = companionShadowQuestion(),
+                teacher = identity,
+                teacherAnswer = navigator.core.log.TeacherAnswer(
+                    Intents.ACTIVATE_CONTROL,
+                    Intents.IDS.associate { if (it == Intents.ACTIVATE_CONTROL) it to 0.95 else it to 0.05 / 8 },
+                    0.95,
+                ),
+                executedAction = navigator.core.log.ExecutedAction(
+                    "n4",
+                    navigator.core.log.LoggedActionKind.TAP,
+                    navigator.core.log.ActionDisposition.EXECUTED,
+                ),
+                outcome = navigator.core.log.Outcome.PROGRESSED,
+                shadowSampled = false,
+                targetScores = results.mapValues { it.value.expectedLevel },
+                targetStateText = "SUBTASK: unsubscribe from the first mailing list\n[n4] \"Unsubscribe\" tap (540,320)",
+            )
+            router.sink(sink).write(row)
+            val written = sink.rows.single()
+            val shadowAnswer = assertNotNull(written.shadowAnswer)
+            // the element is the shadow's stage-2 ARGMAX TARGET; the target agreement
+            // rides the additive field (the teacher executed n4)
+            assertTrue(
+                shadowAnswer.element.chosen in setOf("n4", "n7"),
+                "the element is the REAL shadow's stage-2 argmax on the slate: ${shadowAnswer.element.chosen}",
+            )
+            assertEquals(
+                shadowAnswer.element.chosen == "n4",
+                written.targetAgreement,
+                "the target agreement compares the executed target vs the shadow's argmax",
+            )
+            assertEquals(
+                written.teacherAnswer.chosen == written.shadowAnswer!!.bucket.chosen,
+                written.agreementExactMatch,
+                "the headline is the stage-1 intent vs the shadow",
+            )
+        } finally {
+            router?.awaitIdle(120_000)
+            laya.close()
+        }
+    }
 }

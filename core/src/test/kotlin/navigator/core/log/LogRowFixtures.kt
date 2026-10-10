@@ -295,6 +295,19 @@ internal object LogRowFixtures {
     )
 
     /**
+     * The TARGET STATE VIEW the executed stage-2 request rode (doc 05 §2 v1.6.0
+     * `targetStateText` — the Round-2 score-case resolution: the row is the record, so
+     * the score case's `state` is the serve-time target view). The exact stage-view
+     * template ([navigator.core.state.StageViews]): SUBTASK / DONE WHEN + one bucket's
+     * candidate lines.
+     */
+    val targetStateText = "SUBTASK: unsubscribe from the first mailing list\n" +
+        "DONE WHEN: the page shows the first mailing list unsubscribed\n" +
+        "[n4] \"Unsubscribe from Cooking Classics\" tap (540,320)\n" +
+        "[n7] \"Unsubscribe from Trailer Reviews\" tap (540,380)\n" +
+        "[n12] \"Unsubscribe from Garden Week\" tap (540,440)"
+
+    /**
      * A full CASCADE decision row (vision 02 §3, doc 05 §2 v1.6.0): the primary question
      * IS the fixed intent choice, the shadow answered the same stage-1 form (its bucket
      * field carries the intent id per the shadow's cascade migration), and the executed
@@ -352,6 +365,7 @@ internal object LogRowFixtures {
         targetAgreement = targetScores?.let { scores ->
             shadowAnswer?.let { it.element.chosen in scores.keys }
         },
+        targetStateText = targetScores?.let { targetStateText },
     )
 
     /**

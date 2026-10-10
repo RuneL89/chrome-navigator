@@ -29,7 +29,7 @@ class Phase08HLoopTest {
     /** Scripts triage + a queue of action picks + a confirming finish; records states. */
     private class RecordingEngine(
         triageChoice: String,
-        picks: List<String>,
+        steps: List<Pair<String, String?>>,
     ) : DecisionEngine {
         val states = mutableListOf<Pair<String, String>>() // question name -> state text
 
@@ -40,7 +40,8 @@ class Phase08HLoopTest {
             confidence = 0.9,
         )
 
-        private val picksQueue = ArrayDeque(picks)
+        private val stepQueue = ArrayDeque(steps)
+        private var current: Pair<String, String?>? = null
 
         private fun flat(chosen: String, ids: List<String>) = ChoiceResult(
             chosenId = chosen,
@@ -52,7 +53,25 @@ class Phase08HLoopTest {
             states += question.name to state
             return when (question.name) {
                 Triage.QUESTION_NAME -> triage
-                else -> flat(picksQueue.removeFirst(), question.options.map { it.id })
+                else -> {
+                    val step = stepQueue.removeFirst()
+                    current = step
+                    flat(step.first, question.options.map { it.id })
+                }
+            }
+        }
+
+        override suspend fun scoreBatch(
+            state: String,
+            questions: Map<String, ScoreQuestion>,
+        ): Map<String, ScoreResult> {
+            states += "stage2" to state
+            val gold = current?.second
+            current = null
+            return questions.mapValues { (name, question) ->
+                val candidateId = name.removePrefix("cand-")
+                val level = if (gold == null || candidateId == gold) 5 else 1
+                StubEngineScore.levelResult(question, level)
             }
         }
 
@@ -63,6 +82,19 @@ class Phase08HLoopTest {
 
         override suspend fun score(state: String, question: ScoreQuestion): ScoreResult =
             throw UnsupportedOperationException("score is not exercised by the loop")
+    }
+
+    /** The stub's deterministic level distribution (the scoreBatch answers' shape). */
+    private object StubEngineScore {
+        fun levelResult(question: ScoreQuestion, level: Int): ScoreResult {
+            val levelProbabilities = question.levels.mapIndexed { index, _ ->
+                (index + 1) to if (index + 1 == level) 1.0 else 0.0
+            }.toMap()
+            return ScoreResult(
+                expectedLevel = navigator.core.decision.scoreExpectedLevel(levelProbabilities),
+                levelProbabilities = levelProbabilities,
+            )
+        }
     }
 
     /** A content-rich page: prose nodes (the excerpt) + two clickable target rows. */
@@ -88,10 +120,14 @@ class Phase08HLoopTest {
     private fun runLoop(
         triageChoice: String,
         planSource: PlanSource = PlanSource.None,
-        picks: List<String> = listOf("n2", "n3", "finish"),
+        steps: List<Pair<String, String?>> = listOf(
+            "follow-link" to "n2",
+            "follow-link" to "n3",
+            "verify-done" to null,
+        ),
         observations: List<StepObservation> = listOf(page, pageB),
     ): RecordingEngine {
-        val engine = RecordingEngine(triageChoice, picks)
+        val engine = RecordingEngine(triageChoice, steps)
         val loop = NavigationLoop(
             engine = engine,
             observer = FakeObserver(observations),
@@ -111,17 +147,19 @@ class Phase08HLoopTest {
     @Test
     fun `the content excerpt rides the untrusted block of the decide state`() {
         // the live observer fills the excerpt (ContentExtractor over the same walk);
-        // the fake observation carries it the same way the loop consumes it.
-        val withExcerpt = page.copy(excerpt = navigator.core.state.ContentExtractor.extract(page.nodes))
+        // the fake observation carries it the same way the loop consumes it. The
+        // canonical text reaches the engine at the done check's judge (the intent ask
+        // rides the INTENT STATE VIEW), so the assertion reads the judge's step page.
+        val pageBWithExcerpt = pageB.copy(excerpt = navigator.core.state.ContentExtractor.extract(pageB.nodes))
         val engine = runLoop(
             "lookup",
-            picks = listOf("n2", "finish"),
-            observations = listOf(withExcerpt, pageB),
+            steps = listOf("follow-link" to "n2", "verify-done" to null),
+            observations = listOf(page, pageBWithExcerpt),
         )
-        val (_, state) = engine.states.first { it.first == "action" }
+        val (_, state) = engine.states.first { it.first == "goal-achieved" }
         val content = state.split("\n").dropWhile { it != StateTextBuilder.UNTRUSTED_HEADER }.drop(1)
         assertEquals(
-            listOf("Today's list of saved items", "Each item below was saved from your reading list; open them one by one."),
+            listOf("First saved item - full text", "The article opens with a short history of the reading-list feature."),
             content.take(2),
             "the observation's non-candidate prose precedes the bucket lines",
         )
@@ -140,7 +178,7 @@ class Phase08HLoopTest {
             ),
             observations = listOf(page),
         )
-        val (_, state) = engine.states.first { it.first == "action" }
+        val (_, state) = engine.states.first { it.first == "goal-achieved" }
         assertFalse("PLAN:" in state, "the v2 PLAN section is gone under v3")
         assertFalse("TASK PROGRESS:" in state, "the v2 TASK PROGRESS section is gone under v3")
         val lines = state.split("\n")
@@ -160,7 +198,7 @@ class Phase08HLoopTest {
     @Test
     fun `the legacy tracker's working memory no longer rides a state section (v3) - it rides the run report`() {
         val engine = runLoop("action-multi", observations = listOf(page))
-        val (_, state) = engine.states.first { it.first == "action" }
+        val (_, state) = engine.states.first { it.first == "goal-achieved" }
         assertFalse("TASK PROGRESS:" in state, "the v2 TASK PROGRESS section is gone under v3")
         val progress = state.split("\n").filter { it.startsWith("LADDER PROGRESS:") }
         assertTrue(progress.size == 1, "exactly the degenerate form renders (no ladder)")
@@ -173,7 +211,7 @@ class Phase08HLoopTest {
     @Test
     fun `the default path renders the degenerate goal-only ladder sections byte-stably`() {
         val engine = runLoop("lookup", planSource = PlanSource.None)
-        val (_, state) = engine.states.first { it.first == "action" }
+        val (_, state) = engine.states.first { it.first == "goal-achieved" }
         assertFalse("PLAN:" in state, "the v2 PLAN section is gone under v3")
         assertFalse("TASK PROGRESS:" in state, "the v2 TASK PROGRESS section is gone under v3")
         val lines = state.split("\n")

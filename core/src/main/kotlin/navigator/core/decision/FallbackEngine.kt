@@ -142,7 +142,19 @@ class FallbackEngine(
     suspend fun scoreDecided(state: String, question: ScoreQuestion): Decided<ScoreResult> {
         val answer = primary.score(state, question)
         return settled(question.name, primaryAnswer = answer, executed = answer)
+
     }
+
+    /**
+     * The cascade's stage-2 batch follows the primary wholesale (vision 02 §7: "`score`
+     * follows the primary"): the primary's batched answers are executed, never escalated.
+     * A primary hard failure propagates loudly here (a dead stage-2 must surface — the
+     * loop's no-good-target path is evidence handling, not silent degradation).
+     */
+    override suspend fun scoreBatch(
+        state: String,
+        questions: Map<String, ScoreQuestion>,
+    ): Map<String, ScoreResult> = primary.scoreBatch(state, questions)
 
     // -- internals ---------------------------------------------------------------------
 

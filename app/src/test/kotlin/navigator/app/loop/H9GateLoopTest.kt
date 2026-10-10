@@ -69,8 +69,8 @@ class H9GateLoopTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Unsubscribe now"),
-                chooseByLabel("action", "Also unsubscribe"),
+                *intentStep("activate-control", target = "Unsubscribe now"),
+                *intentStep("activate-control", target = "Also unsubscribe"),
             ),
             observations = listOf(listPage()),
             presenter = presenter,
@@ -100,7 +100,11 @@ class H9GateLoopTest {
         // The engine was NEVER consulted for the gate: no additive answer is scripted,
         // so any consult would fail the run loudly.
         assertEquals(
-            listOf("choose:triage", "choose:action", "choose:action"),
+            listOf(
+                "choose:triage",
+                "choose:intent", "scoreBatch:cand-2",
+                "choose:intent", "scoreBatch:cand-2",
+            ),
             fixture.engineCalls,
         )
     }
@@ -112,7 +116,7 @@ class H9GateLoopTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Continue"),
+                *intentStep("activate-control", target = "Continue"),
                 ScriptedAnswer(question = AdditiveEngineCheck.QUESTION_NAME, pTrue = 0.9),
             ),
             observations = listOf(noticePage()),
@@ -129,7 +133,7 @@ class H9GateLoopTest {
         assertEquals(ActionDisposition.EXECUTED, fixture.sink.rows[0].executedAction.disposition)
         // The consult ran against the §3 question and its outcome + trigger are logged.
         assertEquals(
-            listOf("choose:triage", "choose:action", "judge:${AdditiveEngineCheck.QUESTION_NAME}"),
+            listOf("choose:triage", "choose:intent", "scoreBatch:cand-1", "judge:${AdditiveEngineCheck.QUESTION_NAME}"),
             fixture.engineCalls,
         )
         assertTrue(
@@ -149,7 +153,7 @@ class H9GateLoopTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Continue"),
+                *intentStep("activate-control", target = "Continue"),
                 ScriptedAnswer(question = AdditiveEngineCheck.QUESTION_NAME, pTrue = 0.1),
             ),
             observations = listOf(noticePage()),
@@ -178,7 +182,7 @@ class H9GateLoopTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Unsubscribe now"),
+                *intentStep("activate-control", target = "Unsubscribe now"),
             ),
             observations = listOf(listPage()),
             presenter = ScriptedGatePresenter(GateResolution.APPROVED),
@@ -190,7 +194,10 @@ class H9GateLoopTest {
         // Green = the judge was never asked (an unscripted 'h9-additive-check' consult
         // fails the stub engine loudly): a "harmless" engine answer cannot un-gate the
         // code net because it never gets to speak.
-        assertEquals(listOf("choose:triage", "choose:action"), fixture.engineCalls)
+        assertEquals(
+            listOf("choose:triage", "choose:intent", "scoreBatch:cand-2"),
+            fixture.engineCalls,
+        )
         assertEquals(LoggedHClass.H9, fixture.sink.rows[0].gateEvent?.hclass)
         assertTrue(
             result.stepLog.any { it.contains("(trigger: code-net)") },
@@ -205,9 +212,9 @@ class H9GateLoopTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Continue"),
+                *intentStep("activate-control", target = "Continue"),
                 ScriptedAnswer(question = AdditiveEngineCheck.QUESTION_NAME, pTrue = 0.9),
-                chooseByLabel("action", "Continue"),
+                *intentStep("activate-control", target = "Continue"),
                 ScriptedAnswer(question = AdditiveEngineCheck.QUESTION_NAME, pTrue = 0.9),
             ),
             observations = listOf(noticePage()),
@@ -233,7 +240,7 @@ class H9GateLoopTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "action"),
-                chooseByLabel("action", "Unsubscribe now"),
+                *intentStep("activate-control", target = "Unsubscribe now"),
             ),
             observations = listOf(listPage()),
             presenter = ScriptedGatePresenter(GateResolution.APPROVED),

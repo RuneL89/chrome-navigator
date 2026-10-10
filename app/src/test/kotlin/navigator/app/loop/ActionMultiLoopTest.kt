@@ -38,11 +38,11 @@ class ActionMultiLoopTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "action-multi"),
-                choose("action", "finish"),
+                *intentStep("verify-done"),
                 noul(0.99),
-                chooseByLabel("action", "Cooking channel row"),
-                chooseByLabel("action", "Travel channel row"),
-                choose("action", "finish"),
+                *intentStep("follow-link", target = "Cooking channel row"),
+                *intentStep("follow-link", target = "Travel channel row"),
+                *intentStep("verify-done"),
                 noul(0.99),
             ),
             observations = listOf(
@@ -100,7 +100,7 @@ class ActionMultiLoopTest {
 
         // the refusal named the pending count (finish is IMPOSSIBLE while pending, and
         // the refusal says why: the gate law's saying-why requirement, vision 04 §3)
-        val refusalLines = result.stepLog.filter { it.contains("finish REFUSED") }
+        val refusalLines = result.stepLog.filter { it.contains("verify-done REFUSED") }
         assertEquals(1, refusalLines.size)
         assertTrue(
             refusalLines.single().contains("2 target(s) still pending (drained=false)"),
@@ -129,8 +129,8 @@ class ActionMultiLoopTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "action-multi"),
-                chooseByLabel("action", "Unsubscribe demo channel"),
-                choose("action", "finish"),
+                *intentStep("activate-control", target = "Unsubscribe demo channel"),
+                *intentStep("verify-done"),
                 noul(0.99),
             ),
             observations = listOf(
@@ -181,10 +181,10 @@ class ActionMultiLoopTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "action"),
-                choose("action", "finish"),
+                *intentStep("verify-done"),
                 noul(0.99),
-                chooseByLabel("action", "Open details"),
-                choose("action", "finish"),
+                *intentStep("follow-link", target = "Open details"),
+                *intentStep("verify-done"),
                 noul(0.99),
             ),
             observations = listOf(
@@ -220,7 +220,7 @@ class ActionMultiLoopTest {
         assertEquals(TerminalState.GOAL_ACHIEVED, result.terminal)
         assertEquals("HIGH", result.exit?.path)
 
-        val refusalLines = result.stepLog.filter { it.contains("finish REFUSED") }
+        val refusalLines = result.stepLog.filter { it.contains("verify-done REFUSED") }
         assertEquals(1, refusalLines.size)
         assertTrue(refusalLines.single().contains("the completion guard failed (NONE)"))
         assertFalse(

@@ -121,7 +121,7 @@ class CardForegroundRestoreTest {
         val (fixture, fired) = frontingFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Unsubscribe now"),
+                *intentStep("activate-control", target = "Unsubscribe now"),
             ),
             observations = listOf(listPage()),
             gatePresenter = FrontingGatePresenter(true, GateResolution.APPROVED),
@@ -155,7 +155,7 @@ class CardForegroundRestoreTest {
         val (fixture, fired) = frontingFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Unsubscribe now"),
+                *intentStep("activate-control", target = "Unsubscribe now"),
             ),
             observations = listOf(listPage()),
             gatePresenter = FrontingGatePresenter(false, GateResolution.APPROVED),
@@ -175,7 +175,7 @@ class CardForegroundRestoreTest {
         val (fixture, fired) = frontingFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Unsubscribe now"),
+                *intentStep("activate-control", target = "Unsubscribe now"),
             ),
             observations = listOf(listPage()),
             gatePresenter = ScriptedGatePresenter(GateResolution.APPROVED),
@@ -195,8 +195,8 @@ class CardForegroundRestoreTest {
         val (fixture, fired) = frontingFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Unsubscribe now"),
-                chooseByLabel("action", "Unsubscribe now"),
+                *intentStep("activate-control", target = "Unsubscribe now"),
+                *intentStep("activate-control", target = "Unsubscribe now"),
             ),
             observations = listOf(listPage()),
             gatePresenter = FrontingGatePresenter(true, GateResolution.DENIED, GateResolution.DENIED),
@@ -219,8 +219,8 @@ class CardForegroundRestoreTest {
         val (fixture, fired) = frontingFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Unsubscribe now"),
-                chooseByLabel("action", "Also unsubscribe"),
+                *intentStep("activate-control", target = "Unsubscribe now"),
+                *intentStep("activate-control", target = "Also unsubscribe"),
             ),
             observations = listOf(listPage()),
             gatePresenter = FrontingGatePresenter(true, GateResolution.APPROVED),
@@ -255,10 +255,10 @@ class CardForegroundRestoreTest {
         val (fixture, fired) = frontingFixture(
             script = scriptOf(
                 choose("triage", "form-fill"),
-                chooseByLabel("action", "Email or username"),
-                chooseByLabel("action", "Password"),
-                chooseByLabel("action", "Submit sign in"),
-                choose("action", "finish"),
+                *intentStep("fill-field", target = "Email or username"),
+                *intentStep("fill-field", target = "Password"),
+                *intentStep("submit", target = "Submit sign in"),
+                *intentStep("verify-done"),
                 noul(0.95),
             ),
             observations = listOf(loginPage),
@@ -302,7 +302,7 @@ class CardForegroundRestoreTest {
         val (fixture, fired) = frontingFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Unsubscribe now"),
+                *intentStep("activate-control", target = "Unsubscribe now"),
             ),
             observations = listOf(hiddenPage),
             gatePresenter = FrontingGatePresenter(true, GateResolution.APPROVED),
@@ -351,9 +351,9 @@ class CardForegroundRestoreTest {
             script = scriptOf(
                 choose("triage", "lookup"),
                 // step 0: ordinary ungated tap on a page whose URL read fine
-                chooseByLabel("action", "More results"),
+                *intentStep("follow-link", target = "More results"),
                 // step 1: the H9 card fires while the URL bar reads empty
-                chooseByLabel("action", "Unsubscribe now"),
+                *intentStep("activate-control", target = "Unsubscribe now"),
             ),
             observations = listOf(linkPage(), hiddenListPage()),
             gatePresenter = FrontingGatePresenter(true, GateResolution.APPROVED),
@@ -384,7 +384,7 @@ class CardForegroundRestoreTest {
         val (fixture, fired) = frontingFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Unsubscribe now"),
+                *intentStep("activate-control", target = "Unsubscribe now"),
             ),
             observations = listOf(listPage()),
             gatePresenter = FrontingGatePresenter(true, GateResolution.APPROVED),
@@ -447,7 +447,7 @@ class CardForegroundRestoreTest {
         val (fixture, fired) = frontingFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Unsubscribe now"),
+                *intentStep("activate-control", target = "Unsubscribe now"),
             ),
             observations = listOf(schemelessListPage("127.0.0.1:8099/subscriptions.html")),
             gatePresenter = FrontingGatePresenter(true, GateResolution.APPROVED),
@@ -483,7 +483,7 @@ class CardForegroundRestoreTest {
         val (fixture, fired) = frontingFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Unsubscribe now"),
+                *intentStep("activate-control", target = "Unsubscribe now"),
             ),
             observations = listOf(schemelessListPage("example.test/wiki/X")),
             gatePresenter = FrontingGatePresenter(true, GateResolution.APPROVED),
@@ -516,9 +516,9 @@ class CardForegroundRestoreTest {
             script = scriptOf(
                 choose("triage", "lookup"),
                 // step 0: ordinary ungated tap on a page whose bar read is SCHEME-LESS
-                chooseByLabel("action", "More results"),
+                *intentStep("follow-link", target = "More results"),
                 // step 1: the H9 card fires while the URL bar reads empty
-                chooseByLabel("action", "Unsubscribe now"),
+                *intentStep("activate-control", target = "Unsubscribe now"),
             ),
             observations = listOf(
                 schemelessLinkPage("example.test/list"),
@@ -556,9 +556,9 @@ class CardForegroundRestoreTest {
             script = scriptOf(
                 choose("triage", "lookup"),
                 // step 0: ordinary tap on a page whose bar read is EMPTY (never tracked)
-                chooseByLabel("action", "More results"),
+                *intentStep("follow-link", target = "More results"),
                 // step 1: the H9 card fires while the bar reads "about:blank"
-                chooseByLabel("action", "Unsubscribe now"),
+                *intentStep("activate-control", target = "Unsubscribe now"),
             ),
             observations = listOf(
                 schemelessLinkPage(""),
@@ -601,7 +601,7 @@ class CardForegroundRestoreTest {
         val (fixture, fired) = frontingFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Unsubscribe now"),
+                *intentStep("activate-control", target = "Unsubscribe now"),
             ),
             // the step's page, then the restore's first probe lands DARK (still
             // re-fronting), then the restored page reads usable
@@ -645,7 +645,7 @@ class CardForegroundRestoreTest {
         val (fixture, fired) = frontingFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Unsubscribe now"),
+                *intentStep("activate-control", target = "Unsubscribe now"),
             ),
             observations = listOf(listPage(), darkProbe()),
             gatePresenter = FrontingGatePresenter(true, GateResolution.APPROVED),
@@ -707,7 +707,7 @@ class CardForegroundRestoreTest {
         val (fixture, fired) = frontingFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Unsubscribe now"),
+                *intentStep("activate-control", target = "Unsubscribe now"),
             ),
             // step page, then TWO readable-but-backgrounded probes, then the restored
             // browser page (right package) — readiness passes only on the third probe
@@ -753,7 +753,7 @@ class CardForegroundRestoreTest {
         val (fixture, fired) = frontingFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Unsubscribe now"),
+                *intentStep("activate-control", target = "Unsubscribe now"),
             ),
             // every probe is readable but the harness stays the active window
             observations = listOf(listPage(), backgroundedProbe()),
@@ -822,15 +822,15 @@ class CardForegroundRestoreTest {
     private fun seriesScript(checks: List<Double>): List<ScriptedAnswer> {
         val answers = mutableListOf<ScriptedAnswer>(
             choose("triage", "lookup"),
-            chooseByLabel("action", "Tarte Tatin Caramelised fruit tart"),
+            *intentStep("follow-link", target = "Tarte Tatin Caramelised fruit tart"),
         )
         checks.forEachIndexed { index, noulValue ->
-            answers += choose("action", "finish")
+            answers += intent("verify-done")
             answers += noul(noulValue)
             if (index < checks.size - 1) {
                 val down = index % 2 == 0
-                answers += chooseByLabel("action", if (down) "Scroll down" else "Scroll up")
-                answers += chooseByLabel("action", if (down) "Scroll up" else "Scroll down")
+                answers += intent("scroll")
+                answers += intent("scroll")
             }
         }
         return answers

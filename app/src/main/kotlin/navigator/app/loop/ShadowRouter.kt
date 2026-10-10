@@ -1,5 +1,7 @@
 package navigator.app.loop
 
+import navigator.app.laya.LayaEngine
+import navigator.app.laya.ShadowDecisions
 import navigator.core.decision.ChoiceQuestion
 import navigator.core.decision.ChoiceResult
 import navigator.core.decision.DecisionEngine
@@ -15,8 +17,6 @@ import navigator.core.log.ShadowResultRow
 import navigator.core.log.ShadowPrecision
 import navigator.core.log.ShadowRef
 import navigator.core.log.ShadowStageAnswer
-import navigator.app.laya.LayaEngine
-import navigator.app.laya.ShadowDecisions
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -39,22 +39,34 @@ fun interface CompanionSink {
  *
  * 1. the PRIMARY answers synchronously; its result is what the loop (and therefore the
  *    executor) gets — the shadow's answer is structurally incapable of reaching the
- *    executor because [choose]/[judge]/[score] return the primary's value untouched;
- * 2. the shadow (Laya, on-device) fires ASYNCHRONOUSLY on a single-threaded dispatcher —
- *    fire-and-forget; the loop never waits for it;
- * 3. under thermal/battery pressure the shadow samples every 3rd step instead of every
+ *    executor because [choose]/[judge]/[score]/[scoreBatch] return the primary's value
+ *    untouched;
+ * 2. under the decision cascade (Phase 10B, vision 02 §4 v1.3.0) the shadow MIRRORS
+ *    BOTH STAGES: the loop hands the cascade's structured forms over the engine
+ *    interface — stage-1 is the FIXED intent question ([Intents.QUESTION], recognized
+ *    structurally, never by parsing option descriptions), stage-2 is the batched
+ *    `cand-<id>` score request that arrives through [scoreBatch] and attaches to the
+ *    stage-1 decision of the same step. The shadow answers both asynchronously
+ *    (fire-and-forget; the loop never waits);
+ * 3. a NON-cascade choose question (triage, the stuck-recovery set — vision 03 §3 keeps
+ *    them out of the page-bucket taxonomy) is REFUSED LOUDLY: a log line + a counted
+ *    refusal, no sampling — never silent darkness;
+ * 4. under thermal/battery pressure the shadow samples every 3rd step instead of every
  *    step ([SamplingPolicy]; the deterministic toggle is logged per row via
- *    `shadowSampled`);
- * 4. the row fields for both engines are written through the loop's own
+ *    `shadowSampled`). A handshake's stage-1 re-ask is the SAME step's decision — it
+ *    SUPERSEDES the unconsumed first ask (one decision, sampled once, the re-ask's
+ *    answer is the decision of record);
+ * 5. the row fields for both engines are written through the loop's own
  *    [DecisionLogSink] contract: pair the loop's sink with [sink] (a decorator), so the
  *    row the loop already writes gains `shadow` / `shadowAnswer` / agreement fields when
- *    — and only when — this step's shadow answer is COMPLETE at row-write time. A row
- *    written before its shadow finished carries `shadowSampled=true` with a null
- *    `shadow`, which is the row schema's explicit `shadowMiss` marker (vision 02 §4:
- *    not ready before the next step; a DecisionLogRow is immutable history — vision 05
- *    — so the miss is frozen at write time, and the write happens before the next step
- *    begins);
- * 5. a shadow answer that completes AFTER its row froze lands as exactly ONE companion
+ *    — and only when — this step's shadow answer is COMPLETE at row-write time (a
+ *    target-bearing step needs the shadow's stage-2 target too, or the row freezes as a
+ *    `shadowMiss`). A row written before its shadow finished carries `shadowSampled=true`
+ *    with a null `shadow`, which is the row schema's explicit `shadowMiss` marker
+ *    (vision 02 §4: not ready before the next step; a DecisionLogRow is immutable
+ *    history — vision 05 — so the miss is frozen at write time, and the write happens
+ *    before the next step begins);
+ * 6. a shadow answer that completes AFTER its row froze lands as exactly ONE companion
  *    [ShadowResultRow] keyed `(taskId, stepIndex)` (vision 02 §4.4, vision 05 §2
  *    amendment 2026-10-04 — owner-ratified): still insert-only, never an update. The
  *    freeze/completion transition is atomic (both sides synchronize on the job), so the
@@ -122,30 +134,44 @@ class ShadowRouter(
         }
     }
 
-    /** One shadow decision in flight or done (correlates to exactly one loop decision). */
+    /**
+     * One cascade shadow decision in flight or done (correlates to exactly one loop
+     * decision — stage-1 plus, when the step is target-bearing, its stage-2 batch).
+     */
     private class ShadowJob(
         val seq: Long,
         val sampled: Boolean,
-        val stateHash: Int,
+        val intentStateHash: Int,
         val questionName: String,
         val optionIds: List<String>,
     ) {
         /** The companion key of a row that froze as a shadowMiss (amendment rule a). */
         data class FreezeRecord(val taskId: String, val stepIndex: Int)
 
+        /** The stage-2 handoff the loop attached through [scoreBatch] (null until then). */
+        data class Stage2(val state: String, val questions: Map<String, ScoreQuestion>)
+
         @Volatile
         var done: Boolean = false
 
         @Volatile
-        var answer: LayaEngine.TwoStageAnswer? = null
+        var answer: LayaEngine.CascadeAnswer? = null
 
         @Volatile
         var failed: Throwable? = null
+
+        /** The attached stage-2 context (null: the step has not (yet) run stage-2). */
+        @Volatile
+        var stage2: Stage2? = null
 
         // Frozen/companion state below is guarded by `synchronized(job)` on BOTH sides
         // (the row write and the shadow completion), which makes the decision atomic:
         // the answer lands in exactly one place — the decision row, or ONE companion.
         var frozen: Boolean = false
+
+        /** The row write consumed this job (the next cascade row must not rematch it). */
+        @Volatile
+        var consumed: Boolean = false
 
         var freeze: FreezeRecord? = null
     }
@@ -166,6 +192,12 @@ class ShadowRouter(
     private val shadowMisses = AtomicLong(0)
     private val shadowCompletions = AtomicLong(0)
     private val shadowFailures = AtomicLong(0)
+
+    /** Non-cascade choose questions refused loudly (triage, recovery — a line + a count). */
+    private val nonCascadeRefusals = AtomicLong(0)
+
+    /** Stage-1 asks superseded by the same step's re-ask (the handshake's second ask). */
+    private val supersededAsks = AtomicLong(0)
 
     /** Rows that actually gained a shadow answer (coverage numerator, Gate 8.4). */
     private val enrichedRows = AtomicLong(0)
@@ -194,7 +226,19 @@ class ShadowRouter(
 
     override suspend fun choose(state: String, question: ChoiceQuestion): ChoiceResult {
         val decisionNumber = decisionCounter.incrementAndGet()
-        val job = beginShadow(decisionNumber, state, question)
+        if (!LayaEngine.isIntentQuestion(question)) {
+            // Non-cascade choose questions (triage, the stuck-recovery set) are refused
+            // LOUDLY — a line + a counted refusal, no sampling, never silent darkness
+            // (vision 02 §4 v1.3.0: the shadow mirrors the cascade; it does not answer
+            // other question shapes).
+            nonCascadeRefusals.incrementAndGet()
+            lastFailure =
+                "shadow refused non-cascade choose question '${question.name}' " +
+                    "(${question.options.size} options) — only the fixed intent form is sampled"
+            println("$REFUSAL_LOG_TAG $lastFailure")
+            return primary.choose(state, question)
+        }
+        val job = beginCascadeAsk(decisionNumber, state, question)
         val result = primary.choose(state, question) // the ONLY value that escapes (vision 02 §4.1)
         if (job != null) fireShadow(job, state, question)
         return result
@@ -202,9 +246,9 @@ class ShadowRouter(
 
     override suspend fun judge(state: String, question: NoulQuestion): NoulResult {
         val decisionNumber = decisionCounter.incrementAndGet()
-        // judge/score have no bucketed shadow form and no row fields in the day-one row
-        // schema (vision 05 §2 `questionShadow` is choice-shaped); they still count as a
-        // step for sampling, and the shadow noul/score runs are recorded in memory only.
+        // judge/score have no cascade shadow row fields beyond the step's choose (the row
+        // schema's shadowAnswer is the step decision's answer); they still count as a
+        // decision for sampling, and the shadow noul/score runs are recorded in memory only.
         val sampled = samplingPolicy.shouldSample(decisionNumber)
         val result = primary.judge(state, question)
         if (sampled) {
@@ -230,16 +274,48 @@ class ShadowRouter(
         }
         return result
     }
+
+    /**
+     * The cascade's stage-2 batch (vision 02 §3 v1.3.0): the primary answers ONE request;
+     * the questions attach to the NEWEST unconsumed cascade job (this step's stage-1
+     * decision) and the shadow mirrors both stages. The structured handoff law: the
+     * batch must be the `cand-<id>` form riding a tracked cascade decision — anything
+     * else is refused loudly (never sampled in the dark).
+     */
+    override suspend fun scoreBatch(
+        state: String,
+        questions: Map<String, ScoreQuestion>,
+    ): Map<String, ScoreResult> {
+        if (questions.isEmpty()) return primary.scoreBatch(state, questions)
+        val cascadeNames = questions.keys.all { it.startsWith(CANDIDATE_NAME_PREFIX) }
+        val job = if (cascadeNames) newestUnconsumedJob() else null
+        if (!cascadeNames || job == null) {
+            // A batch outside a tracked cascade decision is its OWN consult: it counts a
+            // decision, and the shadow refuses it loudly (never sampled in the dark).
+            decisionCounter.incrementAndGet()
+            nonCascadeRefusals.incrementAndGet()
+            lastFailure =
+                "shadow refused a score batch outside a tracked cascade decision " +
+                    "(${questions.keys.take(3)}...) — only the stage-2 of a stage-1 step is sampled"
+            println("$REFUSAL_LOG_TAG $lastFailure")
+            return primary.scoreBatch(state, questions)
+        }
+        // The stage-2 rides the SAME decision as its stage-1 ask (the sampling unit is
+        // the step): no second decision number, no re-roll of the sampling policy.
+        synchronized(job) { job.stage2 = ShadowJob.Stage2(state, questions) }
+        return primary.scoreBatch(state, questions)
+    }
+
     // -- the log-side contract ---------------------------------------------------------
 
     /**
      * The loop's sink, wrapped: the row written for a sampled step gains the shadow
-     * fields when the shadow answer is complete at write time, or freezes as a
-     * `shadowMiss` (`shadow=null`, `shadowSampled=true`) otherwise — registering the
-     * companion key so the late answer lands as exactly one companion row (rule a).
-     * Unsampled steps and steps whose decision carried no bucketed form (triage,
-     * recovery) pass through untouched — the executor's view of every row is
-     * primary-only, always.
+     * fields when the shadow answer is complete at write time (a target-bearing step
+     * needs the shadow's stage-2 target too), or freezes as a `shadowMiss`
+     * (`shadow=null`, `shadowSampled=true`) otherwise — registering the companion key so
+     * the late answer lands as exactly one companion row (rule a). Unsampled steps and
+     * steps whose decision carried no cascade form pass through untouched — the
+     * executor's view of every row is primary-only, always.
      */
     fun sink(delegate: DecisionLogSink): DecisionLogSink = object : DecisionLogSink {
         override suspend fun write(row: DecisionLogRow) {
@@ -265,6 +341,14 @@ class ShadowRouter(
                 // repeated write neither re-freezes nor enriches (exactly-once).
                 job.frozen -> WriteOutcome.PASS_FROZEN
                 !job.done -> {
+                    job.frozen = true
+                    job.freeze = ShadowJob.FreezeRecord(row.taskId, row.stepIndex)
+                    WriteOutcome.FREEZE
+                }
+                // A target-bearing step needs the shadow's stage-2 target as well — a
+                // stage-1-only answer cannot enrich it coherently (the row law requires
+                // targetAgreement when targetScores and a shadow answer coexist).
+                job.stage2 != null && job.answer?.target == null -> {
                     job.frozen = true
                     job.freeze = ShadowJob.FreezeRecord(row.taskId, row.stepIndex)
                     WriteOutcome.FREEZE
@@ -309,14 +393,21 @@ class ShadowRouter(
     /** Enriches the row with both engines' answers + agreement (vision 05 §2/§3). */
     private fun enrich(
         row: DecisionLogRow,
-        answer: LayaEngine.TwoStageAnswer,
+        answer: LayaEngine.CascadeAnswer,
     ): DecisionLogRow {
         val shadowAnswer = toShadowAnswer(answer)
         val enriched = row.copy(
             shadow = ShadowRef(checkpoint = CHECKPOINT, precision = PRECISION),
             shadowAnswer = shadowAnswer,
-            agreementExactMatch = Agreement.exactMatch(row.teacherAnswer, shadowAnswer),
-            agreementKL = Agreement.klDivergence(row.teacherAnswer, shadowAnswer),
+            // Cascade rows (vision 05 §3 + v1.6.0): the headline top-1 is the stage-1
+            // INTENT (the teacher's chosen intent vs the shadow's bucket-stage intent);
+            // the KL is likewise over the intent distributions. The stage-2 target
+            // agreement rides the additive targetAgreement field.
+            agreementExactMatch = row.teacherAnswer.chosen == shadowAnswer.bucket.chosen,
+            agreementKL = Agreement.klDivergence(row.teacherAnswer.probabilities, shadowAnswer.bucket.probabilities),
+            // The stage-2 agreement (doc 05 §2 v1.6.0): the executed target vs the
+            // shadow's argmax target; null when the step ran no stage-2 (targetScores).
+            targetAgreement = row.targetScores?.let { row.executedAction.candidateId == shadowAnswer.element.chosen },
             shadowSampled = true,
         )
         shadowCompletions.incrementAndGet()
@@ -324,22 +415,18 @@ class ShadowRouter(
         return enriched
     }
 
-    /** Maps the shadow's two-stage answer onto the row/companion answer shape (vision 05 §2). */
-    private fun toShadowAnswer(answer: LayaEngine.TwoStageAnswer): ShadowAnswer {
-        val bucketStage = answer.bucket
-        val bucketAnswer = bucketStage?.let {
-            ShadowStageAnswer(chosen = it.chosen, probabilities = it.probabilities)
-        } ?: ShadowStageAnswer(
-            // single-stage fallback (no buckets): the element IS the whole answer
-            chosen = answer.element.chosen,
-            probabilities = answer.element.probabilities,
-        )
+    /**
+     * Maps the shadow's cascade answer onto the row/companion answer shape (vision 05 §2
+     * v1.6.0): the bucket stage carries the stage-1 INTENT id; the element stage carries
+     * the shadow's argmax stage-2 target — or, when the step ran no stage-2 (a code-path
+     * intent), the intent answer mirrored (the element IS the whole answer, the
+     * single-stage precedent).
+     */
+    private fun toShadowAnswer(answer: LayaEngine.CascadeAnswer): ShadowAnswer {
+        val element = answer.target ?: answer.intent
         return ShadowAnswer(
-            bucket = bucketAnswer,
-            element = ShadowStageAnswer(
-                chosen = answer.element.chosen,
-                probabilities = answer.element.probabilities,
-            ),
+            bucket = ShadowStageAnswer(chosen = answer.intent.chosen, probabilities = answer.intent.probabilities),
+            element = ShadowStageAnswer(chosen = element.chosen, probabilities = element.probabilities),
         )
     }
 
@@ -350,7 +437,7 @@ class ShadowRouter(
      */
     private fun companionRowFor(
         freeze: ShadowJob.FreezeRecord,
-        answer: LayaEngine.TwoStageAnswer,
+        answer: LayaEngine.CascadeAnswer,
     ): ShadowResultRow = ShadowResultRow(
         rowId = ShadowResultRow.rowIdFor(freeze.taskId, freeze.stepIndex),
         taskId = freeze.taskId,
@@ -406,6 +493,10 @@ class ShadowRouter(
         val companionRejected: Long = 0,
         /** True once [close] ran: companions are dropped+counted from here on. */
         val closed: Boolean = false,
+        /** Non-cascade choose/batch questions refused loudly (the migration's no-darkness law). */
+        val nonCascadeRefusals: Long = 0,
+        /** Stage-1 asks superseded by the same step's handshake re-ask. */
+        val supersededAsks: Long = 0,
     )
 
     @Volatile
@@ -427,6 +518,8 @@ class ShadowRouter(
             droppedAfterClose = droppedAfterClose.get(),
             companionRejected = companionRejected.get(),
             closed = closed,
+            nonCascadeRefusals = nonCascadeRefusals.get(),
+            supersededAsks = supersededAsks.get(),
         )
     }
 
@@ -448,28 +541,45 @@ class ShadowRouter(
 
     // -- internals -----------------------------------------------------------------------
 
-    /** Registers the decision; returns the shadow job when this step samples the shadow. */
-    private fun beginShadow(
+    /**
+     * Registers the stage-1 cascade ask; returns the shadow job when this step samples
+     * the shadow. A job is tracked for EVERY cascade ask (sampled or not — the stage-2
+     * handoff must attach to the step's decision either way); only a SAMPLED job fires
+     * the shadow and can enrich a row. A still-unconsumed prior job (the handshake's
+     * first ask, superseded by this re-ask — no row was written in between) is
+     * DISCARDED and this ask inherits its sampling decision: one loop decision, sampled
+     * once, the re-ask's answer is the decision of record.
+     */
+    private fun beginCascadeAsk(
         decisionNumber: Long,
         state: String,
         question: ChoiceQuestion,
     ): ShadowJob? {
-        val sampled = samplingPolicy.shouldSample(decisionNumber)
-        val bucketable = navigator.app.laya.BucketedForms.fromPrimaryQuestion(question) != null
-        if (!sampled || !bucketable) return null
+        val superseded = synchronized(jobs) {
+            jobs.lastOrNull { !it.consumed }?.also { jobs.remove(it) }
+        }
+        if (superseded != null) {
+            supersededAsks.incrementAndGet()
+        }
+        val sampled = (superseded?.sampled == true) || samplingPolicy.shouldSample(decisionNumber)
+        if (sampled) shadowSampledCount.incrementAndGet()
         val job = ShadowJob(
             seq = decisionNumber,
-            sampled = true,
-            stateHash = state.hashCode(),
+            sampled = sampled,
+            intentStateHash = state.hashCode(),
             questionName = question.name,
             optionIds = question.options.map { it.id },
         )
-        shadowSampledCount.incrementAndGet()
+        if (!sampled) {
+            // an unsampled job is a handoff target only: it never fires, so it settles
+            // immediately (awaitIdle's busy-check reads `done`)
+            job.done = true
+        }
         synchronized(jobs) {
             jobs.addLast(job)
             while (jobs.size > MAX_TRACKED_JOBS) jobs.removeFirst()
         }
-        return job
+        return if (sampled) job else null
     }
 
     /** Launches the shadow decision off the caller's path (never blocks the primary). */
@@ -477,11 +587,18 @@ class ShadowRouter(
         synchronized(this) { inFlight += 1 }
         scope.launch {
             try {
-                val answer = shadow.chooseTwoStage(state, question)
+                val stage2 = synchronized(job) { job.stage2 }
+                val answer = shadow.chooseCascade(
+                    intentState = state,
+                    intentQuestion = question,
+                    targetState = stage2?.state,
+                    stage2 = stage2?.questions,
+                )
                 // The completion/freeze transition is atomic (the row write synchronizes
                 // on the job too): either this runs BEFORE the write (the row will
                 // enrich) or AFTER it (frozen=true → exactly one companion, rule a).
                 var companion: ShadowResultRow? = null
+                var tracked: Boolean
                 synchronized(job) {
                     job.answer = answer
                     job.done = true
@@ -500,11 +617,15 @@ class ShadowRouter(
                         }
                     }
                 }
+                synchronized(jobs) { tracked = jobs.contains(job) }
                 if (companion != null) launchCompanionInsert(companion!!)
-                shadowCompletions.incrementAndGet()
-                // MEASURED laya latency, recorded for EVERY completed decision (the run
-                // report's latency evidence must not depend on whether the row enriched).
-                recordLatency(answer.forwardMs, answer.totalMs)
+                if (tracked) {
+                    shadowCompletions.incrementAndGet()
+                    // MEASURED laya latency, recorded for EVERY completed decision of a
+                    // tracked job (the run report's latency evidence must not depend on
+                    // whether the row enriched).
+                    recordLatency(answer.forwardMs, answer.totalMs)
+                }
             } catch (t: Throwable) {
                 // A shadow failure is a miss, never a loop failure (vision 02 §4.3:
                 // shadow execution must never block or slow the primary loop).
@@ -518,16 +639,27 @@ class ShadowRouter(
         }
     }
 
-    /** The still-tracked job for THIS row (state + primary question must match). */
+    /**
+     * The still-tracked, unconsumed SAMPLED job for THIS row: cascade rows carry the
+     * FIXED intent question, so name + option ids identify the decision and FIFO order
+     * pairs one job to one row (each cascade decide writes exactly one row; the
+     * handshake's superseded first ask never stays tracked). Marked consumed at match
+     * time. Unsampled steps' rows pass through untouched (their jobs are tracked only
+     * for the stage-2 handoff).
+     */
     private fun matchJob(row: DecisionLogRow): ShadowJob? = synchronized(jobs) {
-        val stateHash = row.stateText.hashCode()
         val optionIds = row.questionPrimary.options.map { it.id }
-        jobs.lastOrNull { job ->
-            job.stateHash == stateHash &&
-                job.questionName == row.questionPrimary.name &&
-                job.optionIds == optionIds
-        }
+        val job = jobs.firstOrNull { candidate ->
+            !candidate.consumed && candidate.sampled &&
+                candidate.questionName == row.questionPrimary.name &&
+                candidate.optionIds == optionIds
+        } ?: return@synchronized null
+        job.consumed = true
+        job
     }
+
+    /** The newest unconsumed tracked job (the stage-2 handoff's target). */
+    private fun newestUnconsumedJob(): ShadowJob? = synchronized(jobs) { jobs.lastOrNull { !it.consumed } }
 
     private fun recordLatency(forwardMs: Long, totalMs: Long) = synchronized(jobs) {
         latencies.addLast(forwardMs to totalMs)
@@ -540,6 +672,12 @@ class ShadowRouter(
 
         /** The shipped precision (vision 05 §6: int8 per-tensor — chosen by upstream law). */
         val PRECISION: ShadowPrecision = ShadowPrecision.INT8
+
+        /** The loud-refusal log tag (the migration's no-darkness law, vision 02 §4 v1.3.0). */
+        const val REFUSAL_LOG_TAG = "NAVIGATOR-SHADOW"
+
+        /** The stage-2 question-name prefix ([TargetRubric] law, mirrored structurally). */
+        const val CANDIDATE_NAME_PREFIX = "cand-"
 
         private const val MAX_TRACKED_JOBS = 8
         private const val MAX_TRACKED_LATENCIES = 256

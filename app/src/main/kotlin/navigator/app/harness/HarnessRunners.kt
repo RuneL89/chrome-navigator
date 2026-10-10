@@ -66,7 +66,11 @@ class HarnessObserver(private val service: NavigatorAccessibilityService) : Loop
                 navigator.app.observe.UrlBarReader.Url.Hidden -> "hidden"
                 navigator.app.observe.UrlBarReader.Url.Unavailable -> "unavailable"
             },
-            title = "",
+            // Phase 10B (phase doc §2.8): the ACTIVE allowlisted window's real title
+            // ([WindowTitles]' pure decision over the service's windows list) — the
+            // state TITLE, the v3 PAGE IDENTITY line, marker evidence, and extraction
+            // all read the real page identity now.
+            title = observation.title,
             lines = observation.lines,
             nodes = nodes,
             pageNodeCount = observation.pageNodeCount,

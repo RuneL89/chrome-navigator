@@ -58,38 +58,58 @@ from fetch_laya import (  # noqa: E402
 
 FIXTURE_DIR = PROJECT_ROOT / "app" / "src" / "test" / "resources" / "laya"
 
-# --- the two-stage question forms (mirror LayaEngine.kt EXACTLY) ------------------
+# --- the cascade question forms (mirror LayaEngine.kt EXACTLY; Phase 10B) ----------
+# The shadow migrated to the cascade (vision 02 §4 v1.3.0): stage-1 = the FIXED
+# 9-intent choice (the question's own INTENT_INSTRUCTIONS + the intent criteria);
+# stage-2 = the same batched per-candidate score form (one score question per
+# candidate, the per-candidate instructions, the 5-level relevance rubric verbatim);
+# noul + the non-cascade single-stage form are unchanged. The retired two-stage
+# bucketed form (BUCKET_INSTRUCTIONS/element forms) is GONE from the engine.
 
-BUCKET_INSTRUCTIONS = "In which group is the best next action?"
 SINGLE_STAGE_INSTRUCTIONS = "What is the best next action?"
 NOUL_FALSE = ("false", "no, the statement does not hold")
 NOUL_TRUE = ("true", "yes, the statement holds")
 SCORE_INSTRUCTIONS = "Score the state against the rubric."
 
-BUCKETS = [  # canonical Bucket enum order (navigator.core.enumerate.Bucket ordinals)
-    ("nav-links", "links believed to navigate"),
-    ("form-fields", "editable fields"),
-    ("buttons", "clickable non-link controls"),
-    ("scroll", "scroll actions on scrollable containers"),
-    ("back", "system back"),
-    ("finish", "goal achieved, stop"),
+# The cascade stage-1 vocabulary: intents-v1 (vision 02 §3 v1.3.0) — id + criteria,
+# in the FIXED table order (navigator.core.decision.Intents.ALL).
+INTENT_INSTRUCTIONS = (
+    "You are navigating a web browser toward the active subtask. Choose the ONE next move "
+    "from the categories. Judge from the subtask, its done-condition, and the page description."
+)
+
+INTENTS = [
+    ("open-site", "The subtask needs a different site or page loaded by its address; code opens the URL directly."),
+    ("follow-link", "A link or search result on this page plausibly leads toward the subtask's target."),
+    ("activate-control", "A button, toggle, or other control on this page advances the subtask when pressed."),
+    ("fill-field", "A form or search field on this page needs text typed to advance; the content will be phrased for you."),
+    ("submit", "A search or form submission should fire now to advance."),
+    ("go-back", "This page is a dead end or wrong turn; going back is the best move."),
+    ("scroll", "The subtask's target is likely below the visible area."),
+    ("dismiss-nag", "A popup, cookie, permission, or upgrade dialog blocks the page; dismiss it."),
+    ("verify-done", "The subtask's done-condition may now hold on this page; run the completion check."),
 ]
 
 
-def bucket_question(present: list[str]) -> dict:
-    crit = {serial: text for serial, text in BUCKETS if serial in present}
-    assert list(crit) == present, "bucket question options must be in canonical order"
-    return {"t": "choice", "ins": BUCKET_INSTRUCTIONS, "crit": crit}
+def intent_question() -> dict:
+    crit = {ident: text for ident, text in INTENTS}
+    assert list(crit) == [ident for ident, _ in INTENTS], "intent options must be in table order"
+    return {"t": "choice", "ins": INTENT_INSTRUCTIONS, "crit": crit}
 
 
-def element_instructions(bucket: str) -> str:
-    return f"Which option in the {bucket} group is the best next action?"
+# The stage-2 rubric (vision 02 §3 v1.3.0) — the declared levels in order.
+RUBRIC_LEVELS = [
+    "does not advance the active subtask",
+    "unlikely to advance — peripheral or unrelated",
+    "possibly advances — plausible but unclear",
+    "likely advances — directly relevant",
+    "decisively advances — the obvious target",
+]
 
 
-def element_question(bucket: str, options: list[tuple[str, str]]) -> dict:
-    """options: (label, description) in the bucket's candidate order."""
-    crit = {label: desc for label, desc in options}
-    return {"t": "choice", "ins": element_instructions(bucket), "crit": crit}
+def stage2_question(label: str, subtask: str) -> dict:
+    """One per-candidate score question (TargetRubric.stage2Questions' exact shape)."""
+    return {"t": "score", "ins": f"Score how well acting on '{label}' advances: {subtask}.", "crit": list(RUBRIC_LEVELS)}
 
 
 # --- case definitions ---------------------------------------------------------------
@@ -129,117 +149,59 @@ STATE_NONASCII = (
 )
 
 
+SUBTASK_TEXT = "unsubscribe from the first mailing list"
+
+
 def opt(label: str, bucket: str, cx: int, cy: int) -> tuple[str, str]:
     return (label, f"bucket={bucket} ({cx},{cy})")
 
 
 CASES = [
-    # -- bucket stages (6, 4 and 3 buckets present) ------------------------------------
+    # -- cascade stage-1: the FIXED intent choice (9 options; calibration choice:6-10) ----
     dict(
-        id="bucket-stage-6",
+        id="intent-stage-9",
         kind="choice",
         state=STATE_SHORT,
-        ids=["nav-links", "form-fields", "buttons", "scroll", "back", "finish"],
-        q=bucket_question([b for b, _ in BUCKETS]),
+        ids=[ident for ident, _ in INTENTS],
+        q=intent_question(),
     ),
     dict(
-        id="bucket-stage-4",
+        id="intent-stage-9-nonascii",
         kind="choice",
         state=STATE_NONASCII,
-        ids=["nav-links", "buttons", "scroll", "finish"],
-        q=bucket_question(["nav-links", "buttons", "scroll", "finish"]),
+        ids=[ident for ident, _ in INTENTS],
+        q=intent_question(),
     ),
     dict(
-        id="bucket-stage-3",
+        id="intent-stage-9-long",
         kind="choice",
         state=STATE_LONG,
-        ids=["form-fields", "scroll", "back"],
-        q=bucket_question(["form-fields", "scroll", "back"]),
+        ids=[ident for ident, _ in INTENTS],
+        q=intent_question(),
     ),
-    # -- element stages (small, large; multiple buckets) ---------------------------------
+    # -- cascade stage-2: the batched per-candidate score form (rubric verbatim) ----------
     dict(
-        id="element-navlinks-6",
-        kind="choice",
+        id="stage2-candidate-a",
+        kind="score",
         state=STATE_SHORT,
-        ids=[f"n{i}" for i in range(6)],
-        q=element_question(
-            "nav-links",
-            [
-                opt("Apple Pies", "nav-links", 270, 300),
-                opt("Cakes", "nav-links", 270, 360),
-                opt("Cookies", "nav-links", 270, 420),
-                opt("Breads", "nav-links", 270, 480),
-                opt("No-Bake Desserts", "nav-links", 270, 540),
-                opt("All Baking Recipes", "nav-links", 270, 600),
-            ],
-        ),
+        ids=[str(i + 1) for i in range(5)],
+        q=stage2_question("Unsubscribe from Cooking Classics", SUBTASK_TEXT),
     ),
     dict(
-        id="element-navlinks-12",
-        kind="choice",
+        id="stage2-candidate-b",
+        kind="score",
         state=STATE_LONG,
-        ids=[f"n{i}" for i in range(12)],
-        q=element_question(
-            "nav-links",
-            [
-                opt("Laptops", "nav-links", 270, 240),
-                opt("Computers", "nav-links", 270, 290),
-                opt("Gaming", "nav-links", 270, 340),
-                opt("Accessories", "nav-links", 270, 390),
-                opt("Deals", "nav-links", 270, 440),
-                opt("Brand: SuperXYZ", "nav-links", 270, 490),
-                opt("14-inch laptops", "nav-links", 270, 540),
-                opt("Compare (2)", "nav-links", 270, 590),
-                opt("Reviews (23)", "nav-links", 270, 640),
-                opt("Questions (4)", "nav-links", 270, 690),
-                opt("Spare parts", "nav-links", 270, 740),
-                opt("Product documents", "nav-links", 270, 790),
-            ],
-        ),
+        ids=[str(i + 1) for i in range(5)],
+        q=stage2_question("Unsubscribe from Star Log", SUBTASK_TEXT),
     ),
     dict(
-        id="element-formfields-4",
-        kind="choice",
-        state=STATE_SHORT,
-        ids=[f"n{i}" for i in range(4)],
-        q=element_question(
-            "form-fields",
-            [
-                opt("Search terminal", "form-fields", 200, 180),
-                opt("Email", "form-fields", 200, 260),
-                opt("Password", "form-fields", 200, 340),
-                opt("Comment", "form-fields", 200, 420),
-            ],
-        ),
-    ),
-    dict(
-        id="element-buttons-3",
-        kind="choice",
+        id="stage2-candidate-nonascii",
+        kind="score",
         state=STATE_NONASCII,
-        ids=[f"n{i}" for i in range(3)],
-        q=element_question(
-            "buttons",
-            [
-                opt("Hyväksy kaikki", "buttons", 540, 900),
-                opt("Vain välttämättömät", "buttons", 540, 960),
-                opt("Asetukset", "buttons", 540, 1020),
-            ],
-        ),
+        ids=[str(i + 1) for i in range(5)],
+        q=stage2_question("Hyväksy kaikki", SUBTASK_TEXT),
     ),
-    dict(
-        id="element-scroll-2",
-        kind="choice",
-        state=STATE_LONG,
-        ids=["scroll-down@n9", "scroll-up@n9"],
-        q=element_question(
-            "scroll",
-            [
-                opt("scroll-down@n9", "scroll (540,1100)", 540, 1100),
-                opt("scroll-up@n9", "scroll (540,300)", 540, 300),
-            ],
-        ),
-    ),
-    # -- noul (goal-achieved verification) -----------------------------------------------
+    # -- noul (the anchored done-check verification; unchanged form) -----------------------
     dict(
         id="noul-goal-achieved",
         kind="noul",
@@ -250,7 +212,17 @@ CASES = [
             "ins": 'The goal "find an apple pie recipe" is fully achieved on the current page.',
         },
     ),
-    # -- score (an ordered rubric) ---------------------------------------------------------
+    dict(
+        id="noul-goal-achieved-long",
+        kind="noul",
+        state=STATE_LONG,
+        ids=["false", "true"],
+        q={
+            "t": "noul",
+            "ins": 'The goal "compare two laptop prices on a shop listing" is fully achieved on the current page.',
+        },
+    ),
+    # -- score (the generic ordered rubric, a question's own instructions) -----------------
     dict(
         id="score-urgency-4",
         kind="score",
@@ -267,7 +239,7 @@ CASES = [
             ],
         },
     ),
-    # -- single-stage fallback (a non-bucketable question: the recovery set) ---------------
+    # -- single-stage fallback (a non-cascade question: the recovery set) -------------------
     dict(
         id="single-recovery-4",
         kind="choice",
@@ -284,29 +256,7 @@ CASES = [
             },
         },
     ),
-    # -- one realistic two-stage pair, LONG state + small bucket ----------------------------
-    dict(
-        id="bucket-stage-long-state",
-        kind="choice",
-        state=STATE_LONG,
-        ids=["nav-links", "form-fields", "buttons", "scroll", "back", "finish"],
-        q=bucket_question([b for b, _ in BUCKETS]),
-    ),
-    dict(
-        id="element-navlinks-2-long",
-        kind="choice",
-        state=STATE_LONG,
-        ids=["n2", "n5"],
-        q=element_question(
-            "nav-links",
-            [
-                opt("Product documents", "nav-links", 270, 740),
-                opt("Compare (2)", "nav-links", 270, 590),
-            ],
-        ),
-    ),
 ]
-
 
 # --- the laya state view (Phase 08H — the EXACT mirror of LayaStateView.kt) ---------
 # Vision 03 §4 dual-view law: a pure, deterministic derivation of the canonical text,
@@ -315,6 +265,18 @@ CASES = [
 # must agree BYTE FOR BYTE on every input (proven by state-view-parity.json).
 
 UNTRUSTED_HEADER = "UNTRUSTED PAGE CONTENT:"
+
+# The bucket-header vocabulary of the CANONICAL state text (the taxonomy is unchanged -
+# vision 03 §3; only the shadow's QUESTION form migrated to the cascade). The state-view
+# derivation still collapses these headers when their lines shrink away.
+BUCKETS = [  # canonical Bucket enum order (navigator.core.enumerate.Bucket ordinals)
+    ("nav-links", "links believed to navigate"),
+    ("form-fields", "editable fields"),
+    ("buttons", "clickable non-link controls"),
+    ("scroll", "scroll actions on scrollable containers"),
+    ("back", "system back"),
+    ("finish", "goal achieved, stop"),
+]
 
 BUCKET_HEADERS = {f"{serial}:" for serial, _ in BUCKETS}
 

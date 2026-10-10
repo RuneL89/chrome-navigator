@@ -166,8 +166,8 @@ class ColdStartTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Next"),
-                choose("action", "finish"),
+                *intentStep("follow-link", target = "Next"),
+                *intentStep("verify-done"),
                 noul(0.95),
             ),
             observations = listOf(startPage, nextPage),
@@ -212,8 +212,8 @@ class ColdStartTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Next"),
-                choose("action", "finish"),
+                *intentStep("follow-link", target = "Next"),
+                *intentStep("verify-done"),
                 noul(0.95),
             ),
             observations = listOf(startPage, nextPage),
@@ -247,8 +247,8 @@ class ColdStartTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Next"),
-                choose("action", "finish"),
+                *intentStep("follow-link", target = "Next"),
+                *intentStep("verify-done"),
                 noul(0.95),
             ),
             observations = listOf(startPage, nextPage),

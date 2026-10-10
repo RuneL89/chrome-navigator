@@ -221,6 +221,13 @@ enum class LoggedActionKind {
     @SerialName("scroll") SCROLL,
     @SerialName("back") BACK,
     @SerialName("finish") FINISH,
+    /**
+     * The cascade's `open-site` code path (vision 04 §2 v1.6.0, Phase 10B): the VIEW
+     * intent a resolved URL is opened with — code opens the address directly, no model
+     * target. ADDITIVE Phase-10B vocabulary (the ActionDisposition precedent) — earlier
+     * rows decode unchanged.
+     */
+    @SerialName("view") VIEW,
 }
 
 fun ActionKind.toLoggedActionKind(): LoggedActionKind = when (this) {
@@ -470,6 +477,16 @@ data class DecisionLogRow(
      * Earlier rows decode unchanged with targetAgreement=null.
      */
     val targetAgreement: Boolean? = null,
+    /**
+     * The executed stage-2 request's TARGET STATE VIEW text (doc 05 §2 v1.6.0 via the
+     * Round-2 score-case resolution: the row is the record — a cascade row with
+     * `targetScores` carries the exact state the stage-2 batch rode, so the RLCD score
+     * case's `state` is the serve-time target view, never a provisional canonical
+     * stand-in). Null on every non-target-bearing row; the score case REQUIRES it on
+     * rows that carry `targetScores` (the export fails loudly otherwise — training
+     * data is never provisional).
+     */
+    val targetStateText: String? = null,
 ) {
     init {
         require(rowId.isNotBlank()) { "DecisionLogRow.rowId must not be blank" }
@@ -626,6 +643,13 @@ data class DecisionLogRow(
         require((targetAgreement != null) == (targetScores != null && shadowAnswer != null)) {
             "DecisionLogRow ${rowId}: targetAgreement is present exactly when stage-2 ran " +
                 "(targetScores) and a shadow answer exists"
+        }
+        // The score corpus's state law (Round-2 carry): a row with stage-2 evidence
+        // carries the executed TARGET STATE VIEW — the score case's `state` is the
+        // serve-time target view, never the canonical stand-in.
+        require(targetScores == null || !targetStateText.isNullOrBlank()) {
+            "DecisionLogRow ${rowId}: targetScores without targetStateText is incoherent — " +
+                "the executed stage-2 request's target view is the score case's state"
         }
     }
 

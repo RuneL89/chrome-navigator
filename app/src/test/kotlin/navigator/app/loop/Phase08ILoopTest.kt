@@ -102,11 +102,11 @@ class Phase08ILoopTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "action-multi"),
-                chooseByLabel("action", "Cooking Classics"),
-                chooseByLabel("action", "Trailer Reviews"),
-                chooseByLabel("action", "Garden Week"),
-                chooseByLabel("action", "Star Log"),
-                choose("action", "finish"),
+                *intentStep("activate-control", target = "Cooking Classics"),
+                *intentStep("activate-control", target = "Trailer Reviews"),
+                *intentStep("activate-control", target = "Garden Week"),
+                *intentStep("activate-control", target = "Star Log"),
+                *intentStep("verify-done"),
                 noul(0.95),
             ),
             observations = listOf(subscriptionsPage),
@@ -162,8 +162,8 @@ class Phase08ILoopTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "action-multi"),
-                chooseByLabel("action", "Cooking Classics"),
-                chooseByLabel("action", "Trailer Reviews"),
+                *intentStep("activate-control", target = "Cooking Classics"),
+                *intentStep("activate-control", target = "Trailer Reviews"),
             ),
             observations = listOf(subscriptionsPage),
             presenter = AutoDenyGatePresenter,
@@ -199,8 +199,8 @@ class Phase08ILoopTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "action"),
-                chooseByLabel("action", "Cooking Classics"),
-                chooseByLabel("action", "Cooking Classics"),
+                *intentStep("activate-control", target = "Cooking Classics"),
+                *intentStep("activate-control", target = "Cooking Classics"),
             ),
             observations = listOf(baitPage),
             presenter = ScriptedGatePresenter(GateResolution.DENIED, GateResolution.DENIED),
@@ -233,7 +233,7 @@ class Phase08ILoopTest {
         // A confident code class: the additive engine check NEVER consulted the judge
         // (an unscripted consult would fail the stub loudly — suppression is impossible).
         assertEquals(
-            listOf("choose:triage", "choose:action", "choose:action"),
+            listOf("choose:triage", "choose:intent", "scoreBatch:cand-4", "choose:intent", "scoreBatch:cand-4"),
             fixture.engineCalls,
         )
         // Phase 08H law on the new page: the injected mutation bait is UNTRUSTED PAGE
@@ -257,8 +257,8 @@ class Phase08ILoopTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Field Notebook"),
-                choose("action", "finish"),
+                *intentStep("follow-link", target = "Field Notebook"),
+                *intentStep("verify-done"),
                 noul(0.95),
             ),
             observations = listOf(listingsPage, detailPage),

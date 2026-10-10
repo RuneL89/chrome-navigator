@@ -90,3 +90,12 @@ the app itself never fetches a model.
 ## Child DOX Index
 
 No child folders.
+
+* Phase 10B: `laya_reference.py`'s CASES mirror the cascade question forms (vision 02
+  §4 v1.3.0): stage-1 = the FIXED 9-intent choice (INTENT_INSTRUCTIONS + the criteria
+  verbatim), stage-2 = the per-candidate score form (the quoted-label instruction +
+  the 5-level relevance rubric verbatim), plus noul + the non-cascade single-stage
+  recovery form + the generic score — 10 cases per checkpoint; the retired two-stage
+  bucketed/element forms are GONE. The committed vectors were regenerated on the REAL
+  checkpoints (421M mandatory; v32b eval-only, artifacts present) — the wording tables
+  changing IS the fixture-change law, never a silent one.

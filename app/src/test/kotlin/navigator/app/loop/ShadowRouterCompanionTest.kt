@@ -7,11 +7,12 @@ import navigator.app.stub.StubScript
 import navigator.core.decision.ChoiceQuestion
 import navigator.core.decision.ChoiceResult
 import navigator.core.decision.DecisionEngine
+import navigator.core.decision.Intents
 import navigator.core.decision.NoulQuestion
 import navigator.core.decision.NoulResult
-import navigator.core.decision.Option
 import navigator.core.decision.ScoreQuestion
 import navigator.core.decision.ScoreResult
+import navigator.core.enumerate.CandidateList
 import navigator.core.log.ActionDisposition
 import navigator.core.log.DecisionLogRow
 import navigator.core.log.EngineIdentity
@@ -32,9 +33,9 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Gate 8B.2 (PHASE_08B §3) — the router's late-write semantics (vision 02 §4.4, vision
- * 05 §2 amendment 2026-10-04), over a scripted shadow so every interleaving is
- * deterministic (no model, no timing races):
+ * Gate 8B.2 (PHASE_08B §3, re-pinned Phase 10B — the cascade router) — the router's
+ * late-write semantics (vision 02 §4.4, vision 05 §2 amendment 2026-10-04), over a
+ * scripted shadow so every interleaving is deterministic (no model, no timing races):
  *
  * - SLOW shadow → the row freezes as `shadowMiss` and the late answer arrives as
  *   EXACTLY ONE companion row with the full answer; agreement computes on the join;
@@ -44,28 +45,24 @@ import kotlin.test.assertTrue
  * - after [ShadowRouter.close], late completions are dropped AND counted (rule c);
  * - a rejecting companion sink is counted + surfaced, never propagated (vision 02 §4.3);
  * - inside the REAL loop the executor still receives ONLY the primary's choices.
+ *
+ * The companion rows carry the CASCADE answer shape (vision 05 §2 v1.6.0): the bucket
+ * stage is the shadow's stage-1 INTENT; the element is its argmax target — or the
+ * intent mirror when the step ran no stage-2.
  */
 class ShadowRouterCompanionTest {
 
     private val identity = EngineIdentity("stub", "scripted-harness-v1")
 
-    /** The loop's action question stand-in: tagged options over two buckets + finish. */
-    private fun question(): ChoiceQuestion = ChoiceQuestion(
-        name = "action",
-        options = listOf(
-            Option("n0", "Apple Pies", "bucket=nav-links (270,300)"),
-            Option("n1", "Cakes", "bucket=nav-links (270,360)"),
-            Option("n2", "Start baking", "bucket=buttons (540,900)"),
-            Option("finish", "finish", "bucket=finish (0,0)"),
-        ),
-    )
+    /** The cascade stage-1 question: the FIXED intent form. */
+    private fun question(): ChoiceQuestion = Intents.QUESTION
 
     /** Instant, fixed primary (its choice is the ONLY value the loop ever sees). */
     private class RecordingPrimary(private val chosen: String) : DecisionEngine {
         override suspend fun choose(state: String, question: ChoiceQuestion): ChoiceResult = ChoiceResult(
             chosenId = chosen,
-            probabilities = question.options.associate {
-                if (it.id == chosen) it.id to 0.9 else it.id to 0.1 / (question.options.size - 1)
+            probabilities = Intents.IDS.associate {
+                if (it == chosen) it to 0.9 else it to 0.1 / (Intents.IDS.size - 1)
             },
             confidence = 0.9,
         )
@@ -77,45 +74,31 @@ class ShadowRouterCompanionTest {
     }
 
     /**
-     * A scripted shadow whose chooseTwoStage blocks until [release] fires, then answers
-     * with [elementChosen] — making the freeze-before-completion interleaving
-     * deterministic instead of a timing bet. Distributions mirror the REAL two-stage
-     * engine: the element stage only distributes over the chosen bucket's options.
+     * A scripted shadow whose chooseCascade blocks until [release] fires, then answers
+     * with [intentChosen] — making the freeze-before-completion interleaving
+     * deterministic instead of a timing bet. The answer mirrors the REAL cascade shape:
+     * stage-1 over the intent ids, no stage-2 target (the element mirrors the intent).
      */
     private class GatedShadow(
-        private val elementChosen: String,
+        private val intentChosen: String,
         private val release: CompletableDeferred<Unit>,
     ) : navigator.app.laya.ShadowDecisions {
         val calls = AtomicInteger(0)
 
-        private fun bucketSerialOf(option: Option): String =
-            option.description.substringBefore(" ").removePrefix("bucket=")
-
-        override suspend fun chooseTwoStage(
-            state: String,
-            question: ChoiceQuestion,
-        ): LayaEngine.TwoStageAnswer {
+        override suspend fun chooseCascade(
+            intentState: String,
+            intentQuestion: ChoiceQuestion,
+            targetState: String?,
+            stage2: Map<String, ScoreQuestion>?,
+        ): LayaEngine.CascadeAnswer {
             release.await()
             calls.incrementAndGet()
-            val chosen = question.options.first { it.id == elementChosen }
-            val bucketSerial = bucketSerialOf(chosen)
-            val bucketOptions = question.options.filter { bucketSerialOf(it) == bucketSerial }
-            val element = if (bucketOptions.size == 1) {
-                mapOf(bucketOptions.single().id to 1.0) // a 1-option bucket: certain choice
-            } else {
-                bucketOptions.associate {
-                    if (it.id == elementChosen) it.id to 0.9 else it.id to 0.1 / (bucketOptions.size - 1)
-                }
+            val dist = Intents.IDS.associate {
+                if (it == intentChosen) it to 0.6 else it to 0.4 / (Intents.IDS.size - 1)
             }
-            val serials = question.options.map { bucketSerialOf(it) }.distinct()
-            val bucketDist = serials.associate {
-                if (it == bucketSerial) it to 0.6 else it to 0.4 / (serials.size - 1)
-            }
-            return LayaEngine.TwoStageAnswer(
-                bucketedQuestion = null,
-                result = ChoiceResult(elementChosen, element, 0.9),
-                bucket = LayaEngine.StageAnswer(bucketSerial, bucketDist),
-                element = LayaEngine.StageAnswer(elementChosen, element),
+            return LayaEngine.CascadeAnswer(
+                intent = LayaEngine.StageAnswer(intentChosen, dist),
+                target = null,
                 forwardMs = 1,
                 totalMs = 5,
             )
@@ -139,16 +122,26 @@ class ShadowRouterCompanionTest {
         }
     }
 
+    /** A minimal lawful one-bucket shadow question (the row's shadow-question record). */
+    private fun companionShadowQuestion() = navigator.core.log.BucketedQuestion(
+        name = "shadow-action",
+        buckets = mapOf(
+            navigator.core.enumerate.Bucket.BUTTONS to listOf(
+                navigator.core.decision.Option("n4", "Unsubscribe", "bucket=buttons (540,320)"),
+            ),
+        ),
+    )
+
     private fun decisionRow(
         taskId: String,
         stepIndex: Int,
         state: String,
-        teacherChosen: String = "n0",
+        teacherChosen: String,
     ): DecisionLogRow {
         val teacher = TeacherAnswer(
             chosen = teacherChosen,
-            probabilities = question().options.associate {
-                if (it.id == teacherChosen) it.id to 0.9 else it.id to 0.1 / 3
+            probabilities = Intents.IDS.associate {
+                if (it == teacherChosen) it to 0.9 else it to 0.1 / (Intents.IDS.size - 1)
             },
             confidence = 0.9,
         )
@@ -162,12 +155,12 @@ class ShadowRouterCompanionTest {
             stateFormatVersion = navigator.core.STATE_FORMAT_VERSION,
             triageClass = TriageClass.LOOKUP,
             questionPrimary = question(),
-            questionShadow = navigator.app.laya.BucketedForms.fromPrimaryQuestion(question())!!,
+            questionShadow = companionShadowQuestion(),
             teacher = identity,
             teacherAnswer = teacher,
-            executedAction = ExecutedAction(teacherChosen, LoggedActionKind.TAP, ActionDisposition.EXECUTED),
+            executedAction = ExecutedAction(null, LoggedActionKind.FINISH, ActionDisposition.EXECUTED),
             gateEvent = null,
-            outcome = Outcome.PROGRESSED,
+            outcome = Outcome.NO_CHANGE,
             shadowSampled = false,
         )
     }
@@ -180,14 +173,14 @@ class ShadowRouterCompanionTest {
         val companions = CollectingCompanionSink()
         val release = CompletableDeferred<Unit>()
         val router = ShadowRouter(
-            RecordingPrimary("n0"),
-            GatedShadow("n0", release),
+            RecordingPrimary(Intents.FOLLOW_LINK),
+            GatedShadow(Intents.FOLLOW_LINK, release),
             companionSink = companions,
         )
         try {
-            val state = "GOAL: pick a pie page"
+            val state = "SUBTASK: open the pie page"
             router.choose(state, question()) // the shadow is now gated mid-flight
-            router.sink(sink).write(decisionRow("task-a", 0, state)) // row freezes first
+            router.sink(sink).write(decisionRow("task-a", 0, state, Intents.FOLLOW_LINK)) // row freezes first
 
             release.complete(Unit) // the answer lands AFTER the freeze
             assertTrue(router.awaitIdle(10_000))
@@ -204,17 +197,16 @@ class ShadowRouterCompanionTest {
             assertEquals("task-a", companion.taskId)
             assertEquals(0, companion.stepIndex)
             assertEquals("laya", companion.shadow.checkpoint)
-            assertEquals("n0", companion.shadowAnswer.element.chosen)
-            assertEquals(0.9, companion.shadowAnswer.element.probabilities["n0"]!!, 1e-12)
+            assertEquals(Intents.FOLLOW_LINK, companion.shadowAnswer.bucket.chosen)
+            assertEquals(Intents.FOLLOW_LINK, companion.shadowAnswer.element.chosen)
             assertTrue(companion.latencyMs >= 0)
             assertEquals(1, router.snapshot().companionRows)
 
-            // agreement fields compute ON THE JOIN (rule d)
+            // agreement fields compute ON THE JOIN (rule d): the identical intents agree
             val metrics = JoinedAgreement.metrics(listOf(JoinedDecisionRow(written, companion)))
             assertEquals(1, metrics.joinedRows)
             assertEquals(1, metrics.exactMatches)
             assertEquals(1.0, metrics.exactMatchFraction!!, 1e-12)
-            assertTrue(metrics.meanKl!! > 0.0, "top-1 agrees but the full distributions differ")
             val metric = JoinedAgreement.uiMetric(metrics)
             assertEquals(100.0, metric.percentage!!, 1e-9)
             assertEquals(1.0, metric.coverage, 1e-12)
@@ -232,21 +224,21 @@ class ShadowRouterCompanionTest {
         val companions = CollectingCompanionSink()
         val release = CompletableDeferred<Unit>()
         val router = ShadowRouter(
-            RecordingPrimary("n0"),
-            GatedShadow("n0", release),
+            RecordingPrimary(Intents.FOLLOW_LINK),
+            GatedShadow(Intents.FOLLOW_LINK, release),
             companionSink = companions,
         )
         try {
-            val state = "GOAL: pick a pie page"
+            val state = "SUBTASK: open the pie page"
             router.choose(state, question())
             release.complete(Unit) // the answer lands BEFORE the row write
             assertTrue(router.awaitIdle(10_000))
 
-            router.sink(sink).write(decisionRow("task-b", 0, state))
+            router.sink(sink).write(decisionRow("task-b", 0, state, Intents.FOLLOW_LINK))
             val written = sink.rows.single()
             assertNotNull(written.shadow, "the decision row itself carries the shadow (rule a path)")
-            assertEquals("n0", assertNotNull(written.shadowAnswer).element.chosen)
-            assertEquals(true, written.agreementExactMatch)
+            assertEquals(Intents.FOLLOW_LINK, assertNotNull(written.shadowAnswer).bucket.chosen)
+            assertEquals(true, written.agreementExactMatch, "the stage-1 intents agree")
             assertTrue(written.agreementKL!! >= 0.0)
 
             // the joined view must stay a SINGLE answer for this key: no companion exists
@@ -267,14 +259,14 @@ class ShadowRouterCompanionTest {
         val companions = CollectingCompanionSink()
         val release = CompletableDeferred<Unit>()
         val router = ShadowRouter(
-            RecordingPrimary("n0"),
-            GatedShadow("n0", release),
+            RecordingPrimary(Intents.FOLLOW_LINK),
+            GatedShadow(Intents.FOLLOW_LINK, release),
             companionSink = companions,
         )
         try {
-            val state = "GOAL: pick a pie page"
+            val state = "SUBTASK: open the pie page"
             router.choose(state, question())
-            val row = decisionRow("task-c", 0, state)
+            val row = decisionRow("task-c", 0, state, Intents.FOLLOW_LINK)
             router.sink(sink).write(row) // freeze #1 (the loop's single write)
             // a duplicate delivery (same decision, fresh rowId): must be inert
             router.sink(sink).write(row.copy(rowId = "task-c-step0-dup"))
@@ -282,8 +274,9 @@ class ShadowRouterCompanionTest {
             release.complete(Unit)
             assertTrue(router.awaitIdle(10_000))
 
-            assertEquals(2, sink.rows.size, "both writes pass through as frozen misses")
-            assertTrue(sink.rows.all { it.shadowSampled && it.shadow == null })
+            assertEquals(2, sink.rows.size, "both writes pass through (the repeat is inert)")
+            assertTrue(sink.rows.first().shadowSampled, "the first write froze as a miss")
+            assertEquals(false, sink.rows.last().shadowSampled, "the repeated delivery is inert (untouched)")
             assertEquals(1, companions.rows.size, "exactly ONE companion (rule a)")
             assertEquals(1, router.snapshot().misses, "the miss is counted once")
             assertEquals(1, router.snapshot().companionRows)
@@ -307,14 +300,14 @@ class ShadowRouterCompanionTest {
         val companions = CollectingCompanionSink()
         val release = CompletableDeferred<Unit>()
         val router = ShadowRouter(
-            RecordingPrimary("n0"),
-            GatedShadow("n0", release),
+            RecordingPrimary(Intents.FOLLOW_LINK),
+            GatedShadow(Intents.FOLLOW_LINK, release),
             companionSink = companions,
         )
         try {
-            val state = "GOAL: pick a pie page"
+            val state = "SUBTASK: open the pie page"
             router.choose(state, question())
-            router.sink(sink).write(decisionRow("task-d", 0, state)) // freeze
+            router.sink(sink).write(decisionRow("task-d", 0, state, Intents.FOLLOW_LINK)) // freeze
             router.close() // the logger closed before the answer landed
             release.complete(Unit)
             assertTrue(router.awaitIdle(10_000))
@@ -338,14 +331,14 @@ class ShadowRouterCompanionTest {
         val companions = CollectingCompanionSink()
         val release = CompletableDeferred<Unit>()
         val router = ShadowRouter(
-            RecordingPrimary("n0"),
-            GatedShadow("n0", release),
+            RecordingPrimary(Intents.FOLLOW_LINK),
+            GatedShadow(Intents.FOLLOW_LINK, release),
             companionSink = companions,
         )
         try {
-            val state = "GOAL: pick a pie page"
+            val state = "SUBTASK: open the pie page"
             router.choose(state, question())
-            router.sink(sink).write(decisionRow("task-e", 0, state))
+            router.sink(sink).write(decisionRow("task-e", 0, state, Intents.FOLLOW_LINK))
             companions.failNext = true // the persistence guard rejects (programming error)
             release.complete(Unit)
             assertTrue(router.awaitIdle(10_000))
@@ -367,11 +360,11 @@ class ShadowRouterCompanionTest {
     fun `without a companion sink the router keeps the inert phase-8 behavior`() = runBlocking {
         val sink = CollectingLogSink()
         val release = CompletableDeferred<Unit>()
-        val router = ShadowRouter(RecordingPrimary("n0"), GatedShadow("n0", release))
+        val router = ShadowRouter(RecordingPrimary(Intents.FOLLOW_LINK), GatedShadow(Intents.FOLLOW_LINK, release))
         try {
-            val state = "GOAL: pick a pie page"
+            val state = "SUBTASK: open the pie page"
             router.choose(state, question())
-            router.sink(sink).write(decisionRow("task-f", 0, state))
+            router.sink(sink).write(decisionRow("task-f", 0, state, Intents.FOLLOW_LINK))
             release.complete(Unit)
             assertTrue(router.awaitIdle(10_000))
             val written = sink.rows.single()
@@ -407,14 +400,14 @@ class ShadowRouterCompanionTest {
             StubScript(
                 scriptOf(
                     choose("triage", "lookup"),
-                    chooseByLabel("action", "Apple Pies"),
-                    chooseByLabel("action", "Cakes"),
+                    *intentStep("follow-link", target = "Apple Pies"),
+                    *intentStep("follow-link", target = "Cakes"),
                 ),
             ),
         )
         val router = ShadowRouter(
             primary,
-            GatedShadow("n5", release), // never completes during the loop
+            GatedShadow(Intents.ACTIVATE_CONTROL, release), // never completes during the loop
             companionSink = companions,
         )
         try {
@@ -434,7 +427,7 @@ class ShadowRouterCompanionTest {
             // the executor received ONLY the primary's scripted picks, in order
             // (clickable nodes carry observation ids n3/n4: bounds y=3*100 / y=4*100)
             assertEquals(listOf("tap(50,320)", "tap(50,420)"), executor.calls)
-            assertEquals(listOf("n3", "n4"), sink.rows.map { it.teacherAnswer.chosen })
+            assertEquals(listOf("follow-link", "follow-link"), sink.rows.map { it.teacherAnswer.chosen })
 
             // both rows froze as shadowMiss during the loop (the shadow is still gated)
             for (row in sink.rows) {
@@ -452,11 +445,11 @@ class ShadowRouterCompanionTest {
             for (row in sink.rows) {
                 val companion = companions.rows.single { it.stepIndex == row.stepIndex }
                 assertEquals(row.taskId, companion.taskId)
-                assertEquals("n5", companion.shadowAnswer.element.chosen)
+                assertEquals(Intents.ACTIVATE_CONTROL, companion.shadowAnswer.bucket.chosen)
                 assertEquals("laya", companion.shadow.checkpoint)
             }
 
-            // agreement over the join: both companions pick n5, both teachers picked n3/n4
+            // agreement over the join: the shadow's intent disagrees with the teacher's
             val view = sink.rows.sortedBy { it.stepIndex }.map { row ->
                 JoinedDecisionRow(row, companions.rows.single { it.stepIndex == row.stepIndex })
             }
@@ -466,7 +459,6 @@ class ShadowRouterCompanionTest {
             assertEquals(0, metrics.exactMatches, "the scripted shadow disagrees with the scripted teacher")
             assertEquals(0.0, metrics.exactMatchFraction!!, 1e-12)
             assertEquals(1.0, metrics.coverage, 1e-12)
-            assertTrue(metrics.meanKl!! > 0.0)
         } finally {
             release.complete(Unit)
             router.close()

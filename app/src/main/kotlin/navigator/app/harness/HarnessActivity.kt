@@ -52,6 +52,8 @@ import navigator.app.loop.GestureExecutor
 import navigator.app.loop.NavigationLoop
 import navigator.app.loop.RunResult
 import navigator.app.loop.ShadowRouter
+import navigator.app.gen.asAssistSource
+import navigator.app.gen.asPhraseSource
 import navigator.app.laya.LayaCheckpoint
 import navigator.app.laya.LayaEngine
 import navigator.app.laya.LayaOnnxSession
@@ -664,6 +666,19 @@ class HarnessActivity : ComponentActivity() {
             } else {
                 null
             },
+            // Phase 10B (phase doc §2.6): the cascade's writer seams — the handshake's
+            // assist + the fill-field phrase. LIVE modes use the GenClient adapters over
+            // the SAME key delivery; a STUB run has no writer — its fill-field steps use
+            // the $0 deterministic [StubPhraseSource] (the pre-cascade behavior) and an
+            // UNCERTAIN stage-1 falls to the code fallback.
+            assistSource = if (built.mode == HarnessEngineMode.STUB) null else {
+                writerSources(deliveredOpenRouterKey)?.first
+            },
+            phraseSource = if (built.mode == HarnessEngineMode.STUB) {
+                navigator.app.stub.StubPhraseSource
+            } else {
+                writerSources(deliveredOpenRouterKey)?.second
+            },
         )
         val startedAt = System.currentTimeMillis()
         val result = try {
@@ -851,6 +866,33 @@ class HarnessActivity : ComponentActivity() {
         )
         announceTerminal(goal.id, result.terminal.name, result.terminalDetail)
         return report
+    }
+
+    /**
+     * Phase 10B: the cascade's writer seams (assist + phrase) over the pinned
+     * generative config, keyed with the SAME delivery priority as the ladder mode
+     * (intent extra > env > keys file). Null when no key is configured — a STUB run
+     * needs no writer; the loop's null-seam degradation is the lawful behavior (the
+     * code fallback / fill-field-to-recovery). Never throws.
+     */
+    private fun writerSources(
+        deliveredKey: String?,
+    ): Pair<navigator.app.loop.AssistSource, navigator.app.loop.PhraseSource>? {
+        val envKey = System.getenv(navigator.core.wire.DefaultEngineConfigs.OPENROUTER_KEY_ENV)
+            ?.trim()?.takeIf { it.isNotEmpty() }
+        val key = deliveredKey?.trim()?.takeIf { it.isNotEmpty() }
+            ?: envKey
+            ?: runCatching {
+                navigator.core.wire.DefaultEngineConfigs.resolveKey(
+                    navigator.core.wire.DefaultEngineConfigs.OPENROUTER_KEY_ENV,
+                )
+            }.getOrNull()
+            ?: return null
+        val client = navigator.app.gen.GenClient(
+            transport = navigator.core.wire.OkHttpWireTransport(),
+            config = navigator.app.gen.GenEngineConfigs.generative(key),
+        )
+        return client.asAssistSource() to client.asPhraseSource()
     }
 
     /**

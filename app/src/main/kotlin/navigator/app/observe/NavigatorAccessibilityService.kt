@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService
 import android.graphics.Rect
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import android.view.accessibility.AccessibilityWindowInfo
 
 /**
  * The observation service (vision 03 §1, patterned after PokeClaw's
@@ -76,16 +77,46 @@ class NavigatorAccessibilityService : AccessibilityService() {
      * the ACTIVE window's package (2026-10-08 pre-UAT2 RC1) — the readiness signal: a
      * readable tree alone is not readiness, because Chrome's tree stays readable while
      * Chrome sits in the background (the focus-first injection then lands nowhere).
+     * Phase 10B added [LoopObservation.title] — the ACTIVE allowlisted window's title,
+     * read through the service's `windows` list (the IME-probe precedent) with the
+     * root-application-window fallback; the pure decision is [WindowTitles] and the
+     * title feeds the state TITLE, the v3 PAGE IDENTITY line, marker evidence, and the
+     * answer extraction.
      */
     fun observeForLoop(): LoopObservation {
         val activePackage = rootInActiveWindow?.packageName?.toString().orEmpty()
+        val title = readActiveWindowTitle()
         val root = freshChromeRoot()
-            ?: return LoopObservation(UrlBarReader.Url.Unavailable, emptyList(), emptyList(), 0, activePackage)
+            ?: return LoopObservation(UrlBarReader.Url.Unavailable, emptyList(), emptyList(), 0, title, activePackage)
         val snapshot = toSnapshot(root, depth = 1) ?: NodeSnapshot()
         val serialized = TreeSerializer.serialize(snapshot)
         val url = UrlBarReader.read(A11yNodeView(root))
-        return LoopObservation(url, serialized.lines, serialized.nodes, countPageNodes(snapshot), activePackage)
+        return LoopObservation(url, serialized.lines, serialized.nodes, countPageNodes(snapshot), title, activePackage)
     }
+
+    /**
+     * The ACTIVE allowlisted window's title: the service's `windows` list (the IME-probe
+     * precedent) mapped onto the pure [WindowTitles] decision — focused, then active,
+     * then the root-application-window fallback. "" when nothing lawful exists.
+     */
+    private fun readActiveWindowTitle(): String =
+        WindowTitles.lawfulTitle(
+            windows.orEmpty().mapNotNull { window ->
+                val pkg = window.root?.packageName?.toString() ?: return@mapNotNull null
+                val title = try {
+                    window.title?.toString().orEmpty()
+                } catch (t: Exception) {
+                    "" // some window kinds throw on getTitle(); they are simply untitled
+                }
+                WindowTitles.Candidate(
+                    packageName = pkg,
+                    title = title,
+                    isFocused = window.isFocused,
+                    isActive = window.isActive,
+                    isApplicationWindow = window.type == AccessibilityWindowInfo.TYPE_APPLICATION,
+                )
+            },
+        )
 
     /** Descendant count under the first WebView-classed node; whole tree when absent. */
     private fun countPageNodes(root: NodeSnapshot): Int {
@@ -221,11 +252,15 @@ data class Observation(
 /** One live observation for the Phase-6 loop: [Observation] plus the page-content
  *  node count the unreadable-tree rule needs (see [NavigatorAccessibilityService.observeForLoop])
  *  and the ACTIVE window's package — empty when there is none — the RC1 readiness
- *  signal (readiness = usable tree AND the browser being the active window). */
+ *  signal (readiness = usable tree AND the browser being the active window). Phase 10B
+ *  added [title]: the ACTIVE allowlisted window's title ([WindowTitles]' pure decision;
+ *  "" when none) feeding the state TITLE, the v3 PAGE IDENTITY line, marker evidence,
+ *  and extraction. */
 data class LoopObservation(
     val url: UrlBarReader.Url,
     val lines: List<String>,
     val nodes: List<TreeSerializer.Emitted>,
     val pageNodeCount: Int,
+    val title: String = "",
     val windowPackage: String = "",
 )

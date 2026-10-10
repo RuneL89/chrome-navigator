@@ -9,7 +9,11 @@ without a device.
 
 ## Ownership
 
-* `src/main/kotlin/navigator/core/decision/` — `DecisionEngine` (ART-2's single gateway),
+* `src/main/kotlin/navigator/core/decision/` — `DecisionEngine` (ART-2's single gateway;
+  Phase 10B Round 2 added the cascade's `scoreBatch` — ONE decision request carrying N
+  per-candidate `cand-<id>` score questions (the default loops `score`; JevEngine
+  overrides it to the ONE wire request; FallbackEngine follows the primary wholesale —
+  never escalates),
   `Choice`/`Noul`/`Score` question+result types (Phase 10B: every question carries its
   own `instructions` text — vision 02 §3 v1.3.0 reversed the Phase-3 shared-constants
   decision; the field DEFAULTS are the retired `SystemOneClient` constants so every
@@ -191,9 +195,13 @@ without a device.
   (Phase 5): `DecisionLogModels.kt` (the full vision 05 §2 row schema as serializable
   types + `DECISION_LOG_JSON` + enum-serial-name helpers; Phase 10B: additive
   `targetScores` (the executed stage-2 slate's expected levels, 1..5 band-checked) +
-  `targetAgreement`, and cascade-aware row coherence — when the primary question IS the
-  fixed intent form the shadow's bucket stage lives on the INTENT ids and the headline
-  top-1 is intent-vs-intent; legacy rows keep the two-stage bucket/element law),
+  `targetAgreement` + `targetStateText` (Round 2: the executed stage-2 request's TARGET
+  STATE VIEW — REQUIRED on every `targetScores` row, the score case's state law; the
+  canonical stand-in is not training-ready and fails loudly), additive
+  `LoggedActionKind.VIEW` (the open-site code path), and cascade-aware row coherence —
+  when the primary question IS the fixed intent form the shadow's bucket stage lives on
+  the INTENT ids and the headline top-1 is intent-vs-intent; legacy rows keep the
+  two-stage bucket/element law),
   `Agreement.kt` (top-1 exact match + KL(teacher ∥ shadow), vision 05 §3),
   `RlcdExport.kt` (the RLCD JSONL export + manifest, vision 05 §4 v1.6.0: THREE case
   kinds — `RlcdChooseCase` (decision rows: the FIXED intent choice form + the
@@ -397,8 +405,9 @@ without a device.
   rows — `questions` is the INTENT choice form, `intents-v1`, and `gold` the full
   distribution, never a bare label), `score` (Phase 10B, from cascade rows with
   `targetScores` — the batched per-candidate rubric + authoritative slate levels; the
-  case's `state` rides the row's stored text pending the Round-2 target-view
-  enrichment), and `noul` (from exit-check rows — `question` is the anchored
+  case's `state` IS the row's `targetStateText` — the recorded TARGET STATE VIEW, the
+  Round-2 carry: a canonical-text stand-in is not training-ready and fails loudly in
+  the row `init` and the export), and `noul` (from exit-check rows — `question` is the anchored
   `NoulQuestion` payload with its `anchoredNoulVersion`, `gold` the authoritative pTrue).
   AUTHORITATIVE-GOLD LAW: gold is always the EXECUTED answer — the fallback's when
   `escalated=true`, the primary's otherwise; a student engine is never its own gold.

@@ -52,7 +52,7 @@ class LayaStateViewEngineTest {
 
     private val question = MarkerBuilder.LayaQuestion(
         type = "choice",
-        instructions = LayaEngine.BUCKET_INSTRUCTIONS,
+        instructions = LayaEngine.SINGLE_STAGE_INSTRUCTIONS,
         options = listOf(
             MarkerBuilder.LayaOption("nav-links", "links believed to navigate"),
             MarkerBuilder.LayaOption("buttons", "clickable non-link controls"),

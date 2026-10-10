@@ -87,11 +87,16 @@ class GoalCatalogTest {
         assertEquals("GOAL_ACHIEVED", multiAction.expectedTerminal)
         assertEquals("http://127.0.0.1:8099/subscriptions.html", multiAction.startUrl)
         assertTrue(multiAction.goal.contains("every channel"), multiAction.goal)
-        // The generic page's four distinct toggle controls are the target universe.
-        val needles = multiAction.script.mapNotNull { it.labelContains }
+        // The generic page's four distinct toggle controls are the target universe:
+        // the cascade script answers stage-1 intents + stage-2 golds (topCandidate).
+        val golds = multiAction.script.mapNotNull { it.topCandidate }
         assertEquals(
             listOf("Cooking Classics", "Trailer Reviews", "Garden Week", "Star Log"),
-            needles,
+            golds,
+        )
+        assertEquals(
+            listOf("activate-control", "activate-control", "activate-control", "activate-control", "verify-done"),
+            multiAction.script.mapNotNull { it.intent },
         )
         assertEquals("action-multi", multiAction.script.first().chosen)
 
@@ -112,7 +117,8 @@ class GoalCatalogTest {
         assertEquals("GOAL_ACHIEVED", cheapest.expectedTerminal)
         assertEquals("http://127.0.0.1:8099/listings.html", cheapest.startUrl)
         assertEquals("lookup", cheapest.script.first().chosen)
-        assertEquals("Field Notebook", cheapest.script[1].labelContains)
+        assertEquals("follow-link", cheapest.script[1].intent)
+        assertEquals("Field Notebook", cheapest.script[2].topCandidate)
     }
 
     @Test
@@ -128,12 +134,17 @@ class GoalCatalogTest {
         assertEquals("GOAL_ACHIEVED", credential.expectedTerminal)
         assertEquals("http://127.0.0.1:8099/login.html", credential.startUrl)
         assertEquals("form-fill", credential.script.first().chosen)
+        // the cascade script: fill-field gold -> fill-field gold -> submit gold, then the
+        // verify-done intent and the done-check noul
         assertEquals(
             listOf("Email or username", "Password", "Submit sign in"),
-            credential.script.drop(1).take(3).map { it.labelContains },
+            credential.script.mapNotNull { it.topCandidate },
         )
-        assertEquals("finish", credential.script[4].chosen)
-        assertEquals(0.95, credential.script[5].pTrue)
+        assertEquals(
+            listOf("fill-field", "fill-field", "submit", "verify-done"),
+            credential.script.mapNotNull { it.intent },
+        )
+        assertEquals(0.95, credential.script.last().pTrue)
     }
 
     @Test

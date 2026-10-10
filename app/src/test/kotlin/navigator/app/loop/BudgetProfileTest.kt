@@ -97,7 +97,7 @@ class BudgetProfileTest {
         val pages = (0..2 * hardSteps + 1).map { i -> cyclingPage(i) }
         val script = buildList {
             add(choose("triage", triageOption))
-            repeat(hardSteps) { j -> add(chooseByLabel("action", "Next page (${(2 * j) % 5})")) }
+            repeat(hardSteps) { j -> addAll(intentStep("follow-link", target = "Next page (${(2 * j) % 5})")) }
         }
         val fixture = LoopFixture(
             script = script,
@@ -145,7 +145,7 @@ class BudgetProfileTest {
         val pages = (0..2 * 30 + 1).map { i -> cyclingPage(i) }
         val script = buildList {
             add(choose("triage", triageOption))
-            repeat(30) { j -> add(chooseByLabel("action", "Next page (${(2 * j) % 5})")) }
+            repeat(30) { j -> addAll(intentStep("follow-link", target = "Next page (${(2 * j) % 5})")) }
         }
         val fixture = LoopFixture(
             script = script,
@@ -211,7 +211,7 @@ class BudgetProfileTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", triageOption),
-                chooseByLabel("action", "Next"),
+                *intentStep("follow-link", target = "Next"),
             ),
             observations = listOf(page),
             presenter = ScriptedGatePresenter(),

@@ -65,15 +65,17 @@ class ExitFlowLoopTest {
     private fun seriesScript(checks: List<Double>): List<ScriptedAnswer> {
         val answers = mutableListOf<ScriptedAnswer>(
             choose("triage", "lookup"),
-            chooseByLabel("action", "Tarte Tatin Caramelised fruit tart"),
+            *intentStep("follow-link", target = "Tarte Tatin Caramelised fruit tart"),
         )
         checks.forEachIndexed { index, noul ->
-            answers += choose("action", "finish")
+            answers += intent("verify-done")
             answers += noul(noul)
             if (index < checks.size - 1) {
-                val down = index % 2 == 0
-                answers += chooseByLabel("action", if (down) "Scroll down" else "Scroll up")
-                answers += chooseByLabel("action", if (down) "Scroll up" else "Scroll down")
+                // two non-done decisions meter the M=2 window down; go-back + scroll keep
+                // the action keys DISTINCT (the stuck detector's same-action signal must
+                // stay out of the exit machinery's way)
+                answers += intent("go-back")
+                answers += intent("scroll")
             }
         }
         return answers
@@ -82,26 +84,34 @@ class ExitFlowLoopTest {
     // -- 8J.3: anti-oscillation -----------------------------------------------------------
 
     @Test
-    fun `a refused finish is structurally un-choosable for the next M decisions`() = runBlocking {
-        // The engine OSCILLATES (scripted finish right after the refusal): under the old
-        // loop that ran; under the law the finish option does not exist for the next M=2
-        // decisions, so the stub CANNOT choose it - the loud failure IS the assertion.
+    fun `a refused done claim is withheld for the next M decisions - not evaluated`() = runBlocking {
+        // The engine OSCILLATES (scripted verify-done right after the refusal): under
+        // the law the done claim is WITHHELD for the next M=2 decisions - the loop
+        // refuses it WITHOUT the judge consult (no noul consumed, no ExitCheckRow).
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Tarte Tatin Caramelised fruit tart"),
-                choose("action", "finish"),
+                *intentStep("follow-link", target = "Tarte Tatin Caramelised fruit tart"),
+                *intentStep("verify-done"),
                 noul(0.60),
-                choose("action", "finish"), // decision 1 after the refusal: EXCLUDED
+                *intentStep("verify-done"), // decision 1 after the refusal: WITHHELD
             ),
             observations = listOf(seedPage(), articlePage()),
             presenter = ScriptedGatePresenter(),
+            config = NavigationLoop.Config(settleMs = 0, budget = NavigationLoop.BudgetLimits(stepsHard = 3)),
         )
-        val error = assertThrows<IllegalStateException> { fixture.run() }
-        assertTrue(
-            error.message?.contains("'finish' is not an option") == true,
-            "finish must be withheld after a refusal: ${error.message}",
+        val result = fixture.run()
+        assertFalse(result.terminal == TerminalState.GOAL_ACHIEVED)
+        // exactly ONE judged check (the refusal); the withheld claim consumed no noul
+        assertEquals(1, fixture.engineCalls.count { it.startsWith("judge") })
+        assertEquals(1, fixture.sink.exitChecks.size, "the withheld claim writes no ExitCheckRow")
+        val withheld = fixture.sink.rows.last()
+        assertEquals(
+            navigator.core.log.ActionDisposition.REFUSED_BY_GUARD,
+            withheld.executedAction.disposition,
+            "the withheld claim is a logged refusal",
         )
+        assertTrue(result.stepLog.any { it.contains("verify-done withheld") }, "the withholding is loud: ${result.stepLog}")
     }
 
     @Test
@@ -118,17 +128,16 @@ class ExitFlowLoopTest {
     }
 
     @Test
-    fun `a page-hash change clears the window - finish is offered immediately`() = runBlocking {
-        // Refusal on one page; the very NEXT decision is a finish on a DIFFERENT page:
-        // the window is gone (the hash changed) and the accept lands at check 2. With
-        // the window still armed the stub would fail loudly (finish not an option).
+    fun `a page-hash change clears the window - the done claim evaluates immediately`() = runBlocking {
+        // Refusal on one page; the very NEXT decision is a done claim on a DIFFERENT
+        // page: the window is gone (the hash changed) and the accept lands at check 2.
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Tarte Tatin Caramelised fruit tart"),
-                choose("action", "finish"),
+                *intentStep("follow-link", target = "Tarte Tatin Caramelised fruit tart"),
+                *intentStep("verify-done"),
                 noul(0.60), // refused on page 0 (hash H)
-                choose("action", "finish"), // next observation: a NEW page -> finish offered
+                *intentStep("verify-done"), // next observation: a NEW page -> evaluated
                 noul(0.99),
             ),
             observations = freshPages(),
@@ -140,23 +149,27 @@ class ExitFlowLoopTest {
     }
 
     @Test
-    fun `the finish-tap cycling of the specimen is impossible`() = runBlocking {
-        // The Test-1 specimen's death loop was finish, tap, finish, ... on one unchanged
-        // page. Under the law every refusal starts the M=2 window, so the scripted cycle
-        // hits the withheld finish (only ONE non-finish decision ran) and fails LOUDLY.
+    fun `the done-tap cycling of the specimen is impossible`() = runBlocking {
+        // The Test-1 specimen's death loop was done-claim, tap, done-claim, ... on one
+        // unchanged page. Under the law every refusal starts the M=2 window, so the
+        // scripted cycle hits a WITHHELD claim (no judge, no ExitCheckRow) and the run
+        // ends without ever accepting.
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Tarte Tatin Caramelised fruit tart"),
-                choose("action", "finish"),
+                *intentStep("follow-link", target = "Tarte Tatin Caramelised fruit tart"),
+                *intentStep("verify-done"),
                 noul(0.60),
-                chooseByLabel("action", "Related recipes"), // window decision 1 of 2
-                choose("action", "finish"), // window decision 2: STILL EXCLUDED -> loud
+                *intentStep("follow-link", target = "Related recipes"), // window decision 1 of 2
+                *intentStep("verify-done"), // window decision 2: STILL WITHHELD
             ),
             observations = listOf(seedPage(), articlePage()),
             presenter = ScriptedGatePresenter(),
+            config = NavigationLoop.Config(settleMs = 0, budget = NavigationLoop.BudgetLimits(stepsHard = 3)),
         )
-        assertThrows<IllegalStateException> { fixture.run() }
+        val result = fixture.run()
+        assertFalse(result.terminal == TerminalState.GOAL_ACHIEVED)
+        assertEquals(1, fixture.sink.exitChecks.size, "only the first claim was ever judged")
     }
 
     @Test
@@ -262,10 +275,10 @@ class ExitFlowLoopTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Tarte Tatin Caramelised fruit tart"),
-                choose("action", "finish"),
+                *intentStep("follow-link", target = "Tarte Tatin Caramelised fruit tart"),
+                *intentStep("verify-done"),
                 noul(0.10),
-                chooseByLabel("action", "Scroll down"),
+                *intentStep("scroll"),
             ),
             observations = listOf(seedPage(), articlePage()),
             presenter = ScriptedGatePresenter(),

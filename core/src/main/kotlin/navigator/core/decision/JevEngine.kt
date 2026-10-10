@@ -49,6 +49,22 @@ class JevEngine(private val client: SystemOneClient) : DecisionEngine {
     override suspend fun score(state: String, question: ScoreQuestion): ScoreResult =
         scoreResult(state, question).result
 
+    /**
+     * The cascade's stage-2 batch (vision 02 §3 v1.3.0): ONE wire request carrying every
+     * per-candidate question — the client already accepts a question map and answers
+     * name-keyed, so the batch is one `decide` call, not N. The failover tag rides the
+     * whole batch (one request, one decision).
+     */
+    override suspend fun scoreBatch(state: String, questions: Map<String, ScoreQuestion>): Map<String, ScoreResult> {
+        if (questions.isEmpty()) return emptyMap()
+        val decision = client.decide(state, questions)
+        return questions.entries.associate { (name, _) ->
+            val result = decision.answers[name]
+                ?: throw WireProtocolException("JevEngine: the batch response is missing '$name'")
+            name to (result as? ScoreResult ?: typeMismatch(name, "score", result))
+        }
+    }
+
     suspend fun chooseResult(state: String, question: ChoiceQuestion): EngineResult<ChoiceResult> {
         val decision = client.decide(state, mapOf(question.name to question))
         return EngineResult(decision.answers.choice(question.name), decision.usedFallback)

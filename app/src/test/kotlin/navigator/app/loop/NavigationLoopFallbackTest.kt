@@ -30,7 +30,11 @@ import kotlin.test.assertTrue
  */
 class NavigationLoopFallbackTest {
 
-    /** Scripts triage + a queue of action answers; noul always confirms. */
+    /**
+     * Scripts triage + a queue of CASCADE step answers (stage-1 intent over the fixed
+     * vocabulary; stage-2 executes decisively for every batched candidate); noul always
+     * confirms.
+     */
     private class ScriptedEngine(
         private val triage: ChoiceResult,
         private val actions: ArrayDeque<ChoiceResult>,
@@ -48,7 +52,31 @@ class NavigationLoopFallbackTest {
             NoulResult(noulPTrue)
 
         override suspend fun score(state: String, question: ScoreQuestion): ScoreResult =
-            throw UnsupportedOperationException("score is not exercised by the loop")
+            ScoreResult(5.0, mapOf(1 to 0.0, 2 to 0.0, 3 to 0.0, 4 to 0.0, 5 to 1.0))
+
+        // the stage-2 batch favors the scripted pick decisively (n4) — a flat spread
+        // would be the no-good-target signal, never a tap
+        override suspend fun scoreBatch(
+            state: String,
+            questions: Map<String, ScoreQuestion>,
+        ): Map<String, ScoreResult> = questions.mapValues { (name, question) ->
+            val level = if (name == "cand-n4") 5 else 1
+            val levelProbabilities = question.levels.mapIndexed { index, _ ->
+                (index + 1) to if (index + 1 == level) 1.0 else 0.0
+            }.toMap()
+            ScoreResult(
+                expectedLevel = navigator.core.decision.scoreExpectedLevel(levelProbabilities),
+                levelProbabilities = levelProbabilities,
+            )
+        }
+    }
+
+    /** One stage-1 intent answer over the FIXED vocabulary (confidence = the band input). */
+    private fun intentChoice(chosen: String, confidence: Double): ChoiceResult {
+        val p = navigator.core.decision.Intents.IDS.associateWith {
+            if (it == chosen) confidence else (1.0 - confidence) / (navigator.core.decision.Intents.IDS.size - 1)
+        }
+        return ChoiceResult(chosenId = chosen, probabilities = p, confidence = confidence)
     }
 
     private fun choice(chosen: String, ids: List<String>, confidence: Double): ChoiceResult {
@@ -82,14 +110,15 @@ class NavigationLoopFallbackTest {
     @Test
     fun `an escalated step logs the fallback answer as executed with the primary kept as teacher`() =
         runBlocking {
-            // Step 0: the PRIMARY is unsure (0.40, not HIGH) between two picks -> the
-            // FALLBACK's "n4" is executed. Step 1: the primary confidently finishes.
+            // Step 0: the PRIMARY is unsure (0.40, not HIGH) over the intent -> the
+            // FALLBACK's "follow-link" is executed, and its stage-2 argmax resolves "n4".
+            // Step 1: the primary confidently claims done.
             val primary = ScriptedEngine(
                 triage = choice("lookup", listOf("lookup", "research-multi-step", "form-fill", "impossible"), 0.90),
                 actions = ArrayDeque(
                     listOf(
-                        choice("n3", listOf("n3", "n4", "finish"), 0.40),
-                        choice("finish", listOf("n4", "back", "finish"), 0.90),
+                        intentChoice("follow-link", 0.40),
+                        intentChoice("verify-done", 0.90),
                     ),
                 ),
             )
@@ -97,8 +126,8 @@ class NavigationLoopFallbackTest {
                 triage = choice("lookup", listOf("lookup", "research-multi-step", "form-fill", "impossible"), 0.90),
                 actions = ArrayDeque(
                     listOf(
-                        choice("n4", listOf("n3", "n4", "finish"), 0.80),
-                        choice("finish", listOf("n4", "back", "finish"), 0.80),
+                        intentChoice("follow-link", 0.80),
+                        intentChoice("verify-done", 0.80),
                     ),
                 ),
             )
@@ -130,9 +159,9 @@ class NavigationLoopFallbackTest {
             assertTrue(escalatedRow.escalated)
             val fb = requireNotNull(escalatedRow.fallback)
             assertEquals(FallbackInfo("jev", "typesafe/jev-1.13-20260917", fb.answer), fb)
-            assertEquals("n3", escalatedRow.teacherAnswer.chosen, "teacherAnswer = the PRIMARY's answer")
-            assertEquals("n4", (fb.answer as navigator.core.decision.ChoiceResult).chosenId)
-            assertEquals("n4", escalatedRow.executedAction.candidateId, "the FALLBACK's answer executed")
+            assertEquals("follow-link", escalatedRow.teacherAnswer.chosen, "teacherAnswer = the PRIMARY's answer")
+            assertEquals("follow-link", (fb.answer as navigator.core.decision.ChoiceResult).chosenId)
+            assertEquals("n4", escalatedRow.executedAction.candidateId, "the stage-2 argmax executed")
             assertEquals(LoggedActionKind.TAP, escalatedRow.executedAction.kind)
             assertEquals(TriageClass.LOOKUP, escalatedRow.triageClass)
 
@@ -140,7 +169,7 @@ class NavigationLoopFallbackTest {
             val plainRow = sink.rows[1]
             assertFalse(plainRow.escalated)
             assertNull(plainRow.fallback)
-            assertEquals("finish", plainRow.teacherAnswer.chosen)
+            assertEquals("verify-done", plainRow.teacherAnswer.chosen)
 
             // The executor tapped the FALLBACK's node, never the primary's pick.
             assertTrue(executor.calls.contains("tap(50,420)"), "n4's center: ${executor.calls}")
@@ -148,7 +177,11 @@ class NavigationLoopFallbackTest {
 
             // The escalation stats feed the run report.
             val stats = composed.stats()
-            assertEquals(4, stats.decisions, "triage + two action chooses + the finish noul")
+            assertEquals(
+                4, stats.decisions,
+                "triage + stage-1 x2 + the done noul (the stage-2 batch follows the " +
+                    "primary without being a composed decision)",
+            )
             assertEquals(1, stats.escalations)
         }
 
@@ -163,17 +196,32 @@ class NavigationLoopFallbackTest {
                 } else {
                     actionCalls += 1
                     if (actionCalls == 1) throw IllegalStateException("laya inference exploded")
-                    choice("finish", listOf("n4", "back", "finish"), 0.90)
+                    intentChoice("verify-done", 0.90)
                 }
 
             override suspend fun judge(state: String, question: NoulQuestion): NoulResult = NoulResult(0.95)
 
             override suspend fun score(state: String, question: ScoreQuestion): ScoreResult =
-                throw UnsupportedOperationException("score is not exercised by the loop")
+                ScoreResult(5.0, mapOf(1 to 0.0, 2 to 0.0, 3 to 0.0, 4 to 0.0, 5 to 1.0))
+
+            // the stage-2 batch favors the scripted pick (n4) decisively
+            override suspend fun scoreBatch(
+                state: String,
+                questions: Map<String, ScoreQuestion>,
+            ): Map<String, ScoreResult> = questions.mapValues { (name, question) ->
+                val level = if (name == "cand-n4") 5 else 1
+                val levelProbabilities = question.levels.mapIndexed { index, _ ->
+                    (index + 1) to if (index + 1 == level) 1.0 else 0.0
+                }.toMap()
+                ScoreResult(
+                    expectedLevel = navigator.core.decision.scoreExpectedLevel(levelProbabilities),
+                    levelProbabilities = levelProbabilities,
+                )
+            }
         }
         val fallback = ScriptedEngine(
             triage = choice("lookup", listOf("lookup", "research-multi-step", "form-fill", "impossible"), 0.90),
-            actions = ArrayDeque(listOf(choice("n4", listOf("n3", "n4", "finish"), 0.80))),
+            actions = ArrayDeque(listOf(intentChoice("follow-link", 0.80))),
         )
         val composed = FallbackEngine(flaky, fallback)
         val sink = CollectingLogSink()
@@ -193,16 +241,16 @@ class NavigationLoopFallbackTest {
             fallbackIdentity = fallbackIdentity,
         )
 
-        assertEquals(TerminalState.GOAL_ACHIEVED, result.terminal, "graceful degradation, never a dead task")
+        assertEquals(TerminalState.GOAL_ACHIEVED, result.terminal, "graceful degradation, never a dead task: " + result.stepLog.toString())
         val escalatedRow = sink.rows[0]
         assertTrue(escalatedRow.escalated)
         val fb = requireNotNull(escalatedRow.fallback)
-        assertEquals("n4", (fb.answer as navigator.core.decision.ChoiceResult).chosenId)
+        assertEquals("follow-link", (fb.answer as navigator.core.decision.ChoiceResult).chosenId)
         assertEquals(
             "n4", escalatedRow.executedAction.candidateId,
-            "the fallback's answer executed even on a primary hard failure",
+            "the executed stage-2 argmax rode the fallback's escalated intent",
         )
-        assertEquals("n4", escalatedRow.teacherAnswer.chosen, "no primary answer exists - the executed one stands in")
+        assertEquals("follow-link", escalatedRow.teacherAnswer.chosen, "no primary answer exists - the executed one stands in")
         assertEquals(
             ExecutedAction(candidateId = "n4", kind = LoggedActionKind.TAP, disposition = navigator.core.log.ActionDisposition.EXECUTED),
             escalatedRow.executedAction,

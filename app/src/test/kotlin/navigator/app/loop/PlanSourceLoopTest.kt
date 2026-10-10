@@ -23,8 +23,8 @@ class PlanSourceLoopTest {
     private fun fixture(planSource: PlanSource = PlanSource.None) = LoopFixture(
         script = scriptOf(
             choose("triage", "lookup"),
-            chooseByLabel("action", "Result"),
-            choose("action", "finish"),
+            *intentStep("follow-link", target = "Result"),
+            *intentStep("verify-done"),
             noul(0.99),
         ),
         observations = listOf(

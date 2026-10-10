@@ -277,8 +277,17 @@ class RlcdExporter(
             "DecisionLogRow ${row.rowId}: a score case needs the executed stage-2 slate " +
                 "(targetScores, doc 05 §2 v1.6.0)"
         }
+        // The score case's state IS the executed stage-2 request's TARGET STATE VIEW (doc
+        // 05 §4 v1.6.0; the Round-2 carry): the row records it verbatim
+        // ([DecisionLogRow.targetStateText]) and the export applies its state-view
+        // discipline to THAT text — never the canonical stand-in.
+        val targetView = requireNotNull(row.targetStateText) {
+            "DecisionLogRow ${row.rowId}: a score case needs the executed stage-2 request's " +
+                "TARGET STATE VIEW (targetStateText) — a canonical-text stand-in is not " +
+                "training-ready (doc 05 §4 v1.6.0)"
+        }
         return RlcdScoreCase(
-            state = stateFor(row.stateText),
+            state = stateFor(targetView),
             stateFormatVersion = row.stateFormatVersion,
             questions = RlcdScoreQuestions(
                 rubric = navigator.core.decision.TargetRubric.LEVEL_DESCRIPTIONS,

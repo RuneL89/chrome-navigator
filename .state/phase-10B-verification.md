@@ -57,3 +57,40 @@ may proceed. Round-2 mandatory carries: (1) score-case state resolution; (2) Wri
 wiring + cascade rows per the coherence branch; (3) hostile-pageMaterial assist test;
 (4) the core/AGENTS.md line (fixed same day by the orchestrator).
 Checked By: canon-verifier (cold, independent re-runs, no modifications, no commits).
+
+## Round 2 — verifier confirmation (2026-10-10, cold; persisted by orchestrator)
+
+Round 2 PASS, cold, no modifications, no commits. Forced suite `:core` 360 + `:app` 512
+(debug; release also 512/0) = 872, 0 failures; `:app:assembleDebug` green; `:core`
+zero-Android. Items A–H: (A) loop cascade PASS — stage-1 Intents.QUESTION over the
+intent view, band boundaries pinned, every intent's execution path verified incl.
+fill-field phrase-after-gate + refusal-to-recovery, no-good-target never taps
+(empty-slate + flat-spread both route to cascadeFallbackStep), handshake bounds
+(one assist per page-hash, one re-ask, honesty skip, still-UNCERTAIN via
+handleSubtaskFailureOrKill), finish stripped via withoutFinish(), R1 checks + cards +
+heldHashRecheckDue intact; ART-2/4/5 pins found (writer-never-decides at
+Phase10BLoopTest.kt:127; phrase gated on hasHardRoom at NavigationLoop.kt:622).
+(B) Shadow PASS — structured handoff only (BucketedForms gone), both stages mirrored,
+JevEngine.scoreBatch ONE wire request, loud counted non-cascade refusal,
+targetAgreement enriched, headline top-1 intent; reference vectors 10 cascade cases
+per checkpoint, wording byte-exact vs Kotlin, provenance fields present, parity gate
+green; the large eager-agent deltas are recorded-not-gated drift evidence.
+(C) Title reader PASS — WindowTitles.lawfulTitle (focused→active→root fallback,
+allowlist-gated, honest "") + wiring; HarnessRunners.kt:73 maps the real title.
+(D) Stub/goals PASS — all 11 terminals verbatim vs Round 1, zero finish scripts,
+13 verify-done intents, quoted-label gold matching, STUB $0 via StubPhraseSource.
+(E) Four carries CLOSED — targetStateText required+exported; budget wiring single
+counting edge, no double-count; four hostile-input rows green; doc line fixed.
+(F) Rows PASS — VIEW additive decodes on old rows; compactLine law untouched;
+goldens additive-null-only. (G) Scope PASS — only Round-2 files; Tier A artifacts
+untouched; the deferred full 11-goal JVM run RULED LAWFUL (loopback pages server
+cannot exist on plain JVM; per-family JVM proof + GoalCatalog parse-and-replay is the
+correct JVM evidence; Gate 10B.5 names the on-device suite as the venue).
+(H) Compliance COMPLIANT — all deviation rulings lawful (open-site non-ladder
+fallback, anti-oscillation branch-withhold, VIEW kind, unsampled-job re-ask
+supersession, held-hash noul consumption, test-only intent hints). DOX accurate.
+Blockers: none. Nits: no dedicated activate-control/dismiss-nag execution loop test
+(path-shared, routing pinned); untracked non-Round-2 files stay out of the commit.
+Gate 10B.5 (orchestrator on-device) MAY PROCEED. Gate roll-up: 10B.1-10B.4
+COMPLETE/CONFIRMED; 10B.5 pending orchestrator.
+Checked By: canon-verifier (cold, independent re-runs, no modifications, no commits).

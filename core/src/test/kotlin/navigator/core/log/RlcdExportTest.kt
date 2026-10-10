@@ -110,7 +110,12 @@ class RlcdExportTest {
     private fun validateScoreCase(line: String, source: DecisionLogRow): ScoreRow {
         val row = strict.decodeFromString(ScoreRow.serializer(), line)
         assertEquals("score", row.kind, "a target-bearing step exports a score case (vision 05 §4 v1.6.0)")
-        assertEquals(source.stateText, row.state, "export must not rewrite state text")
+        assertEquals(
+            source.targetStateText,
+            row.state,
+            "the score case's state IS the executed stage-2 request's TARGET STATE VIEW " +
+                "(the row's recorded target view, verbatim — doc 05 §4 v1.6.0)",
+        )
         assertEquals(source.stateFormatVersion, row.stateFormatVersion)
         assertEquals(
             navigator.core.decision.TargetRubric.LEVEL_DESCRIPTIONS,
@@ -250,6 +255,25 @@ class RlcdExportTest {
     @Test
     fun `a score case without its executed slate is incoherent`() {
         assertFailsWith<IllegalArgumentException> { exporter.toScoreCase(plainCascadeRow) }
+    }
+
+    @Test
+    fun `a score case's state is the row's TARGET STATE VIEW - never the canonical stand-in`() {
+        // The Round-2 carry (doc 05 §4 v1.6.0): the row records the executed stage-2
+        // request's target view (targetStateText) and the score case exports it — a
+        // canonical-text stand-in is not training-ready and fails loudly.
+        val row = LogRowFixtures.cascadeRow()
+        assertTrue(row.targetStateText != row.stateText, "the fixture's two texts differ")
+        val score = validateScoreCase(exportLines(listOf(row))[1], row)
+        assertEquals(LogRowFixtures.targetStateText, score.state)
+        // A row with stage-2 evidence but no recorded target view is incoherent at the
+        // row boundary AND at the export boundary.
+        assertFailsWith<IllegalArgumentException> {
+            LogRowFixtures.cascadeRow(rowId = "row-no-view").copy(targetStateText = null)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            exporter.toScoreCase(LogRowFixtures.cascadeRow(rowId = "row-no-view").copy(targetStateText = null))
+        }
     }
 
     // ---- manifest ----

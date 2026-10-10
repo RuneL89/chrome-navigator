@@ -69,8 +69,8 @@ class NavigationLoopTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Buy now"),
-                choose("action", "finish"),
+                *intentStep("activate-control", target = "Buy now"),
+                *intentStep("verify-done"),
                 noul(0.95),
             ),
             observations = listOf(start, article),
@@ -86,9 +86,15 @@ class NavigationLoopTest {
         assertTrue(gateIdx in 0 until tapIdx, "journal=${fixture.journal.entries}")
         // OBSERVE precedes the gate
         assertTrue(fixture.journal.firstIndexOf("observe") < gateIdx)
-        // the engine answered exactly: triage, one action per step, then the finish judge
+        // the engine answered exactly: triage, the cascade stages, then the done judge
         assertEquals(
-            listOf("choose:triage", "choose:action", "choose:action", "judge:goal-achieved"),
+            listOf(
+                "choose:triage",
+                "choose:intent",
+                "scoreBatch:cand-1",
+                "choose:intent",
+                "judge:goal-achieved",
+            ),
             fixture.engineCalls,
         )
         // exactly one tap executed, at the Buy-now node's center
@@ -111,8 +117,8 @@ class NavigationLoopTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Buy now"),
-                chooseByLabel("action", "Buy now"),
+                *intentStep("activate-control", target = "Buy now"),
+                *intentStep("activate-control", target = "Buy now"),
             ),
             observations = listOf(page),
             presenter = ScriptedGatePresenter(GateResolution.DENIED, GateResolution.DENIED),
@@ -147,8 +153,8 @@ class NavigationLoopTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Buy now"),
-                chooseByLabel("action", "Buy now"),
+                *intentStep("activate-control", target = "Buy now"),
+                *intentStep("activate-control", target = "Buy now"),
             ),
             observations = listOf(page),
             presenter = ScriptedGatePresenter(GateResolution.TIMEOUT, GateResolution.TIMEOUT),
@@ -175,8 +181,8 @@ class NavigationLoopTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Buy now"),
-                chooseByLabel("action", "later"),
+                *intentStep("activate-control", target = "Buy now"),
+                *intentStep("activate-control", target = "later"),
             ),
             observations = listOf(page),
             presenter = ScriptedGatePresenter(GateResolution.APPROVED),
@@ -216,9 +222,9 @@ class NavigationLoopTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Next page"),
-                chooseByLabel("action", "Next page"),
-                chooseByLabel("action", "Next page"),
+                *intentStep("follow-link", target = "Next page"),
+                *intentStep("follow-link", target = "Next page"),
+                *intentStep("follow-link", target = "Next page"),
             ),
             observations = pages,
             presenter = ScriptedGatePresenter(),
@@ -253,9 +259,9 @@ class NavigationLoopTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Next page"),
-                chooseByLabel("action", "Next page"),
-                chooseByLabel("action", "Next page"),
+                *intentStep("follow-link", target = "Next page"),
+                *intentStep("follow-link", target = "Next page"),
+                *intentStep("follow-link", target = "Next page"),
             ),
             observations = pages,
             presenter = ScriptedGatePresenter(),
@@ -287,7 +293,7 @@ class NavigationLoopTest {
         // 100k input tokens x 3000 micro-USD/1k = 300_000 micro-USD >= the 250_000 hard cap
         meter.record(inputTokens = 100_000, outputTokens = 0)
         val fixture = LoopFixture(
-            script = scriptOf(choose("triage", "lookup"), chooseByLabel("action", "Next")),
+            script = scriptOf(choose("triage", "lookup")),
             observations = listOf(page),
             presenter = ScriptedGatePresenter(),
             spendMeter = meter,
@@ -318,11 +324,11 @@ class NavigationLoopTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                choose("action", "finish"),
+                *intentStep("verify-done"),
                 noul(0.99),
-                // anti-oscillation (vision 04 §3 v1.2.0): the refusal withholds finish
-                // from the next M=2 decisions - the engine must act instead
-                chooseByLabel("action", "Scroll down"),
+                // anti-oscillation (vision 04 §3 v1.2.0): the refusal arms the done-claim
+                // window - the engine must act instead
+                *intentStep("scroll"),
             ),
             observations = listOf(blank),
             presenter = ScriptedGatePresenter(),
@@ -339,7 +345,7 @@ class NavigationLoopTest {
         assertEquals(LoggedActionKind.FINISH, refusal.executedAction.kind)
         assertEquals(Outcome.NO_CHANGE, refusal.outcome)
         assertNull(refusal.exit, "a refused finish carries no exit provenance")
-        assertTrue(result.stepLog.any { it.contains("REFUSED (ART-4)") })
+        assertTrue(result.stepLog.any { it.contains("verify-done REFUSED (ART-4)") })
     }
 
     @Test
@@ -364,14 +370,14 @@ class NavigationLoopTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Open the result"),
-                choose("action", "finish"),
+                *intentStep("follow-link", target = "Open the result"),
+                *intentStep("verify-done"),
                 noul(0.5),
-                // the refusal starts the anti-oscillation window: two non-finish
-                // decisions before `finish` is offered again (vision 04 §3 v1.2.0)
-                chooseByLabel("action", "Scroll down"),
-                chooseByLabel("action", "Scroll down"),
-                choose("action", "finish"),
+                // the refusal arms the anti-oscillation window: two non-done decisions
+                // meter it down before the next done claim (vision 04 §3 v1.2.0)
+                *intentStep("scroll"),
+                *intentStep("scroll"),
+                *intentStep("verify-done"),
                 noul(0.95),
             ),
             observations = listOf(before, after),
@@ -412,10 +418,10 @@ class NavigationLoopTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Loop"),
-                chooseByLabel("action", "Loop"),
-                chooseByLabel("action", "Loop"),
-                chooseByLabel("action", "Loop"),
+                *intentStep("follow-link", target = "Loop"),
+                *intentStep("follow-link", target = "Loop"),
+                *intentStep("follow-link", target = "Loop"),
+                *intentStep("follow-link", target = "Loop"),
                 choose("recovery", "give-up"),
             ),
             observations = listOf(loopPage()),
@@ -440,12 +446,12 @@ class NavigationLoopTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Loop"),
-                chooseByLabel("action", "Loop"),
-                chooseByLabel("action", "Loop"),
-                chooseByLabel("action", "Loop"),
+                *intentStep("follow-link", target = "Loop"),
+                *intentStep("follow-link", target = "Loop"),
+                *intentStep("follow-link", target = "Loop"),
+                *intentStep("follow-link", target = "Loop"),
                 choose("recovery", "rephrase"),
-                chooseByLabel("action", "Loop"),
+                *intentStep("follow-link", target = "Loop"),
             ),
             observations = listOf(loopPage()),
             presenter = ScriptedGatePresenter(),
@@ -531,8 +537,8 @@ class NavigationLoopTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Open the result"),
-                choose("action", "finish"),
+                *intentStep("follow-link", target = "Open the result"),
+                *intentStep("verify-done"),
                 noul(0.95),
             ),
             observations = listOf(unusable, before, after),
@@ -559,8 +565,8 @@ class NavigationLoopTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Next"),
-                chooseByLabel("action", "Next"),
+                *intentStep("follow-link", target = "Next"),
+                *intentStep("follow-link", target = "Next"),
             ),
             observations = pages,
             presenter = ScriptedGatePresenter(),
@@ -595,8 +601,8 @@ class NavigationLoopTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Next article"),
-                choose("action", "finish"),
+                *intentStep("follow-link", target = "Next article"),
+                *intentStep("verify-done"),
                 noul(0.95),
             ),
             observations = listOf(start, article),
@@ -609,7 +615,8 @@ class NavigationLoopTest {
         assertEquals(listOf(0, 1), fixture.sink.rows.map { it.stepIndex })
         val row = fixture.sink.rows[0]
         assertEquals("lookup", serialNameOf(TriageClass.serializer(), row.triageClass))
-        assertEquals("action", row.questionPrimary.name)
+        assertEquals("intent", row.questionPrimary.name)
+        assertEquals(navigator.core.decision.Intents.IDS, row.questionPrimary.options.map { it.id })
         assertEquals(identity.configId, row.teacher.configId)
         assertEquals(STATE_FORMAT_VERSION, row.stateFormatVersion)
         assertEquals(false, row.shadowSampled)
@@ -673,7 +680,7 @@ class NavigationLoopTest {
             N("Footer"),
         )
         val fixture = LoopFixture(
-            script = scriptOf(choose("triage", "lookup"), chooseByLabel("action", "Next")),
+            script = scriptOf(choose("triage", "lookup"), *intentStep("follow-link", target = "Next")),
             observations = listOf(page),
             presenter = ScriptedGatePresenter(),
         )

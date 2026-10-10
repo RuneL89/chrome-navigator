@@ -1,6 +1,8 @@
 package navigator.app.loop
 
 import kotlinx.coroutines.delay
+import navigator.app.gen.AssistResult
+import navigator.app.gen.PhraseResult
 import navigator.app.observe.BrowserPackages
 import navigator.app.observe.TreeSerializer
 import navigator.core.decision.ChoiceQuestion
@@ -8,8 +10,10 @@ import navigator.core.decision.ChoiceResult
 import navigator.core.decision.DecisionEngine
 import navigator.core.decision.DecisionRecord
 import navigator.core.decision.FallbackReporting
+import navigator.core.decision.Intents
 import navigator.core.decision.Option
 import navigator.core.decision.NoulQuestion
+import navigator.core.decision.TargetRubric
 import navigator.core.decision.band
 import navigator.core.enumerate.Bucket
 import navigator.core.enumerate.Candidate
@@ -62,20 +66,33 @@ import navigator.core.ladder.Ladder
 import navigator.core.ladder.LadderTaskClass
 import navigator.core.ladder.SubtaskPointer
 import navigator.core.log.serialName
+import navigator.core.state.StageViews
 import navigator.core.state.StateTextBuilder
 
 /**
  * The navigation loop (vision 04 — law). One step, in STRICT order (§2):
  *
  *   OBSERVE (fresh a11y read + URL bar; unusable tree -> graceful refusal, doc 03 §5)
- *   -> ENUMERATE (deterministic bucket taxonomy, doc 03 §3)
- *   -> DECIDE (the injected [DecisionEngine]; STUB or Jev — the loop cannot tell, ART-2)
+ *   -> ENUMERATE (deterministic bucket taxonomy, doc 03 §3; the stage-2 slate grouping —
+ *      browser-chrome excluded, the `finish` pseudo-action retired from slates)
+ *   -> DECIDE — THE DECISION CASCADE (Phase 10B, vision 04 §2 v1.6.0): stage-1 ONE
+ *      `choice` over the FIXED 9-intent vocabulary on the INTENT STATE VIEW; band
+ *      routing — HIGH executes the intent (open-site -> the code VIEW intent;
+ *      follow-link/activate-control/dismiss-nag -> stage-2 over the bucket slate; 
+ *      fill-field -> stage-2 (form-fields) -> the WRITER-PHRASED text; submit ->
+ *      stage-2 (buttons, the SUBMIT_TRAP gate semantics); go-back/scroll -> bare
+ *      gestures; verify-done -> the shared finish-verification path), UNCERTAIN -> the
+ *      bounded handshake (ONE assist per page-hash -> ONE re-ask -> the code fallback),
+ *      LOW -> the wrong-page signal (go-back-leaning recovery). Stage-2: ONE batched
+ *      score request ([DecisionEngine.scoreBatch]) over the slate; code resolves the
+ *      argmax ([TargetRubric]) — a flat spread is NO-GOOD-TARGET, never a tap. The
+ *      injected engine is STUB/Jev/router — the loop cannot tell, ART-2
  *   -> GATE ([RiskGate.classify]; uncertain mutation risk -> the ADDITIVE-ONLY engine
  *      check [AdditiveEngineCheck] (vision 06 §3, Phase 8E); then [TaskGate]; card
  *      events via [GatePresenter]) BEFORE any execution
  *   -> EXECUTE (gestures at node-map coordinates; text entry focus-first + paste, the
- *      text taken from a [TextSource]: the stub phrase, or — doc 06 §2a — the secret
- *      typed on the credential card, injected directly and never logged)
+ *      text taken from a [TextSource]: the writer phrase, the stub phrase, or — doc 06
+ *      §2a — the secret typed on the credential card, injected directly and never logged)
  *   -> LOG (exactly one [DecisionLogRow] per navigation decision)
  *
  * Exits (vision 04 §3): exactly one of goal-achieved (engine noul HIGH **AND** the code
@@ -106,6 +123,13 @@ class NavigationLoop(
     private val completionCardPresenter: CompletionCardPresenter = AutoKeepGoingCompletionPresenter,
     private val spendMeter: SpendMeter = SpendMeter(),
     private val stateTextBuilder: StateTextBuilder = StateTextBuilder(),
+    /**
+     * The cascade's per-stage view builder (Phase 10B, vision 03 §4 v2.3.0): builds the
+     * INTENT and TARGET state views every stage call rides. The canonical text (built by
+     * [stateTextBuilder]) stays the row's logged/corpus record — the stage views never
+     * replace it.
+     */
+    private val stageViews: StageViews = StageViews(),
     private val config: Config = Config(),
     /**
      * Cold-start edges (Phase 8D, vision 04 §1): when both are wired, the loop runs the
@@ -157,6 +181,16 @@ class NavigationLoop(
      * unattended run); the product wires the overlay card window.
      */
     private val escalationCardPresenter: EscalationCardPresenter = StopEscalationPresenter,
+    /**
+     * The cascade's writer seams (Phase 10B, phase doc §2.6 / vision 04 §2 v1.6.0): the
+     * uncertainty handshake's assist and the fill-field phrase. Null (the default) =
+     * no assist (an UNCERTAIN stage-1 falls straight to the code fallback) and every
+     * fill-field phrase call refuses (routing to recovery — NEVER raw-goal typing).
+     * Usage meters into the per-task [WriterBudget] at the restructure/re-plan/
+     * extraction sites' pattern; the hard cap gates further writer calls.
+     */
+    private val assistSource: AssistSource? = null,
+    private val phraseSource: PhraseSource? = null,
 ) {
 
     /**
@@ -318,10 +352,20 @@ class NavigationLoop(
         // re-plan) capture it; the main loop below mutates it per step.
         var stepIndex = 0
         // R1-A (vision 04 §3 v1.5.0): the LAST code-triggered IS-DONE check's
-        // (page-hash, active-subtask ordinal) — the rate bound. At most one code-triggered
-        // check per pair: a static page is asked once; the bound re-arms on any page-hash
-        // change or pointer advance (and on re-plan, via applyLadder's fresh ladder).
+        // (page-hash, active-subtask ordinal) — the rate bound. v1.6.0 adds the bounded
+        // held-hash re-checks: on an UNCHANGED page-hash whose guard stays satisfied,
+        // re-checks fire every [ExitPolicyConfig.heldHashRecheckEverySteps] steps, at
+        // most [ExitPolicyConfig.heldHashRecheckMax] per hash — the loop owns the
+        // counters, [ExitPolicy.heldHashRecheckDue] is the pure decision.
         var lastCodeCheck: Pair<Int, Int>? = null
+        var codeCheckHash: Int? = null
+        var codeCheckCountOnHash = 0
+        var codeCheckStepsSince = 0
+
+        // The cascade's uncertainty handshake bound (vision 04 §2 v1.6.0, ART-5): ONE
+        // assist per page-hash — a second UNCERTAIN on the same page falls straight to
+        // the code fallback.
+        var assistTriedHash: Int? = null
 
         // -- the no-overlay card restore (2026-10-08 pre-UAT defect) -------------------
         // A card presenter that had to bring the HARNESS to the front to show its card
@@ -538,6 +582,54 @@ class NavigationLoop(
             return record
         }
 
+        // -- the decision cascade's helpers (Phase 10B, vision 04 §2 v1.6.0) -------------
+
+        /** The SUBTASK line of every stage view: the ACTIVE subtask, or the goal text. */
+        fun subtaskInstruction(): String =
+            pointer?.active?.instruction ?: goalText
+
+        /** The DONE WHEN line: the ACTIVE subtask's rendered condition, or the goal text. */
+        fun doneWhenText(): String =
+            pointer?.let { "done: " + DoneConditionChecker.render(it.active.done) } ?: goalText
+
+        /**
+         * ONE uncertainty-handshake assist, metered into the per-task writer budget at
+         * the restructure/re-plan/extraction pattern (SOFT/HARD warnings; the hard cap
+         * gates the call). The caller masks sanctioned secrets out of [pageMaterial]
+         * BEFORE this call (doc 06 §2a). Null = refused output / honesty skip / no
+         * source / no budget room — the skip-to-fallback signal.
+         */
+        suspend fun runAssist(subtask: String, doneCondition: String, pageMaterial: String): AssistResult? {
+            val source = assistSource ?: return null
+            if (!writerBudget.hasHardRoom()) {
+                line("handshake: the writer budget's hard cap is reached - no assist")
+                return null
+            }
+            val result = source.assist(subtask, doneCondition, pageMaterial) ?: return null
+            writerBudget.record(result.usage.costMicroUsd).let { check ->
+                if (check != WriterBudget.Check.OK) softWarnings.add("writer budget ${check.name}")
+            }
+            return result
+        }
+
+        /**
+         * ONE writer-phrased typed text for a fill-field step, metered like [runAssist].
+         * Null = refused output / honesty skip / no source / no budget room — the
+         * fill-field step FAILS TO RECOVERY (never raw-goal typing, vision 04 §2 v1.6.0).
+         */
+        suspend fun runPhrase(subtask: String, fieldLabel: String): PhraseResult? {
+            val source = phraseSource ?: return null
+            if (!writerBudget.hasHardRoom()) {
+                line("fill-field: the writer budget's hard cap is reached - no phrase")
+                return null
+            }
+            val result = source.phrase(subtask, fieldLabel) ?: return null
+            writerBudget.record(result.usage.costMicroUsd).let { check ->
+                if (check != WriterBudget.Check.OK) softWarnings.add("writer budget ${check.name}")
+            }
+            return result
+        }
+
         suspend fun logRow(
             stepIndex: Int,
             state: StateTextBuilder.StateText,
@@ -550,6 +642,8 @@ class NavigationLoop(
             escalation: DecisionRecord? = null,
             exit: ExitProvenance? = null,
             typedSecret: Boolean = false,
+            targetScores: Map<String, Double>? = null,
+            targetStateText: String? = null,
         ) {
             // Escalated rows (doc 05 v1.2.0): teacherAnswer stays the PRIMARY's own
             // answer when it produced one (vision 05 §2 — the teacher is the primary of
@@ -605,6 +699,12 @@ class NavigationLoop(
                 // Plan-proposal provenance (Phase 08G, vision 05 §2 `plan`): the task's
                 // triage-time plan rides every row — null on the default path.
                 plan = plan?.let { LoggedPlan(it.version, it.subgoals) },
+                // Cascade stage-2 evidence (doc 05 §2 v1.6.0): the executed slate's
+                // expected levels + the TARGET STATE VIEW the batch rode (the score
+                // case's state law). Null on non-target-bearing steps; the ROUTER's
+                // enrichment owns targetAgreement (the row is written primary-only).
+                targetScores = targetScores,
+                targetStateText = targetStateText,
             )
             logSink.write(row)
             rows += 1
@@ -680,6 +780,9 @@ class NavigationLoop(
             exitPolicy = ExitPolicy()
             consecutiveSubtaskFailures = 0
             lastCodeCheck = null // a fresh ladder: the code-check rate bound starts clean
+            codeCheckHash = null
+            codeCheckCountOnHash = 0
+            codeCheckStepsSince = 0
             // Ladder provenance rides every row via the EXISTING additive `plan` field
             // (doc 05 §2: the writer-LLM plans carry their PROMPT_VERSION) — no schema
             // surgery; version = "<prompt-version>/gen<n>".
@@ -1107,6 +1210,9 @@ class NavigationLoop(
             exitPolicy = ExitPolicy() // fresh per-subtask exit discipline
             consecutiveSubtaskFailures = 0
             lastCodeCheck = null // the ordinal changed: the code-check rate bound re-arms
+            codeCheckHash = null
+            codeCheckCountOnHash = 0
+            codeCheckStepsSince = 0
             line(
                 "ladder: subtask $finishedOrdinal/${activePointer.total} IS-DONE verified " +
                     "(exit path ${verdict.path.name}, guard ${verdict.guardLevel.name}, " +
@@ -1346,11 +1452,13 @@ class NavigationLoop(
             // navigation, registers newly discovered targets.
             tracker?.observe(obs)
             var candidates = CandidateEnumerator.enumerate(obs.nodes)
-            // Anti-oscillation (vision 04 §3 v1.2.0): a refused finish withholds the
-            // `finish` pseudo-action from the next M decisions unless the hash changed.
+            // The finish pseudo-action is RETIRED from offered slates (vision 02 §3
+            // v1.3.0): `verify-done` + the code-triggered checks own completion; the
+            // finish bucket stays in the taxonomy for schema compatibility only. The
+            // anti-oscillation window (v1.2.0) keeps metering refused done claims.
+            candidates = candidates.withoutFinish()
             if (exitPolicy.finishExcluded(obs.screenHash)) {
-                candidates = candidates.withoutFinish()
-                line("exit: finish excluded this decision (anti-oscillation window)")
+                line("exit: the done-claim window is armed this decision (anti-oscillation)")
             }
             val state = stateTextBuilder.build(
                 goal = goalText,
@@ -1395,11 +1503,26 @@ class NavigationLoop(
             // subtask failure — the condition holds; the engine just won't confirm.
             val codePointer = pointer
             if (codePointer != null && ladder != null) {
+                codeCheckStepsSince += 1 // ticks every step; reset to 0 when a check runs
                 val evidence = ladderEvidence(obs, candidates)
                 val guardLevel = subtaskGuardLevel(codePointer, evidence)
                 val checkKey = obs.screenHash to codePointer.index
-                if (guardLevel != GuardLevel.NONE && lastCodeCheck != checkKey) {
+                // v1.6.0 held-hash re-checks: the FIRST check at a page-hash always
+                // fires; on an UNCHANGED hash whose guard stays satisfied, re-checks
+                // fire every heldHashRecheckEverySteps steps, at most heldHashRecheckMax
+                // per hash (the pure decision is [ExitPolicy.heldHashRecheckDue]; the
+                // counters are the loop's).
+                val firstAtHash = lastCodeCheck?.first != obs.screenHash
+                val recheckDue = !firstAtHash &&
+                    exitPolicy.heldHashRecheckDue(
+                        stepsSinceLastCheck = codeCheckStepsSince,
+                        checksOnThisHash = codeCheckCountOnHash,
+                    )
+                if (guardLevel != GuardLevel.NONE && (firstAtHash || recheckDue)) {
                     lastCodeCheck = checkKey
+                    codeCheckHash = obs.screenHash
+                    codeCheckCountOnHash = if (firstAtHash) 1 else codeCheckCountOnHash + 1
+                    codeCheckStepsSince = 0
                     guards!!.record(
                         url = obs.url,
                         contentTextNodes = obs.contentTextNodes,
@@ -1454,12 +1577,373 @@ class NavigationLoop(
                 }
             }
 
-            // -- 3. DECIDE -----------------------------------------------------------------
-            val question: ChoiceQuestion
-            val choice: ChoiceResult
-            // The choose escalation is captured IMMEDIATELY (the finish path's noul
-            // consult overwrites the engine's single slot); it rides this step's row.
-            val escalation: DecisionRecord?
+            // -- 3. DECIDE — the decision cascade (Phase 10B, vision 04 §2 v1.6.0) --------
+            // Stage-1: ONE choice over the FIXED 9-intent vocabulary on the INTENT STATE
+            // VIEW (the canonical text stays the row's record — stage views never replace
+            // it). Band routing (ART-5): HIGH executes the intent; UNCERTAIN runs the
+            // bounded handshake (ONE assist per page-hash → ONE re-ask → code fallback);
+            // LOW is the wrong-page signal. Stage-2 (target-bearing intents): ONE batched
+            // score request over the bucket slate; code resolves the argmax — a flat
+            // spread is NO-GOOD-TARGET, never a tap. The `finish` pseudo-action is
+            // retired: `verify-done` + the R1 code-triggered checks own completion.
+            var question: ChoiceQuestion = Intents.QUESTION
+            var choice: ChoiceResult = ChoiceResult(
+                Intents.VERIFY_DONE,
+                Intents.IDS.associateWith { id -> if (id == Intents.VERIFY_DONE) 1.0 else 0.0 },
+                1.0,
+            )
+            // The choose escalation is captured IMMEDIATELY (a later noul consult
+            // overwrites the engine's single slot); it rides this step's row. Every
+            // decide path reassigns all three before use — the initializations exist so
+            // the step helpers below can capture them.
+            var escalation: DecisionRecord? = null
+            // The stage-2 products (target-bearing steps): the resolved target, the
+            // executed slate's expected levels, and the TARGET STATE VIEW the batch rode
+            // (the row's targetStateText — the score case's state law).
+            var cascadeTarget: Candidate? = null
+            var targetScores: Map<String, Double>? = null
+            var targetViewText: String? = null
+            // The writer-phrased typed text of a fill-field step (locked decision #4).
+            var phraseText: String? = null
+
+            /** The INTENT STATE VIEW of this step (optional assist block on a re-ask). */
+            fun buildIntentView(assistText: String?): StageViews.StageView =
+                stageViews.intentView(
+                    subtask = subtaskInstruction(),
+                    doneWhen = doneWhenText(),
+                    host = Cascade.hostOf(obs.url),
+                    title = obs.title,
+                    excerpt = obs.excerpt,
+                    assistText = assistText,
+                )
+
+            /**
+             * One UNGATED cascade gesture step (go-back / scroll / the LOW wrong-page
+             * signal — recovery actions are never gated, vision 06 §1): execute, settle,
+             * post-observe, the row + live-log line + history digest + stuck footprint,
+             * and the step advance with the stuck assessment. Shares the recovery
+             * branch's exact mechanics. Returns the task's terminal [RunResult] when the
+             * stuck L3 kill ended the task, null when the loop continues.
+             */
+            suspend fun ungatedGestureStep(
+                verb: String,
+                actionKey: String,
+                loggedKind: LoggedActionKind,
+                loggedCandidateId: String?,
+                execute: () -> Boolean,
+            ): RunResult? {
+                val standIn = if (loggedKind == LoggedActionKind.BACK) Recovery.BACK else Recovery.SCROLL
+                val gateAction = GateAction(
+                    recoveryCandidate(candidates, standIn),
+                    if (loggedKind == LoggedActionKind.BACK) ActionKind.BACK else ActionKind.SCROLL,
+                    null,
+                )
+                val pageContext = PageContext(obs.url, FieldDescriptor.fromNodes(obs.nodes))
+                check(RiskGate.classify(gateAction, pageContext) == null) {
+                    "cascade gestures are never gated (vision 06 §1)"
+                }
+                val executed = execute()
+                delay(config.settleMs)
+                val post = observer.observe()
+                notePageUrl(post)
+                lastPost = post
+                val outcome = when {
+                    !executed -> Outcome.ERROR
+                    post.lines == obs.lines -> Outcome.NO_CHANGE
+                    else -> Outcome.PROGRESSED
+                }
+                logRow(
+                    stepIndex, state, question, choice, candidates,
+                    ExecutedAction(loggedCandidateId, loggedKind, ActionDisposition.EXECUTED),
+                    gateEvent = null,
+                    outcome = outcome,
+                    escalation = escalation,
+                    targetScores = targetScores,
+                    targetStateText = targetViewText,
+                )
+                uiListener?.onStep(
+                    LoopUiListener.StepFacts(
+                        stepIndex = stepIndex,
+                        verb = verb,
+                        label = verb,
+                        confidence = choice.confidence,
+                        gateMarker = LoopUiListener.gateMarker(null),
+                    ),
+                )
+                history.add("step $stepIndex: $verb -> ${serial(outcome)}")
+                stuck.record(
+                    StuckDetector.Footprint(
+                        actionKey = actionKey,
+                        screenHash = post.screenHash,
+                        textLines = post.lines,
+                        isError = outcome == Outcome.ERROR,
+                    ),
+                )
+                stepIndex += 1
+                if (assessStuck()) {
+                    return handleStuckKill("still stuck after the cascade gesture - L3 auto-kill")
+                }
+                return null
+            }
+
+            /**
+             * The give-up-shaped CODE FALLBACK (the recovery/stuck machinery): the
+             * fallback row (FINISH/EXITED, the give-up precedent — optionally carrying
+             * the executed stage-2 evidence), the history digest, the step advance, and
+             * the bounded failure path (re-plan → escalation card on a ladder run; the
+             * legacy task-level kill). Returns the terminal [RunResult] when the task
+             * must end, null when the loop continues.
+             */
+            suspend fun cascadeFallbackStep(cause: String, withStage2: Boolean): RunResult? {
+                logRow(
+                    stepIndex, state, question, choice, candidates,
+                    ExecutedAction(null, LoggedActionKind.FINISH, ActionDisposition.EXECUTED),
+                    gateEvent = null,
+                    outcome = Outcome.EXITED,
+                    escalation = escalation,
+                    targetScores = if (withStage2) targetScores else null,
+                    targetStateText = if (withStage2) targetViewText else null,
+                )
+                history.add("step $stepIndex: cascade fallback - $cause")
+                stepIndex += 1
+                return handleSubtaskFailureOrKill(cause)
+            }
+
+            /**
+             * The `verify-done` step (vision 04 §2/§3 v1.6.0): the completion CHOICE is
+             * retired — this intent routes into the SHARED finish-verification path the
+             * R1 code-triggered checks use (guard + anchored v3 noul + exit policy +
+             * completion card + ExitCheckRow). Returns the terminal [RunResult] when the
+             * task ended (goal achieved), null when the loop continues (mid-ladder
+             * advance, or a refused check consumed the step).
+             */
+            suspend fun verifyDoneStep(): RunResult? {
+                // Anti-oscillation (vision 04 §3 v1.2.0): a refused done claim withholds
+                // the NEXT done claim for M=2 decisions unless the page hash changes. The
+                // finish CHOICE is retired (the intent is always offerable), so the
+                // WINDOW is enforced here: a verify-done inside the window is refused
+                // WITHOUT the judge consult (no noul, no ExitCheckRow, no stuck feed,
+                // no re-arm) — the claim is not evaluated, exactly like the retired
+                // finish's exclusion from the offered candidates.
+                if (exitPolicy.finishExcluded(obs.screenHash)) {
+                    line("decide: verify-done withheld - the anti-oscillation window is armed on this page-hash")
+                    history.add("step $stepIndex: verify-done withheld (anti-oscillation window)")
+                    logRow(
+                        stepIndex, state, question, choice, candidates,
+                        ExecutedAction(null, LoggedActionKind.FINISH, ActionDisposition.REFUSED_BY_GUARD),
+                        gateEvent = null,
+                        outcome = Outcome.NO_CHANGE,
+                        escalation = escalation,
+                    )
+                    stepIndex += 1
+                    return null
+                }
+                // The CURRENT observation is code-side evidence of what the screen holds
+                // (the tap's post-observation may have raced the page load). Recording it
+                // keeps the guard's judgment on code-read state, never on the self-report.
+                guards!!.record(
+                    url = obs.url,
+                    contentTextNodes = obs.contentTextNodes,
+                    textTyped = false,
+                    submitExecuted = false,
+                )
+                // Phase 10 (vision 04 §3 v1.4.0): on a LADDER run the SAME discipline
+                // applies at subtask granularity; v1.5.0: the guard/question construction
+                // is the SHARED helpers also used by the code-triggered check — identical
+                // by construction.
+                val activePointer = pointer
+                val guardLevel: GuardLevel
+                val noulQuestion: NoulQuestion
+                if (activePointer != null && ladder != null) {
+                    guardLevel = subtaskGuardLevel(activePointer, ladderEvidence(obs, candidates))
+                    noulQuestion = subtaskNoulQuestion(activePointer, obs)
+                } else {
+                    guardLevel = guards!!.levelAt(obs.title, obs.url)
+                    noulQuestion = AnchoredNoul.question(
+                        goalText,
+                        entity,
+                        requireNotNull(triageClass),
+                        obs.title,
+                        obs.url,
+                    )
+                }
+                val verdict = verifyFinishCheck("verify-done", guardLevel, noulQuestion, obs, state)
+                when (verdict) {
+                    is ExitDecision.Accept -> {
+                        val provenance = ExitProvenance(
+                            path = verdict.path.toLoggedPath(),
+                            guardLevel = verdict.guardLevel.toLoggedLevel(),
+                            noul = verdict.noul,
+                        )
+                        // A MID-LADDER accept is the ACTIVE subtask's verified IS-DONE —
+                        // the pointer advances and the loop continues over the next
+                        // subtask (the task is NOT done; the row's `exit` provenance stays
+                        // null — it is the TERMINAL row's field; the accepted check
+                        // already wrote its ExitCheckRow). The FINAL subtask's IS-DONE is
+                        // the task's goal-achieved.
+                        val acceptedPointer = pointer
+                        if (acceptedPointer != null && ladder != null && !acceptedPointer.isFinal) {
+                            logRow(
+                                stepIndex, state, question, choice, candidates,
+                                ExecutedAction(null, LoggedActionKind.FINISH, ActionDisposition.EXECUTED),
+                                gateEvent = null,
+                                outcome = Outcome.PROGRESSED,
+                                escalation = escalation,
+                            )
+                            advanceAfterSubtaskAccept(verdict, acceptedPointer)
+                            stepIndex += 1
+                            return null
+                        }
+                        runAnswerExtraction()
+                        logRow(
+                            stepIndex, state, question, choice, candidates,
+                            ExecutedAction(null, LoggedActionKind.FINISH, ActionDisposition.EXECUTED),
+                            gateEvent = null,
+                            outcome = Outcome.EXITED,
+                            escalation = escalation,
+                            exit = provenance,
+                        )
+                        return concludeGoalAchieved(verdict)
+                    }
+                    is ExitDecision.Refuse -> {
+                        line("decide: verify-done REFUSED (ART-4) - ${verdict.reason}")
+                        history.add("step $stepIndex: verify-done refused - the goal is not verifiably achieved yet")
+                        logRow(
+                            stepIndex, state, question, choice, candidates,
+                            ExecutedAction(null, LoggedActionKind.FINISH, ActionDisposition.REFUSED_BY_GUARD),
+                            gateEvent = null,
+                            outcome = Outcome.NO_CHANGE,
+                            escalation = escalation,
+                        )
+                        // Anti-oscillation: this refusal meters the done-claim window
+                        // (vision 04 §3 v1.2.0 mechanics, unchanged).
+                        exitPolicy.onRefusedFinish(obs.screenHash)
+                        stuck.record(
+                            StuckDetector.Footprint(
+                                actionKey = "VERIFY_DONE",
+                                screenHash = obs.screenHash,
+                                textLines = obs.lines,
+                                isError = false,
+                            ),
+                        )
+                        // Sixth stuck signal: the exit conflict (guard level rides the hint).
+                        stuck.recordRefusedFinish(verdict.guardLevel.name)
+                        stepIndex += 1
+                        if (assessStuck()) {
+                            return handleStuckKill("repeated unsupported done claims - L3 auto-kill")
+                        }
+                        return null
+                    }
+                    is ExitDecision.AskOwner -> throw IllegalStateException(
+                        "the exit policy re-asked the completion card - once-per-task is a law invariant",
+                    )
+                }
+            }
+
+            /**
+             * The fill-field phrase-refusal step (vision 04 §2 v1.6.0): the step FAILS
+             * TO RECOVERY — the row (TYPE/ERROR, the failed-dispatch precedent), the
+             * history digest, the stuck footprint, and the stuck assessment. NEVER a
+             * raw-goal fallback. Returns the terminal [RunResult] when the task must
+             * end, null when the loop continues.
+             */
+            suspend fun phraseFailureStep(fieldLabel: String): RunResult? {
+                line("fill-field: phrasing refused for \"$fieldLabel\" - the step FAILS to recovery (never raw-goal typing)")
+                logRow(
+                    stepIndex, state, question, choice, candidates,
+                    ExecutedAction(cascadeTarget?.id, LoggedActionKind.TYPE, ActionDisposition.EXECUTED),
+                    gateEvent = null,
+                    outcome = Outcome.ERROR,
+                    escalation = escalation,
+                    targetScores = targetScores,
+                    targetStateText = targetViewText,
+                )
+                history.add("step $stepIndex: fill-field phrasing refused - recovery")
+                stuck.record(
+                    StuckDetector.Footprint(
+                        actionKey = "fill-field:${cascadeTarget?.id}",
+                        screenHash = obs.screenHash,
+                        textLines = obs.lines,
+                        isError = true,
+                    ),
+                )
+                stepIndex += 1
+                if (assessStuck()) {
+                    return handleStuckKill("repeated fill-field phrasing failures - L3 auto-kill")
+                }
+                return null
+            }
+
+            /**
+             * The `open-site` step (vision 04 §2 v1.6.0): the code VIEW intent — a
+             * resolved URL is opened directly ([SiteEntry] over the ACTIVE subtask; no
+             * model target, never a tap). No URL resolved (or no launcher wired) is the
+             * no-good-target fallback. Returns the terminal [RunResult] when the task
+             * must end, null when the loop continues.
+             */
+            suspend fun openSiteStep(): RunResult? {
+                val activePointer = pointer
+                val entryPlan = if (activePointer != null && ladder != null) {
+                    SiteEntry.plan(goalText, activePointer.active.instruction, activePointer.active.done)
+                } else {
+                    null
+                }
+                val launcher = browserLauncher
+                if (entryPlan == null || launcher == null) {
+                    line(
+                        "open-site: no URL resolved " +
+                            "(subtask ${if (activePointer != null) "done-condition" else "is non-ladder"}) " +
+                            "or no launcher wired - no-good-target fallback, nothing typed or tapped",
+                    )
+                    return cascadeFallbackStep("open-site could not resolve a URL to open", withStage2 = false)
+                }
+                line("open-site: VIEW intent for ${entryPlan.url} (${entryPlan.source}) - code opens the URL directly")
+                launcher.launch(entryPlan.url)
+                delay(config.restoreSettleMs)
+                waitForBrowserReadiness()
+                delay(config.settleMs)
+                val post = observer.observe()
+                notePageUrl(post)
+                lastPost = post
+                val outcome = when {
+                    post.lines == obs.lines -> Outcome.NO_CHANGE
+                    else -> Outcome.PROGRESSED
+                }
+                logRow(
+                    stepIndex, state, question, choice, candidates,
+                    ExecutedAction(null, LoggedActionKind.VIEW, ActionDisposition.EXECUTED),
+                    gateEvent = null,
+                    outcome = outcome,
+                    escalation = escalation,
+                )
+                uiListener?.onStep(
+                    LoopUiListener.StepFacts(
+                        stepIndex = stepIndex,
+                        verb = Intents.OPEN_SITE,
+                        label = redactedLabel(entryPlan.url, redactionKeys()),
+                        confidence = choice.confidence,
+                        gateMarker = LoopUiListener.gateMarker(null),
+                    ),
+                )
+                history.add(
+                    "step $stepIndex: open-site \"${redactedLabel(entryPlan.url, redactionKeys())}\" " +
+                        "(${entryPlan.source}) -> ${serial(outcome)}",
+                )
+                stuck.record(
+                    StuckDetector.Footprint(
+                        actionKey = "open-site",
+                        screenHash = post.screenHash,
+                        textLines = post.lines,
+                        isError = false,
+                    ),
+                )
+                stepIndex += 1
+                if (assessStuck()) {
+                    return handleStuckKill("still stuck after the site entry - L3 auto-kill")
+                }
+                return null
+            }
+
             if (recoveryArmed) {
                 recoveryArmed = false
                 question = RECOVERY_QUESTION
@@ -1469,15 +1953,203 @@ class NavigationLoop(
                 escalation = readEscalation(question.name)
                 line("decide: recovery set -> '${choice.chosenId}'" + escalationSuffix(escalation))
             } else {
-                // The action question's option labels ride the same sanctioned-secret
-                // redaction as the state text (doc 05 §2: the value is never stored —
-                // a page-side echo of an injected secret must not reach the row).
-                question = actionQuestion(candidates, redactionKeys())
+                question = Intents.QUESTION
                 uiListener?.onThinking(true)
-                choice = engine.choose(state.text, question)
+                choice = engine.choose(buildIntentView(null).text, question)
                 uiListener?.onThinking(false)
                 escalation = readEscalation(question.name)
-                line("decide: action -> '${choice.chosenId}'" + escalationSuffix(escalation))
+                line("decide: intent '${choice.chosenId}' (p=${choice.confidence})" + escalationSuffix(escalation))
+
+                // -- the uncertainty handshake (vision 04 §2 v1.6.0) ---------------------
+                var routed = Cascade.route(choice.confidence)
+                if (routed == Cascade.Route.UNCERTAIN) {
+                    val freshForHash = assistTriedHash != obs.screenHash
+                    when {
+                        !freshForHash ->
+                            line("decide: UNCERTAIN - the assist already ran on this page-hash - code fallback")
+                        assistSource == null ->
+                            line("decide: UNCERTAIN - no assist source wired - code fallback")
+                        !writerBudget.hasHardRoom() ->
+                            line("decide: UNCERTAIN - the writer budget's hard cap is reached - code fallback")
+                        else -> {
+                            assistTriedHash = obs.screenHash
+                            val subtask = subtaskInstruction()
+                            val doneWhen = doneWhenText()
+                            val pageMaterial = buildString {
+                                append("title: ").append(obs.title).append('\n')
+                                append("url: ").append(obs.url).append('\n')
+                                obs.excerpt.take(ASSIST_MATERIAL_MAX_LINES).forEach { append(it).append('\n') }
+                            }
+                            val maskedMaterial =
+                                redactionKeys().fold(pageMaterial) { acc, key -> acc.replace(key, TextSource.REDACTED) }
+                            val assist = runAssist(subtask, doneWhen, maskedMaterial)
+                            if (assist == null) {
+                                line("decide: assist skipped (refused output / honesty path) - code fallback")
+                            } else {
+                                line(
+                                    "handshake: assist applied (${assist.text.length} chars, " +
+                                        "${assist.promptVersion}) - ONE stage-1 re-ask with the " +
+                                        "ASSIST (untrusted) block",
+                                )
+                                uiListener?.onThinking(true)
+                                choice = engine.choose(buildIntentView(assist.text).text, question)
+                                uiListener?.onThinking(false)
+                                escalation = readEscalation(question.name)
+                                line(
+                                    "decide: re-ask intent '${choice.chosenId}' (p=${choice.confidence})" +
+                                        escalationSuffix(escalation),
+                                )
+                                routed = Cascade.route(choice.confidence)
+                            }
+                        }
+                    }
+                }
+
+                // -- LOW: the wrong-page recovery signal (vision 04 §2 v1.6.0) ------------
+                if (routed == Cascade.Route.LOW) {
+                    line("decide: intent '${choice.chosenId}' LOW (p=${choice.confidence}) - wrong-page signal: go-back-leaning handling")
+                    exitPolicy.noteDecision(obs.screenHash)
+                    ungatedGestureStep(
+                        verb = Intents.GO_BACK,
+                        actionKey = "wrong-page:back",
+                        loggedKind = LoggedActionKind.BACK,
+                        loggedCandidateId = null,
+                        execute = { executor.back() },
+                    )?.let { return it }
+                    continue
+                }
+
+                // -- still UNCERTAIN: the code fallback (the give-up machinery) -----------
+                if (routed == Cascade.Route.UNCERTAIN) {
+                    line(
+                        "decide: still UNCERTAIN after the handshake - code fallback " +
+                            "(recovery/stuck machinery -> re-plan -> escalation card)",
+                    )
+                    cascadeFallbackStep(
+                        "the cascade stayed uncertain after the handshake (assist " +
+                            "${if (assistTriedHash == obs.screenHash) "spent" else "unavailable"})",
+                        withStage2 = false,
+                    )?.let { return it }
+                    continue
+                }
+
+                // -- HIGH: execute the intent --------------------------------------------
+                val intentId = choice.chosenId
+                if (intentId != Intents.VERIFY_DONE) exitPolicy.noteDecision(obs.screenHash)
+
+                // Stage-2 for the target-bearing intents (ONE batched score request over
+                // the bucket slate; browser-chrome excluded; code argmax; a flat spread
+                // or an empty slate is NO-GOOD-TARGET — never a tap, vision 02 §3).
+                if (Intents.needsTarget(intentId)) {
+                    val slate = Cascade.slate(candidates, intentId)
+                    if (slate.isEmpty()) {
+                        line(
+                            "decide: no stage-2 slate for '$intentId' (the " +
+                                "${Cascade.bucketFor(intentId)?.serialName} bucket is empty after " +
+                                "the browser-chrome exclusion) - no-good-target, never a tap",
+                        )
+                        cascadeFallbackStep(
+                            "the '${Cascade.bucketFor(intentId)?.serialName}' slate was empty for '$intentId'",
+                            withStage2 = false,
+                        )?.let { return it }
+                        continue
+                    }
+                    val subtask = subtaskInstruction()
+                    // The slate's labels are page text that can carry a sanctioned
+                    // post-injection echo (doc 05 §2 / doc 06 §2a): the TARGET STATE VIEW
+                    // (the row's targetStateText — the score case's state) and the
+                    // stage-2 question instructions render the MASKED labels — the value
+                    // is never stored, never sent to any engine raw.
+                    val maskedSlate = slate.map {
+                        it.copy(label = redactedLabel(it.label, redactionKeys()))
+                    }
+                    val view = stageViews.targetView(subtask, doneWhenText(), maskedSlate)
+                    val stage2 = TargetRubric.stage2Questions(
+                        maskedSlate.map { it.id to it.label },
+                        subtask,
+                    )
+                    uiListener?.onThinking(true)
+                    val results = engine.scoreBatch(view.text, stage2)
+                    uiListener?.onThinking(false)
+                    // The wire keys are the questions' cand-<id> names; the resolver and
+                    // the row's targetScores live on the bare candidate ids (the export
+                    // re-derives the question names itself).
+                    val expectedLevels = results
+                        .mapKeys { it.key.removePrefix(TargetRubric.CANDIDATE_NAME_PREFIX) }
+                        .mapValues { it.value.expectedLevel }
+                    val resolution = TargetRubric.resolve(expectedLevels)
+                    targetScores = expectedLevels
+                    targetViewText = view.text
+                    if (resolution.noGoodTarget) {
+                        line(
+                            "decide: stage-2 NO-GOOD-TARGET (${resolution.reason}) - " +
+                                "handshake/fallback, never a tap",
+                        )
+                        cascadeFallbackStep(
+                            "no good target on the ${Cascade.bucketFor(intentId)?.serialName} slate " +
+                                "(${resolution.reason})",
+                            withStage2 = true,
+                        )?.let { return it }
+                        continue
+                    }
+                    cascadeTarget = slate.first { it.id == resolution.top.candidateId }
+                    line(
+                        "decide: stage-2 target \"${redactedLabel(cascadeTarget!!.label, redactionKeys())}\" " +
+                            "[${cascadeTarget!!.id}] (${resolution.top.expectedLevel} of ${slate.size} scored)",
+                    )
+                }
+
+                // fill-field: the content is WRITER-PHRASED (locked decision #4). The
+                // phrase is fetched AFTER the gate resolves (below — a credential-typing
+                // path never calls the writer at all: the card's secret is the payload),
+                // and a phrase refusal FAILS THE STEP to recovery, never raw-goal typing.
+
+                when (intentId) {
+                    // -- verify-done: the completion check (the finish CHOICE is retired) --
+                    Intents.VERIFY_DONE -> {
+                        verifyDoneStep()?.let { return it }
+                        continue
+                    }
+
+                    // -- open-site: the code VIEW intent (no model target) ------------------
+                    Intents.OPEN_SITE -> {
+                        openSiteStep()?.let { return it }
+                        continue
+                    }
+
+                    // -- go-back / scroll: bare gestures (never gated, vision 06 §1) --------
+                    Intents.GO_BACK -> {
+                        ungatedGestureStep(
+                            verb = Intents.GO_BACK,
+                            actionKey = "go-back",
+                            loggedKind = LoggedActionKind.BACK,
+                            loggedCandidateId = null,
+                            execute = { executor.back() },
+                        )?.let { return it }
+                        continue
+                    }
+
+                    Intents.SCROLL -> {
+                        val scrollCandidate = candidates.bucketed[Bucket.SCROLL]
+                            ?.firstOrNull { it.id.startsWith(SCROLL_DOWN_PREFIX) }
+                            ?: candidates.bucketed[Bucket.SCROLL]?.firstOrNull()
+                        if (scrollCandidate == null) {
+                            line("decide: scroll with no scroll candidate - no-good-target fallback")
+                            cascadeFallbackStep("the scroll intent found no scroll candidate", withStage2 = false)
+                                ?.let { return it }
+                            continue
+                        }
+                        val down = scrollCandidate.id.startsWith(CandidateEnumerator.SCROLL_DOWN_ID)
+                        ungatedGestureStep(
+                            verb = Intents.SCROLL,
+                            actionKey = "scroll:${scrollCandidate.id}",
+                            loggedKind = LoggedActionKind.SCROLL,
+                            loggedCandidateId = scrollCandidate.id,
+                            execute = { executor.scroll(scrollCandidate.cx, scrollCandidate.cy, down) },
+                        )?.let { return it }
+                        continue
+                    }
+                }
             }
 
             // Recovery-set answers trigger code-side recovery (vision 04 §4, level 2).
@@ -1578,135 +2250,22 @@ class NavigationLoop(
                 continue
             }
 
-            val candidate = candidates.flat.firstOrNull { it.id == choice.chosenId }
-                ?: throw IllegalStateException(
-                    "engine chose '${choice.chosenId}' which is not a candidate of this step",
-                )
-
-            // -- finish pseudo-action: the exit policy (vision 04 §3) ---------------------
-            if (candidate.id == CandidateEnumerator.FINISH_ID) {
-                // The CURRENT observation is code-side evidence of what the screen holds
-                // (the tap's post-observation may have raced the page load). Recording it
-                // keeps the guard's judgment on code-read state, never on the self-report.
-                guards!!.record(
-                    url = obs.url,
-                    contentTextNodes = obs.contentTextNodes,
-                    textTyped = false,
-                    submitExecuted = false,
-                )
-                // Phase 10 (vision 04 §3 v1.4.0): on a LADDER run the SAME discipline
-                // applies at subtask granularity — the guard is the code-side IS-DONE
-                // checker over the ACTIVE subtask's done-condition (engine noul HIGH AND
-                // the checker, ART-4), and the proposition is anchored to that condition.
-                // v1.5.0: the guard/question construction is the SHARED helpers also used
-                // by the code-triggered check above — identical by construction.
-                val activePointer = pointer
-                val guardLevel: GuardLevel
-                val noulQuestion: NoulQuestion
-                if (activePointer != null && ladder != null) {
-                    guardLevel = subtaskGuardLevel(activePointer, ladderEvidence(obs, candidates))
-                    noulQuestion = subtaskNoulQuestion(activePointer, obs)
-                } else {
-                    guardLevel = guards!!.levelAt(obs.title, obs.url)
-                    noulQuestion = AnchoredNoul.question(
-                        goalText,
-                        entity,
-                        requireNotNull(triageClass),
-                        obs.title,
-                        obs.url,
-                    )
-                }
-                // The engine-initiated check runs the SHARED verification path (the judge
-                // consult, escalation capture, exit policy, completion card, ExitCheckRow).
-                val verdict = verifyFinishCheck("finish", guardLevel, noulQuestion, obs, state)
-                when (verdict) {
-                    is ExitDecision.Accept -> {
-                        val provenance = ExitProvenance(
-                            path = verdict.path.toLoggedPath(),
-                            guardLevel = verdict.guardLevel.toLoggedLevel(),
-                            noul = verdict.noul,
-                        )
-                        // Phase 10 (vision 04 §3 v1.4.0): a MID-LADDER accept is the ACTIVE
-                        // subtask's verified IS-DONE — the pointer advances and the loop
-                        // continues over the next subtask (the task is NOT done; the row's
-                        // `exit` provenance stays null — it is the TERMINAL row's field;
-                        // the accepted check itself already wrote its ExitCheckRow). The
-                        // FINAL subtask's IS-DONE is the task's goal-achieved (below).
-                        val acceptedPointer = pointer
-                        if (acceptedPointer != null && ladder != null && !acceptedPointer.isFinal) {
-                            logRow(
-                                stepIndex, state, question, choice, candidates,
-                                ExecutedAction(null, LoggedActionKind.FINISH, ActionDisposition.EXECUTED),
-                                gateEvent = null,
-                                outcome = Outcome.PROGRESSED,
-                                escalation = escalation,
-                            )
-                            advanceAfterSubtaskAccept(verdict, acceptedPointer)
-                            stepIndex += 1
-                            continue
-                        }
-                        // Task goal-achieved (legacy, or the ladder's FINAL subtask): the
-                        // answer extraction rides the run report (Phase 11 consumes it) and
-                        // the terminal DECISION row carries the `exit` provenance (doc 05).
-                        runAnswerExtraction()
-                        logRow(
-                            stepIndex, state, question, choice, candidates,
-                            ExecutedAction(null, LoggedActionKind.FINISH, ActionDisposition.EXECUTED),
-                            gateEvent = null,
-                            outcome = Outcome.EXITED,
-                            escalation = escalation,
-                            exit = provenance,
-                        )
-                        return concludeGoalAchieved(verdict)
-                    }
-                    is ExitDecision.Refuse -> {
-                        line("decide: finish REFUSED (ART-4) - ${verdict.reason}")
-                        history.add("step $stepIndex: finish refused - the goal is not verifiably achieved yet")
-                        logRow(
-                            stepIndex, state, question, choice, candidates,
-                            ExecutedAction(null, LoggedActionKind.FINISH, ActionDisposition.REFUSED_BY_GUARD),
-                            gateEvent = null,
-                            outcome = Outcome.NO_CHANGE,
-                            escalation = escalation,
-                        )
-                        // Anti-oscillation: this refusal withholds `finish` from the next
-                        // M decisions unless the page hash changes (vision 04 §3 v1.2.0).
-                        exitPolicy.onRefusedFinish(obs.screenHash)
-                        stuck.record(
-                            StuckDetector.Footprint(
-                                actionKey = "FINISH",
-                                screenHash = obs.screenHash,
-                                textLines = obs.lines,
-                                isError = false,
-                            ),
-                        )
-                        // Sixth stuck signal: the exit conflict (guard level rides the hint).
-                        stuck.recordRefusedFinish(verdict.guardLevel.name)
-                        stepIndex += 1
-                        if (assessStuck()) {
-                            // Phase 10 + v1.5.0: repeated unsupported finish claims route
-                            // through the GUARANTEED owner card on a ladder run.
-                            handleStuckKill("repeated unsupported finish claims - L3 auto-kill")
-                                ?.let { return it }
-                        }
-                        continue
-                    }
-                    is ExitDecision.AskOwner -> throw IllegalStateException(
-                        "the exit policy re-asked the completion card - once-per-task is a law invariant",
-                    )
-                }
+            // A target-bearing intent reached the gate: the stage-2 argmax target is the
+            // acting candidate (the verify-done/open-site/go-back/scroll intents already
+            // continued above — they own their code paths).
+            val candidate = requireNotNull(cascadeTarget) {
+                "the cascade reached the gate without a stage-2 target - intent '${choice.chosenId}'"
             }
 
-            // A non-finish decision was taken: meter the anti-oscillation window.
-            exitPolicy.noteDecision(obs.screenHash)
-
             // -- 4. GATE (before any execution, vision 06 §1-2) -----------------------------
-            val kind = actionKindFor(candidate)
+            val kind = when (choice.chosenId) {
+                Intents.FILL_FIELD -> ActionKind.TYPE
+                else -> actionKindFor(candidate)
+            }
             // Classification input for TYPE actions (the pre-08F behavior): the stub
-            // phrase. On the credential-typing path (doc 06 §2a) the REAL payload is the
-            // card secret and is not known until the card resolves — the stub phrase
-            // classifies the action but NEVER executes there (the secret is injected
-            // instead; a fall-through to the phrase is a loud failure).
+            // phrase — a pure function, never a writer call. The WRITER phrase is
+            // fetched after the gate resolves (the credential path never calls the
+            // writer; a fall-through to any phrase there is a loud failure).
             val stubPhrase = if (kind == ActionKind.TYPE) phraseStub(goalText, candidate.label) else null
             val gateAction = GateAction(candidate, kind, stubPhrase)
             val pageContext = PageContext(obs.url, FieldDescriptor.fromNodes(obs.nodes))
@@ -1772,11 +2331,12 @@ class NavigationLoop(
             // approval; the EXECUTE site verifies the acting candidate matches before
             // injecting (fail loudly on mismatch — the wrong-TextSource precedent).
             var secretBoundTo: String? = null
-            // The typed-text source (vision 04 §2 step 5, Phase 08F): the stub phrase
-            // for ordinary typing; the credential path REPLACES it with the card secret
-            // ([TextSource.GateSuppliedSecret]) — or refuses loudly. Null for every
-            // non-typing action.
-            var textSource: TextSource? = stubPhrase?.let { TextSource.StubPhrase(it) }
+            // The typed-text source (vision 04 §2 step 5, Phase 08F + the 10B fill-field
+            // law): the writer phrase for fill-field typing (locked decision #4, fetched
+            // after the gate resolves); the credential path REPLACES it with the card
+            // secret ([TextSource.GateSuppliedSecret]) — or refuses loudly. Null for
+            // every non-typing action.
+            var textSource: TextSource? = null
             // doc 06 §2a: a TYPE action the gate resolved to a credential class types a
             // credential — the card's masked input is the secret's ONLY lawful source.
             val credentialTyping = hclass != null &&
@@ -1930,6 +2490,23 @@ class NavigationLoop(
                 )
             }
 
+            // The fill-field phrase fetch, AFTER the gate resolved (locked decision #4,
+            // vision 04 §2 v1.6.0): a credential-typing path never reaches this (its
+            // TextSource is the card's secret — the writer is never called on a
+            // credential path); a refused gate needs no text; and a phrase refusal
+            // FAILS THE STEP to recovery — never raw-goal typing.
+            if (proceed && !taskAborted && kind == ActionKind.TYPE && textSource == null) {
+                val fieldLabel = redactedLabel(candidate.label, redactionKeys())
+                val phrase = runPhrase(subtaskInstruction(), fieldLabel)
+                if (phrase == null) {
+                    phraseFailureStep(fieldLabel)?.let { return it }
+                    continue
+                }
+                phraseText = phrase.text
+                textSource = TextSource.LlmPhrase(phrase.text)
+                line("fill-field: phrased (${phrase.promptVersion}, ${phrase.text.length} chars)")
+            }
+
             // -- 5. EXECUTE -------------------------------------------------------------------
             var execOk = true
             // RC1: the terminal text-entry failure cause (null when nothing failed or
@@ -1950,6 +2527,7 @@ class NavigationLoop(
                         }
                         val text = when (source) {
                             is TextSource.StubPhrase -> source.text
+                            is TextSource.LlmPhrase -> source.text
                             is TextSource.GateSuppliedSecret -> {
                                 check(credentialTyping) {
                                     "a gate-supplied secret reached a non-credential typing action - wrong TextSource"
@@ -2025,15 +2603,21 @@ class NavigationLoop(
                 // supplied via the gate card — the VALUE is never stored (the row
                 // carries the flag, the step log renders [credential-redacted]).
                 typedSecret = proceed && textSource is TextSource.GateSuppliedSecret,
+                // The cascade's stage-2 evidence (doc 05 §2 v1.6.0): the executed slate +
+                // the TARGET STATE VIEW the batch rode (the score case's state law).
+                targetScores = targetScores,
+                targetStateText = targetViewText,
             )
             // Phase 9: the live-log line (compact product facts) fires AT the LOG step.
             // The acted-on label masks through the SAME sanctioned-secret redaction fold
             // the execute line uses (doc 05 §2 / doc 06 §2a) — masked at source, so a
             // post-injection page echo can never reach the overlay through a label.
+            // Phase 10B: the verb is the stage-1 INTENT (the compact line's format law
+            // is untouched — the verb is data).
             uiListener?.onStep(
                 LoopUiListener.StepFacts(
                     stepIndex = stepIndex,
-                    verb = kind.name.lowercase(),
+                    verb = choice.chosenId,
                     label = redactedLabel(candidate.label, redactionKeys()),
                     confidence = choice.confidence,
                     gateMarker = LoopUiListener.gateMarker(gateEvent),
@@ -2042,9 +2626,10 @@ class NavigationLoop(
             // The history digest quotes the acted-on label — page text that can carry a
             // sanctioned post-injection echo (the acted-on field's own a11y text IS the
             // typed secret on live Chrome). It renders [credential-redacted] here
-            // (doc 05 §2); the state builder masks every section the same way.
+            // (doc 05 §2); the state builder masks every section the same way. The verb
+            // is the stage-1 intent.
             history.add(
-                "step $stepIndex: ${kind.name.lowercase()} \"${redactedLabel(candidate.label, redactionKeys())}\" -> " +
+                "step $stepIndex: ${choice.chosenId} \"${redactedLabel(candidate.label, redactionKeys())}\" -> " +
                     serial(outcome) +
                     (gateEvent?.let { " (gate ${it.decision.name.lowercase()})" } ?: ""),
             )
@@ -2268,6 +2853,13 @@ class NavigationLoop(
         /** The extraction final-state excerpt cap (lines of page prose sent to the writer). */
         const val EXTRACTION_STATE_MAX_LINES = 12
 
+        /**
+         * The handshake assist's page-material excerpt cap (Phase 10B, ART-5): the
+         * observation lines the assist prompt may carry beside the title/url line — the
+         * writer re-describes from bounded page material only.
+         */
+        const val ASSIST_MATERIAL_MAX_LINES = 12
+
         /** Taps that read as submissions (the gate's SUBMIT path: H1/H3/H4 submissions). */
         internal val SUBMIT_TRAP = Regex("submit|\\bsearch\\b|^go\\b|\\bgo\\b|\\bsend\\b")
 
@@ -2340,20 +2932,12 @@ class NavigationLoop(
             }
         }
 
-        /** The primary's flat action question (vision 03 §3: the flat list). */
-        fun actionQuestion(candidates: CandidateList, redact: List<String> = emptyList()): ChoiceQuestion =
-            ChoiceQuestion(
-                name = "action",
-                options = candidates.flat.map { candidate ->
-                    Option(
-                        id = candidate.id,
-                        label = redactedLabel(candidate.label, redact),
-                        description = "bucket=${serialName(candidate.bucket)} (${candidate.cx},${candidate.cy})",
-                    )
-                },
-            )
-
-        /** The shadow's two-stage bucketed form (vision 02 §3 / vision 05 §2). */
+        /**
+         * The shadow's two-stage bucketed form of this step's taxonomy (vision 02 §3 /
+         * vision 05 §2 `questionShadow`): the row's shadow-question field keeps the
+         * bucketed enumeration record (schema compatibility — the shadow itself answers
+         * the cascade's forms since the Phase-10B migration).
+         */
         fun shadowQuestion(candidates: CandidateList, redact: List<String> = emptyList()): BucketedQuestion =
             BucketedQuestion(
                 name = "shadow-action",

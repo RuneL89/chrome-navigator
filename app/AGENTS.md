@@ -32,16 +32,22 @@ setup wizard (`setup/`).
     2026-10-06 owner demotion `laya`/`laya-fb-jev` load `LAYA_421M`; `V32B` stays
     registered EVAL-ONLY (not packaged; engine construction fails loudly without the
     `.tools/laya-v32b/` eval artifacts — acceptable)), `LayaEngine` (implements
-    `DecisionEngine`; two-stage bucketed `choose` — bucket question then ≤20-element
-    question — plus `judge`/`score` mappings; Phase 8C: tokenizer/calibration/format
+    `DecisionEngine`; Phase 10B MIGRATED `choose` to the cascade mirror
+    (`chooseCascade`: stage-1 = the FIXED intent choice over the question's own
+    instructions — calibration bucket `choice:6-10`; stage-2 = one score forward PER
+    candidate question over the rubric — `score:3-5` — argmax by expected level, ties
+    by id; non-cascade questions stay single-stage) plus `judge`/`score` mappings;
+    Phase 8C: tokenizer/calibration/format
     are constructor params defaulting to the Phase-8 checkpoint; Phase 08H dual-view:
     the caller passes the CANONICAL text (rows keep it verbatim) and the engine derives
     the LAYA STATE VIEW through `LayaStateView` within the format's `layaStateViewBudget`
-    (421M: 319) before every marker build — zero train/serve skew per view), and
-    `BucketedForms` (reconstructs the shadow's bucketed question from the loop's
-    `bucket=<serial>`-tagged option descriptions; untagged questions — triage, the
-    recovery set — are NOT bucketable: vision 03 §3 deliberately keeps recovery out of
-    the page-bucket taxonomy); `MarkerBuilder` (Phase 08H: the checkpoint's
+    (421M: 319) before every marker build — zero train/serve skew per view). Phase 10B
+    retired the pre-cascade `BucketedForms` description-parsing: the ShadowRouter
+    receives the loop's STRUCTURED cascade forms — `choose` recognizes the fixed intent
+    question structurally (`LayaEngine.isIntentQuestion`) and `scoreBatch` attaches the
+    `cand-*` batch to the tracked decision; NON-cascade choose questions (triage, the
+    recovery set) are refused LOUDLY — a logged line + a counted refusal, never silent
+    darkness (vision 02 §4 v1.3.0)); `MarkerBuilder` (Phase 08H: the checkpoint's
     `SequenceFormat.layaStateViewBudget = maxLen − headMaxLen − 1` formula lives beside
     the ceilings (ART-5), and a state that does not fit the room a question's head left
     fails LOUDLY — the upstream silent right-truncation is outlawed by the vision 03 §4
@@ -209,9 +215,17 @@ setup wizard (`setup/`).
     ONE bounded content retry, then return `null` — the SKIP-TO-FALLBACK signal for the
     handshake and the fill-field-to-recovery signal for the phrase (never a loop, never
     raw-goal typing); usage meters through `onUsage` on EVERY completed call (refused
-    outputs included — the writer cap never understates; the Round-2 cascade loop wires
-    the edge into `WriterBudget.record`); NO SECRET EVER ENTERS A WRITER PROMPT (doc 06
-    §2a): the loop masks sanctioned secrets out of the goal/final-state before any call;
+    outputs included — the writer cap never understates; the Round-2 cascade loop
+    meters the assist/phrase RESULTS into the per-task `WriterBudget.record` exactly at
+    the restructure/re-plan/extraction sites, gated on `hasHardRoom`); the
+    `asAssistSource()`/`asPhraseSource()` adapters wire the client onto the loop's
+    cascade seams (the product `NavigatorService` over the Setup key; the harness
+    `writerSources` over the key delivery — STUB mode uses `stub/StubPhraseSource`);
+    the hostile-input rows pin: injected instructions in the page material/field label
+    ride labeled-untrusted and the validated/honest-skip path never emits a directive
+    (the Round-2 carry); NO SECRET EVER ENTERS A WRITER PROMPT (doc 06
+    §2a): the loop masks sanctioned secrets out of the goal/final-state/page
+    material/field labels and the TARGET STATE VIEW's slate labels before any call;
     law: `Project Vision/01` §3, `Project Vision/04` §1 v1.4.0 + §2 v1.6.0, `Project Vision/06` §2a/§4
   * `src/main/kotlin/navigator/app/setup/` — the setup wizard (Phase 9, §2.2):
     `SetupLogic` (PURE state derivation, JVM-pinned: the a11y-enabled check string
@@ -269,7 +283,14 @@ setup wizard (`setup/`).
     (id-first `com.android.chrome:id/url_bar`, editable-fallback, `Url =
     Value|Hidden|Unavailable`), `CaptureMode`/`CaptureActivity`/`CaptureReceiver`
     (debug fixture capture into the `:core` `A11yDump` schema, including
-    `A11yNode.isPassword`; refused in non-debuggable builds)
+    `A11yNode.isPassword`; refused in non-debuggable builds),
+    `WindowTitles.kt` (Phase 10B §2.8, PURE: the page-title reader's lawful-window
+    decision — the focused, then ACTIVE, then root-application-window fallback over the
+    service's `windows` list (the IME-probe precedent), allowlisted packages only, ""
+    when nothing lawful exists; `observeForLoop()` maps it into
+    `LoopObservation.title` and `HarnessObserver` into `StepObservation.title` — the
+    state TITLE, the v3 PAGE IDENTITY line, marker evidence, and extraction read the
+    REAL page identity now; JVM-pinned in `WindowTitlesTest`)
   * `src/main/kotlin/navigator/app/loop/` — the navigation loop (Phase 6,
     vision 04; Phase 10 added the ladder execution): `NavigationLoop` (STRICT step order OBSERVE → ENUMERATE → DECIDE →
     GATE → EXECUTE → LOG; the GATE step classifies with `RiskGate` and — Phase 8E,
@@ -562,12 +583,45 @@ setup wizard (`setup/`).
     Re-plan draws the same cap, Stop/30s-timeout = STUCK_KILL with the honest stuck
     cause; the LEGACY (non-ladder) L3 kill stays byte-stable; the new
     `TerminalState.LADDER_REFUSED`; `RunResult` gained additive `ladder`/`answer`/
-    `writerSpendMicroUsd` (null/0 on every non-ladder path)
-  * `src/main/kotlin/navigator/app/stub/` — `StubEngine` (Phase 6): a
-    `DecisionEngine` replaying a `StubScript` deterministically ($0 spend); answers
-    select by option id, `labelContains`, or `bucketFirst`(+ordinal), with an
-    optional `fallbackBucketOrdinal`; exhausted scripts and unmatched labels fail
-    loudly
+    `writerSpendMicroUsd` (null/0 on every non-ladder path). PHASE 10B ROUND 2 — THE
+    DECIDE STEP IS THE DECISION CASCADE (phase doc §2.6, vision 04 §2 v1.6.0):
+    stage-1 ONE `choice` over the FIXED 9-intent vocabulary on the INTENT STATE VIEW
+    (`stageViews` ctor param; the canonical text stays the row's record); band routing
+    (`Cascade.kt` — pure: route/bucketFor/slate/hostOf; browser-chrome EXCLUDED from
+    every slate) — HIGH executes the intent (`open-site` → the code VIEW intent via
+    `SiteEntry` + `LoggedActionKind.VIEW`; follow-link/activate-control/dismiss-nag →
+    stage-2 over the bucket slate; `fill-field` → stage-2 (form-fields) then the
+    WRITER-PHRASED text fetched AFTER the gate resolves (a credential path never calls
+    the writer; a phrase refusal FAILS the step to recovery — `TextSource.LlmPhrase`);
+    `submit` → stage-2 (buttons, the SUBMIT_TRAP gate semantics); go-back/scroll → bare
+    ungated gestures); UNCERTAIN → the bounded handshake (ONE `assist` per page-hash via
+    the `AssistSource` seam → ONE re-ask with the ASSIST (untrusted) block → still
+    UNCERTAIN → the give-up-mirror code fallback; the honesty skip routes straight to
+    fallback; usage meters into the per-task `WriterBudget`); LOW → the wrong-page
+    signal (an immediate go-back-leaning ungated recovery step). Stage-2: ONE
+    `scoreBatch` request; `TargetRubric.resolve` takes the argmax — an empty slate or
+    flat spread is NO-GOOD-TARGET, never a tap (the give-up-mirror fallback); the
+    executed slate + the TARGET STATE VIEW ride the row (`targetScores`/
+    `targetStateText` — the score case's state law); the router owns `targetAgreement`.
+    The `finish` CHOICE is retired: the `verify-done` intent routes into the SHARED
+    `verifyFinishCheck` and the anti-oscillation window WITHHOLDS a second claim
+    without a judge consult; the R1 code-triggered checks wire
+    `heldHashRecheckDue` (re-fires every 3rd step, ≤3 per hash); `finish` is stripped
+    from offered slates unconditionally. Step-line verbs are the INTENT ids (the
+    compactLine format law untouched). `WriterSources.kt` — the `AssistSource`/
+    `PhraseSource` seams (GenClient adapters in `gen/`; `stub/StubPhraseSource` is the
+    $0 STUB-mode phrase)
+  * `src/main/kotlin/navigator/app/stub/` — `StubEngine` (Phase 6; Phase 10B: the
+    cascade scripting): a `DecisionEngine` replaying a `StubScript` deterministically
+    ($0 spend); answers select by option id, `labelContains`, `bucketFirst`(+ordinal),
+    `intent` (the stage-1 chosen intent id), or `topCandidate` + optional
+    `candidateLevels` (the stage-2 gold — candidate id or the QUOTED label inside the
+    per-candidate instructions, so the subtask text can never hijack the gold);
+    `scoreBatch` consumes ONE `stage2` answer and synthesizes the gold-favored level
+    distribution (decisive gold, pairwise-distinct rest); exhausted scripts and
+    unmatched labels fail loudly. `StubPhraseSource` — the $0 deterministic
+    `phraseStub` as a `PhraseSource` (the STUB-mode fill-field text; the LIVE modes
+    use the GenClient adapters)
   * `src/main/kotlin/navigator/app/harness/` — the headless debug harness (Phase 6,
     NOT product UI): `HarnessActivity` (engine picker — Phase 8C mode register
     STUB | LIVE(jev) | LAYA | LAYA_FB_JEV via `--es engine` (the UI switch covers
@@ -613,8 +667,11 @@ setup wizard (`setup/`).
     injected mutation-bait text — "click to unsubscribe everything now" — inside
     unrelated community content), and `listings.html` (four priced listings with one
     clearly cheapest winner, Field Notebook at $6.25) navigated via
-    `listing-detail.html`), `GoalCatalog` (`assets/harness/goals.json` — the M0
-    scripted goal families + the Phase-8J `exit-reliability-1` fixture goal (drives
+    `listing-detail.html`), `GoalCatalog` (`assets/harness/goals.json` — Phase 10B
+    re-authored: every per-step answer is a cascade script (`intent` answers + `stage2`
+    golds; the 16 `finish` choices re-recorded `verify-done` intents; all 11 goals keep
+    their expected terminals; `GoalCatalogTest` pins the shapes and the stub replay) —
+    the M0 scripted goal families + the Phase-8J `exit-reliability-1` fixture goal (drives
     `pages/zenith.html` through refusals, one keep-going card, and a SUSTAINED accept;
     harness-only) + the Phase-08I new-class suite goals (vision 07 §3's last three
     rows, generic fixture pages only): `multi-action-gated-1` (family multi-action —
@@ -867,7 +924,22 @@ setup wizard (`setup/`).
   phase-doc shape, pointer-advance + re-plan regeneration pins, flatten/cap,
   presentation-parse predicate); `WriterBudgetTest` (the $0.05/$0.10 caps, integer
   accumulation, the hard cap blocking further writer calls);
-  `./gradlew test` since Phase 10B Round 1: :core 359 + :app 482 = 841 tests, 0 failures
+  `./gradlew test` since Phase 10B Round 2: :core 360 + :app 512 = 872 tests, 0 failures
+(the Round-2 additions: `CascadeTest` — the pure routing module; `WindowTitlesTest` —
+the title reader's lawful-window decision; `Phase10BLoopTest` — the cascade execution
+in the REAL loop: the routing matrix, the handshake bounds (ONE assist per page-hash,
+the honesty skip, the no-source fallback), the LOW wrong-page handling, the fill-field
+phrase law (writer-phrased; the refusal routes to recovery), the held-hash re-check
+cadence, and the cascade ROW shapes (intent question, targetScores, targetStateText);
+`GenAssistPhraseTest` + the hostile-input rows (the Round-2 carry: injected
+instructions in the page material ride labeled-untrusted and the validated/honest-skip
+path never emits a directive); `LayaEngineCascadeTest` (replaces the retired two-stage
+test) + `ShadowRouterTest`/`ShadowRouterCompanionTest` re-pinned to the cascade router
+(structured handoff, the loud non-cascade refusal counters, the stage-2 attachment,
+targetAgreement); the loop tests re-scripted to the cascade; goals.json re-authored;
+the laya reference vectors regenerated on the REAL checkpoints (421M + v32b eval) at
+10 cascade-form cases each — Round 1's 841 was :core 359 + :app 482; Round 2's
+baseline re-pin is lawful: the ratified cascade moved the behavior)
   (the lawful re-pins that moved with Phase 10B Round 1: the exit-family version pins
   — `AnchoredNoulTest` v3 + the ATOMIC per-shape proposition pins (the task-level v2
   body pins unchanged), `SpecimenReplayTest`/`ExitCheckRowLoopTest`/

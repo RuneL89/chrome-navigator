@@ -18,6 +18,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import navigator.app.gen.asAssistSource
+import navigator.app.gen.asPhraseSource
 import navigator.app.harness.GoalCatalog
 import navigator.app.harness.HarnessEngineFactory
 import navigator.app.harness.HarnessObserver
@@ -224,17 +226,16 @@ class NavigatorService : Service() {
             // the writer's task ladder rides the run (the ACTIVE subtask in the corner
             // log, per-subtask IS-DONE, bounded re-plans, answer extraction). The
             // DEBUG-ONLY stub override stays un-laddered (a scripted $0 run has no
-            // writer). One GenLadderSource serves BOTH seams (it implements both
-            // interfaces); the key's value lives only inside the client (redacted
-            // toString).
-            val genLadder = writerKey?.let { key ->
-                navigator.app.gen.GenLadderSource(
-                    navigator.app.gen.GenClient(
-                        transport = navigator.core.wire.OkHttpWireTransport(),
-                        config = navigator.app.gen.GenEngineConfigs.generative(key),
-                    ),
+            // writer). One GenClient serves ALL the writer seams (ladder + extraction +
+            // the Phase-10B cascade assist/phrase); the key's value lives only inside
+            // the client (redacted toString).
+            val genClient = writerKey?.let { key ->
+                navigator.app.gen.GenClient(
+                    transport = navigator.core.wire.OkHttpWireTransport(),
+                    config = navigator.app.gen.GenEngineConfigs.generative(key),
                 )
             }
+            val genLadder = genClient?.let { navigator.app.gen.GenLadderSource(it) }
             val loop = NavigationLoop(
                 engine = engine,
                 observer = HarnessObserver(a11y),
@@ -252,6 +253,12 @@ class NavigatorService : Service() {
                 browserLauncher = BrowserLauncher { url -> openBrowser(url) },
                 ladderSource = genLadder ?: navigator.app.loop.LadderSource.None,
                 answerExtractor = genLadder,
+                // Phase 10B (phase doc §2.6): the cascade's writer seams over the SAME
+                // client — the handshake's assist and the fill-field phrase, metered
+                // into the loop's per-task writer budget. Null (no key) degrades to the
+                // code fallback / fill-field-to-recovery, never raw-goal typing.
+                assistSource = genClient?.asAssistSource(),
+                phraseSource = genClient?.asPhraseSource(),
             )
             loop.run(
                 goal = goalText,

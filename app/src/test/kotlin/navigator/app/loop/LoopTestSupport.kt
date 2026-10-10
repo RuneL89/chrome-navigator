@@ -136,6 +136,11 @@ class PropositionRecordingEngine(
 
     override suspend fun score(state: String, question: ScoreQuestion): ScoreResult =
         delegate.score(state, question)
+
+    override suspend fun scoreBatch(
+        state: String,
+        questions: Map<String, ScoreQuestion>,
+    ): Map<String, ScoreResult> = delegate.scoreBatch(state, questions)
 }
 
 // -- observation builders -------------------------------------------------------------
@@ -242,6 +247,13 @@ class LoopFixture(
      * existing fixture byte-identical.
      */
     engineDecorator: (DecisionEngine) -> DecisionEngine = { it },
+    /**
+     * The cascade's writer seams (Phase 10B): default null = no assist (an UNCERTAIN
+     * stage-1 falls to the code fallback) and fill-field phrase refusals (never
+     * raw-goal typing). Fill-field fixtures wire [navigator.app.stub.StubPhraseSource].
+     */
+    val assistSource: AssistSource? = null,
+    val phraseSource: PhraseSource? = null,
 ) {
     val clock = FakeClock()
     val sink = CollectingLogSink()
@@ -272,6 +284,8 @@ class LoopFixture(
         browserLauncher = browserLauncher,
         planSource = planSource,
         uiListener = uiListener,
+        assistSource = assistSource,
+        phraseSource = phraseSource,
     )
 }
 
@@ -285,3 +299,20 @@ fun noul(pTrue: Double): ScriptedAnswer =
     ScriptedAnswer(question = "goal-achieved", pTrue = pTrue)
 
 fun scriptOf(vararg answers: ScriptedAnswer): List<ScriptedAnswer> = answers.toList()
+
+// -- the cascade's script helpers (Phase 10B) --------------------------------------------
+//
+// One per-step DECIDE scripts ONE stage-1 intent answer and — when the intent needs a
+// target — ONE stage-2 batch answer (the gold candidate by id or label substring).
+
+/** One stage-1 intent answer (HIGH band by default). */
+fun intent(id: String, p: Double = 0.95): ScriptedAnswer =
+    ScriptedAnswer(question = "intent", intent = id, p = p)
+
+/** One stage-2 batch answer: the gold candidate (a candidate id or a label substring). */
+fun stage2(topCandidate: String): ScriptedAnswer =
+    ScriptedAnswer(question = "stage2", topCandidate = topCandidate)
+
+/** One full cascade step: stage-1 plus, when [target] is set, its stage-2 batch answer. */
+fun intentStep(id: String, target: String? = null, p: Double = 0.95): Array<ScriptedAnswer> =
+    (listOf(intent(id, p)) + (target?.let { listOf(stage2(it)) } ?: emptyList())).toTypedArray()

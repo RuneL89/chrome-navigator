@@ -64,8 +64,8 @@ class NavigationLoopListenerTest {
     private fun lookupFixture(listener: LoopUiListener?, planSource: PlanSource = PlanSource.None) = LoopFixture(
         script = scriptOf(
             choose("triage", "lookup"),
-            chooseByLabel("action", "Result"),
-            choose("action", "finish"),
+            *intentStep("follow-link", target = "Result"),
+            *intentStep("verify-done"),
             noul(0.99),
         ),
         observations = listOf(
@@ -104,7 +104,7 @@ class NavigationLoopListenerTest {
         assertEquals(1, listener.steps.size)
         val step = listener.steps.single()
         assertEquals(0, step.stepIndex)
-        assertEquals("tap", step.verb)
+        assertEquals("follow-link", step.verb, "the verb is the stage-1 intent")
         assertEquals("Result", step.label)
         assertEquals("—", step.gateMarker, "an ungated step carries the ungated marker")
         // The confidence is the SAME value the row logs (the primary's own answer).
@@ -112,7 +112,7 @@ class NavigationLoopListenerTest {
         assertEquals(row.teacherAnswer.confidence, step.confidence)
         // The compact line renders the phase-doc shape for this step.
         assertEquals(
-            "#0 tap 'Result' · ${"%.2f".format(row.teacherAnswer.confidence)} · gate: —",
+            "#0 follow-link 'Result' · ${"%.2f".format(row.teacherAnswer.confidence)} · gate: —",
             LoopUiListener.compactLine(step),
         )
     }
@@ -123,12 +123,14 @@ class NavigationLoopListenerTest {
         val fixture = lookupFixture(listener)
         fixture.loop.run("find the answer", "ui-listener-thinking", identity, fixture.clock)
 
-        // triage choose + the tap's action choose + the finish decision's action choose
-        // + the finish check's anchored judge = 4 consults, each wrapped in exactly one
-        // (true, false) pair.
-        val consults = fixture.engineCalls.count { it.startsWith("choose") || it.startsWith("judge") }
-        assertEquals(4, consults)
-        assertEquals(8, listener.thinking.size, "one true/false pair per engine consult")
+        // triage choose + the step's stage-1 intent ask + its stage-2 batch + the
+        // verify-done stage-1 ask + the finish check's anchored judge = 5 consults,
+        // each wrapped in exactly one (true, false) pair.
+        val consults = fixture.engineCalls.count {
+            it.startsWith("choose") || it.startsWith("judge") || it.startsWith("scoreBatch")
+        }
+        assertEquals(5, consults)
+        assertEquals(10, listener.thinking.size, "one true/false pair per engine consult")
         assertEquals(BooleanRange(consults), listener.thinking, "the pairs strictly alternate")
     }
 
@@ -159,9 +161,9 @@ class NavigationLoopListenerTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", "action"),
-                chooseByLabel("action", "Cooking"),
-                chooseByLabel("action", "Trailer"),
-                choose("action", "finish"),
+                *intentStep("follow-link", target = "Cooking"),
+                *intentStep("follow-link", target = "Trailer"),
+                *intentStep("verify-done"),
                 noul(0.99),
             ),
             observations = listOf(
@@ -217,16 +219,16 @@ class NavigationLoopListenerTest {
         )
         val script = mutableListOf<ScriptedAnswer>(
             choose("triage", "form-fill"),
-            chooseByLabel("action", "Field two"),
-            // The echo is MASKED in the question payload too (the PREUAT2-4 law), so the
-            // stub selects the echoed field by its node id — the label the loop acts on
-            // (and the listener receives, pre-mask) is still the raw page text.
-            choose("action", "n3"),
+            *intentStep("fill-field", target = "Field two"),
+            // The echo is MASKED in the stage-2 instructions too (the PREUAT2-4 law), so
+            // the stub selects the echoed field by its node id — the label the loop acts
+            // on (and the listener receives, pre-mask) is still the raw page text.
+            *intentStep("fill-field", target = "n3"),
             // The form-fill guard needs an observed SUBMISSION before the finish is
             // lawfully verifiable; the submit of a flagged-secret form gates H3 (a
             // PLAIN card — the secret rides the already-injected field, not the submit).
-            choose("action", "n4"),
-            choose("action", "finish"),
+            *intentStep("activate-control", target = "n4"),
+            *intentStep("verify-done"),
             noul(0.99),
         )
         val fixture = LoopFixture(

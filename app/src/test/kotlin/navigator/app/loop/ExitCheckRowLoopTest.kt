@@ -55,15 +55,15 @@ class ExitCheckRowLoopTest {
     private fun seriesScript(checks: List<Double>): List<ScriptedAnswer> {
         val answers = mutableListOf<ScriptedAnswer>(
             choose("triage", "lookup"),
-            chooseByLabel("action", "Tarte Tatin Caramelised fruit tart"),
+            *intentStep("follow-link", target = "Tarte Tatin Caramelised fruit tart"),
         )
         checks.forEachIndexed { index, noul ->
-            answers += choose("action", "finish")
+            answers += intent("verify-done")
             answers += noul(noul)
             if (index < checks.size - 1) {
                 val down = index % 2 == 0
-                answers += chooseByLabel("action", if (down) "Scroll down" else "Scroll up")
-                answers += chooseByLabel("action", if (down) "Scroll up" else "Scroll down")
+                answers += intent("scroll")
+                answers += intent("scroll")
             }
         }
         return answers
@@ -142,10 +142,10 @@ class ExitCheckRowLoopTest {
         // path is closed, and the row still logs (rule a: refusals included).
         val script = listOf(
             choose("triage", "lookup"),
-            choose("action", "finish"),
+            *intentStep("verify-done"),
             noul(0.10),
             // the window decision (finish is withheld on the unchanged page): tap
-            chooseByLabel("action", "Tarte Tatin Caramelised fruit tart"),
+            *intentStep("follow-link", target = "Tarte Tatin Caramelised fruit tart"),
         )
         val fixture = run(script, listOf(seedPage()), stepsHard = 2)
         val check = fixture.sink.exitChecks.single()

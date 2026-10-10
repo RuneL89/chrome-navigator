@@ -444,3 +444,15 @@ class GenProtocolException(message: String) : IllegalStateException(message)
  * invalid ladder").
  */
 class GenRefusedException(message: String) : IllegalStateException(message)
+
+// -- the cascade's writer-source adapters (Phase 10B, phase doc §2.5/§2.6) ------------
+
+/** Adapts this client's [assist] onto the loop's [navigator.app.loop.AssistSource] seam. */
+fun GenClient.asAssistSource(): navigator.app.loop.AssistSource =
+    navigator.app.loop.AssistSource { subtask, doneCondition, pageMaterial ->
+        assist(subtask, doneCondition, pageMaterial)
+    }
+
+/** Adapts this client's [phrase] onto the loop's [navigator.app.loop.PhraseSource] seam. */
+fun GenClient.asPhraseSource(): navigator.app.loop.PhraseSource =
+    navigator.app.loop.PhraseSource { subtask, fieldLabel -> phrase(subtask, fieldLabel) }

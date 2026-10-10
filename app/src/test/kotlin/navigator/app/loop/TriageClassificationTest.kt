@@ -146,7 +146,7 @@ class TriageClassificationTest {
         val fixture = LoopFixture(
             script = scriptOf(
                 choose("triage", option),
-                chooseByLabel("action", "Next"),
+                *intentStep("follow-link", target = "Next"),
             ),
             observations = listOf(page),
             presenter = ScriptedGatePresenter(),

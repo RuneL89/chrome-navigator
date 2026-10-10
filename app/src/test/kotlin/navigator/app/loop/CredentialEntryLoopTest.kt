@@ -122,16 +122,20 @@ class CredentialEntryLoopTest {
         title = "Flagged fields (TEST ONLY)",
     )
 
-    /** The scripted form-fill transcript through username -> password -> submit -> finish. */
+    /** The scripted form-fill transcript through username -> password -> submit -> done. */
     private fun formFillScript(vararg actionAnswers: navigator.app.stub.ScriptedAnswer) = scriptOf(
         choose("triage", "form-fill"),
         *actionAnswers,
-        choose("action", "finish"),
+        *intentStep("verify-done"),
         noul(0.95),
     )
 
-    /** Label selector for the action question (the scripted form steps). */
-    private fun type(label: String) = chooseByLabel("action", label)
+    /** One cascade step over the login form (the scripted form steps). */
+    private fun type(label: String): Array<navigator.app.stub.ScriptedAnswer> = when {
+        label.contains("Submit") || label.contains("submit") -> intentStep("submit", target = label)
+        label == "Go" -> intentStep("activate-control", target = label)
+        else -> intentStep("fill-field", target = label)
+    }
 
     // -- Gate 8F.1: source selection + injection ---------------------------------------
 
@@ -147,10 +151,11 @@ class CredentialEntryLoopTest {
             }
         }
         val fixture = LoopFixture(
+            phraseSource = navigator.app.stub.StubPhraseSource,
             script = formFillScript(
-                type("Email or username"),
-                type("Password"),
-                type("Submit sign in"),
+                *type("Email or username"),
+                *type("Password"),
+                *type("Submit sign in"),
             ),
             observations = listOf(loginPage()),
             presenter = presenter,
@@ -186,7 +191,8 @@ class CredentialEntryLoopTest {
     @Test
     fun `credential card approved WITHOUT a secret fails loudly - never falls through`() = runBlocking {
         val fixture = LoopFixture(
-            script = formFillScript(type("Email or username")),
+            phraseSource = navigator.app.stub.StubPhraseSource,
+            script = formFillScript(*type("Email or username")),
             observations = listOf(loginPage()),
             presenter = ScriptedGatePresenter(GateResolution.APPROVED),
         )
@@ -204,10 +210,11 @@ class CredentialEntryLoopTest {
     fun `typing into a reader-FLAGGED wording-free field fires the H8 credential card and the happy path completes`() =
         runBlocking {
             val fixture = LoopFixture(
+            phraseSource = navigator.app.stub.StubPhraseSource,
                 script = formFillScript(
-                    type("Field one"), // unflagged, no identifier wording -> ordinary typing
-                    type("Field two"), // flagged -> H8 credential typing
-                    type("Go"), // lone secret form submission -> H3
+                    *type("Field one"), // unflagged, no identifier wording -> ordinary typing
+                    *type("Field two"), // flagged -> H8 credential typing
+                    *type("Go"), // lone secret form submission -> H3
                 ),
                 observations = listOf(wordingFreeFlaggedPage()),
                 presenter = ScriptedGatePresenter(
@@ -251,10 +258,11 @@ class CredentialEntryLoopTest {
                 }
             }
             val fixture = LoopFixture(
+            phraseSource = navigator.app.stub.StubPhraseSource,
                 script = formFillScript(
-                    type("Email or username"),
-                    type("correct-horse-battery-9"), // the flagged field, label = typed content
-                    type("Submit sign in"),
+                    *type("Email or username"),
+                    *type("correct-horse-battery-9"), // the flagged field, label = typed content
+                    *type("Submit sign in"),
                 ),
                 observations = listOf(liveChromeLoginPage()),
                 presenter = presenter,
@@ -292,9 +300,10 @@ class CredentialEntryLoopTest {
             N("Footer"),
         )
         val fixture = LoopFixture(
+            phraseSource = navigator.app.stub.StubPhraseSource,
             script = scriptOf(
                 choose("triage", "lookup"),
-                chooseByLabel("action", "Buy now"),
+                *intentStep("activate-control", target = "Buy now"),
             ),
             observations = listOf(page),
             presenter = ScriptedGatePresenter(GateResolution.ApproveWithSecret(fixtureSecret)),
@@ -319,10 +328,11 @@ class CredentialEntryLoopTest {
             }
         }
         val fixture = LoopFixture(
+            phraseSource = navigator.app.stub.StubPhraseSource,
             script = formFillScript(
-                type("Email or username"),
-                type("Password"),
-                type("Submit sign in"),
+                *type("Email or username"),
+                *type("Password"),
+                *type("Submit sign in"),
             ),
             observations = listOf(loginPage()),
             presenter = presenter,
@@ -385,11 +395,12 @@ class CredentialEntryLoopTest {
                 }
             }
             val fixture = LoopFixture(
+            phraseSource = navigator.app.stub.StubPhraseSource,
                 script = formFillScript(
-                    type("Email or username"),
+                    *type("Email or username"),
                     // The echoed field's label IS the masked marker now — target by id.
-                    choose("action", "n2"),
-                    type("Submit sign in"), // rides the per-task trust granted at step 0
+                    *intentStep("fill-field", target = "n2"),
+                    *type("Submit sign in"), // rides the per-task trust granted at step 0
                 ),
                 observations = listOf(loginPage(), loginPageEchoingUser()),
                 presenter = presenter,
@@ -473,16 +484,17 @@ class CredentialEntryLoopTest {
                 }
             }
             val fixture = LoopFixture(
+            phraseSource = navigator.app.stub.StubPhraseSource,
                 script = scriptOf(
                     choose("triage", "form-fill"),
-                    type("Email or username"), // H4 card -> the secret is sanctioned
-                    type("Submit sign in"), // rides the per-task trust granted at step 0
-                    choose("action", "n3"), // the echoed-username control on the auth surface
+                    *type("Email or username"), // H4 card -> the secret is sanctioned
+                    *type("Submit sign in"), // rides the per-task trust granted at step 0
+                    *intentStep("activate-control", target = "n3"), // the echoed-username control (a button) on the auth surface
                     navigator.app.stub.ScriptedAnswer(
                         question = AdditiveEngineCheck.QUESTION_NAME,
                         pTrue = 0.1, // confident LOW -> no gate -> the run continues
                     ),
-                    choose("action", "finish"),
+                    *intentStep("verify-done"),
                     noul(0.95),
                 ),
                 // Per executed step the observer is read TWICE (the loop-top observe and
@@ -554,11 +566,12 @@ class CredentialEntryLoopTest {
             "the fixture secret must outgrow the ${TreeSerializer.MAX_TEXT_LENGTH}-char label cap"
         }
         val fixture = LoopFixture(
+            phraseSource = navigator.app.stub.StubPhraseSource,
             script = scriptOf(
                 choose("triage", "form-fill"),
-                type("Field two"), // the flagged wording-free field -> H8 credential typing
-                type("Go"), // the lone-secret submission -> H3, the ordinary card
-                choose("action", "finish"),
+                *type("Field two"), // the flagged wording-free field -> H8 credential typing
+                *type("Go"), // the lone-secret submission -> H3, the ordinary card
+                *intentStep("verify-done"),
                 noul(0.95),
             ),
             // Two executed steps on the flagged page (type + submit), then the echo page
@@ -612,11 +625,12 @@ class CredentialEntryLoopTest {
     @Test
     fun `deny skips the credential action and a later card still supplies the secret`() = runBlocking {
         val fixture = LoopFixture(
+            phraseSource = navigator.app.stub.StubPhraseSource,
             script = formFillScript(
-                type("Email or username"),
-                type("Email or username"),
-                type("Password"),
-                type("Submit sign in"),
+                *type("Email or username"),
+                *type("Email or username"),
+                *type("Password"),
+                *type("Submit sign in"),
             ),
             observations = listOf(loginPage()),
             presenter = ScriptedGatePresenter(
@@ -643,11 +657,12 @@ class CredentialEntryLoopTest {
     @Test
     fun `timeout skips the credential action like a deny`() = runBlocking {
         val fixture = LoopFixture(
+            phraseSource = navigator.app.stub.StubPhraseSource,
             script = formFillScript(
-                type("Email or username"),
-                type("Email or username"),
-                type("Password"),
-                type("Submit sign in"),
+                *type("Email or username"),
+                *type("Email or username"),
+                *type("Password"),
+                *type("Submit sign in"),
             ),
             observations = listOf(loginPage()),
             presenter = ScriptedGatePresenter(
@@ -669,9 +684,10 @@ class CredentialEntryLoopTest {
     @Test
     fun `double denial of the credential card still aborts the task`() = runBlocking {
         val fixture = LoopFixture(
+            phraseSource = navigator.app.stub.StubPhraseSource,
             script = formFillScript(
-                type("Email or username"),
-                type("Email or username"),
+                *type("Email or username"),
+                *type("Email or username"),
             ),
             observations = listOf(loginPage()),
             presenter = ScriptedGatePresenter(GateResolution.DENIED, GateResolution.DENIED),
@@ -688,12 +704,13 @@ class CredentialEntryLoopTest {
     @Test
     fun `a trusted credential action still asks for the secret - declining skips it every time`() = runBlocking {
         val fixture = LoopFixture(
+            phraseSource = navigator.app.stub.StubPhraseSource,
             script = formFillScript(
-                type("Email or username"),
-                type("Password"),
-                type("Password"),
-                type("Password"),
-                type("Password"),
+                *type("Email or username"),
+                *type("Password"),
+                *type("Password"),
+                *type("Password"),
+                *type("Password"),
             ),
             observations = listOf(loginPage()),
             presenter = ScriptedGatePresenter(

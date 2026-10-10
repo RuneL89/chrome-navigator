@@ -6,8 +6,22 @@
  "checkpoint": {
   "repo": "convaiinnovations/laya",
   "revision": "55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851",
+  "subfolder": "",
   "maxLen": 512,
-  "headMaxLen": 192
+  "headMaxLen": 192,
+  "baseTemperatures": [
+   1.6369030475616455,
+   1.2514300346374512,
+   1.983399510383606
+  ],
+  "temperatureByOptions": {
+   "choice:3-5": 1.7601518630981445,
+   "choice:6-10": 1.0000158548355103,
+   "score:3-5": 1.2514300346374512,
+   "noul:2": 1.983399510383606,
+   "choice:11+": 0.10058280825614929,
+   "choice:2": 1.9063563346862793
+  }
  },
  "artifact": {
   "file": "laya-int8.onnx",
@@ -15,460 +29,418 @@
  },
  "cases": [
   {
-   "id": "bucket-stage-6",
+   "id": "intent-stage-9",
    "kind": "choice",
    "state": "GOAL: find an apple pie recipe\nURL: https://www.allrecipes.com/recipes/78/baking/\nTITLE: Baking Recipes - Allrecipes\nHISTORY: (none)\nUNTRUSTED PAGE CONTENT:\nBrowse our collection of baking recipes, from quick breads to pies and cakes.",
    "optionIds": [
-    "nav-links",
-    "form-fields",
-    "buttons",
+    "open-site",
+    "follow-link",
+    "activate-control",
+    "fill-field",
+    "submit",
+    "go-back",
     "scroll",
-    "back",
-    "finish"
+    "dismiss-nag",
+    "verify-done"
    ],
    "question": {
     "t": "choice",
-    "ins": "In which group is the best next action?",
+    "ins": "You are navigating a web browser toward the active subtask. Choose the ONE next move from the categories. Judge from the subtask, its done-condition, and the page description.",
     "crit": {
-     "nav-links": "links believed to navigate",
-     "form-fields": "editable fields",
-     "buttons": "clickable non-link controls",
-     "scroll": "scroll actions on scrollable containers",
-     "back": "system back",
-     "finish": "goal achieved, stop"
+     "open-site": "The subtask needs a different site or page loaded by its address; code opens the URL directly.",
+     "follow-link": "A link or search result on this page plausibly leads toward the subtask's target.",
+     "activate-control": "A button, toggle, or other control on this page advances the subtask when pressed.",
+     "fill-field": "A form or search field on this page needs text typed to advance; the content will be phrased for you.",
+     "submit": "A search or form submission should fire now to advance.",
+     "go-back": "This page is a dead end or wrong turn; going back is the best move.",
+     "scroll": "The subtask's target is likely below the visible area.",
+     "dismiss-nag": "A popup, cookie, permission, or upgrade dialog blocks the page; dismiss it.",
+     "verify-done": "The subtask's done-condition may now hold on this page; run the completion check."
     }
    },
    "qtype": 0,
-   "tokenCount": 141,
-   "inputIdsSha256": "1d3a7515c5ad337462e2528ed73995d1968a9bca24a176dbb168451d536b2c4d",
+   "tokenCount": 274,
+   "inputIdsSha256": "48001b10c0cc581b4e6d584556655c45f20a4ed4f441fa69cf6381d6410068dd",
    "markerPositions": [
-    14,
-    23,
-    31,
-    40,
-    49,
-    54
-   ],
-   "temperatureUsed": 1.0000158548355103,
-   "logitsInt8": [
-    1.124789,
-    0.936092,
-    1.004277,
-    0.975214,
-    0.973957,
-    0.997396
-   ],
-   "probabilities": [
-    0.1881124991,
-    0.1557646284,
-    0.1667557563,
-    0.1619792362,
-    0.1617756723,
-    0.1656122077
-   ],
-   "agentProbabilities": [
-    0.8099,
-    0.0136,
-    0.0398,
-    0.0414,
-    0.0508,
-    0.0445
-   ],
-   "agentChosen": "nav-links",
-   "maxAbsDeltaVsEagerAgent": 0.6217875009
-  },
-  {
-   "id": "bucket-stage-4",
-   "kind": "choice",
-   "state": "GOAL: hyväksy evästeet ja hae parhaat hakutulokset\nURL: https://www.google.com/search?q=omenapiirakka+resepti\nTITLE: omenapiirakka resepti - Google-haku\nHISTORY: (none)\nUNTRUSTED PAGE CONTENT:\nHyväksy evästeet — näin parannamme kokemustasi. Haku-osio: parhaat omenapiirakan reseptit suomalaisille leivontasivustoille.",
-   "optionIds": [
-    "nav-links",
-    "buttons",
-    "scroll",
-    "finish"
-   ],
-   "question": {
-    "t": "choice",
-    "ins": "In which group is the best next action?",
-    "crit": {
-     "nav-links": "links believed to navigate",
-     "buttons": "clickable non-link controls",
-     "scroll": "scroll actions on scrollable containers",
-     "finish": "goal achieved, stop"
-    }
-   },
-   "qtype": 0,
-   "tokenCount": 184,
-   "inputIdsSha256": "c0596089b3b4acb2754679a2de0421c12d1a9c2a41b31d2299a4c9c65037c15a",
-   "markerPositions": [
-    14,
-    23,
     32,
-    41
-   ],
-   "temperatureUsed": 1.7601518630981445,
-   "logitsInt8": [
-    0.881643,
-    0.847498,
-    0.84716,
-    1.008642
-   ],
-   "probabilities": [
-    0.2477573713,
-    0.2429974209,
-    0.2429508508,
-    0.266294357
-   ],
-   "agentProbabilities": [
-    0.263,
-    0.2659,
-    0.106,
-    0.3651
-   ],
-   "agentChosen": "finish",
-   "maxAbsDeltaVsEagerAgent": 0.1369508508
-  },
-  {
-   "id": "bucket-stage-3",
-   "kind": "choice",
-   "state": "GOAL: compare two laptop prices on a shop listing\nURL: https://www.verkkokauppa.com/fi/product/612435/Super-XYZ-14-Laptop\nTITLE: SuperXYZ 14\" Laptop - Verkkokauppa\nHISTORY: step 0: tap \"Laptops\" -> progressed\nHISTORY: step 1: tap \"SuperXYZ 14\" -> progressed\nHINT: try scrolling if the buy button is not visible\nUNTRUSTED PAGE CONTENT:\nSuperXYZ 14 Laptop - 16 GB RAM, 512 GB SSD, 2.8K OLED display. Delivery 1-3 business days. Free returns within 30 days. Add the two-year extended warranty for 89,90 eur. Customers also bought: sleeve, USB-C hub, wireless mouse. Price alert available. 4523,00 eur incl. VAT.",
-   "optionIds": [
-    "form-fields",
-    "scroll",
-    "back"
-   ],
-   "question": {
-    "t": "choice",
-    "ins": "In which group is the best next action?",
-    "crit": {
-     "form-fields": "editable fields",
-     "scroll": "scroll actions on scrollable containers",
-     "back": "system back"
-    }
-   },
-   "qtype": 0,
-   "tokenCount": 232,
-   "inputIdsSha256": "ee1ea21df7723958c69278299ba62529c96af5853ce5eb58b5438c8579a27a57",
-   "markerPositions": [
-    14,
-    22,
-    31
-   ],
-   "temperatureUsed": 1.7601518630981445,
-   "logitsInt8": [
-    0.947565,
-    1.007243,
-    1.002076
-   ],
-   "probabilities": [
-    0.3261641854,
-    0.3374124716,
-    0.3364233429
-   ],
-   "agentProbabilities": [
-    0.217,
-    0.2964,
-    0.4867
-   ],
-   "agentChosen": "back",
-   "maxAbsDeltaVsEagerAgent": 0.1502766571
-  },
-  {
-   "id": "element-navlinks-6",
-   "kind": "choice",
-   "state": "GOAL: find an apple pie recipe\nURL: https://www.allrecipes.com/recipes/78/baking/\nTITLE: Baking Recipes - Allrecipes\nHISTORY: (none)\nUNTRUSTED PAGE CONTENT:\nBrowse our collection of baking recipes, from quick breads to pies and cakes.",
-   "optionIds": [
-    "n0",
-    "n1",
-    "n2",
-    "n3",
-    "n4",
-    "n5"
-   ],
-   "question": {
-    "t": "choice",
-    "ins": "Which option in the nav-links group is the best next action?",
-    "crit": {
-     "Apple Pies": "bucket=nav-links (270,300)",
-     "Cakes": "bucket=nav-links (270,360)",
-     "Cookies": "bucket=nav-links (270,420)",
-     "Breads": "bucket=nav-links (270,480)",
-     "No-Bake Desserts": "bucket=nav-links (270,540)",
-     "All Baking Recipes": "bucket=nav-links (270,600)"
-    }
-   },
-   "qtype": 0,
-   "tokenCount": 192,
-   "inputIdsSha256": "19f14827ac92944c1a929aeda1f5c2cdc58fcdbbe210f87bda75d7d3b4463d4b",
-   "markerPositions": [
-    19,
-    34,
-    48,
-    61,
-    75,
-    95
+    51,
+    70,
+    89,
+    108,
+    122,
+    141,
+    156,
+    175
    ],
    "temperatureUsed": 1.0000158548355103,
    "logitsInt8": [
-    1.073794,
-    1.07984,
-    0.990031,
-    0.999416,
-    1.027255,
-    1.150562
+    0.853402,
+    0.913807,
+    0.644313,
+    0.599566,
+    0.685128,
+    0.842494,
+    0.831619,
+    0.430702,
+    0.762075
    ],
    "probabilities": [
-    0.169826709,
-    0.1708565644,
-    0.1561812204,
-    0.1576538745,
-    0.1621043828,
-    0.183377249
+    0.1245308454,
+    0.1322847719,
+    0.1010349827,
+    0.0966137443,
+    0.1052440317,
+    0.1231798431,
+    0.1218474844,
+    0.0816024867,
+    0.1136618098
    ],
    "agentProbabilities": [
-    0.044,
-    0.0235,
-    0.0036,
-    0.0025,
-    0.0033,
-    0.9231
+    0.39,
+    0.0965,
+    0.0443,
+    0.029,
+    0.0308,
+    0.2545,
+    0.061,
+    0.0155,
+    0.0786
    ],
-   "agentChosen": "All Baking Recipes",
-   "maxAbsDeltaVsEagerAgent": 0.739722751
+   "agentChosen": "open-site",
+   "maxAbsDeltaVsEagerAgent": 0.2654691546
   },
   {
-   "id": "element-navlinks-12",
-   "kind": "choice",
-   "state": "GOAL: compare two laptop prices on a shop listing\nURL: https://www.verkkokauppa.com/fi/product/612435/Super-XYZ-14-Laptop\nTITLE: SuperXYZ 14\" Laptop - Verkkokauppa\nHISTORY: step 0: tap \"Laptops\" -> progressed\nHISTORY: step 1: tap \"SuperXYZ 14\" -> progressed\nHINT: try scrolling if the buy button is not visible\nUNTRUSTED PAGE CONTENT:\nSuperXYZ 14 Laptop - 16 GB RAM, 512 GB SSD, 2.8K OLED display. Delivery 1-3 business days. Free returns within 30 days. Add the two-year extended warranty for 89,90 eur. Customers also bought: sleeve, USB-C hub, wireless mouse. Price alert available. 4523,00 eur incl. VAT.",
-   "optionIds": [
-    "n0",
-    "n1",
-    "n2",
-    "n3",
-    "n4",
-    "n5",
-    "n6",
-    "n7",
-    "n8",
-    "n9",
-    "n10",
-    "n11"
-   ],
-   "question": {
-    "t": "choice",
-    "ins": "Which option in the nav-links group is the best next action?",
-    "crit": {
-     "Laptops": "bucket=nav-links (270,240)",
-     "Computers": "bucket=nav-links (270,290)",
-     "Gaming": "bucket=nav-links (270,340)",
-     "Accessories": "bucket=nav-links (270,390)",
-     "Deals": "bucket=nav-links (270,440)",
-     "Brand: SuperXYZ": "bucket=nav-links (270,490)",
-     "14-inch laptops": "bucket=nav-links (270,540)",
-     "Compare (2)": "bucket=nav-links (270,590)",
-     "Reviews (23)": "bucket=nav-links (270,640)",
-     "Questions (4)": "bucket=nav-links (270,690)",
-     "Spare parts": "bucket=nav-links (270,740)",
-     "Product documents": "bucket=nav-links (270,790)"
-    }
-   },
-   "qtype": 0,
-   "tokenCount": 382,
-   "inputIdsSha256": "a8923804a657f9c6623b2c75d0d718b9139dbcb07982d6a90a74f92f772ea888",
-   "markerPositions": [
-    19,
-    33,
-    47,
-    60,
-    74,
-    88,
-    102,
-    116,
-    130,
-    144,
-    158,
-    172
-   ],
-   "temperatureUsed": 0.5,
-   "logitsInt8": [
-    0.783385,
-    1.36741,
-    0.697935,
-    0.65335,
-    0.698409,
-    0.666339,
-    0.770542,
-    0.459027,
-    0.436734,
-    0.254817,
-    0.996351,
-    0.455671
-   ],
-   "probabilities": [
-    0.0843199363,
-    0.2711493595,
-    0.0710738541,
-    0.0650104952,
-    0.0711413115,
-    0.0667214474,
-    0.0821816814,
-    0.0440754769,
-    0.0421535154,
-    0.0292969444,
-    0.1290954032,
-    0.0437805747
-   ],
-   "agentProbabilities": [
-    0.1303,
-    0.5119,
-    0.0033,
-    0.0465,
-    0.2258,
-    0.0537,
-    0.0218,
-    0.002,
-    0.0016,
-    0.0001,
-    0.0029,
-    0.0002
-   ],
-   "agentChosen": "Computers",
-   "maxAbsDeltaVsEagerAgent": 0.2407506405
-  },
-  {
-   "id": "element-formfields-4",
-   "kind": "choice",
-   "state": "GOAL: find an apple pie recipe\nURL: https://www.allrecipes.com/recipes/78/baking/\nTITLE: Baking Recipes - Allrecipes\nHISTORY: (none)\nUNTRUSTED PAGE CONTENT:\nBrowse our collection of baking recipes, from quick breads to pies and cakes.",
-   "optionIds": [
-    "n0",
-    "n1",
-    "n2",
-    "n3"
-   ],
-   "question": {
-    "t": "choice",
-    "ins": "Which option in the form-fields group is the best next action?",
-    "crit": {
-     "Search terminal": "bucket=form-fields (200,180)",
-     "Email": "bucket=form-fields (200,260)",
-     "Password": "bucket=form-fields (200,340)",
-     "Comment": "bucket=form-fields (200,420)"
-    }
-   },
-   "qtype": 0,
-   "tokenCount": 152,
-   "inputIdsSha256": "f92963f367e411a06423f0121e211b4b963ef6d0025f21fbdacc07be2c58b735",
-   "markerPositions": [
-    19,
-    33,
-    46,
-    59
-   ],
-   "temperatureUsed": 1.7601518630981445,
-   "logitsInt8": [
-    1.081777,
-    0.992298,
-    0.986527,
-    1.005501
-   ],
-   "probabilities": [
-    0.2593799419,
-    0.2465236851,
-    0.2457166273,
-    0.2483797456
-   ],
-   "agentProbabilities": [
-    0.5732,
-    0.1463,
-    0.1478,
-    0.1327
-   ],
-   "agentChosen": "Search terminal",
-   "maxAbsDeltaVsEagerAgent": 0.3138200581
-  },
-  {
-   "id": "element-buttons-3",
+   "id": "intent-stage-9-nonascii",
    "kind": "choice",
    "state": "GOAL: hyväksy evästeet ja hae parhaat hakutulokset\nURL: https://www.google.com/search?q=omenapiirakka+resepti\nTITLE: omenapiirakka resepti - Google-haku\nHISTORY: (none)\nUNTRUSTED PAGE CONTENT:\nHyväksy evästeet — näin parannamme kokemustasi. Haku-osio: parhaat omenapiirakan reseptit suomalaisille leivontasivustoille.",
    "optionIds": [
-    "n0",
-    "n1",
-    "n2"
+    "open-site",
+    "follow-link",
+    "activate-control",
+    "fill-field",
+    "submit",
+    "go-back",
+    "scroll",
+    "dismiss-nag",
+    "verify-done"
    ],
    "question": {
     "t": "choice",
-    "ins": "Which option in the buttons group is the best next action?",
+    "ins": "You are navigating a web browser toward the active subtask. Choose the ONE next move from the categories. Judge from the subtask, its done-condition, and the page description.",
     "crit": {
-     "Hyväksy kaikki": "bucket=buttons (540,900)",
-     "Vain välttämättömät": "bucket=buttons (540,960)",
-     "Asetukset": "bucket=buttons (540,1020)"
+     "open-site": "The subtask needs a different site or page loaded by its address; code opens the URL directly.",
+     "follow-link": "A link or search result on this page plausibly leads toward the subtask's target.",
+     "activate-control": "A button, toggle, or other control on this page advances the subtask when pressed.",
+     "fill-field": "A form or search field on this page needs text typed to advance; the content will be phrased for you.",
+     "submit": "A search or form submission should fire now to advance.",
+     "go-back": "This page is a dead end or wrong turn; going back is the best move.",
+     "scroll": "The subtask's target is likely below the visible area.",
+     "dismiss-nag": "A popup, cookie, permission, or upgrade dialog blocks the page; dismiss it.",
+     "verify-done": "The subtask's done-condition may now hold on this page; run the completion check."
     }
    },
    "qtype": 0,
-   "tokenCount": 203,
-   "inputIdsSha256": "7645b54294260cc8e17f197b92503b3b911c7e2dbf6ed758fb6c303c4b7ba81f",
+   "tokenCount": 330,
+   "inputIdsSha256": "ce88ad3d28382b971312e3d9a84bee42bce66e04cbf1f450b0ba3aaf6309341f",
    "markerPositions": [
-    17,
-    34,
-    52
+    32,
+    51,
+    70,
+    89,
+    108,
+    122,
+    141,
+    156,
+    175
    ],
-   "temperatureUsed": 1.7601518630981445,
+   "temperatureUsed": 1.0000158548355103,
    "logitsInt8": [
-    1.120574,
-    1.100412,
-    1.094168
+    0.264289,
+    0.503003,
+    0.438372,
+    0.105587,
+    0.313834,
+    0.551961,
+    0.449555,
+    -0.103101,
+    0.560062
    ],
    "probabilities": [
-    0.3362791201,
-    0.3324490585,
-    0.3312718215
+    0.100630397,
+    0.1277614093,
+    0.1197653087,
+    0.0858631283,
+    0.1057416171,
+    0.1341718851,
+    0.1211121172,
+    0.0696909305,
+    0.1352632068
    ],
    "agentProbabilities": [
-    0.4976,
-    0.2218,
-    0.2806
+    0.1209,
+    0.0862,
+    0.0517,
+    0.0226,
+    0.0288,
+    0.44,
+    0.057,
+    0.0367,
+    0.1561
    ],
-   "agentChosen": "Hyväksy kaikki",
-   "maxAbsDeltaVsEagerAgent": 0.1613208799
+   "agentChosen": "go-back",
+   "maxAbsDeltaVsEagerAgent": 0.3058281149
   },
   {
-   "id": "element-scroll-2",
+   "id": "intent-stage-9-long",
    "kind": "choice",
    "state": "GOAL: compare two laptop prices on a shop listing\nURL: https://www.verkkokauppa.com/fi/product/612435/Super-XYZ-14-Laptop\nTITLE: SuperXYZ 14\" Laptop - Verkkokauppa\nHISTORY: step 0: tap \"Laptops\" -> progressed\nHISTORY: step 1: tap \"SuperXYZ 14\" -> progressed\nHINT: try scrolling if the buy button is not visible\nUNTRUSTED PAGE CONTENT:\nSuperXYZ 14 Laptop - 16 GB RAM, 512 GB SSD, 2.8K OLED display. Delivery 1-3 business days. Free returns within 30 days. Add the two-year extended warranty for 89,90 eur. Customers also bought: sleeve, USB-C hub, wireless mouse. Price alert available. 4523,00 eur incl. VAT.",
    "optionIds": [
-    "scroll-down@n9",
-    "scroll-up@n9"
+    "open-site",
+    "follow-link",
+    "activate-control",
+    "fill-field",
+    "submit",
+    "go-back",
+    "scroll",
+    "dismiss-nag",
+    "verify-done"
    ],
    "question": {
     "t": "choice",
-    "ins": "Which option in the scroll group is the best next action?",
+    "ins": "You are navigating a web browser toward the active subtask. Choose the ONE next move from the categories. Judge from the subtask, its done-condition, and the page description.",
     "crit": {
-     "scroll-down@n9": "bucket=scroll (540,1100) (540,1100)",
-     "scroll-up@n9": "bucket=scroll (540,300) (540,300)"
+     "open-site": "The subtask needs a different site or page loaded by its address; code opens the URL directly.",
+     "follow-link": "A link or search result on this page plausibly leads toward the subtask's target.",
+     "activate-control": "A button, toggle, or other control on this page advances the subtask when pressed.",
+     "fill-field": "A form or search field on this page needs text typed to advance; the content will be phrased for you.",
+     "submit": "A search or form submission should fire now to advance.",
+     "go-back": "This page is a dead end or wrong turn; going back is the best move.",
+     "scroll": "The subtask's target is likely below the visible area.",
+     "dismiss-nag": "A popup, cookie, permission, or upgrade dialog blocks the page; dismiss it.",
+     "verify-done": "The subtask's done-condition may now hold on this page; run the completion check."
     }
    },
    "qtype": 0,
-   "tokenCount": 255,
-   "inputIdsSha256": "276a707680eff6fbdad712008bc3146d3740b1d440a78568832a2a688face30e",
+   "tokenCount": 390,
+   "inputIdsSha256": "c3306c34e71c8db228361ecbd5d118a9699b02bb0f8862f50f74eb6867a904b2",
    "markerPositions": [
-    17,
-    38
+    32,
+    51,
+    70,
+    89,
+    108,
+    122,
+    141,
+    156,
+    175
    ],
-   "temperatureUsed": 1.9063563346862793,
+   "temperatureUsed": 1.0000158548355103,
    "logitsInt8": [
-    0.506399,
-    0.289647
+    0.950342,
+    0.945949,
+    0.989135,
+    0.819114,
+    0.856987,
+    0.979224,
+    0.979701,
+    0.859984,
+    1.05119
    ],
    "probabilities": [
-    0.5283943421,
-    0.4716056579
+    0.1123359575,
+    0.1118434912,
+    0.1167793406,
+    0.0985208178,
+    0.1023236206,
+    0.1156276683,
+    0.1156828162,
+    0.1026307561,
+    0.1242555316
    ],
    "agentProbabilities": [
-    0.6492,
-    0.3508
+    0.2799,
+    0.0915,
+    0.133,
+    0.0349,
+    0.026,
+    0.2026,
+    0.0681,
+    0.0375,
+    0.1265
    ],
-   "agentChosen": "scroll-down@n9",
-   "maxAbsDeltaVsEagerAgent": 0.1208056579
+   "agentChosen": "open-site",
+   "maxAbsDeltaVsEagerAgent": 0.1675640425
+  },
+  {
+   "id": "stage2-candidate-a",
+   "kind": "score",
+   "state": "GOAL: find an apple pie recipe\nURL: https://www.allrecipes.com/recipes/78/baking/\nTITLE: Baking Recipes - Allrecipes\nHISTORY: (none)\nUNTRUSTED PAGE CONTENT:\nBrowse our collection of baking recipes, from quick breads to pies and cakes.",
+   "optionIds": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "question": {
+    "t": "score",
+    "ins": "Score how well acting on 'Unsubscribe from Cooking Classics' advances: unsubscribe from the first mailing list.",
+    "crit": [
+     "does not advance the active subtask",
+     "unlikely to advance — peripheral or unrelated",
+     "possibly advances — plausible but unclear",
+     "likely advances — directly relevant",
+     "decisively advances — the obvious target"
+    ]
+   },
+   "qtype": 1,
+   "tokenCount": 162,
+   "inputIdsSha256": "d491efbb5cc8c629abf9f8c4cb21c20d894023b84b866e3913117c1a56b44331",
+   "markerPositions": [
+    30,
+    41,
+    52,
+    62,
+    71
+   ],
+   "temperatureUsed": 1.2514300346374512,
+   "logitsInt8": [
+    0.645944,
+    1.266405,
+    0.678369,
+    1.790942,
+    1.680855
+   ],
+   "probabilities": [
+    0.118327395,
+    0.1942715632,
+    0.1214334097,
+    0.2954227632,
+    0.270544869
+   ],
+   "agentProbabilities": [
+    0.1192,
+    0.1238,
+    0.0898,
+    0.434,
+    0.2331
+   ],
+   "agentChosen": 2.538,
+   "maxAbsDeltaVsEagerAgent": 0.1385772368
+  },
+  {
+   "id": "stage2-candidate-b",
+   "kind": "score",
+   "state": "GOAL: compare two laptop prices on a shop listing\nURL: https://www.verkkokauppa.com/fi/product/612435/Super-XYZ-14-Laptop\nTITLE: SuperXYZ 14\" Laptop - Verkkokauppa\nHISTORY: step 0: tap \"Laptops\" -> progressed\nHISTORY: step 1: tap \"SuperXYZ 14\" -> progressed\nHINT: try scrolling if the buy button is not visible\nUNTRUSTED PAGE CONTENT:\nSuperXYZ 14 Laptop - 16 GB RAM, 512 GB SSD, 2.8K OLED display. Delivery 1-3 business days. Free returns within 30 days. Add the two-year extended warranty for 89,90 eur. Customers also bought: sleeve, USB-C hub, wireless mouse. Price alert available. 4523,00 eur incl. VAT.",
+   "optionIds": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "question": {
+    "t": "score",
+    "ins": "Score how well acting on 'Unsubscribe from Star Log' advances: unsubscribe from the first mailing list.",
+    "crit": [
+     "does not advance the active subtask",
+     "unlikely to advance — peripheral or unrelated",
+     "possibly advances — plausible but unclear",
+     "likely advances — directly relevant",
+     "decisively advances — the obvious target"
+    ]
+   },
+   "qtype": 1,
+   "tokenCount": 276,
+   "inputIdsSha256": "b660125bdc51155ec438ef9eb2aae825079fd19be27c0cc6e73a147fc78bee29",
+   "markerPositions": [
+    28,
+    39,
+    50,
+    60,
+    69
+   ],
+   "temperatureUsed": 1.2514300346374512,
+   "logitsInt8": [
+    1.575714,
+    1.55712,
+    1.508416,
+    1.522654,
+    1.55144
+   ],
+   "probabilities": [
+    0.2052473303,
+    0.2022201675,
+    0.1945012577,
+    0.1967267534,
+    0.2013044912
+   ],
+   "agentProbabilities": [
+    0.1652,
+    0.121,
+    0.094,
+    0.2411,
+    0.3787
+   ],
+   "agentChosen": 2.5471,
+   "maxAbsDeltaVsEagerAgent": 0.1773955088
+  },
+  {
+   "id": "stage2-candidate-nonascii",
+   "kind": "score",
+   "state": "GOAL: hyväksy evästeet ja hae parhaat hakutulokset\nURL: https://www.google.com/search?q=omenapiirakka+resepti\nTITLE: omenapiirakka resepti - Google-haku\nHISTORY: (none)\nUNTRUSTED PAGE CONTENT:\nHyväksy evästeet — näin parannamme kokemustasi. Haku-osio: parhaat omenapiirakan reseptit suomalaisille leivontasivustoille.",
+   "optionIds": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "question": {
+    "t": "score",
+    "ins": "Score how well acting on 'Hyväksy kaikki' advances: unsubscribe from the first mailing list.",
+    "crit": [
+     "does not advance the active subtask",
+     "unlikely to advance — peripheral or unrelated",
+     "possibly advances — plausible but unclear",
+     "likely advances — directly relevant",
+     "decisively advances — the obvious target"
+    ]
+   },
+   "qtype": 1,
+   "tokenCount": 217,
+   "inputIdsSha256": "9cb141b49246475d8bc606a3bd2032927924cd23a36a145ab61897dde09ed14b",
+   "markerPositions": [
+    29,
+    40,
+    51,
+    61,
+    70
+   ],
+   "temperatureUsed": 1.2514300346374512,
+   "logitsInt8": [
+    1.681339,
+    1.652765,
+    1.632343,
+    1.627348,
+    1.673466
+   ],
+   "probabilities": [
+    0.2044766907,
+    0.1998607395,
+    0.1966257718,
+    0.1958424444,
+    0.2031943537
+   ],
+   "agentProbabilities": [
+    0.2842,
+    0.1844,
+    0.1619,
+    0.1764,
+    0.1931
+   ],
+   "agentChosen": 1.8098,
+   "maxAbsDeltaVsEagerAgent": 0.0797233093
   },
   {
    "id": "noul-goal-achieved",
@@ -504,6 +476,41 @@
    ],
    "agentChosen": 0.6567,
    "maxAbsDeltaVsEagerAgent": 0.1496756531
+  },
+  {
+   "id": "noul-goal-achieved-long",
+   "kind": "noul",
+   "state": "GOAL: compare two laptop prices on a shop listing\nURL: https://www.verkkokauppa.com/fi/product/612435/Super-XYZ-14-Laptop\nTITLE: SuperXYZ 14\" Laptop - Verkkokauppa\nHISTORY: step 0: tap \"Laptops\" -> progressed\nHISTORY: step 1: tap \"SuperXYZ 14\" -> progressed\nHINT: try scrolling if the buy button is not visible\nUNTRUSTED PAGE CONTENT:\nSuperXYZ 14 Laptop - 16 GB RAM, 512 GB SSD, 2.8K OLED display. Delivery 1-3 business days. Free returns within 30 days. Add the two-year extended warranty for 89,90 eur. Customers also bought: sleeve, USB-C hub, wireless mouse. Price alert available. 4523,00 eur incl. VAT.",
+   "optionIds": [
+    "false",
+    "true"
+   ],
+   "question": {
+    "t": "noul",
+    "ins": "The goal \"compare two laptop prices on a shop listing\" is fully achieved on the current page."
+   },
+   "qtype": 2,
+   "tokenCount": 240,
+   "inputIdsSha256": "f9a92dc63c44e6d2c9e97214e1239cfa39e929b69e77a296d94183d7934a9d30",
+   "markerPositions": [
+    26,
+    36
+   ],
+   "temperatureUsed": 1.983399510383606,
+   "logitsInt8": [
+    0.677893,
+    0.965593
+   ],
+   "probabilities": [
+    0.4637999549,
+    0.5362000451
+   ],
+   "agentProbabilities": [
+    0.056,
+    0.944
+   ],
+   "agentChosen": 0.944,
+   "maxAbsDeltaVsEagerAgent": 0.4077999549
   },
   {
    "id": "score-urgency-4",
@@ -606,108 +613,6 @@
    ],
    "agentChosen": "back",
    "maxAbsDeltaVsEagerAgent": 0.1176011457
-  },
-  {
-   "id": "bucket-stage-long-state",
-   "kind": "choice",
-   "state": "GOAL: compare two laptop prices on a shop listing\nURL: https://www.verkkokauppa.com/fi/product/612435/Super-XYZ-14-Laptop\nTITLE: SuperXYZ 14\" Laptop - Verkkokauppa\nHISTORY: step 0: tap \"Laptops\" -> progressed\nHISTORY: step 1: tap \"SuperXYZ 14\" -> progressed\nHINT: try scrolling if the buy button is not visible\nUNTRUSTED PAGE CONTENT:\nSuperXYZ 14 Laptop - 16 GB RAM, 512 GB SSD, 2.8K OLED display. Delivery 1-3 business days. Free returns within 30 days. Add the two-year extended warranty for 89,90 eur. Customers also bought: sleeve, USB-C hub, wireless mouse. Price alert available. 4523,00 eur incl. VAT.",
-   "optionIds": [
-    "nav-links",
-    "form-fields",
-    "buttons",
-    "scroll",
-    "back",
-    "finish"
-   ],
-   "question": {
-    "t": "choice",
-    "ins": "In which group is the best next action?",
-    "crit": {
-     "nav-links": "links believed to navigate",
-     "form-fields": "editable fields",
-     "buttons": "clickable non-link controls",
-     "scroll": "scroll actions on scrollable containers",
-     "back": "system back",
-     "finish": "goal achieved, stop"
-    }
-   },
-   "qtype": 0,
-   "tokenCount": 257,
-   "inputIdsSha256": "78d62eea170af67e6770852f72a7f0ce4bf626c1c8b9817168b1233cdffd7d8f",
-   "markerPositions": [
-    14,
-    23,
-    31,
-    40,
-    49,
-    54
-   ],
-   "temperatureUsed": 1.0000158548355103,
-   "logitsInt8": [
-    0.324432,
-    -0.432131,
-    0.017793,
-    -0.044913,
-    -0.034848,
-    0.279392
-   ],
-   "probabilities": [
-    0.2197542727,
-    0.103126861,
-    0.1617215315,
-    0.1518922677,
-    0.1534287476,
-    0.2100763195
-   ],
-   "agentProbabilities": [
-    0.7055,
-    0.0226,
-    0.044,
-    0.0619,
-    0.0868,
-    0.0792
-   ],
-   "agentChosen": "nav-links",
-   "maxAbsDeltaVsEagerAgent": 0.4857457273
-  },
-  {
-   "id": "element-navlinks-2-long",
-   "kind": "choice",
-   "state": "GOAL: compare two laptop prices on a shop listing\nURL: https://www.verkkokauppa.com/fi/product/612435/Super-XYZ-14-Laptop\nTITLE: SuperXYZ 14\" Laptop - Verkkokauppa\nHISTORY: step 0: tap \"Laptops\" -> progressed\nHISTORY: step 1: tap \"SuperXYZ 14\" -> progressed\nHINT: try scrolling if the buy button is not visible\nUNTRUSTED PAGE CONTENT:\nSuperXYZ 14 Laptop - 16 GB RAM, 512 GB SSD, 2.8K OLED display. Delivery 1-3 business days. Free returns within 30 days. Add the two-year extended warranty for 89,90 eur. Customers also bought: sleeve, USB-C hub, wireless mouse. Price alert available. 4523,00 eur incl. VAT.",
-   "optionIds": [
-    "n2",
-    "n5"
-   ],
-   "question": {
-    "t": "choice",
-    "ins": "Which option in the nav-links group is the best next action?",
-    "crit": {
-     "Product documents": "bucket=nav-links (270,740)",
-     "Compare (2)": "bucket=nav-links (270,590)"
-    }
-   },
-   "qtype": 0,
-   "tokenCount": 244,
-   "inputIdsSha256": "fe896df3685c913c095dde7b354dd6a23f0c25d77db4443e1dc136788811050a",
-   "markerPositions": [
-    19,
-    33
-   ],
-   "temperatureUsed": 1.9063563346862793,
-   "logitsInt8": [
-    0.554705,
-    0.652753
-   ],
-   "probabilities": [
-    0.4871449099,
-    0.5128550901
-   ],
-   "agentProbabilities": [
-    0.5923,
-    0.4077
-   ],
-   "agentChosen": "Product documents",
-   "maxAbsDeltaVsEagerAgent": 0.1051550901
   }
  ]
 }
