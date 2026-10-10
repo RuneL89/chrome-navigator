@@ -98,6 +98,62 @@ class Phase10BLoopTest {
     }
 
     @Test
+    fun `empty slate - the bounded grace gives the page observe-only steps before the fallback`() = runBlocking {
+        // Gate-105: a partially-served tree (prose present, links not yet materialized)
+        // made a target-bearing intent's slate empty; the first occurrence must NOT kill
+        // the task — up to EMPTY_SLATE_GRACE_STEPS observe-only steps, then the ordinary
+        // no-good-target fallback.
+        val fixture = LoopFixture(
+            script = scriptOf(
+                choose("triage", "lookup"),
+                intent("follow-link"), // step 1: the dark page -> empty nav-links slate
+                intent("follow-link"), // step 2: the materialized page -> the real slate
+                stage2("Open the article"),
+                intent("verify-done"),
+                noul(0.95),
+            ),
+            observations = listOf(
+                obs(
+                    "http://m0.test/page",
+                    N("Header prose line"),
+                    N("A prose line"),
+                    N("Another prose line"),
+                    N("Yet more prose line"),
+                    N("Footer prose line"),
+                ),
+                targetPage(),
+                obs(
+                    "http://m0.test/article",
+                    N("The article headline"),
+                    N("Article body paragraph one."),
+                    N("Article body paragraph two."),
+                    N("Article body paragraph three."),
+                    N("Article body paragraph four."),
+                ),
+            ),
+            presenter = ScriptedGatePresenter(),
+        )
+        val result = fixture.run()
+
+        assertEquals(TerminalState.GOAL_ACHIEVED, result.terminal, result.stepLog.toString())
+        // the dark step logged its row with NOTHING executed and no tap
+        val graceRow = fixture.sink.rows[0]
+        assertEquals(Outcome.NO_CHANGE, graceRow.outcome)
+        assertEquals(ActionDisposition.REFUSED_BY_GUARD, graceRow.executedAction.disposition)
+        assertNull(graceRow.executedAction.candidateId)
+        assertEquals(
+            listOf("tap(50,120)"),
+            fixture.executor.calls,
+            "only the post-grace tap executed - the grace step touched nothing",
+        )
+        assertTrue(
+            result.stepLog.any { it.contains("empty-slate grace 1/${NavigationLoop.EMPTY_SLATE_GRACE_STEPS}") },
+            result.stepLog.toString(),
+        )
+        assertEquals(NavigationLoop.EMPTY_SLATE_GRACE_STEPS, 3, "the grace bound is a code constant (ART-5)")
+    }
+
+    @Test
     fun `open-site - the code VIEW intent opens the resolved URL (never a tap)`() = runBlocking {
         var launched: String? = null
         val fixture = LoopFixture(

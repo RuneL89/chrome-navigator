@@ -4,6 +4,7 @@ import navigator.app.observe.UrlBarReader.Url
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertTrue
 
 /**
  * Gate 1.2 (JVM): URL-bar strategy over fake node trees — the abstraction is faked,
@@ -43,6 +44,32 @@ class UrlBarReaderTest {
         val url = UrlBarReader.read(root)
         assertIs<Url.Value>(url)
         assertEquals("google.com", url.text)
+    }
+
+    @Test
+    fun `the webview shell's url field is read id-first too`() {
+        // Gate-105: the harness's loopback browser exposes its address bar under the
+        // shell's own id; it is browser UI like Chrome's omnibox — the id-first read AND
+        // the browser-chrome marking both cover it (the unmarked field leaked into
+        // form-field stage-2 slates on the emulator).
+        val root = FakeNode(
+            className = "android.view.View",
+            children = listOf(
+                FakeNode(
+                    viewId = "org.chromium.webview_shell:id/url_field",
+                    text = "http://127.0.0.1:8099/home.html",
+                    className = "android.widget.EditText",
+                    isEditable = true,
+                ),
+            ),
+        )
+        val url = UrlBarReader.read(root)
+        assertIs<Url.Value>(url)
+        assertEquals("http://127.0.0.1:8099/home.html", url.text)
+        assertTrue(
+            "org.chromium.webview_shell:id/url_field" in UrlBarReader.URL_BAR_VIEW_IDS,
+            "the shell's url field joins the browser-chrome id set the marking consumes",
+        )
     }
 
     @Test

@@ -185,7 +185,7 @@ class NavigatorAccessibilityService : AccessibilityService() {
             visible = visible,
             bounds = Bounds(rect.left, rect.top, rect.right, rect.bottom),
             children = children,
-            browserChrome = node.viewIdResourceName == UrlBarReader.URL_BAR_VIEW_ID ||
+            browserChrome = node.viewIdResourceName in UrlBarReader.URL_BAR_VIEW_IDS ||
                 children.any { it.browserChrome },
         )
     }

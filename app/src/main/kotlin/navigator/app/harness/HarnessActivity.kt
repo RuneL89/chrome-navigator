@@ -449,7 +449,10 @@ class HarnessActivity : ComponentActivity() {
         (report.terminal == "REFUSED" &&
             report.expectedTerminal != "REFUSED" &&
             report.terminalDetail == navigator.app.loop.NavigationLoop.REFUSAL_MESSAGE) ||
-            report.terminal == "HARNESS_ERROR"
+            report.terminal == "HARNESS_ERROR" ||
+            // Gate-105: a kill whose cause is an empty stage-2 slate is the dark/partial
+            // tree's signature too (the grace ran out) — retry it like a starvation.
+            (report.terminal == "STUCK_KILL" && report.terminalDetail.contains("slate was empty"))
 
     /**
      * Navigates target <-> blank until the target page's CONTENT subtree is readable
@@ -758,8 +761,8 @@ class HarnessActivity : ComponentActivity() {
             budgetProfile = result.budgetProfile,
             terminal = result.terminal.name,
             terminalDetail = result.terminalDetail,
-            expectedTerminal = goal.expectedTerminal,
-            terminalMatchesExpected = result.terminal.name == goal.expectedTerminal,
+            expectedTerminal = goal.expectedTerminalFor(autoDeny.value),
+            terminalMatchesExpected = result.terminal.name == goal.expectedTerminalFor(autoDeny.value),
             steps = result.steps,
             rowsLogged = result.rowsLogged,
             metaDecisions = result.metaDecisions,

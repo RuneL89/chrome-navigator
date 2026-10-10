@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -64,8 +65,31 @@ class GoalCatalogTest {
                 TerminalState.entries.any { it.name == goal.expectedTerminal },
                 "${goal.id}: ${goal.expectedTerminal}",
             )
+            goal.expectedTerminalUnderAutoDeny?.let { autoDenyExpected ->
+                assertTrue(
+                    TerminalState.entries.any { it.name == autoDenyExpected },
+                    "${goal.id} (auto-deny): $autoDenyExpected",
+                )
+            }
             assertTrue(goal.script.first().question == "triage", goal.id)
         }
+    }
+
+    @Test
+    fun `the auto-deny expectation is mode-aware - multi-action-gated-1 aborts under auto-deny`() {
+        // Gate-105: the gated multi-action happy path needs real approvals; under the
+        // unattended auto-deny suite the DESIGNED outcome is the gate's own
+        // double-refusal abort (Phase-08I record) — the catalog carries both.
+        val multi = catalog.byId("multi-action-gated-1")
+        assertEquals("GOAL_ACHIEVED", multi.expectedTerminal)
+        assertEquals("GUARD_ABORT", multi.expectedTerminalUnderAutoDeny)
+        assertEquals("GUARD_ABORT", multi.expectedTerminalFor(autoDeny = true))
+        assertEquals("GOAL_ACHIEVED", multi.expectedTerminalFor(autoDeny = false))
+        // goals without the field fall back to expectedTerminal in BOTH modes
+        val sr1 = catalog.byId("search-and-read-1")
+        assertNull(sr1.expectedTerminalUnderAutoDeny)
+        assertEquals("GOAL_ACHIEVED", sr1.expectedTerminalFor(autoDeny = true))
+        assertEquals("GOAL_ACHIEVED", sr1.expectedTerminalFor(autoDeny = false))
     }
 
     @Test

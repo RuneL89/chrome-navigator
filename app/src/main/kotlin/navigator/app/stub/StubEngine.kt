@@ -49,6 +49,14 @@ data class ScriptedAnswer(
     val intent: String? = null,
     /** Phase 10B: the stage-2 gold — candidate id or label substring (question `stage2`). */
     val topCandidate: String? = null,
+    /**
+     * Phase 10B: the stage-2 positional fallback — 0-based ordinal WITHIN the slate as
+     * the questions are presented, used when the id/label match finds nothing (labels
+     * lag on freshly-loaded pages: the emulator's webview-shell EditText carries
+     * `text=""`, so an input's placeholder never surfaces as its a11y label). The exact
+     * port of the flat path's [fallbackBucketOrdinal] semantics for the cascade.
+     */
+    val fallbackSlateOrdinal: Int? = null,
     /** Phase 10B: explicit expected levels per candidate id (1..5); the gold defaults to 5. */
     val candidateLevels: Map<String, Int>? = null,
 ) {
@@ -65,6 +73,13 @@ data class ScriptedAnswer(
         }
         require(topCandidate == null || question == STAGE2_QUESTION) {
             "ScriptedAnswer '$question': the topCandidate selector answers the '$STAGE2_QUESTION' batch"
+        }
+        require(fallbackSlateOrdinal == null || topCandidate != null) {
+            "ScriptedAnswer '$question': fallbackSlateOrdinal requires topCandidate (it is the " +
+                "stage-2 match's positional fallback)"
+        }
+        require(fallbackSlateOrdinal == null || fallbackSlateOrdinal >= 0) {
+            "ScriptedAnswer '$question': fallbackSlateOrdinal must be >= 0: $fallbackSlateOrdinal"
         }
         candidateLevels?.let { levels ->
             require(topCandidate != null) {
@@ -191,7 +206,18 @@ class StubEngine(
             val quoted = Regex("'([^']*)'").find(question.instructions)?.groupValues?.get(1)
             quoted != null && answer.topCandidate != null &&
                 quoted.contains(answer.topCandidate!!, ignoreCase = true)
-        }?.key ?: throw IllegalStateException(
+        }?.key ?: answer.fallbackSlateOrdinal?.let { ordinal ->
+            // The positional fallback (labels lag on freshly-loaded pages — the webview
+            // shell's EditText carries text="", so an input's placeholder never surfaces
+            // as its a11y label): the ordinal selects the slate's Nth candidate in its
+            // deterministic presented order — the flat path's fallbackBucketOrdinal
+            // semantics, ported to the cascade.
+            questions.keys.elementAtOrNull(ordinal)
+                ?: throw IllegalStateException(
+                    "scripted stage2 answer: fallbackSlateOrdinal $ordinal is outside the " +
+                        "slate (${questions.size} candidates: ${questions.keys})",
+                )
+        } ?: throw IllegalStateException(
             "scripted stage2 answer: no candidate matches topCandidate '${answer.topCandidate}' " +
                 "(candidates: ${questions.keys})",
         )

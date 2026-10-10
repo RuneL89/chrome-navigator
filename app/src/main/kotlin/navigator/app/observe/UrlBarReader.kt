@@ -12,6 +12,22 @@ object UrlBarReader {
     /** Chrome's URL-bar resource id (stable channel; fallback covers version drift). */
     const val URL_BAR_VIEW_ID = "com.android.chrome:id/url_bar"
 
+    /**
+     * The harness's loopback browser (WebView Browser Tester) exposes its address bar
+     * under this id. It is BROWSER UI exactly like Chrome's omnibox — never page
+     * content — so it joins [URL_BAR_VIEW_IDS] for the id-first read AND the
+     * browser-chrome marking (the Phase-10B gate-105 finding: unmarked, it leaked into
+     * form-field stage-2 slates on the emulator).
+     */
+    const val WEBVIEW_SHELL_URL_FIELD_VIEW_ID = "org.chromium.webview_shell:id/url_field"
+
+    /**
+     * Every allowlisted browser's URL-bar view id. The browser-chrome marking and the
+     * id-first read consume this set; the versions are of the BROWSER's UI, not page
+     * content, in each case.
+     */
+    val URL_BAR_VIEW_IDS: List<String> = listOf(URL_BAR_VIEW_ID, WEBVIEW_SHELL_URL_FIELD_VIEW_ID)
+
     sealed interface Url {
         /** Live URL as displayed (display mode shows Chrome's elided form; logged as-is). */
         data class Value(val text: String) : Url
@@ -50,11 +66,13 @@ object UrlBarReader {
     fun read(root: NodeView?): Url {
         if (root == null) return Url.Unavailable
 
-        byViewId(root)?.let { node ->
-            val text = node.text
-            if (!text.isNullOrBlank()) return Url.Value(text)
-            // url_bar node present but blank (transient render state): fall through to
-            // the heuristic rather than recording an empty URL.
+        for (viewId in URL_BAR_VIEW_IDS) {
+            root.findByViewId(viewId)?.let { node ->
+                val text = node.text
+                if (!text.isNullOrBlank()) return Url.Value(text)
+                // url_bar node present but blank (transient render state): fall through
+                // to the heuristic rather than recording an empty URL.
+            }
         }
         firstEditable(root)?.let { node ->
             val text = node.text
@@ -62,8 +80,6 @@ object UrlBarReader {
         }
         return Url.Hidden
     }
-
-    private fun byViewId(root: NodeView): NodeView? = root.findByViewId(URL_BAR_VIEW_ID)
 
     /** Version-tolerant fallback: first editable text node (EditText-classed or editable). */
     private fun firstEditable(root: NodeView): NodeView? {

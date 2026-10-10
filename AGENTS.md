@@ -100,10 +100,17 @@ When the user requests a durable behavior change, record it here or in the relev
 * `.state/` — phase status files, compliance log, verification reports, eval reports; the project's durable memory. See `.state/AGENTS.md`
 * `handoff/` — source documents (handoff v1, handoff v2 Road L) and feasibility research; input material, not law
 * `core/` — `:core`, the pure-JVM decision core (DecisionEngine + JevEngine + the
-  Phase-8C FallbackEngine composition, types, banding, the systemone wire client + engine
+  Phase-8C FallbackEngine composition, types (Phase 10B: every question carries its own
+  `instructions` — the defaults are the retired shared constants, so legacy wire bytes
+  are unchanged) + the Phase-10B cascade constants (`Intents.kt` — the FIXED 9-intent
+  stage-1 vocabulary, intents-v1; `TargetRubric.kt` — the 5-level stage-2 rubric + the
+  `cand-<id>` batch builder + the argmax/no-good-target resolver), banding, the
+  systemone wire client + engine
   configs, golden-fixture schemas + loaders, candidate enumeration, the state-text
-  builder (Phase 10 bumped STATE_FORMAT_VERSION to 3: ACTIVE SUBTASK + LADDER PROGRESS
-  replace PLAN / TASK PROGRESS; degenerate goal-only forms without a ladder), the
+  builder (Phase 10B bumped STATE_FORMAT_VERSION to 4 — the canonical sections are
+  unchanged from Phase 10's v3 ACTIVE SUBTASK + LADDER PROGRESS form; the bump adds the
+  cascade STAGE VIEWS (`StageViews.kt`: the ≤120-token INTENT view and the ≤200-token
+  TARGET view, browser-chrome excluded, loud overflow)), the
   Phase-10 task-ladder types (`ladder/`: the Ladder + the ART-4 done-condition whitelist
   (urlHost / markerText / elementPresent / count) + the code-side IS-DONE checker + the
   SubtaskPointer that advances only on a verified IS-DONE),
@@ -111,12 +118,17 @@ When the user requests a durable behavior change, record it here or in the relev
   Phase-8C v32b 256k Metaspace BPE), risk gate: H1–H9 classifier (Phase 8E added H9
   persistent-state mutation: broad code net + the additive-only engine check) + per-task trust state
   machine + gate card (Phase 8F: the credential-secret card variant per vision 06 §2a),
-  DecisionLog row schema (incl. the Phase-8C escalated/fallback fields + the Phase-8F
-  typedSecret redaction flag — the credential value itself is never stored)
-  fields) + companion shadow-result rows + RLCD export (format-scoped; the Road L
-  accumulation counter restarted at the v3 bump) + agreement calculators incl. the
-  joined view, the Tier-A eval harness: deterministic replay + position-bias rotation +
-  measurement reports (re-pinned on v3, retire-and-add). See `core/AGENTS.md`
+  DecisionLog row schema (incl. the Phase-8C escalated/fallback fields, the Phase-8F
+  typedSecret redaction flag — the credential value itself is never stored, and the
+  Phase-10B additive `targetScores`/`targetAgreement` with cascade-aware coherence)
+  fields) + companion shadow-result rows + RLCD export (THREE case kinds since Phase
+  10B: the intent-form choose, the NEW score kind (batched rubric + authoritative
+  slate), and noul; format- AND question-schema-scoped; the Road L accumulation counter
+  restarted at the v4 bump AND the intents-v1 choose-schema bump — both in the
+  manifest) + agreement calculators incl. the
+  joined view, the Tier-A eval harness: the cascade replay (stage-1 intent + stage-2
+  score synthesis with the legend law) + position-bias rotation over the stage-2 slate
+  + measurement reports (re-pinned on v4 + intents-v1, retire-and-add). See `core/AGENTS.md`
 * `app/` — `:app`, the Android application (a11y observation, the Phase-6 navigation
   loop + budgets/stuck-detector/completion-guards + the fixture-driven stub engine and
   headless debug harness, DecisionLog + companion-row Room persistence; Phase 8 added the on-device
@@ -154,6 +166,19 @@ When the user requests a durable behavior change, record it here or in the relev
   surfaces (`LadderBlock` — the corner log's pinned GOAL + `Sub Task N [x]/[ ]` header;
   the cards' ACTIVE-SUBTASK display; `EscalationCardWindow`), the harness `--ez ladder`
   live-ladder mode, and the product path wiring (every product goal restructures first);
-  the result screen stays Phase 11). See `app/AGENTS.md`
+  Phase 10B added the DECISION CASCADE: Round 1 the `:core` cascade layer + the writer
+  surfaces (`gen/`: `assist-v1` — the five-clause handshake assist, `phrase-v1` — the
+  ≤80-char content-only typed-text phrasing; both validated against the directive
+  blocklist with ONE bounded retry then skip) + the exit-family re-keys (AnchoredNoul v3
+  atomic propositions; the streak keyed to the active done-condition + the bounded
+  held-hash re-check API); Round 2 the loop cascade itself (the DECIDE rewrite — stage-1
+  intent on the INTENT STATE VIEW, band routing, the ONE-assist-per-page-hash handshake,
+  stage-2 batched score with code argmax + no-good-target, the verify-done completion
+  path, the fill-field writer phrase routed post-gate, the open-site VIEW intent,
+  writer budgets metering assist/phrase), the SHADOW MIGRATION (the router's structured
+  cascade handoff — it fires only on the fixed intent form, mirrors BOTH stages, and
+  refuses non-cascade questions LOUDLY), the real TITLE READER (`observe/WindowTitles`
+  + `LoopObservation.title`), and the re-authored `goals.json` (cascade intent/score
+  scripts) + stub. See `app/AGENTS.md`
 * `tools/` — Phase-8/8C model-acquisition + reference-vector scripts (uv-driven; build-time
   HF downloads only). See `tools/AGENTS.md`

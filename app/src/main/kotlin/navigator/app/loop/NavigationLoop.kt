@@ -367,6 +367,14 @@ class NavigationLoop(
         // the code fallback.
         var assistTriedHash: Int? = null
 
+        // The empty-slate grace (gate-105 finding): a target-bearing intent whose slate
+        // is EMPTY on a page whose a11y tree is still materializing (a partially-served
+        // webview renders text before its links/controls) must not kill the task on the
+        // first occurrence — up to [EMPTY_SLATE_GRACE_STEPS] observe-only steps give the
+        // page time; a non-empty slate resets the counter; beyond the grace the ordinary
+        // no-good-target fallback runs. All bounds code constants (ART-5).
+        var consecutiveEmptySlates = 0
+
         // -- the no-overlay card restore (2026-10-08 pre-UAT defect) -------------------
         // A card presenter that had to bring the HARNESS to the front to show its card
         // (overlay permission absent) leaves Chrome in the background after the
@@ -2043,6 +2051,33 @@ class NavigationLoop(
                 if (Intents.needsTarget(intentId)) {
                     val slate = Cascade.slate(candidates, intentId)
                     if (slate.isEmpty()) {
+                        consecutiveEmptySlates += 1
+                        if (consecutiveEmptySlates <= EMPTY_SLATE_GRACE_STEPS) {
+                            // The page's tree is still materializing (or the bucket is
+                            // genuinely empty on a healthy page — the grace is short and
+                            // bounded): give the next OBSERVE a chance instead of killing
+                            // the task on the spot. The step still logs its row (one row
+                            // per decision, doc 05 §2) with nothing executed.
+                            line(
+                                "decide: no stage-2 slate for '$intentId' (the " +
+                                    "${Cascade.bucketFor(intentId)?.serialName} bucket is empty) - " +
+                                    "empty-slate grace $consecutiveEmptySlates/$EMPTY_SLATE_GRACE_STEPS " +
+                                    "(the page may still be materializing; observe-only step)",
+                            )
+                            history.add(
+                                "step $stepIndex: empty slate for '$intentId' " +
+                                    "(grace $consecutiveEmptySlates/$EMPTY_SLATE_GRACE_STEPS)",
+                            )
+                            logRow(
+                                stepIndex, state, question, choice, candidates,
+                                ExecutedAction(null, LoggedActionKind.FINISH, ActionDisposition.REFUSED_BY_GUARD),
+                                gateEvent = null,
+                                outcome = Outcome.NO_CHANGE,
+                                escalation = escalation,
+                            )
+                            stepIndex += 1
+                            continue
+                        }
                         line(
                             "decide: no stage-2 slate for '$intentId' (the " +
                                 "${Cascade.bucketFor(intentId)?.serialName} bucket is empty after " +
@@ -2054,6 +2089,7 @@ class NavigationLoop(
                         )?.let { return it }
                         continue
                     }
+                    consecutiveEmptySlates = 0 // a live slate: the page is serving candidates again
                     val subtask = subtaskInstruction()
                     // The slate's labels are page text that can carry a sanctioned
                     // post-injection echo (doc 05 §2 / doc 06 §2a): the TARGET STATE VIEW
@@ -2852,6 +2888,13 @@ class NavigationLoop(
 
         /** The extraction final-state excerpt cap (lines of page prose sent to the writer). */
         const val EXTRACTION_STATE_MAX_LINES = 12
+
+        /**
+         * The empty-slate grace (gate-105): consecutive observe-only steps granted when a
+         * target-bearing intent's slate is empty (a partially-served tree materializing)
+         * before the ordinary no-good-target fallback runs. Code constant (ART-5).
+         */
+        const val EMPTY_SLATE_GRACE_STEPS = 3
 
         /**
          * The handshake assist's page-material excerpt cap (Phase 10B, ART-5): the

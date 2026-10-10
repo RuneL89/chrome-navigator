@@ -6,6 +6,7 @@ import navigator.core.decision.NoulQuestion
 import navigator.core.decision.Option
 import navigator.core.decision.ScoreQuestion
 import navigator.core.decision.ScoreLevel
+import navigator.core.decision.TargetRubric
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.test.assertEquals
@@ -125,6 +126,85 @@ class StubEngineTest {
             ),
         )
         assertEquals("n1", labeled.choose("state", withLabel).chosenId)
+    }
+
+    @Test
+    fun `fallbackSlateOrdinal rescues a stage-2 gold whose label never surfaced`() = runBlocking {
+        // Gate-105: the emulator's webview-shell EditText carries text="" — an input's
+        // placeholder never surfaces as its a11y label, so the quoted-label match misses.
+        // The positional fallback is the cascade's port of fallbackBucketOrdinal.
+        val questions = TargetRubric.stage2Questions(
+            listOf("n1" to "", "n8" to ""),
+            "Fill the guestbook name field.",
+        )
+        val engine = StubEngine(
+            StubScript(
+                listOf(
+                    ScriptedAnswer(
+                        question = ScriptedAnswer.STAGE2_QUESTION,
+                        topCandidate = "full name",
+                        fallbackSlateOrdinal = 1,
+                    ),
+                ),
+            ),
+        )
+        val results = engine.scoreBatch("state", questions)
+        assertEquals(
+            TargetRubric.LEVEL_COUNT.toDouble(),
+            results.getValue("cand-n8").expectedLevel,
+            "the ordinal picks the slate's Nth candidate as the gold",
+        )
+        assertTrue(results.getValue("cand-n1").expectedLevel < TargetRubric.LEVEL_COUNT)
+    }
+
+    @Test
+    fun `the stage-2 label match still wins over the ordinal fallback`() = runBlocking {
+        val questions = TargetRubric.stage2Questions(
+            listOf("n1" to "Your full name", "n8" to "Other field"),
+            "Fill the guestbook name field.",
+        )
+        val engine = StubEngine(
+            StubScript(
+                listOf(
+                    ScriptedAnswer(
+                        question = ScriptedAnswer.STAGE2_QUESTION,
+                        topCandidate = "full name",
+                        fallbackSlateOrdinal = 1, // present but must NOT be consulted
+                    ),
+                ),
+            ),
+        )
+        val results = engine.scoreBatch("state", questions)
+        assertEquals(
+            TargetRubric.LEVEL_COUNT.toDouble(),
+            results.getValue("cand-n1").expectedLevel,
+        )
+    }
+
+    @Test
+    fun `an out-of-range fallbackSlateOrdinal and a missing topCandidate fail loudly`() {
+        val questions = TargetRubric.stage2Questions(listOf("n1" to "A"), "subtask")
+        val outOfRange = StubEngine(
+            StubScript(
+                listOf(
+                    ScriptedAnswer(
+                        question = ScriptedAnswer.STAGE2_QUESTION,
+                        topCandidate = "never",
+                        fallbackSlateOrdinal = 3,
+                    ),
+                ),
+            ),
+        )
+        val failure = assertThrows<IllegalStateException> {
+            runBlocking { outOfRange.scoreBatch("state", questions) }
+        }
+        assertTrue(failure.message!!.contains("fallbackSlateOrdinal 3"), failure.message)
+        assertThrows<IllegalArgumentException> {
+            ScriptedAnswer(
+                question = ScriptedAnswer.STAGE2_QUESTION,
+                fallbackSlateOrdinal = 0, // no topCandidate: the selector pair is malformed
+            )
+        }
     }
 
     @Test

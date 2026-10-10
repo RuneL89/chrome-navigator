@@ -21,10 +21,22 @@ data class ScriptedGoal(
     val startUrl: String,
     /** The [navigator.app.loop.TerminalState] name this scripted run must end in. */
     val expectedTerminal: String,
+    /**
+     * The expected terminal under the UNATTENDED auto-deny mode, when it differs from
+     * [expectedTerminal] (Phase 10B gate-105 finding: the gated multi-action goal's
+     * designed auto-deny outcome is the gate's own double-refusal GUARD_ABORT — the
+     * happy-path GOAL_ACHIEVED needs real approvals, so an all-goals auto-deny suite
+     * would flag it a false negative). Null = same as [expectedTerminal].
+     */
+    val expectedTerminalUnderAutoDeny: String? = null,
     val script: List<ScriptedAnswer>,
 ) {
     /** Builds the STUB engine's transcript for this goal. */
     fun stubScript(): StubScript = StubScript(answers = script)
+
+    /** The expectation the suite report checks under [autoDeny]. */
+    fun expectedTerminalFor(autoDeny: Boolean): String =
+        if (autoDeny) expectedTerminalUnderAutoDeny ?: expectedTerminal else expectedTerminal
 }
 
 @Serializable
