@@ -183,6 +183,9 @@ class NavigatorService : Service() {
             val engine: navigator.core.decision.DecisionEngine
             val identity: EngineIdentity
             val meter: navigator.app.loop.SpendMeter
+            // The Setup-stored key serves BOTH writers (decision primary + the Phase-10
+            // generative writer) — one key, one storage; the value never surfaces.
+            var writerKey: String? = null
             if (stubGoal != null) {
                 // DEBUG-ONLY (the caller checked debuggable): the $0 scripted engine.
                 engine = navigator.app.stub.StubEngine(stubGoal.stubScript())
@@ -200,6 +203,7 @@ class NavigatorService : Service() {
                     notifyState(NOTIFICATION_READY, "Navigator ready — no key (open setup)")
                     return
                 }
+                writerKey = key
                 // The SAME recorded Jev primary the harness builds (one wiring, one
                 // redaction law — the key's value never surfaces, only its source).
                 val wiredJev = HarnessEngineFactory.jevSpendRecordedEngine(
@@ -216,6 +220,21 @@ class NavigatorService : Service() {
                 )
             }
 
+            // Phase 10 (vision 01 §3 v1.4.0): every PRODUCT goal restructures first —
+            // the writer's task ladder rides the run (the ACTIVE subtask in the corner
+            // log, per-subtask IS-DONE, bounded re-plans, answer extraction). The
+            // DEBUG-ONLY stub override stays un-laddered (a scripted $0 run has no
+            // writer). One GenLadderSource serves BOTH seams (it implements both
+            // interfaces); the key's value lives only inside the client (redacted
+            // toString).
+            val genLadder = writerKey?.let { key ->
+                navigator.app.gen.GenLadderSource(
+                    navigator.app.gen.GenClient(
+                        transport = navigator.core.wire.OkHttpWireTransport(),
+                        config = navigator.app.gen.GenEngineConfigs.generative(key),
+                    ),
+                )
+            }
             val loop = NavigationLoop(
                 engine = engine,
                 observer = HarnessObserver(a11y),
@@ -223,11 +242,16 @@ class NavigatorService : Service() {
                 // PRODUCT presenters: the overlay cards, no auto modes (phase doc §2.1).
                 gatePresenter = OverlayGatePresenter(a11y),
                 completionCardPresenter = OverlayCompletionCardPresenter(a11y),
+                // Phase 10: the owner escalation card ("Retry / Re-plan / Stop"; 30s
+                // timeout = Stop) riding the Phase-9 card window.
+                escalationCardPresenter = OverlayEscalationCardPresenter(a11y),
                 logSink = RoomDecisionLogSink(this),
                 spendMeter = meter,
                 uiListener = OverlayUiListener(manager) { notifyState(NOTIFICATION_READY, "Navigator ready") },
                 browserProbe = BrowserProbe { HarnessObserver.browserState(a11y, this) },
                 browserLauncher = BrowserLauncher { url -> openBrowser(url) },
+                ladderSource = genLadder ?: navigator.app.loop.LadderSource.None,
+                answerExtractor = genLadder,
             )
             loop.run(
                 goal = goalText,
@@ -359,6 +383,9 @@ class NavigatorService : Service() {
     ) : LoopUiListener {
         override fun onThinking(active: Boolean) = manager.setThinking(active)
         override fun onPlan(subgoals: List<String>) = manager.updatePlan(subgoals)
+
+        override fun onLadderBlock(lines: List<String>) = manager.setLadderBlock(lines)
+
         override fun onStep(facts: LoopUiListener.StepFacts) {
             val receipt = android.os.SystemClock.uptimeMillis()
             manager.appendMeasuredLogLine(LoopUiListener.compactLine(facts), receipt)

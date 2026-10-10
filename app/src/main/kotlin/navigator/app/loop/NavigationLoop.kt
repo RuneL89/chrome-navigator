@@ -56,6 +56,12 @@ import navigator.core.log.enumFromSerialName
 import navigator.core.log.serialNameOf
 import navigator.core.log.toLoggedBand
 import navigator.core.decision.NoulResult
+import navigator.core.ladder.DoneCondition
+import navigator.core.ladder.DoneConditionChecker
+import navigator.core.ladder.Ladder
+import navigator.core.ladder.LadderTaskClass
+import navigator.core.ladder.SubtaskPointer
+import navigator.core.log.serialName
 import navigator.core.state.StateTextBuilder
 
 /**
@@ -77,6 +83,14 @@ import navigator.core.state.StateTextBuilder
  * stop, partial results, everything logged), stuck-kill, guard abort (double-deny),
  * user cancel. The graceful refusal (doc 03 §5) and the pre-navigation triage
  * `impossible` abort (vision 04 §1) are recorded as their own terminal states.
+ *
+ * v1.5.0 (owner-ratified after UAT 10.1-a): the subtask IS-DONE evaluation is no longer
+ * gated on the engine volunteering `finish` — when the ACTIVE subtask's code
+ * done-condition is satisfied, the loop runs the SAME anchored noul check itself
+ * (rate-bounded: one per page-hash + active ordinal), and a ladder run's stuck L3
+ * auto-kill routes through the owner escalation card instead of ending the task
+ * silently. ART-4 is untouched: code satisfaction triggers the QUESTION; the advance
+ * still requires engine noul HIGH AND the guard.
  *
  * Every Android edge sits behind an interface ([LoopObserver], [ActionExecutor],
  * [GatePresenter], [DecisionLogSink]) so the loop runs in plain JVM unit tests with
@@ -119,6 +133,30 @@ class NavigationLoop(
      * doc 06 §2a), so a sanctioned secret echo can never reach the overlay.
      */
     private val uiListener: LoopUiListener? = null,
+    /**
+     * The task-ladder seam (Phase 10, vision 04 §1 v1.4.0): when wired, EVERY goal
+     * restructures into a validated task ladder before any navigation — the ACTIVE
+     * subtask rides the state text (v3), the pointer advances only on a verified
+     * IS-DONE (doc 04 §3), triage and the cold-start pre-step are subsumed. The default
+     * ([LadderSource.None]) supplies NO ladder: every existing path is byte-identical
+     * (the phase doc's non-ladder paths — the harness's scripted stub goals keep
+     * triage/cold-start).
+     */
+    private val ladderSource: LadderSource = LadderSource.None,
+    /**
+     * The answer-extraction seam (Phase 10, phase doc §2.1): ONE writer call at a
+     * GOAL_ACHIEVED terminal over the goal + the code-MASKED final state (doc 06 §2a);
+     * the answer rides the run report until Phase 11. Null = no extraction
+     * (byte-identical).
+     */
+    private val answerExtractor: AnswerExtractor? = null,
+    /**
+     * The owner escalation card (Phase 10, vision 04 §1 v1.4.0): after 3 consecutive
+     * subtask failures on a LADDER run — "Retry / Re-plan / Stop"; 30s timeout = Stop.
+     * The default is the FAIL-SAFE stop (an unwired escalation never spins an
+     * unattended run); the product wires the overlay card window.
+     */
+    private val escalationCardPresenter: EscalationCardPresenter = StopEscalationPresenter,
 ) {
 
     /**
@@ -206,7 +244,10 @@ class NavigationLoop(
         // -- per-task machinery -------------------------------------------------------
         val taskGate = TaskGate()
         val stuck = StuckDetector()
-        val exitPolicy = ExitPolicy()
+        // Phase 10: the exit policy is PER SUBTASK on a ladder run (the SAME discipline
+        // applies at subtask granularity, vision 04 §3 v1.4.0) — a fresh policy on every
+        // pointer advance and every re-plan; the legacy path keeps one for the task.
+        var exitPolicy = ExitPolicy()
         val history = mutableListOf<String>()
         val hints = mutableListOf<String>()
         // The credential values this task has received from gate cards (doc 06 §2a).
@@ -245,7 +286,9 @@ class NavigationLoop(
         // triage, fed once per OBSERVE, resolved after EXECUTE; the guard reads it.
         var tracker: TargetTracker? = null
         // The triage-time plan proposal (Phase 08G): provenance only, ART-2. Null on
-        // the default path (byte-identical to the pre-08G loop).
+        // the default path (byte-identical to the pre-08G loop). Phase 10: on a LADDER
+        // run this carries the ladder provenance instead (`<prompt-version>/gen<n>` +
+        // the subtask instructions — the same additive `plan` row field, doc 05 §2).
         var plan: ProposedPlan? = null
         var exitSummary: ExitSummary? = null
         /** The completion card's resolution when it was shown (once per task). */
@@ -256,6 +299,29 @@ class NavigationLoop(
         // chain falls back to the most recent observation that DID carry a usable
         // page URL (stored normalized). Null until some observation yields one.
         var lastKnownPageUrl: String? = null
+
+        // -- the task ladder (Phase 10, vision 04 §1 v1.4.0) ---------------------------
+        // When [ladderSource] is wired, EVERY goal restructures before any navigation:
+        // the ACTIVE subtask rides the state text (v3), the pointer advances only on a
+        // verified IS-DONE (doc 04 §3), re-plans are bounded (≤2 per task, the owner
+        // card's Re-plan draws the same cap), and the writer calls meter into the
+        // SEPARATE per-task writer budget (vision 04 §5 v1.4.0, ART-5).
+        var ladder: Ladder? = null
+        var pointer: SubtaskPointer? = null
+        var ladderVersion: String? = null
+        var ladderGeneration = 0
+        var rePlansUsed = 0
+        var consecutiveSubtaskFailures = 0
+        var extractedAnswer: ExtractedAnswer? = null
+        val writerBudget = WriterBudget()
+        // Declared with the ladder machinery: the ladder helpers (the failure path, the
+        // re-plan) capture it; the main loop below mutates it per step.
+        var stepIndex = 0
+        // R1-A (vision 04 §3 v1.5.0): the LAST code-triggered IS-DONE check's
+        // (page-hash, active-subtask ordinal) — the rate bound. At most one code-triggered
+        // check per pair: a static page is asked once; the bound re-arms on any page-hash
+        // change or pointer advance (and on re-plan, via applyLadder's fresh ladder).
+        var lastCodeCheck: Pair<Int, Int>? = null
 
         // -- the no-overlay card restore (2026-10-08 pre-UAT defect) -------------------
         // A card presenter that had to bring the HARNESS to the front to show its card
@@ -393,6 +459,27 @@ class NavigationLoop(
                 ?.take(PARTIAL_RESULT_MAX_CHARS)
                 .orEmpty()
 
+        /** The run report's ladder block (Phase 10): the ACTIVE ladder + its pointer state. */
+        fun ladderReport(terminal: TerminalState): LadderRunReport? {
+            val l = ladder ?: return null
+            val p = pointer ?: return null
+            return LadderRunReport(
+                version = ladderVersion ?: l.versionTag("unknown", ladderGeneration),
+                generation = ladderGeneration,
+                summary = l.summary,
+                taskClass = serialNameOf(LadderTaskClass.serializer(), l.taskClass),
+                subtasks = l.subtasks.mapIndexed { index, subtask ->
+                    LadderRunReport.LadderSubtaskReport(
+                        instruction = subtask.instruction,
+                        done = DoneConditionChecker.render(subtask.done),
+                        completed = index < p.completedCount ||
+                            (index == p.index && terminal == TerminalState.GOAL_ACHIEVED),
+                        active = index == p.index && terminal != TerminalState.GOAL_ACHIEVED,
+                    )
+                },
+            )
+        }
+
         fun finish(terminal: TerminalState, detail: String, steps: Int): RunResult {
             line("terminal: $terminal - $detail")
             // Phase 9: the overlay surface learns the one terminal state (fire-and-forget).
@@ -430,6 +517,9 @@ class NavigationLoop(
                 exit = exitSummary,
                 targets = tracker?.summary(),
                 plan = plan,
+                ladder = ladderReport(terminal),
+                answer = extractedAnswer?.let { it.copy(text = scrub(it.text)) },
+                writerSpendMicroUsd = writerBudget.spentMicroUsd,
             )
         }
 
@@ -522,7 +612,11 @@ class NavigationLoop(
         }
 
         /** Assesses the stuck window; L1 injects a hint, L2 arms the recovery set,
-         *  L3 returns true (auto-kill — the rescue coach is Phase 10). */
+         *  L3 returns true (the would-be auto-kill — the rescue coach is Phase 10). On a
+         *  LADDER run the L3 call sites route through [handleStuckKill] (v1.5.0: the
+         *  GUARANTEED owner card) and the give-up site through
+         *  [handleSubtaskFailureOrKill] (the bounded re-plan path's input); the legacy
+         *  path keeps the direct task-level kill. */
         fun assessStuck(): Boolean {
             val assessment = stuck.assess() ?: return false
             when (assessment.level) {
@@ -555,61 +649,615 @@ class NavigationLoop(
             return false
         }
 
-        // -- COLD-START (vision 04 §1: deterministic code BEFORE triage and the first
-        //    OBSERVE; NO engine is ever consulted for opening the browser) -------------
-        if (browserProbe != null && browserLauncher != null) {
-            val record = ColdStart.run(goal, startUrl, browserProbe, browserLauncher)
-            record.lines.forEach { line(it) }
+        // -- the task ladder machinery (Phase 10, vision 04 §1 v1.4.0) ----------------
+
+        /** Maps the validated ladder's task class onto the row vocabulary (additive: read→lookup,
+         *  action→action, multi→action-multi — the triage classes' budget/guard semantics). */
+        fun ladderTriageClass(taskClass: LadderTaskClass): TriageClass = when (taskClass) {
+            LadderTaskClass.READ -> TriageClass.LOOKUP
+            LadderTaskClass.ACTION -> TriageClass.ACTION
+            LadderTaskClass.MULTI -> TriageClass.ACTION_MULTI
         }
 
-        // -- TRIAGE (vision 04 §1: ONE choose over the goal text) ----------------------
-        line("triage: asking the engine over the goal text")
-        uiListener?.onThinking(true)
-        val triageChoice = engine.choose(goal, Triage.question())
-        uiListener?.onThinking(false)
-        when (val triage = Triage.interpret(triageChoice)) {
-            is Triage.Result.Impossible -> {
-                triageLabel = triage.chosenId
-                line("triage: IMPOSSIBLE ('${triage.chosenId}') - explain and abort pre-navigation")
+        /**
+         * (Re)builds the per-ladder machinery from a VALIDATED ladder (ART-4: code
+         * derives everything from the whitelist shapes — the class mapping, the guards,
+         * the tracker, the row provenance via the EXISTING additive `plan` field). The
+         * budget frame is deliberately NOT rebuilt on a re-plan: the decision-spend
+         * budget is untouched by re-planning (vision 04 §5 v1.4.0); the first-derived
+         * profile stays the task's frame.
+         */
+        fun applyLadder(newLadder: Ladder, version: String) {
+            ladder = newLadder
+            pointer = SubtaskPointer(newLadder)
+            ladderVersion = version
+            triageClass = ladderTriageClass(newLadder.taskClass)
+            triageLabel = triageClass!!.serial()
+            entity = TargetEntity.extract(goal)
+            val taskTracker = if (newLadder.taskClass == LadderTaskClass.MULTI) TargetTracker() else null
+            tracker = taskTracker
+            guards = CompletionGuards(triageClass!!, entity, taskTracker)
+            exitPolicy = ExitPolicy()
+            consecutiveSubtaskFailures = 0
+            lastCodeCheck = null // a fresh ladder: the code-check rate bound starts clean
+            // Ladder provenance rides every row via the EXISTING additive `plan` field
+            // (doc 05 §2: the writer-LLM plans carry their PROMPT_VERSION) — no schema
+            // surgery; version = "<prompt-version>/gen<n>".
+            plan = ProposedPlan(version, newLadder.subtasks.map { it.instruction })
+        }
+
+        /** The ACTIVE-SUBTASK state-text line (code-authored, flattened, one line). */
+        fun activeSubtaskLine(): String? {
+            val p = pointer ?: return null
+            return "subtask ${p.activeOrdinal}/${p.total}: ${p.active.instruction} " +
+                "(done: ${DoneConditionChecker.render(p.active.done)})"
+        }
+
+        /** The LADDER PROGRESS lines: completed subtasks one line each + count-shaped working memory. */
+        fun ladderProgressLines(): List<String>? {
+            val p = pointer ?: return null
+            val l = ladder ?: return null
+            return buildList {
+                p.completed().forEachIndexed { index, subtask ->
+                    add("[x] subtask ${index + 1}/${p.total}: ${subtask.instruction}")
+                }
+                // Working-memory counts for count-shaped done-conditions ("3 of 5 followed"
+                // reads 3/5 while pending) — the tracker IS the code-owned memory.
+                val processed = tracker?.processedCount() ?: 0
+                l.subtasks.mapNotNull { it.done as? DoneCondition.CountReached }
+                    .distinctBy { it.target }
+                    .forEach { add("${it.target} $processed/${it.n}") }
+            }.ifEmpty { listOf("(no subtasks completed yet)") }
+        }
+
+        /** The corner-log ladder block (the pure [navigator.app.overlay.LadderBlock] formatter). */
+        fun ladderBlockLines(): List<String> {
+            val l = ladder ?: return emptyList()
+            val p = pointer ?: return emptyList()
+            return navigator.app.overlay.LadderBlock.render(
+                navigator.app.overlay.LadderBlock.State(
+                    summary = l.summary,
+                    doneFlags = List(l.subtasks.size) { index -> index < p.completedCount },
+                    activeIndex = p.index,
+                    generation = ladderGeneration,
+                ),
+            )
+        }
+
+        /** Fires the ladder's overlay surfaces: the pinned block + the cards' ACTIVE-SUBTASK display. */
+        fun publishLadderSurfaces() {
+            uiListener?.onLadderBlock(ladderBlockLines())
+            activeSubtaskLine()?.let { uiListener?.onPlan(listOf(it)) }
+        }
+
+        /** The working-memory evidence the code-side IS-DONE checker reads (all code-read facts). */
+        fun ladderEvidence(o: StepObservation, candidates: CandidateList): DoneConditionChecker.Evidence =
+            DoneConditionChecker.Evidence(
+                url = o.url,
+                title = o.title,
+                pageText = o.lines + o.excerpt,
+                candidateLabels = candidates.flat.map { it.label },
+                counters = mapOf(DoneConditionChecker.WORKING_MEMORY_KEY to (tracker?.processedCount() ?: 0)),
+            )
+
+        /**
+         * The code-side IS-DONE guard level over the ACTIVE subtask's done-condition —
+         * the finish branch's EXACT computation, shared with the code-triggered check
+         * (vision 04 §3 v1.5.0: identical construction on both entries).
+         */
+        fun subtaskGuardLevel(p: SubtaskPointer, evidence: DoneConditionChecker.Evidence): GuardLevel =
+            when {
+                !DoneConditionChecker.satisfied(p.active.done, evidence) -> GuardLevel.NONE
+                DoneConditionChecker.guardStrength(p.active.done) ==
+                    DoneConditionChecker.GuardStrength.STRONG -> GuardLevel.STRONG
+                else -> GuardLevel.WEAK
+            }
+
+        /**
+         * The anchored noul question for the ACTIVE subtask — identical construction on
+         * both finish-check entries (the engine-initiated finish and the code-triggered
+         * check): `AnchoredNoul.subtaskQuestion` over the instruction, the rendered
+         * done-condition, finality, and the page identity (vision 04 §3 v1.4.0/v1.5.0).
+         */
+        fun subtaskNoulQuestion(p: SubtaskPointer, o: StepObservation): NoulQuestion =
+            AnchoredNoul.subtaskQuestion(
+                subtaskInstruction = p.active.instruction,
+                doneConditionText = DoneConditionChecker.render(p.active.done),
+                isFinal = p.isFinal,
+                pageTitle = o.title,
+                pageUrl = o.url,
+            )
+
+        /**
+         * The outcome-based site entry for the ACTIVE subtask (vision 04 §1 v1.4.0):
+         * a `urlHost` subtask whose instruction names opening a site is satisfied BY
+         * CODE through the best mechanism — deterministic + logged; the old cold-start,
+         * folded under the ladder. When no URL resolves (or no launcher is wired) the
+         * subtask proceeds under ordinary engine navigation (ART-2 intact).
+         */
+        suspend fun enterSubtask() {
+            val p = pointer ?: return
+            val entryPlan = SiteEntry.plan(goalText, p.active.instruction, p.active.done)
+            if (entryPlan == null) {
+                line("ladder: subtask ${p.activeOrdinal}/${p.total} - no site entry (engine navigates)")
+                return
+            }
+            val launcher = browserLauncher
+            if (launcher == null) {
                 line(
-                    "explanation: I can only attempt lookup, multi-step research, form-fill, " +
-                        "or action goals in v1; \"$goal\" is outside that scope",
+                    "site-entry: ${entryPlan.mechanism.name.lowercase()} planned for " +
+                        "${entryPlan.url} (${entryPlan.source}) but no launcher is wired - " +
+                        "subtask ${p.activeOrdinal}/${p.total} proceeds under engine navigation",
                 )
+                return
+            }
+            line(
+                "site-entry: VIEW intent for ${entryPlan.url} (${entryPlan.source}) - " +
+                    "subtask ${p.activeOrdinal}/${p.total}",
+            )
+            launcher.launch(entryPlan.url)
+            delay(config.restoreSettleMs)
+            waitForBrowserReadiness()
+        }
+
+        /**
+         * One bounded re-plan (vision 04 §1 v1.4.0): at most [MAX_REPLANS] per task,
+         * metered into the SEPARATE writer budget; the owner card's Re-plan draws the
+         * SAME cap. Returns false when the re-plan refused (invalid ladder — treated as
+         * no capacity) so the caller proceeds down the failure path.
+         */
+        suspend fun replan(): Boolean {
+            rePlansUsed += 1
+            val generation = ladderGeneration + 1
+            line(
+                "ladder: re-plan $generation (bounded: ${MAX_REPLANS - rePlansUsed} left after " +
+                    "this one) - asking the writer over the goal + failure context",
+            )
+            // doc 06 §2a: no secret ever enters a writer prompt — the goal text folds
+            // the sanctioned-secret redaction before the writer sees a re-plan.
+            val maskedGoal = redactionKeys().fold(goal) { acc, key -> acc.replace(key, TextSource.REDACTED) }
+            val restructured = try {
+                ladderSource.restructure(maskedGoal, generation)
+            } catch (t: Throwable) {
+                line("ladder: re-plan failed loudly (${t::class.simpleName}) - treated as no re-plan capacity")
+                null
+            }
+            if (restructured == null) {
+                line("ladder: re-plan REFUSED (no valid ladder) - treated as no re-plan capacity")
+                return false
+            }
+            writerBudget.record(restructured.costMicroUsd).let { check ->
+                if (check != WriterBudget.Check.OK) softWarnings.add("writer budget ${check.name}")
+            }
+            ladderGeneration = generation
+            applyLadder(restructured.ladder, restructured.version)
+            line("ladder: re-planned to ${restructured.version} (${restructured.ladder.subtasks.size} subtask(s))")
+            publishLadderSurfaces()
+            enterSubtask()
+            return true
+        }
+
+        /**
+         * The owner escalation card (vision 04 §1 v1.4.0 + the v1.5.0 guarantee), shared
+         * by both failure entries: it discloses the ACTIVE subtask, the failure count,
+         * and the remaining bounded re-plan capacity. Retry resets the failure streak AND
+         * the stuck detector's escalations (the detector re-escalates from L1 — it never
+         * re-trips straight back to L3); Re-plan draws the SAME bounded cap as the
+         * automatic path; Stop — and the 30s timeout, which the presenter resolves as the
+         * fail-safe Stop — ends the task with the honest cause.
+         */
+        suspend fun arbitrateSubtaskFailure(stuckCause: String?): RunResult? {
+            val p = requireNotNull(pointer)
+            val resolution = escalationCardPresenter.present(
+                EscalationCard(
+                    subtaskInstruction = p.active.instruction,
+                    doneCondition = DoneConditionChecker.render(p.active.done),
+                    failureCount = consecutiveSubtaskFailures,
+                    rePlansRemaining = if (writerBudget.hasHardRoom()) {
+                        (MAX_REPLANS - rePlansUsed).coerceAtLeast(0)
+                    } else {
+                        0 // the writer budget's hard cap is reached: no re-plan is lawful
+                    },
+                ),
+            )
+            return when (resolution) {
+                EscalationResolution.RETRY -> {
+                    consecutiveSubtaskFailures = 0
+                    stuck.resetEscalations()
+                    line("ladder: the owner said RETRY - the same subtask is re-attempted (stuck escalations reset)")
+                    return null
+                }
+
+                EscalationResolution.REPLAN -> {
+                    if (rePlansUsed < MAX_REPLANS && writerBudget.hasHardRoom() && replan()) {
+                        line("ladder: the owner said RE-PLAN - generation $ladderGeneration is live")
+                        return null
+                    }
+                    line("ladder: the owner said RE-PLAN but the bounded cap/budget is exhausted - stopping")
+                    return finish(
+                        TerminalState.STUCK_KILL,
+                        "subtask failed $consecutiveSubtaskFailures consecutive times and the " +
+                            "re-plan cap is exhausted (owner card: re-plan)",
+                        stepIndex,
+                    )
+                }
+
+                EscalationResolution.STOP -> {
+                    val detail = if (stuckCause != null) {
+                        "$stuckCause - the owner said stop (escalation card)"
+                    } else {
+                        "subtask failed $consecutiveSubtaskFailures consecutive times - " +
+                            "the owner said stop (escalation card)"
+                    }
+                    return finish(TerminalState.STUCK_KILL, detail, stepIndex)
+                }
+            }
+        }
+
+        /**
+         * The bounded failure path (vision 04 §1 v1.4.0): a subtask that cannot complete
+         * (L2 give-up) counts one consecutive failure; below the card threshold
+         * a bounded re-plan fires automatically when capacity remains; at
+         * [SUBTASK_FAILURE_CARD_THRESHOLD] the OWNER arbitrates ("Retry / Re-plan / Stop";
+         * 30s timeout = Stop — the fail-safe presenter default). Without re-plan capacity
+         * the subtask KEEPS GOING under the loop's own machinery (the stuck detector and
+         * the task budgets bound it) — the owner card, not the empty cap, is the
+         * arbiter. Returns the task's terminal [RunResult] when the task must end, or
+         * null when the loop continues (retry/re-plan/keep-going). The LEGACY path (no
+         * ladder) keeps the old task-level STUCK_KILL.
+         */
+        suspend fun handleSubtaskFailureOrKill(cause: String): RunResult? {
+            val p = pointer ?: return finish(TerminalState.STUCK_KILL, cause, stepIndex)
+            consecutiveSubtaskFailures += 1
+            line("ladder: subtask ${p.activeOrdinal}/${p.total} FAILED ($cause) - consecutive failures: $consecutiveSubtaskFailures")
+            history.add("step $stepIndex: subtask ${p.activeOrdinal} failed - $cause")
+            if (consecutiveSubtaskFailures >= SUBTASK_FAILURE_CARD_THRESHOLD) {
+                return arbitrateSubtaskFailure(stuckCause = null)
+            }
+            // Below the card threshold: a bounded re-plan when capacity remains; otherwise
+            // the loop continues — the card is the arbiter, never the empty cap.
+            if (rePlansUsed < MAX_REPLANS && writerBudget.hasHardRoom() && replan()) return null
+            return null
+        }
+
+        /**
+         * The stuck L3 auto-kill interception (vision 04 §1 v1.5.0, owner-ratified after
+         * UAT 10.1-a — the escalation card is a GUARANTEE, not a race): on a LADDER run
+         * the kill never ends the task silently — the owner card arbitrates before any
+         * kill lands. The L3 kill is itself a subtask failure (the ACTIVE subtask's
+         * IS-DONE cannot be verified), so it counts one failure, then the card asks.
+         * The LEGACY path (no ladder) keeps the direct task-level STUCK_KILL,
+         * byte-stable.
+         */
+        suspend fun handleStuckKill(cause: String): RunResult? {
+            val p = pointer ?: return finish(TerminalState.STUCK_KILL, cause, stepIndex)
+            consecutiveSubtaskFailures += 1
+            line(
+                "ladder: subtask ${p.activeOrdinal}/${p.total} STUCK-KILL intercepted - " +
+                    "the owner card is guaranteed ($cause) - consecutive failures: " +
+                    "$consecutiveSubtaskFailures",
+            )
+            history.add("step $stepIndex: subtask ${p.activeOrdinal} stuck - $cause")
+            return arbitrateSubtaskFailure(stuckCause = cause)
+        }
+
+        /**
+         * The SHARED finish-verification path (vision 04 §3 v1.5.0): the anchored noul
+         * consult, the escalation capture, the exit policy's three paths (incl. the
+         * once-per-task completion card), and the ExitCheckRow write — ONE copy used by
+         * BOTH the engine-initiated `finish` branch and the code-triggered IS-DONE check.
+         * [trigger] names the asking path on the step log ("finish" = the engine chose
+         * it; "code-triggered IS-DONE check" = the loop asked because the code guard was
+         * already satisfied). Returns the verdict; the CALLER owns the entry-specific
+         * bookkeeping (the engine's decision row + the anti-oscillation/stuck feed vs
+         * the code check's silence). [state] and [obs] are the step's built state text
+         * and observation — the check's code-read evidence.
+         */
+        suspend fun verifyFinishCheck(
+            trigger: String,
+            guardLevel: GuardLevel,
+            noulQuestion: NoulQuestion,
+            obs: StepObservation,
+            state: StateTextBuilder.StateText,
+        ): ExitDecision {
+            uiListener?.onThinking(true)
+            val noul = engine.judge(state.text, noulQuestion)
+            uiListener?.onThinking(false)
+            // The noul escalation is captured IMMEDIATELY (the engine's single slot):
+            // the anchored judge is its own decision, separate from the step's choose.
+            val noulEscalation = readEscalation(noulQuestion.name)
+            line(
+                "decide: $trigger -> verification: noul=${noul.pTrue} (${band(noul.pTrue)}), " +
+                    "guard=${guardLevel.name}, " +
+                    "guard state: ${guards!!.describe()}, " +
+                    "proposition=v${AnchoredNoul.ANCHORED_NOUL_VERSION}",
+            )
+            val verdict: ExitDecision = when (
+                val first = exitPolicy.onFinishCheck(guardLevel, noul.pTrue, guards!!.refusalDetail())
+            ) {
+                is ExitDecision.AskOwner -> {
+                    line(
+                        "exit: ${first.refusedChecks} consecutive guard-pass refusals - " +
+                            "completion card (max one per task, vision 04 §3 Path C)",
+                    )
+                    val resolution = completionCardPresenter.present(
+                        CompletionCard(
+                            goal = goal,
+                            entity = entity?.text,
+                            guardLevel = first.guardLevel,
+                            noul = first.noul,
+                            refusedChecks = first.refusedChecks,
+                        ),
+                    )
+                    val cardFronted = frontedHarness(completionCardPresenter)
+                    val cardVerdict: ExitDecision = when (resolution) {
+                        CompletionResolution.CONFIRM_DONE -> {
+                            completionCardResolution = resolution.name
+                            line("exit: owner CONFIRMED done - accepting via OWNER_CONFIRM")
+                            ExitDecision.Accept(ExitPath.OWNER_CONFIRM, first.guardLevel, first.noul)
+                        }
+                        CompletionResolution.KEEP_GOING -> {
+                            completionCardResolution = resolution.name
+                            ExitDecision.Refuse(
+                                "the owner said keep going on the completion card",
+                                first.guardLevel,
+                                first.noul,
+                            )
+                        }
+                        CompletionResolution.TIMEOUT -> {
+                            completionCardResolution = resolution.name
+                            ExitDecision.Refuse(
+                                "the completion card timed out (= keep going, fail-safe)",
+                                first.guardLevel,
+                                first.noul,
+                            )
+                        }
+                    }
+                    // The keep-going resolutions continue the loop — on the
+                    // no-overlay path Chrome is still backgrounded behind the
+                    // harness, so it is re-fronted (VIEW intent for the current
+                    // page) before the loop continues. CONFIRM_DONE ends the task —
+                    // the harness's terminal auto-return fronts the harness; never
+                    // restore.
+                    if (cardFronted && cardVerdict is ExitDecision.Refuse) {
+                        restoreBrowserForeground(
+                            "the completion card",
+                            "observation" to obs.url,
+                            "last-known" to lastKnownPageUrl,
+                        )
+                    }
+                    cardVerdict
+                }
+                else -> first
+            }
+            // Vision 05 §2 amendment 2026-10-06, rule a: EVERY finish check —
+            // accepted or refused — logs exactly one insert-only ExitCheckRow; the
+            // refusals are the decoy contrast that teaches exit calibration. Rule b:
+            // `answer` is the PRIMARY's noul; on a primary hard failure (no primary
+            // answer) the executed fallback answer stands in — the decision-row
+            // precedent — and `fallbackAnswer` carries the executed judgment whenever
+            // the check escalated.
+            fun exitCheckRow(): ExitCheckRow {
+                val escalated = noulEscalation?.escalated == true
+                val primaryPTrue = (noulEscalation?.primary as? NoulResult)?.pTrue
+                val fallbackPTrue = (noulEscalation?.fallback as? NoulResult)?.pTrue
+                val answerPTrue = if (escalated) {
+                    primaryPTrue ?: requireNotNull(fallbackPTrue) {
+                        "an escalated finish check must carry the executed fallback noul"
+                    }
+                } else {
+                    noul.pTrue
+                }
+                return ExitCheckRow(
+                    rowId = ExitCheckRow.rowIdFor(taskId, stepIndex),
+                    taskId = taskId,
+                    stepIndex = stepIndex,
+                    timestamp = clock.nowMs(),
+                    stateText = state.text,
+                    stateFormatVersion = state.formatVersion,
+                    question = noulQuestion,
+                    anchoredNoulVersion = AnchoredNoul.ANCHORED_NOUL_VERSION,
+                    teacher = engineIdentity,
+                    answer = ExitCheckAnswer(pTrue = answerPTrue, band = band(answerPTrue).toLoggedBand()),
+                    escalated = escalated,
+                    fallbackAnswer = fallbackPTrue?.let { ExitCheckFallbackAnswer(it) },
+                    guardLevel = verdict.guardLevel.toExitCheckLevel(),
+                    verdict = if (verdict is ExitDecision.Accept) {
+                        ExitCheckVerdict.ACCEPTED
+                    } else {
+                        ExitCheckVerdict.REFUSED
+                    },
+                    acceptedPath = (verdict as? ExitDecision.Accept)?.path?.toLoggedPath(),
+                )
+            }
+            logSink.writeExitCheck(exitCheckRow())
+            return verdict
+        }
+
+        /**
+         * The mid-ladder accept's shared advance (vision 04 §3 v1.4.0; used by BOTH the
+         * engine-initiated finish and the v1.5.0 code-triggered check): the pointer
+         * advances one VERIFIED subtask, the per-subtask exit discipline restarts, the
+         * failure streak resets, the code-check rate bound re-arms (the ordinal
+         * changed), the overlay surfaces re-publish, and the outcome-based site entry
+         * runs for the NEW active subtask. The caller consumes the step.
+         */
+        suspend fun advanceAfterSubtaskAccept(verdict: ExitDecision.Accept, activePointer: SubtaskPointer) {
+            val finishedOrdinal = activePointer.activeOrdinal
+            activePointer.advance()
+            exitPolicy = ExitPolicy() // fresh per-subtask exit discipline
+            consecutiveSubtaskFailures = 0
+            lastCodeCheck = null // the ordinal changed: the code-check rate bound re-arms
+            line(
+                "ladder: subtask $finishedOrdinal/${activePointer.total} IS-DONE verified " +
+                    "(exit path ${verdict.path.name}, guard ${verdict.guardLevel.name}, " +
+                    "noul=${verdict.noul}) - pointer advanced to " +
+                    "${activePointer.activeOrdinal}/${activePointer.total}",
+            )
+            history.add(
+                "step $stepIndex: subtask $finishedOrdinal verified done - now on " +
+                    "subtask ${activePointer.activeOrdinal}",
+            )
+            publishLadderSurfaces()
+            enterSubtask()
+        }
+
+        /**
+         * The answer extraction at a GOAL_ACHIEVED terminal (Phase 10): ONE writer call
+         * over the goal + the code-MASKED final state (doc 06 §2a) — shared by both
+         * finish entries. A failed extraction never un-does an achieved goal: loud line,
+         * the run report carries no answer, the task stands.
+         */
+        suspend fun runAnswerExtraction() {
+            val extractor = answerExtractor ?: return
+            // doc 06 §2a: the final page state folds the sanctioned-secret redaction
+            // BEFORE the writer sees it.
+            val finalState = buildString {
+                append("title: ${lastPost?.title.orEmpty()}\n")
+                append("url: ${lastPost?.url.orEmpty()}\n")
+                lastPost?.excerpt?.take(EXTRACTION_STATE_MAX_LINES)
+                    ?.forEach { append(it).append('\n') }
+            }
+            val maskedState = redactionKeys().fold(finalState) { acc, key ->
+                acc.replace(key, TextSource.REDACTED)
+            }
+            val maskedGoal = redactionKeys().fold(goal) { acc, key ->
+                acc.replace(key, TextSource.REDACTED)
+            }
+            try {
+                val extracted = extractor.extract(maskedGoal, maskedState)
+                if (extracted != null) {
+                    writerBudget.record(extracted.costMicroUsd).let { check ->
+                        if (check != WriterBudget.Check.OK) {
+                            softWarnings.add("writer budget ${check.name}")
+                        }
+                    }
+                    extractedAnswer = extracted
+                    line(
+                        "extract: answer phrased (${extracted.promptVersion}, " +
+                            "${extracted.inputTokens}+${extracted.outputTokens} " +
+                            "tokens, ${extracted.costMicroUsd} micro-USD) - rides the run report",
+                    )
+                }
+            } catch (t: Throwable) {
+                // A failed extraction never un-does an achieved goal: loud
+                // line, the run report carries no answer, the task stands.
+                line("extract: FAILED (${t::class.simpleName}) - the run report carries no answer")
+            }
+        }
+
+        /**
+         * The GOAL_ACHIEVED conclusion shared by both finish entries: the run report's
+         * exit block + the terminal finish. The ENGINE entry additionally logs the
+         * terminal DECISION row carrying the `exit` provenance (doc 05) — the
+         * code-triggered entry has no choose to log (ART-2), so its provenance is the
+         * accepted ExitCheckRow + this exit block.
+         */
+        fun concludeGoalAchieved(verdict: ExitDecision.Accept): RunResult {
+            exitSummary = ExitSummary(
+                path = verdict.path.name,
+                guardLevel = verdict.guardLevel.name,
+                noul = verdict.noul,
+                finishChecks = exitPolicy.finishChecks,
+                completionCardShown = exitPolicy.completionCardsShown > 0,
+                completionCardResolution = completionCardResolution,
+            )
+            return finish(
+                TerminalState.GOAL_ACHIEVED,
+                "exit path ${verdict.path.name}: noul pTrue=${verdict.noul} with the " +
+                    "${verdict.guardLevel.name} guard after ${exitPolicy.finishChecks} finish check(s)",
+                stepIndex + 1,
+            )
+        }
+
+        // -- GOAL RESTRUCTURE (Phase 10, vision 04 §1 v1.4.0): when a ladder source is
+        //    wired, EVERY goal enters through the writer's ONE restructure call; the
+        //    ladder SUBSUMES triage and the cold-start pre-step (site entry folds under
+        //    the ladder's outcome-based mechanism). Invalid output = the clean
+        //    pre-navigation refusal — nothing navigates. The default source is
+        //    [LadderSource.None]: the legacy cold-start + triage path below stays
+        //    byte-identical (the phase doc's non-ladder paths).
+        if (ladderSource != LadderSource.None) {
+            val restructured = ladderSource.restructure(goal, generation = 1)
+            if (restructured == null) {
+                line("ladder: restructure REFUSED - clean pre-navigation refusal (nothing navigates)")
                 return finish(
-                    TerminalState.TRIAGE_IMPOSSIBLE,
-                    "triage answered '${triage.chosenId}' - no navigation attempted",
+                    TerminalState.LADDER_REFUSED,
+                    "the goal could not be restructured into a valid task ladder - nothing navigated",
                     steps = 0,
                 )
             }
-            is Triage.Result.Task -> {
-                triageClass = triage.triageClass
-                triageLabel = triage.triageClass.serial()
-                // Triage-time target-entity extraction (vision 04 §3 v1.2.0): pure code,
-                // once per task; anchors the STRONG guard and the noul proposition.
-                entity = TargetEntity.extract(goal)
-                // Task working memory (Phase 08G, vision 04 §1): action-multi tasks get
-                // the code-owned target tracker — the guard's WEAK predicate is its
-                // drained state, and the L1 stuck hint carries its progress lines.
-                val taskTracker = if (triage.triageClass == TriageClass.ACTION_MULTI) TargetTracker() else null
-                tracker = taskTracker
-                guards = CompletionGuards(triage.triageClass, entity, taskTracker)
-                line("triage: $triageLabel")
-                entity?.let { line("triage: target entity \"${it.text}\" (code-extracted)") }
-                // Plan proposal (Phase 08G, vision 04 §1): consulted ONCE at triage;
-                // context, never executor (ART-2). The default source returns null and
-                // this block stays silent — byte-identical to the pre-08G loop. (The
-                // PLAN section's state-text rendering is Phase 08H; provenance logs now.)
-                plan = planSource.propose(goal, triage.triageClass)
-                plan?.let {
+            writerBudget.record(restructured.costMicroUsd).let { check ->
+                if (check != WriterBudget.Check.OK) softWarnings.add("writer budget ${check.name}")
+            }
+            ladderGeneration = 1
+            applyLadder(restructured.ladder, restructured.version)
+            line(
+                "ladder: ${restructured.version} - ${restructured.ladder.subtasks.size} subtask(s), " +
+                    "class ${serialNameOf(LadderTaskClass.serializer(), restructured.ladder.taskClass)}, " +
+                    "writer spend ${writerBudget.spentMicroUsd} micro-USD",
+            )
+            entity?.let { line("ladder: target entity \"${it.text}\" (code-extracted)") }
+            line("guard state: ${guards!!.describe()}")
+            publishLadderSurfaces()
+            enterSubtask()
+        } else {
+            // -- COLD-START (vision 04 §1: deterministic code BEFORE triage and the first
+            //    OBSERVE; NO engine is ever consulted for opening the browser) ---------
+            if (browserProbe != null && browserLauncher != null) {
+                val record = ColdStart.run(goal, startUrl, browserProbe, browserLauncher)
+                record.lines.forEach { line(it) }
+            }
+
+            // -- TRIAGE (vision 04 §1: ONE choose over the goal text) ------------------
+            line("triage: asking the engine over the goal text")
+            uiListener?.onThinking(true)
+            val triageChoice = engine.choose(goal, Triage.question())
+            uiListener?.onThinking(false)
+            when (val triage = Triage.interpret(triageChoice)) {
+                is Triage.Result.Impossible -> {
+                    triageLabel = triage.chosenId
+                    line("triage: IMPOSSIBLE ('${triage.chosenId}') - explain and abort pre-navigation")
                     line(
-                        "plan: proposed v${it.version} with ${it.subgoals.size} subgoal(s) - " +
-                            "provenance only, ART-2 (state rendering is Phase 08H)",
+                        "explanation: I can only attempt lookup, multi-step research, form-fill, " +
+                            "or action goals in v1; \"$goal\" is outside that scope",
                     )
-                    // Phase 9: the overlay surface shows the plan (context transparency,
-                    // ART-2 — provenance, never executor).
-                    uiListener?.onPlan(it.subgoals)
+                    return finish(
+                        TerminalState.TRIAGE_IMPOSSIBLE,
+                        "triage answered '${triage.chosenId}' - no navigation attempted",
+                        steps = 0,
+                    )
                 }
-                line("guard state: ${guards.describe()}")
+                is Triage.Result.Task -> {
+                    triageClass = triage.triageClass
+                    triageLabel = triage.triageClass.serial()
+                    // Triage-time target-entity extraction (vision 04 §3 v1.2.0): pure code,
+                    // once per task; anchors the STRONG guard and the noul proposition.
+                    entity = TargetEntity.extract(goal)
+                    // Task working memory (Phase 08G, vision 04 §1): action-multi tasks get
+                    // the code-owned target tracker — the guard's WEAK predicate is its
+                    // drained state, and the L1 stuck hint carries its progress lines.
+                    val taskTracker = if (triage.triageClass == TriageClass.ACTION_MULTI) TargetTracker() else null
+                    tracker = taskTracker
+                    guards = CompletionGuards(triage.triageClass, entity, taskTracker)
+                    line("triage: $triageLabel")
+                    entity?.let { line("triage: target entity \"${it.text}\" (code-extracted)") }
+                    // Plan proposal (Phase 08G, vision 04 §1): consulted ONCE at triage;
+                    // context, never executor (ART-2). The default source returns null and
+                    // this block stays silent — byte-identical to the pre-08G loop. (The
+                    // v3 state text renders ladders instead; provenance keeps riding the rows.)
+                    plan = planSource.propose(goal, triage.triageClass)
+                    plan?.let {
+                        line(
+                            "plan: proposed v${it.version} with ${it.subgoals.size} subgoal(s) - " +
+                                "provenance only, ART-2",
+                        )
+                        // Phase 9: the overlay surface shows the plan (context transparency,
+                        // ART-2 — provenance, never executor).
+                        uiListener?.onPlan(it.subgoals)
+                    }
+                    line("guard state: ${guards.describe()}")
+                }
             }
         }
 
@@ -631,7 +1279,6 @@ class NavigationLoop(
                 ?: profile?.spendHardMicroUsd ?: TaskBudget.SPEND_HARD_MICRO_USD,
         )
 
-        var stepIndex = 0
         while (true) {
             // -- user cancel -----------------------------------------------------------
             if (isCancelled()) {
@@ -695,15 +1342,12 @@ class NavigationLoop(
                 // Phase 08H (vision 03 §1/§4): the bounded non-candidate prose excerpt
                 // rides the untrusted block — the read-goal substrate.
                 excerpt = obs.excerpt,
-                // The 08G plan source's subgoals re-authored as bounded app-authored
-                // PLAN lines (context, never executor — ART-2); null = section omitted.
-                plan = plan?.subgoals,
-                // The tracker's working-memory lines (counts + recent pending), the
-                // TASK PROGRESS section of action-multi tasks; null = section omitted.
-                progress = tracker
-                    ?.takeIf { triageClass == TriageClass.ACTION_MULTI }
-                    ?.progressLines()
-                    ?.map { it.removePrefix("TASK PROGRESS: ") },
+                // Phase 10 v3 (vision 03 §4 v2.2.0): ACTIVE SUBTASK + LADDER PROGRESS
+                // from the validated ladder, re-authored by code (flattened, bounded);
+                // null = the degenerate goal-only forms (byte-stable, the non-ladder
+                // paths).
+                activeSubtask = activeSubtaskLine()?.let { listOf(it) },
+                ladderProgress = ladderProgressLines(),
                 // doc 06 §2a via vision 03 §4: a sanctioned secret MASKS to
                 // [credential-redacted] in EVERY state section (a post-injection page
                 // echo is the lawful render — and so is a collision, e.g. the typed
@@ -712,6 +1356,84 @@ class NavigationLoop(
                 secrets = redactionKeys(),
             )
             hints.clear() // the L1 hint rode this step's HISTORY block
+
+            // -- CODE-TRIGGERED IS-DONE check (vision 04 §3 v1.5.0) ------------------------
+            // The IS-DONE evaluation is NOT gated on the engine volunteering `finish`
+            // (the UAT 10.1-a defect: the engine never chose finish in 36 steps while the
+            // ACTIVE subtask's urlHost condition was satisfied from step 0). When the
+            // ACTIVE subtask's code done-condition is satisfied — the guard ALONE — the
+            // loop proactively runs the SAME anchored noul check (identical question
+            // construction, escalation handling, ExitCheckRow, exit paths). ART-4 is
+            // untouched: code satisfaction triggers the QUESTION; the advance still
+            // requires engine noul HIGH AND the guard. Rate-bounded: at most one check
+            // per (page-hash, active ordinal) — a static page is asked once; the bound
+            // re-arms on any page-hash change or pointer advance. The check CONSUMES its
+            // step: no engine choose happened (ART-2 — no decision row is fabricated), so
+            // it rides HISTORY + its ExitCheckRow and counts one meta-decision (the
+            // zero-log-gaps invariant stays exact). A refused check does NOT withhold
+            // candidates (the anti-oscillation window keeps applying to engine-initiated
+            // finish only), does NOT feed the stuck detector, and does NOT count a
+            // subtask failure — the condition holds; the engine just won't confirm.
+            val codePointer = pointer
+            if (codePointer != null && ladder != null) {
+                val evidence = ladderEvidence(obs, candidates)
+                val guardLevel = subtaskGuardLevel(codePointer, evidence)
+                val checkKey = obs.screenHash to codePointer.index
+                if (guardLevel != GuardLevel.NONE && lastCodeCheck != checkKey) {
+                    lastCodeCheck = checkKey
+                    guards!!.record(
+                        url = obs.url,
+                        contentTextNodes = obs.contentTextNodes,
+                        textTyped = false,
+                        submitExecuted = false,
+                    )
+                    line(
+                        "exit: code-triggered IS-DONE check on subtask " +
+                            "${codePointer.activeOrdinal}/${codePointer.total} (guard " +
+                            "${guardLevel.name} satisfied - the engine must still confirm, ART-4)",
+                    )
+                    val verdict = verifyFinishCheck(
+                        trigger = "code-triggered IS-DONE check",
+                        guardLevel = guardLevel,
+                        noulQuestion = subtaskNoulQuestion(codePointer, obs),
+                        obs = obs,
+                        state = state,
+                    )
+                    when (verdict) {
+                        is ExitDecision.Accept -> {
+                            metaDecisions += 1
+                            if (!codePointer.isFinal) {
+                                advanceAfterSubtaskAccept(verdict, codePointer)
+                                stepIndex += 1
+                                continue // fresh OBSERVE + state over the NEW active subtask
+                            }
+                            // The FINAL subtask's code-triggered IS-DONE is the task's
+                            // goal-achieved: full exit provenance rides the accepted
+                            // ExitCheckRow + the report's exit block.
+                            history.add(
+                                "step $stepIndex: code-triggered check verified the FINAL subtask " +
+                                    "${codePointer.activeOrdinal} done - goal achieved",
+                            )
+                            runAnswerExtraction()
+                            return concludeGoalAchieved(verdict)
+                        }
+                        is ExitDecision.Refuse -> {
+                            line("exit: code-triggered IS-DONE check REFUSED (ART-4) - ${verdict.reason}")
+                            history.add(
+                                "step $stepIndex: code-triggered done check refused - the engine " +
+                                    "did not confirm the active subtask",
+                            )
+                            metaDecisions += 1
+                            stepIndex += 1
+                            // falls through: the step's DECIDE runs normally over the same
+                            // subtask (the check consumed its own step index above)
+                        }
+                        is ExitDecision.AskOwner -> throw IllegalStateException(
+                            "the exit policy re-asked the completion card - once-per-task is a law invariant",
+                        )
+                    }
+                }
+            }
 
             // -- 3. DECIDE -----------------------------------------------------------------
             val question: ChoiceQuestion
@@ -796,11 +1518,11 @@ class NavigationLoop(
                         )
                         stepIndex += 1
                         if (assessStuck()) {
-                            return finish(
-                                TerminalState.STUCK_KILL,
-                                "still stuck after the recovery action - L3 auto-kill",
-                                stepIndex,
-                            )
+                            // Phase 10 + vision 04 §1 v1.5.0: a LADDER run routes L3
+                            // through the GUARANTEED owner card — the task-level kill is
+                            // only for the legacy (non-ladder) path.
+                            handleStuckKill("still stuck after the recovery action - L3 auto-kill")
+                                ?.let { return it }
                         }
                     }
 
@@ -824,11 +1546,14 @@ class NavigationLoop(
                             outcome = Outcome.EXITED,
                             escalation = escalation,
                         )
-                        return finish(
-                            TerminalState.STUCK_KILL,
-                            "engine chose give-up from the recovery set",
-                            stepIndex + 1,
-                        )
+                        // The give-up decision consumed its step (the row above carries
+                        // this stepIndex — the next decision must not reuse it).
+                        stepIndex += 1
+                        // Phase 10: on a LADDER run the engine's give-up is a SUBTASK
+                        // failure (the bounded re-plan / owner-card path); the legacy
+                        // path keeps the task-level STUCK_KILL.
+                        handleSubtaskFailureOrKill("engine chose give-up from the recovery set")
+                            ?.let { return it }
                     }
                 }
                 continue
@@ -850,125 +1575,31 @@ class NavigationLoop(
                     textTyped = false,
                     submitExecuted = false,
                 )
-                val guardLevel = guards!!.levelAt(obs.title, obs.url)
-                val noulQuestion = AnchoredNoul.question(
-                    goalText,
-                    entity,
-                    requireNotNull(triageClass),
-                    obs.title,
-                    obs.url,
-                )
-                uiListener?.onThinking(true)
-                val noul = engine.judge(state.text, noulQuestion)
-                uiListener?.onThinking(false)
-                // The noul escalation is captured IMMEDIATELY (the engine's single slot):
-                // the anchored judge is its own decision, separate from the step's choose.
-                val noulEscalation = readEscalation(noulQuestion.name)
-                line(
-                    "decide: finish -> verification: noul=${noul.pTrue} (${band(noul.pTrue)}), " +
-                        "guard=${guardLevel.name}, " +
-                        "guard state: ${guards.describe()}, " +
-                        "proposition=v${AnchoredNoul.ANCHORED_NOUL_VERSION}",
-                )
-                val verdict: ExitDecision = when (
-                    val first = exitPolicy.onFinishCheck(guardLevel, noul.pTrue, guards!!.refusalDetail())
-                ) {
-                    is ExitDecision.AskOwner -> {
-                        line(
-                            "exit: ${first.refusedChecks} consecutive guard-pass refusals - " +
-                                "completion card (max one per task, vision 04 §3 Path C)",
-                        )
-                        val resolution = completionCardPresenter.present(
-                            CompletionCard(
-                                goal = goal,
-                                entity = entity?.text,
-                                guardLevel = first.guardLevel,
-                                noul = first.noul,
-                                refusedChecks = first.refusedChecks,
-                            ),
-                        )
-                        val cardFronted = frontedHarness(completionCardPresenter)
-                        val cardVerdict: ExitDecision = when (resolution) {
-                            CompletionResolution.CONFIRM_DONE -> {
-                                completionCardResolution = resolution.name
-                                line("exit: owner CONFIRMED done - accepting via OWNER_CONFIRM")
-                                ExitDecision.Accept(ExitPath.OWNER_CONFIRM, first.guardLevel, first.noul)
-                            }
-                            CompletionResolution.KEEP_GOING -> {
-                                completionCardResolution = resolution.name
-                                ExitDecision.Refuse(
-                                    "the owner said keep going on the completion card",
-                                    first.guardLevel,
-                                    first.noul,
-                                )
-                            }
-                            CompletionResolution.TIMEOUT -> {
-                                completionCardResolution = resolution.name
-                                ExitDecision.Refuse(
-                                    "the completion card timed out (= keep going, fail-safe)",
-                                    first.guardLevel,
-                                    first.noul,
-                                )
-                            }
-                        }
-                        // The keep-going resolutions continue the loop — on the
-                        // no-overlay path Chrome is still backgrounded behind the
-                        // harness, so it is re-fronted (VIEW intent for the current
-                        // page) before the loop continues. CONFIRM_DONE ends the task —
-                        // the harness's terminal auto-return fronts the harness; never
-                        // restore.
-                        if (cardFronted && cardVerdict is ExitDecision.Refuse) {
-                            restoreBrowserForeground(
-                                "the completion card",
-                                "observation" to obs.url,
-                                "last-known" to lastKnownPageUrl,
-                            )
-                        }
-                        cardVerdict
-                    }
-                    else -> first
-                }
-                // Vision 05 §2 amendment 2026-10-06, rule a: EVERY finish check —
-                // accepted or refused — logs exactly one insert-only ExitCheckRow; the
-                // refusals are the decoy contrast that teaches exit calibration. Rule b:
-                // `answer` is the PRIMARY's noul; on a primary hard failure (no primary
-                // answer) the executed fallback answer stands in — the decision-row
-                // precedent — and `fallbackAnswer` carries the executed judgment whenever
-                // the check escalated.
-                fun exitCheckRow(): ExitCheckRow {
-                    val escalated = noulEscalation?.escalated == true
-                    val primaryPTrue = (noulEscalation?.primary as? NoulResult)?.pTrue
-                    val fallbackPTrue = (noulEscalation?.fallback as? NoulResult)?.pTrue
-                    val answerPTrue = if (escalated) {
-                        primaryPTrue ?: requireNotNull(fallbackPTrue) {
-                            "an escalated finish check must carry the executed fallback noul"
-                        }
-                    } else {
-                        noul.pTrue
-                    }
-                    return ExitCheckRow(
-                        rowId = ExitCheckRow.rowIdFor(taskId, stepIndex),
-                        taskId = taskId,
-                        stepIndex = stepIndex,
-                        timestamp = clock.nowMs(),
-                        stateText = state.text,
-                        stateFormatVersion = state.formatVersion,
-                        question = noulQuestion,
-                        anchoredNoulVersion = AnchoredNoul.ANCHORED_NOUL_VERSION,
-                        teacher = engineIdentity,
-                        answer = ExitCheckAnswer(pTrue = answerPTrue, band = band(answerPTrue).toLoggedBand()),
-                        escalated = escalated,
-                        fallbackAnswer = fallbackPTrue?.let { ExitCheckFallbackAnswer(it) },
-                        guardLevel = verdict.guardLevel.toExitCheckLevel(),
-                        verdict = if (verdict is ExitDecision.Accept) {
-                            ExitCheckVerdict.ACCEPTED
-                        } else {
-                            ExitCheckVerdict.REFUSED
-                        },
-                        acceptedPath = (verdict as? ExitDecision.Accept)?.path?.toLoggedPath(),
+                // Phase 10 (vision 04 §3 v1.4.0): on a LADDER run the SAME discipline
+                // applies at subtask granularity — the guard is the code-side IS-DONE
+                // checker over the ACTIVE subtask's done-condition (engine noul HIGH AND
+                // the checker, ART-4), and the proposition is anchored to that condition.
+                // v1.5.0: the guard/question construction is the SHARED helpers also used
+                // by the code-triggered check above — identical by construction.
+                val activePointer = pointer
+                val guardLevel: GuardLevel
+                val noulQuestion: NoulQuestion
+                if (activePointer != null && ladder != null) {
+                    guardLevel = subtaskGuardLevel(activePointer, ladderEvidence(obs, candidates))
+                    noulQuestion = subtaskNoulQuestion(activePointer, obs)
+                } else {
+                    guardLevel = guards!!.levelAt(obs.title, obs.url)
+                    noulQuestion = AnchoredNoul.question(
+                        goalText,
+                        entity,
+                        requireNotNull(triageClass),
+                        obs.title,
+                        obs.url,
                     )
                 }
-                logSink.writeExitCheck(exitCheckRow())
+                // The engine-initiated check runs the SHARED verification path (the judge
+                // consult, escalation capture, exit policy, completion card, ExitCheckRow).
+                val verdict = verifyFinishCheck("finish", guardLevel, noulQuestion, obs, state)
                 when (verdict) {
                     is ExitDecision.Accept -> {
                         val provenance = ExitProvenance(
@@ -976,6 +1607,29 @@ class NavigationLoop(
                             guardLevel = verdict.guardLevel.toLoggedLevel(),
                             noul = verdict.noul,
                         )
+                        // Phase 10 (vision 04 §3 v1.4.0): a MID-LADDER accept is the ACTIVE
+                        // subtask's verified IS-DONE — the pointer advances and the loop
+                        // continues over the next subtask (the task is NOT done; the row's
+                        // `exit` provenance stays null — it is the TERMINAL row's field;
+                        // the accepted check itself already wrote its ExitCheckRow). The
+                        // FINAL subtask's IS-DONE is the task's goal-achieved (below).
+                        val acceptedPointer = pointer
+                        if (acceptedPointer != null && ladder != null && !acceptedPointer.isFinal) {
+                            logRow(
+                                stepIndex, state, question, choice, candidates,
+                                ExecutedAction(null, LoggedActionKind.FINISH, ActionDisposition.EXECUTED),
+                                gateEvent = null,
+                                outcome = Outcome.PROGRESSED,
+                                escalation = escalation,
+                            )
+                            advanceAfterSubtaskAccept(verdict, acceptedPointer)
+                            stepIndex += 1
+                            continue
+                        }
+                        // Task goal-achieved (legacy, or the ladder's FINAL subtask): the
+                        // answer extraction rides the run report (Phase 11 consumes it) and
+                        // the terminal DECISION row carries the `exit` provenance (doc 05).
+                        runAnswerExtraction()
                         logRow(
                             stepIndex, state, question, choice, candidates,
                             ExecutedAction(null, LoggedActionKind.FINISH, ActionDisposition.EXECUTED),
@@ -984,20 +1638,7 @@ class NavigationLoop(
                             escalation = escalation,
                             exit = provenance,
                         )
-                        exitSummary = ExitSummary(
-                            path = verdict.path.name,
-                            guardLevel = verdict.guardLevel.name,
-                            noul = verdict.noul,
-                            finishChecks = exitPolicy.finishChecks,
-                            completionCardShown = exitPolicy.completionCardsShown > 0,
-                            completionCardResolution = completionCardResolution,
-                        )
-                        return finish(
-                            TerminalState.GOAL_ACHIEVED,
-                            "exit path ${verdict.path.name}: noul pTrue=${verdict.noul} with the " +
-                                "${verdict.guardLevel.name} guard after ${exitPolicy.finishChecks} finish check(s)",
-                            stepIndex + 1,
-                        )
+                        return concludeGoalAchieved(verdict)
                     }
                     is ExitDecision.Refuse -> {
                         line("decide: finish REFUSED (ART-4) - ${verdict.reason}")
@@ -1024,11 +1665,10 @@ class NavigationLoop(
                         stuck.recordRefusedFinish(verdict.guardLevel.name)
                         stepIndex += 1
                         if (assessStuck()) {
-                            return finish(
-                                TerminalState.STUCK_KILL,
-                                "repeated unsupported finish claims - L3 auto-kill",
-                                stepIndex,
-                            )
+                            // Phase 10 + v1.5.0: repeated unsupported finish claims route
+                            // through the GUARANTEED owner card on a ladder run.
+                            handleStuckKill("repeated unsupported finish claims - L3 auto-kill")
+                                ?.let { return it }
                         }
                         continue
                     }
@@ -1402,11 +2042,12 @@ class NavigationLoop(
             // SKIPPED (the owner's denial is authoritative for that row); a FAILED
             // dispatch changes nothing (the row stays pending, retryable). A synthetic
             // or non-row candidate resolves to nothing.
-            if (tracker != null) {
+            val stepTracker = tracker
+            if (stepTracker != null) {
                 obs.nodes.firstOrNull { it.id == candidate.id }?.let { node ->
                     when {
-                        !proceed -> tracker.markSkipped(node)
-                        execOk -> tracker.markProcessed(node)
+                        !proceed -> stepTracker.markSkipped(node)
+                        execOk -> stepTracker.markProcessed(node)
                         else -> null
                     }
                 }
@@ -1429,11 +2070,10 @@ class NavigationLoop(
                 )
             }
             if (assessStuck()) {
-                return finish(
-                    TerminalState.STUCK_KILL,
-                    "still stuck after hint and strategy switch - L3 auto-kill",
-                    stepIndex,
-                )
+                // Phase 10 + vision 04 §1 v1.5.0: a LADDER run routes L3 through the
+                // GUARANTEED owner card; the legacy path keeps the task-level STUCK_KILL.
+                handleStuckKill("still stuck after hint and strategy switch - L3 auto-kill")
+                    ?.let { return it }
             }
         }
     }
@@ -1592,6 +2232,22 @@ class NavigationLoop(
          *  uncertain, so "both" is unrepresentable by construction). */
         const val GATE_TRIGGER_CODE_NET = "code-net"
         const val GATE_TRIGGER_ADDITIVE_ENGINE = "additive-engine"
+
+        /**
+         * Phase 10 (vision 04 §1 v1.4.0, ART-5): the bounded re-plan cap — at most 2
+         * restructure calls per task AFTER the initial one (3 ladder generations max);
+         * the owner card's Re-plan draws the SAME cap.
+         */
+        const val MAX_REPLANS = 2
+
+        /**
+         * Phase 10 (vision 04 §1 v1.4.0, ART-5): consecutive subtask failures before the
+         * OWNER escalation card ("Retry / Re-plan / Stop"; 30s timeout = Stop).
+         */
+        const val SUBTASK_FAILURE_CARD_THRESHOLD = 3
+
+        /** The extraction final-state excerpt cap (lines of page prose sent to the writer). */
+        const val EXTRACTION_STATE_MAX_LINES = 12
 
         /** Taps that read as submissions (the gate's SUBMIT path: H1/H3/H4 submissions). */
         internal val SUBMIT_TRAP = Regex("submit|\\bsearch\\b|^go\\b|\\bgo\\b|\\bsend\\b")
@@ -1764,7 +2420,7 @@ interface DecisionLogSink {
     suspend fun writeExitCheck(row: ExitCheckRow)
 }
 
-/** How a task ended (vision 04 §3 exits + the two documented pre/extra-navigation aborts). */
+/** How a task ended (vision 04 §3 exits + the documented pre/extra-navigation aborts). */
 enum class TerminalState {
     /** noul HIGH + guard pass (ART-4). */
     GOAL_ACHIEVED,
@@ -1772,7 +2428,7 @@ enum class TerminalState {
     /** Budget hard stop: clean stop, partial results, everything logged. */
     BUDGET_EXHAUSTED,
 
-    /** StuckDetector L3 (or engine give-up at L2). */
+    /** StuckDetector L3 (or engine give-up at L2; or the ladder escalation card's Stop). */
     STUCK_KILL,
 
     /** The same high-stakes action refused twice in one task. */
@@ -1786,6 +2442,13 @@ enum class TerminalState {
 
     /** Triage answered `impossible` — explain and abort before any navigation (vision 04 §1). */
     TRIAGE_IMPOSSIBLE,
+
+    /**
+     * Phase 10 (vision 04 §1 v1.4.0): the writer could not restructure the goal into a
+     * valid task ladder within its bounded retry budget — the CLEAN PRE-NAVIGATION
+     * REFUSAL. Nothing navigated, nothing was gated, no rows exist.
+     */
+    LADDER_REFUSED,
 }
 
 /**
@@ -1853,4 +2516,22 @@ data class RunResult(
      * null on the deterministic default path (no plan until the Phase-10 writer).
      */
     val plan: ProposedPlan? = null,
+    /**
+     * Phase 10 (vision 04 §1 v1.4.0): the ACTIVE ladder's executed state at the
+     * terminal — version/generation provenance, the summary, and per-subtask
+     * done/active flags. Null on every non-ladder path (never ambiguous).
+     */
+    val ladder: LadderRunReport? = null,
+    /**
+     * Phase 10: the extracted answer (vision 04 §6) — content, not instructions (doc 06
+     * §4); rides the run report until the Phase-11 result screen consumes it. Null when
+     * no extractor was wired or extraction failed (the goal can still be GOAL_ACHIEVED).
+     */
+    val answer: ExtractedAnswer? = null,
+    /**
+     * Phase 10 (vision 04 §5 v1.4.0): the SEPARATE per-task writer budget's total
+     * (integer micro-dollars, ART-5) — restructure + re-plans + extraction. beside
+     * [spendMicroUsd], the decision spend; the two caps never mix.
+     */
+    val writerSpendMicroUsd: Long = 0,
 )

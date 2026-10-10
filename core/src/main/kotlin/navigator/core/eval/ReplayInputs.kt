@@ -141,13 +141,12 @@ data class ReplayExpectations(val expectations: List<ReplayExpectation>) {
                 "${fixtures.groupBy { it }.filterValues { v -> v.size > 1 }.keys}"
         }
         // a retired entry documents a SUPERSEDED pin: some active entry for the same
-        // fixture must exist, and a fixture must never carry two retired entries.
+        // fixture must exist. A fixture MAY carry several retired entries — one per
+        // superseded format generation (Phase 10: a fixture's v1 AND v2 pins are both
+        // retired history under its active v3 re-pin); what is forbidden is a retired
+        // entry with NO active replacement.
         val retired = expectations.filter { it.retired }
         val retiredNames = retired.map { it.fixture }
-        require(retiredNames.size == retiredNames.toSet().size) {
-            "ReplayExpectations has duplicate retired entries: " +
-                "${retiredNames.groupBy { it }.filterValues { v -> v.size > 1 }.keys}"
-        }
         val orphaned = retiredNames.toSet() - fixtures.toSet()
         require(orphaned.isEmpty()) {
             "ReplayExpectations: retired entries without an active replacement for $orphaned — " +

@@ -43,8 +43,10 @@ import navigator.core.gate.GateCard
  *  - the completion card (vision 04 §3 Path C) mirrors DebugCompletionCardPresenter's
  *    content — "Goal appears complete" + goal/entity/evidence — with Confirm done /
  *    Keep going; 30s timeout = KEEP GOING (fail-safe);
- *  - the PLAN display: when the manager holds the loop's plan proposal (provenance
- *    only, ART-2), every card shows a PLAN section (context transparency);
+ *  - the ACTIVE-SUBTASK display (Phase 10, phase doc §2.4 — since the ladder replaced
+ *    the Phase-9 PLAN display): when the manager holds the active subtask, every card
+ *    shows it (context transparency — the owner always sees what the agent thinks it
+ *    is doing; provenance only, ART-2);
  *  - while visible the card BLOCKS: a focusable full-screen window (input goes to the
  *    card, not Chrome); the presenting coroutine suspends on a [CompletableDeferred]
  *    until the resolution (the debug-presenter pattern).
@@ -95,9 +97,11 @@ internal class GateCardWindow(private val manager: OverlayManager, private val c
         column.addView(text(card.target, 14f))
         column.addView(text(card.consequenceLine, 14f, color = Color.rgb(255, 200, 120)))
 
-        // PLAN display (context transparency — the plan is provenance, never executor).
+        // ACTIVE-SUBTASK display (Phase 10, phase doc §2.4 — the Phase-9 PLAN display
+        // becomes the ACTIVE-SUBTASK display: the owner always sees what the agent
+        // thinks it is doing; context transparency, provenance never executor, ART-2).
         manager.planLinesSnapshot()?.let { plan ->
-            column.addView(text("PLAN", 13f, bold = true, color = Color.rgb(150, 220, 150)))
+            column.addView(text("ACTIVE SUBTASK", 13f, bold = true, color = Color.rgb(150, 220, 150)))
             plan.forEach { subgoal ->
                 column.addView(text("· $subgoal", 12f, color = Color.rgb(150, 220, 150)))
             }
@@ -329,7 +333,7 @@ internal class CompletionCardWindow(
             ),
         )
         manager.planLinesSnapshot()?.let { plan ->
-            column.addView(text("PLAN", 13f, bold = true, color = Color.rgb(150, 220, 150)))
+            column.addView(text("ACTIVE SUBTASK", 13f, bold = true, color = Color.rgb(150, 220, 150)))
             plan.forEach { subgoal ->
                 column.addView(text("· $subgoal", 12f, color = Color.rgb(150, 220, 150)))
             }
@@ -487,9 +491,193 @@ class OverlayCompletionCardPresenter(private val a11yService: NavigatorAccessibi
     override suspend fun present(card: CompletionCard): CompletionResolution {
         val manager = a11yService.overlayManager
             ?: throw IllegalStateException(
-                "product completion card: no overlay manager (the observation service is " +
-                    "not connected) - overlays are impossible, failing the run loudly",
+                "product completion card: no overlay manager (the observation service is not " +
+                    "connected) - overlays are impossible, failing the run loudly",
             )
         return manager.presentCompletionCard(card)
+    }
+}
+
+/**
+ * The escalation-card window (Phase 10, phase doc §2.4): after 3 consecutive subtask
+ * failures the owner arbitrates — "Retry / Re-plan / Stop" — riding the Phase-9 card
+ * window machinery (focusable modal, blocks while presenting, 30s countdown RING;
+ * **timeout = STOP**, fail-safe — the vision 06 §2 timeout discipline applied to the
+ * ladder's failure path). The card shows the ACTIVE subtask (instruction + its
+ * done-condition) and the bounded re-plan capacity, so the owner decides informed.
+ */
+internal class EscalationCardWindow(
+    private val manager: OverlayManager,
+    private val card: navigator.app.loop.EscalationCard,
+) {
+
+    private var root: View? = null
+    private var timer: CountDownTimer? = null
+    private val resolution = CompletableDeferred<navigator.app.loop.EscalationResolution>()
+
+    @Volatile
+    var visible: Boolean = false
+        private set
+
+    suspend fun present(): navigator.app.loop.EscalationResolution {
+        manager.postOnMainThreadAwait { showLocked() }
+        return resolution.await()
+    }
+
+    private fun showLocked() {
+        if (visible) return
+        visible = true
+        val context = manager.serviceContext()
+        val scroll = ScrollView(context).apply { setBackgroundColor(GateCardWindow.BACKDROP_COLOR) }
+        val column = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(20), dp(20), dp(20))
+            background = GradientDrawable().apply {
+                setColor(Color.argb(245, 28, 30, 38))
+                cornerRadius = manager.dpF(12f)
+            }
+            gravity = Gravity.CENTER_HORIZONTAL or Gravity.CENTER_VERTICAL
+        }
+        fun text(value: String, sp: Float, bold: Boolean = false, color: Int = Color.WHITE): TextView =
+            TextView(context).apply {
+                text = value
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, sp)
+                setTextColor(color)
+                if (bold) setTypeface(typeface, Typeface.BOLD)
+                setPadding(0, dp(4), 0, dp(4))
+            }
+
+        column.addView(text("Navigator — subtask stuck", 18f, bold = true))
+        column.addView(text("Failed ${card.failureCount} times in a row", 16f, bold = true))
+        column.addView(text("What the agent is doing: ${card.subtaskInstruction}", 14f))
+        column.addView(text("Done means: ${card.doneCondition}", 14f))
+        column.addView(
+            text(
+                "Bounded re-plans remaining: ${card.rePlansRemaining}",
+                12f,
+                color = Color.rgb(170, 190, 220),
+            ),
+        )
+        manager.planLinesSnapshot()?.let { plan ->
+            column.addView(text("ACTIVE SUBTASK", 13f, bold = true, color = Color.rgb(150, 220, 150)))
+            plan.forEach { subgoal ->
+                column.addView(text("· $subgoal", 12f, color = Color.rgb(150, 220, 150)))
+            }
+        }
+
+        val countdownRow = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(8), 0, dp(8))
+        }
+        val ring = ProgressBar(context, null, android.R.attr.progressBarStyleLarge).apply {
+            isIndeterminate = false
+            max = COUNTDOWN_TICKS
+            progress = COUNTDOWN_TICKS
+        }
+        val countdown = TextView(context).apply {
+            text = countdownLabel(TIMEOUT_MS)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            setTextColor(Color.WHITE)
+            setPadding(dp(10), 0, 0, 0)
+        }
+        countdownRow.addView(ring)
+        countdownRow.addView(countdown)
+        column.addView(countdownRow)
+
+        val buttons = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, dp(4), 0, 0)
+        }
+        val retry = Button(context).apply { text = "Retry" }
+        val replan = Button(context).apply { text = "Re-plan" }
+        val stop = Button(context).apply { text = "Stop" }
+        buttons.addView(retry, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        buttons.addView(replan, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        buttons.addView(stop, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        column.addView(buttons)
+
+        scroll.addView(
+            column,
+            ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            ),
+        )
+        scroll.isFillViewport = true
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_DIM_BEHIND,
+            PixelFormat.TRANSLUCENT,
+        ).apply {
+            gravity = Gravity.CENTER
+            dimAmount = 0.5f
+        }
+        retry.setOnClickListener { resolve(navigator.app.loop.EscalationResolution.RETRY) }
+        replan.setOnClickListener { resolve(navigator.app.loop.EscalationResolution.REPLAN) }
+        stop.setOnClickListener { resolve(navigator.app.loop.EscalationResolution.STOP) }
+        manager.addViewToWindow(scroll, params)
+        root = scroll
+        timer = object : CountDownTimer(TIMEOUT_MS, 250) {
+            override fun onTick(msUntilFinished: Long) {
+                ring.progress = ((msUntilFinished * COUNTDOWN_TICKS) / TIMEOUT_MS).toInt()
+                countdown.text = countdownLabel(msUntilFinished)
+            }
+
+            override fun onFinish() {
+                countdown.text = countdownLabel(0)
+                // Fail-safe (vision 06 §2 discipline): timeout = STOP the task.
+                resolve(navigator.app.loop.EscalationResolution.STOP)
+            }
+        }.start()
+    }
+
+    private fun resolve(value: navigator.app.loop.EscalationResolution) {
+        if (resolution.isCompleted) return
+        timer?.cancel()
+        manager.postOnMainThread {
+            root?.let { manager.removeViewFromWindow(it) }
+            root = null
+        }
+        visible = false
+        resolution.complete(value)
+    }
+
+    fun teardown() {
+        // Fail-safe: timeout = STOP (vision 06 §2's timeout discipline).
+        resolve(navigator.app.loop.EscalationResolution.STOP)
+        visible = false
+    }
+
+    private fun countdownLabel(msUntilFinished: Long): String =
+        "Stop in ${msUntilFinished / 1000 + 1}s"
+
+    private fun dp(value: Int): Int = manager.dp(value)
+
+    companion object {
+        /** 30 seconds (ART-5, the cards' shared constant); timeout = STOP. */
+        const val TIMEOUT_MS = 30_000L
+        private const val COUNTDOWN_TICKS = 60
+    }
+}
+
+/**
+ * The product escalation-card presenter (Phase 10, [navigator.app.loop.
+ * EscalationCardPresenter] — the same loud missing-overlay law as the gate/completion
+ * presenters).
+ */
+class OverlayEscalationCardPresenter(private val a11yService: NavigatorAccessibilityService) :
+    navigator.app.loop.EscalationCardPresenter {
+
+    override suspend fun present(card: navigator.app.loop.EscalationCard): navigator.app.loop.EscalationResolution {
+        val manager = a11yService.overlayManager
+            ?: throw IllegalStateException(
+                "product escalation card: no overlay manager (the observation service is not " +
+                    "connected) - overlays are impossible, failing the run loudly",
+            )
+        return manager.presentEscalationCard(card)
     }
 }

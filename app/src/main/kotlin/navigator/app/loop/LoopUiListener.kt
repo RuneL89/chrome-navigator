@@ -38,8 +38,22 @@ interface LoopUiListener {
      * guard at the call site — but a [ProposedPlan] cannot carry empty subgoals, its
      * `init` fails loudly); [navigator.app.overlay.OverlayManager.updatePlan] nulls
      * empty lists so nothing ever renders for one.
+     *
+     * Phase 10: on LADDER runs this same callback carries the ACTIVE-SUBTASK display
+     * (one line — the cards' PLAN section becomes the ACTIVE-SUBTASK display, phase doc
+     * §2.4), fired at the initial restructure, on every pointer advance, and on every
+     * re-plan.
      */
     fun onPlan(subgoals: List<String>)
+
+    /**
+     * The ladder block re-rendered (Phase 10, phase doc §2.4): the corner log's pinned
+     * header ([navigator.app.overlay.LadderBlock.render]'s lines — the pure formatter
+     * owns the text law). Fired at the initial restructure, on every pointer advance,
+     * and on every re-plan. Default no-op (the additive law — existing paths
+     * byte-identical).
+     */
+    fun onLadderBlock(lines: List<String>) {}
 
     /**
      * One logged navigation step's COMPACT product facts (the live-log line). Fired at

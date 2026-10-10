@@ -14,14 +14,15 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * Gate 2.3 / Gate 8H.2: the state-text law (isolation, vision 03 §4 v2.1.0). For every
- * fixture the rendered state text is ≤960 tokens with the exact v2 section order
- * (GOAL/URL/TITLE/PLAN/TASK PROGRESS/HISTORY/UNTRUSTED PAGE CONTENT); app-authored
- * lines never contain page text; the content excerpt rides the untrusted block ahead
- * of the candidate lines; a deliberately oversized input compresses legally —
- * whole-candidate drops lowest rank first, then head-anchored excerpt shrinking —
- * valid bucket headers, drops recorded, never a corrupted mid-line; PLAN and TASK
- * PROGRESS render from the 08G sources (and are omitted without them).
+ * Gate 2.3 / Gate 8H.2 / Gate 10.3: the state-text law (isolation, vision 03 §4 v2.2.0).
+ * For every fixture the rendered state text is ≤960 tokens with the exact v3 section
+ * order (GOAL/URL/TITLE/ACTIVE SUBTASK/LADDER PROGRESS/HISTORY/UNTRUSTED PAGE CONTENT);
+ * app-authored lines never contain page text; the content excerpt rides the untrusted
+ * block ahead of the candidate lines; a deliberately oversized input compresses legally
+ * — whole-candidate drops lowest rank first, then head-anchored excerpt shrinking —
+ * valid bucket headers, drops recorded, never a corrupted mid-line; ACTIVE SUBTASK and
+ * LADDER PROGRESS render from the validated ladder, and their degenerate goal-only
+ * forms render byte-stable when no ladder is active.
  */
 class StateTextBuilderTest {
 
@@ -250,7 +251,7 @@ class StateTextBuilderTest {
     // -- budget + structure over every fixture -----------------------------------------
 
     @Test
-    fun `every fixture renders within the 960-token canonical budget under format v2`() {
+    fun `every fixture renders within the 960-token canonical budget under format v3`() {
         for ((name, _) in TestFixtures.loadAll()) {
             val state = buildFor(name)
             assertTrue(
@@ -258,7 +259,7 @@ class StateTextBuilderTest {
                 "$name: state text is ${state.tokenCount} tokens > ${StateTextBuilder.TOKEN_BUDGET}",
             )
             assertEquals(tokenizer.count(state.text), state.tokenCount, "$name")
-            assertEquals(2, state.formatVersion, "$name: the v2 format is the current law")
+            assertEquals(3, state.formatVersion, "$name: the v3 format is the current law")
             assertEquals(STATE_FORMAT_VERSION, state.formatVersion, "$name")
         }
     }
@@ -272,27 +273,36 @@ class StateTextBuilderTest {
                 "GOAL: find the best apple pie recipe",
                 "URL: " + dump.url,
                 "TITLE: " + dump.title,
+                // v3 degenerate goal-only forms (no ladder): byte-stable across runs.
+                "ACTIVE SUBTASK: find the best apple pie recipe",
+                "LADDER PROGRESS: ${StateTextBuilder.NO_LADDER_PROGRESS}",
                 "HISTORY: step 0: started the task",
                 "HISTORY: step 1: read the page",
                 StateTextBuilder.UNTRUSTED_HEADER,
             )
             assertEquals(expectedHeader, got.take(expectedHeader.size), "$name: header lines must be exactly the app-authored input")
             val flat = state.text
-            val order = listOf("GOAL:", "URL:", "TITLE:", "HISTORY:", StateTextBuilder.UNTRUSTED_HEADER)
-                .map { flat.indexOf(it) }
+            val order = listOf(
+                "GOAL:", "URL:", "TITLE:", "ACTIVE SUBTASK:", "LADDER PROGRESS:", "HISTORY:",
+                StateTextBuilder.UNTRUSTED_HEADER,
+            ).map { flat.indexOf(it) }
             assertTrue(order == order.sorted() && order.none { it < 0 }, "$name: section markers out of order: $order")
         }
     }
 
-    // -- PLAN / TASK PROGRESS (the 08G sources render; omitted without them) -----------
+    // -- ACTIVE SUBTASK / LADDER PROGRESS (the v3 ladder sections; degenerate without a ladder)
 
     @Test
-    fun `PLAN renders one flattened line per subgoal between TITLE and HISTORY`() {
+    fun `ACTIVE SUBTASK renders the ladder's active subtask between TITLE and LADDER PROGRESS`() {
         val dump = TestFixtures.loadAll().first { it.first == "synthetic-search-01.json" }.second
         val candidates = CandidateEnumerator.enumerate(dump.observedNodes())
         val state = builder.build(
             "g", dump.url, dump.title, emptyList(), candidates,
-            plan = listOf("open the search page", "type\nthe  query", "open the first result"),
+            activeSubtask = listOf(
+                "subtask 2/4: read the results page (done: the page contains 'results')",
+                "subtask 3/4: open the target",
+            ),
+            ladderProgress = listOf("[x] subtask 1/4: open the search page", "items read 3/5"),
         )
         val got = lines(state.text)
         assertEquals(
@@ -300,56 +310,47 @@ class StateTextBuilderTest {
                 "GOAL: g",
                 "URL: " + dump.url,
                 "TITLE: " + dump.title,
-                "PLAN: open the search page",
-                "PLAN: type the query",
-                "PLAN: open the first result",
+                "ACTIVE SUBTASK: subtask 2/4: read the results page (done: the page contains 'results')",
+                "ACTIVE SUBTASK: subtask 3/4: open the target",
+                "LADDER PROGRESS: [x] subtask 1/4: open the search page",
+                "LADDER PROGRESS: items read 3/5",
                 "HISTORY: (none)",
             ),
-            got.take(7),
-            "PLAN lines are app-authored, flattened, one line each, before HISTORY",
+            got.take(8),
+            "ACTIVE SUBTASK + LADDER PROGRESS are app-authored, flattened, one line each, before HISTORY",
         )
     }
 
     @Test
-    fun `no plan means no PLAN section (omitted, not an empty block)`() {
+    fun `without a ladder the sections render their degenerate goal-only forms byte-stably`() {
         val dump = TestFixtures.loadAll().first { it.first == "synthetic-search-01.json" }.second
         val candidates = CandidateEnumerator.enumerate(dump.observedNodes())
-        val state = builder.build("g", dump.url, dump.title, emptyList(), candidates, plan = null)
-        assertTrue("PLAN:" !in state.text, "a null plan must omit the section entirely")
+        val state = builder.build("g", dump.url, dump.title, emptyList(), candidates)
+        val got = lines(state.text)
+        assertEquals("ACTIVE SUBTASK: g", got[3])
+        assertEquals("LADDER PROGRESS: ${StateTextBuilder.NO_LADDER_PROGRESS}", got[4])
+        assertTrue(got[5].startsWith("HISTORY:"), "the degenerate forms sit between TITLE and HISTORY")
+        // byte-stability: the same inputs render the same degenerate lines across runs
+        val again = builder.build("g", dump.url, dump.title, emptyList(), candidates)
+        assertEquals(state.text, again.text)
     }
 
     @Test
-    fun `TASK PROGRESS renders the tracker's working-memory lines - absent tracker omits the section`() {
-        val dump = TestFixtures.loadAll().first { it.first == "synthetic-search-01.json" }.second
-        val candidates = CandidateEnumerator.enumerate(dump.observedNodes())
-        val with = builder.build(
-            "g", dump.url, dump.title, emptyList(), candidates,
-            progress = listOf(
-                "2 processed, 3 pending, 0 skipped of 5 tracked targets (drained=false)",
-                "pending target: \"weekly digest\"",
-            ),
-        )
-        val got = lines(with.text)
-        assertEquals("TASK PROGRESS: 2 processed, 3 pending, 0 skipped of 5 tracked targets (drained=false)", got[3])
-        assertEquals("TASK PROGRESS: pending target: \"weekly digest\"", got[4])
-        assertTrue(got[5].startsWith("HISTORY:"), "TASK PROGRESS sits between TITLE and HISTORY")
-        val without = builder.build("g", dump.url, dump.title, emptyList(), candidates, progress = null)
-        assertTrue("TASK PROGRESS:" !in without.text, "no tracker -> no section")
-    }
-
-    @Test
-    fun `PLAN and TASK PROGRESS are bounded (re-authored by code, flattened, capped)`() {
+    fun `ACTIVE SUBTASK and LADDER PROGRESS are bounded (re-authored by code, flattened, capped)`() {
         val dump = TestFixtures.loadAll().first { it.first == "synthetic-search-01.json" }.second
         val candidates = CandidateEnumerator.enumerate(dump.observedNodes())
         val state = builder.build(
             "g", dump.url, dump.title, emptyList(), candidates,
-            plan = (1..20).map { "subgoal $it" },
-            progress = (1..20).map { "progress line $it" },
+            activeSubtask = (1..20).map { "active line $it" },
+            ladderProgress = (1..20).map { "progress line $it" },
         )
-        assertEquals(StateTextBuilder.MAX_PLAN_LINES, lines(state.text).count { it.startsWith("PLAN:") })
+        assertEquals(
+            StateTextBuilder.MAX_ACTIVE_SUBTASK_LINES,
+            lines(state.text).count { it.startsWith("ACTIVE SUBTASK:") },
+        )
         assertEquals(
             StateTextBuilder.MAX_PROGRESS_LINES,
-            lines(state.text).count { it.startsWith("TASK PROGRESS:") },
+            lines(state.text).count { it.startsWith("LADDER PROGRESS:") },
         )
     }
 
@@ -453,7 +454,9 @@ class StateTextBuilderTest {
         assertEquals("GOAL: find a pie and bake it", got[0])
         assertEquals("URL: www.example.com/spam injected line", got[1])
         assertEquals("TITLE: title with tabs", got[2])
-        assertEquals("HISTORY: (none)", got[3])
+        assertEquals("ACTIVE SUBTASK: find a pie and bake it", got[3])
+        assertEquals("LADDER PROGRESS: ${StateTextBuilder.NO_LADDER_PROGRESS}", got[4])
+        assertEquals("HISTORY: (none)", got[5])
     }
 
     // -- compression ------------------------------------------------------------------

@@ -106,6 +106,14 @@ class HarnessActivity : ComponentActivity() {
     private var settleMs: Long = HarnessLaunch.DEFAULT_SETTLE_MS
 
     /**
+     * Phase 10: the LIVE LADDER mode (`--ez ladder true`) — the next runs restructure
+     * the goal through the writer and execute over the validated ladder. Needs a
+     * non-STUB engine; the writer's per-call usage rides the run report's answer block
+     * and the writer-spend field.
+     */
+    private var ladderMode = false
+
+    /**
      * The LIVE run's OpenRouter key as delivered by the launch intent extra (adb key
      * delivery: an app process has no environment or `.tools/keys.env`). SECRET — it is
      * only ever handed to [HarnessEngineFactory]; it is never logged, never written to
@@ -267,6 +275,14 @@ class HarnessActivity : ComponentActivity() {
         shadowOn.value = launch.shadow
         shadowEveryNth = launch.shadowEveryNth
         settleMs = launch.settleMs
+        ladderMode = launch.ladder
+        if (launch.ladder && launch.mode == HarnessEngineMode.STUB) {
+            log(
+                "LAUNCH REFUSED (loud): the ladder mode needs a non-STUB engine - the writer " +
+                    "restructure call needs the OpenRouter key; re-launch with `--es engine live`",
+            )
+            return
+        }
         // SECRET: parsed and held only; NEVER logged (the headless line below reports
         // only whether an extra was present, never its value).
         deliveredOpenRouterKey = intent.getStringExtra(HarnessLaunch.EXTRA_OPENROUTER_KEY)
@@ -632,11 +648,22 @@ class HarnessActivity : ComponentActivity() {
             // Phase 8D cold-start (vision 04 §1): the loop's deterministic pre-step, run
             // BEFORE triage and the first OBSERVE — derive the goal's start URL in code,
             // probe the browser, fire the VIEW intent only when the browser is absent or
-            // on an unrelated page. NO engine is consulted.
+            // on an unrelated page. NO engine is consulted. (On a LADDER run the site
+            // entry folds under the ladder — this seam stays wired and unused there.)
             browserProbe = navigator.app.loop.BrowserProbe {
                 HarnessObserver.browserState(service, this)
             },
             browserLauncher = navigator.app.loop.BrowserLauncher { url -> openBrowser(url) },
+            // Phase 10 (Gate 10.4): the LIVE LADDER mode — goal → restructure → ladder
+            // loop → extraction, all calls metered into the separate writer budget.
+            ladderSource = if (ladderMode) ladderSource(deliveredOpenRouterKey) else {
+                navigator.app.loop.LadderSource.None
+            },
+            answerExtractor = if (ladderMode) {
+                ladderSource(deliveredOpenRouterKey)
+            } else {
+                null
+            },
         )
         val startedAt = System.currentTimeMillis()
         val result = try {
@@ -779,6 +806,42 @@ class HarnessActivity : ComponentActivity() {
                 log("plan: v${plan.version} (${plan.subgoals.size} subgoals, provenance only)")
                 PlanReport(version = plan.version, subgoals = plan.subgoals)
             },
+            ladder = result.ladder?.let { ladder ->
+                log(
+                    "ladder: v${ladder.version} gen${ladder.generation} " +
+                        "(${ladder.subtasks.count { it.completed }}/${ladder.subtasks.size} done, " +
+                        "class ${ladder.taskClass})",
+                )
+                LadderReport(
+                    version = ladder.version,
+                    generation = ladder.generation,
+                    summary = ladder.summary,
+                    taskClass = ladder.taskClass,
+                    subtasks = ladder.subtasks.map {
+                        LadderSubtaskReport(
+                            instruction = it.instruction,
+                            done = it.done,
+                            completed = it.completed,
+                            active = it.active,
+                        )
+                    },
+                )
+            },
+            answer = result.answer?.let { answer ->
+                log(
+                    "answer: ${answer.promptVersion} (${answer.text.length} chars, " +
+                        "${answer.inputTokens}+${answer.outputTokens} tokens, " +
+                        "${answer.costMicroUsd} micro-USD)",
+                )
+                AnswerReport(
+                    text = answer.text,
+                    promptVersion = answer.promptVersion,
+                    inputTokens = answer.inputTokens,
+                    outputTokens = answer.outputTokens,
+                    costMicroUsd = answer.costMicroUsd,
+                )
+            },
+            writerSpendMicroUsd = result.writerSpendMicroUsd,
         )
         val path = RunReportStore.write(this, "run-${goal.id}-${result.taskId}.json", RunReports.json(report))
         log("report: $path")
@@ -788,6 +851,42 @@ class HarnessActivity : ComponentActivity() {
         )
         announceTerminal(goal.id, result.terminal.name, result.terminalDetail)
         return report
+    }
+
+    /**
+     * Phase 10: the LIVE ladder source + answer extractor over the pinned generative
+     * config ([navigator.app.gen.GenEngineConfigs]), keyed with priority the adb
+     * intent extra > env > the keys file (the [HarnessEngineFactory] delivery law).
+     * A missing key fails LOUDLY — never a silent un-laddered run when the launch
+     * requested the ladder mode. The key's value is never logged (the source only).
+     */
+    private fun ladderSource(deliveredKey: String?): navigator.app.gen.GenLadderSource {
+        val envKey = System.getenv(navigator.core.wire.DefaultEngineConfigs.OPENROUTER_KEY_ENV)
+            ?.trim()?.takeIf { it.isNotEmpty() }
+        val key = deliveredKey?.trim()?.takeIf { it.isNotEmpty() }
+            ?: envKey
+            ?: navigator.core.wire.DefaultEngineConfigs.resolveKey(
+                navigator.core.wire.DefaultEngineConfigs.OPENROUTER_KEY_ENV,
+            )
+        if (key == null) {
+            throw IllegalStateException(
+                "the ladder mode needs an OpenRouter key for the writer - pass it via the " +
+                    "harness intent extra (--es openrouterKey <KEY>), or set " +
+                    "${navigator.core.wire.DefaultEngineConfigs.OPENROUTER_KEY_ENV}, or add it " +
+                    "to the git-ignored .tools/keys.env. No key configured, refusing.",
+            )
+        }
+        val client = navigator.app.gen.GenClient(
+            transport = navigator.core.wire.OkHttpWireTransport(),
+            config = navigator.app.gen.GenEngineConfigs.generative(key),
+            onUsage = { usage ->
+                log(
+                    "writer: ${usage.inputTokens}+${usage.outputTokens} tokens, " +
+                        "${usage.costMicroUsd} micro-USD",
+                )
+            },
+        )
+        return navigator.app.gen.GenLadderSource(client)
     }
 
     /**

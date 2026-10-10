@@ -1,7 +1,7 @@
 # Phase 10: Goal Restructuring & Answer Extraction (the task ladder)
 
 **Document ID:** `NAVIGATOR-IMPL-PHASE-10`
-**Version:** 2.1.0 *(v2.0.0 rewritten 2026-10-09 per the owner interview — 12 ratified decisions; supersedes v1.0.0's four-role scope: the altered phase ships TWO writer roles, goal restructuring (the centerpiece) and answer extraction — typed-text phrasing, page compression, and the rescue coach are explicitly OUT. v2.1.0 amends the same day: the owner directive — the ladder is permanently displayed in the bottom-right live log as a `GOAL:` summary line (the LLM's one-sentence rewrite of the user's text) plus a `Sub Task N [x]/[ ]` checklist tracking the pointer; exact wording/marks stay revisable per the open Phase 9 overlay-feel verdicts.)*
+**Version:** 2.2.0 *(v2.0.0 rewritten 2026-10-09 per the owner interview — 12 ratified decisions; supersedes v1.0.0's four-role scope: the altered phase ships TWO writer roles, goal restructuring (the centerpiece) and answer extraction — typed-text phrasing, page compression, and the rescue coach are explicitly OUT. v2.1.0 amends the same day: the owner directive — the ladder is permanently displayed in the bottom-right live log as a `GOAL:` summary line (the LLM's one-sentence rewrite of the user's text) plus a `Sub Task N [x]/[ ]` checklist tracking the pointer; exact wording/marks stay revisable per the open Phase 9 overlay-feel verdicts. v2.2.0 (2026-10-10): revision round R1, owner-ratified after UAT 10.1-a failed on the S25+ — R1-A code-triggered subtask IS-DONE checks (the IS-DONE evaluation no longer gated on the engine volunteering `finish`; implements doc 04 §3 v1.5.0), R1-B the guaranteed owner card on ladder runs (the stuck L3 auto-kill routes through the escalation card; doc 04 §1 v1.5.0); see §7.)*
 **Status:** Draft
 **Date:** 2026-10-09
 **Dependencies:** Phase 6 (loop), Phase 9 (overlay surfaces + NavigatorService run path)
@@ -201,3 +201,97 @@ naturally phrased. Approve or request revision.
 - **Contract with the evaluator law:** the restructure prompt version + ladder
   provenance ride every DecisionLog row (doc 05); the counter restart means the fine-
   tune accumulation starts fresh at v3 (doc 05 §4 — expected, not a bug).
+
+---
+
+## 7. Revision R1 (2026-10-10, owner-ratified after UAT 10.1-a) — v2.2.0
+
+UAT 10.1-a (owner, S25+, real Chrome) FAILED with two owner-verified defects; the owner
+ratified exactly two fixes. Evidence: `.state/phase-10-gate104/uat101a-s25plus-full.log`
++ `uat101a-db/`; diagnosis in `.state/compliance-log.md` `[2026-10-10 08:20]`.
+
+**Dependency:** `Project Vision/04_NAVIGATION_LOOP.md` §1/§3 **v1.5.0** (amended
+2026-10-10 for this revision, owner-approved) — the revision implements that amendment.
+
+### R1-A — code-triggered subtask IS-DONE checks (defect 1: done-ness was hostage to the
+engine's willingness to volunteer `finish`; 36 steps, zero ExitCheckRows, the urlHost
+condition satisfied from step 0)
+
+- When the ACTIVE subtask's code done-condition is satisfied (the `DoneConditionChecker`
+  guard ALONE), the loop proactively runs the SAME anchored noul check as the
+  engine-initiated finish branch. Refactor, not duplication: the finish branch's
+  verification block (guard level + anchored question + judge + escalation capture +
+  `ExitPolicy.onFinishCheck` + completion-card/accept/refuse handling + the ExitCheckRow
+  write) is extracted into ONE shared path (`verifyFinishCheck` +
+  `subtaskGuardLevel`/`subtaskNoulQuestion`/`advanceAfterSubtaskAccept`/
+  `runAnswerExtraction`/`concludeGoalAchieved`) used by BOTH entries — identical
+  question construction, escalation handling, exit paths.
+- Trigger point: after the observation/state text are built, BEFORE the DECIDE step.
+  ART-4 intact: code satisfaction triggers the QUESTION; the advance still requires
+  engine noul HIGH AND the guard.
+- Rate bound (ART-5): at most ONE code-triggered check per (page-hash, active-subtask
+  ordinal); re-arms on any page-hash change, pointer advance, or re-plan. A static page
+  is asked once.
+- Step accounting: the check CONSUMES its step — no engine choose happened (ART-2), so
+  no decision row is fabricated; the check rides HISTORY + its ExitCheckRow and counts
+  one `metaDecisions` increment so the zero-log-gaps invariant stays exact (this also
+  keeps the `exit_check` UNIQUE `(taskId, stepIndex)` key collision-free — a refused
+  check followed by an engine finish on the same step index would otherwise abort the
+  insert). On a mid-ladder accept: advance the pointer + fresh per-subtask ExitPolicy +
+  site entry + overlay publish, then `continue` — the next OBSERVE/state build runs the
+  step's DECIDE over the NEW active subtask. On a FINAL-subtask accept: GOAL_ACHIEVED
+  with full exit provenance (path/guard/noul on the report's exit block + the accepted
+  ExitCheckRow; no terminal decision row exists — the engine made no choose).
+- A refused check: writes its ExitCheckRow (the corpus's decoy contrast), does NOT
+  withhold candidates (the anti-oscillation finish window keeps applying to
+  engine-initiated finish only), does NOT feed the stuck detector, and does NOT count a
+  subtask failure — the step continues normally (the engine still decides).
+- The `uiListener.onThinking(true/false)` pair wraps the consult (owned by the shared
+  path, same as the finish branch).
+
+### R1-B — guaranteed owner card on ladder runs (defect 2: the stuck L3 auto-kill ended
+the task at 2 consecutive subtask failures, one short of the card's 3-threshold — a
+race, not a guarantee)
+
+- On a LADDER run every stuck L3 auto-kill (all three `assessStuck` L3 call sites) is
+  INTERCEPTED by `handleStuckKill`: it counts one subtask failure (the kill IS an
+  unverifiable subtask), then routes through the SAME owner escalation card
+  (`arbitrateSubtaskFailure`). Retry resets the failure streak AND the stuck detector's
+  escalations (`StuckDetector.resetEscalations()` — new; the detector re-escalates from
+  L1, never straight back to L3). Re-plan draws the bounded capacity (the existing cap +
+  writer-budget checks). Stop — and the 30s timeout, which the presenter resolves as the
+  fail-safe Stop — ends the task with the honest terminal (the stuck cause +
+  "the owner said stop (escalation card)"). The card discloses the failure count, the
+  remaining re-plan capacity, and the ACTIVE subtask (existing `EscalationCard` fields).
+- The give-up recovery path keeps the v1.4.0 arithmetic unchanged (count → auto re-plan
+  ≤2/task → the card at 3 consecutive failures).
+- NON-ladder (legacy harness) runs keep today's direct L3 kill byte-stable
+  (`pointer ?: return finish(STUCK_KILL, cause)` — pinned by test).
+
+### R1 test pins (Gate 10.2 extension, JVM, $0)
+
+The suite blind spot is fixed: "guard satisfied but the engine never finishes" is now a
+pinned scenario. New/changed in `LadderExecutionLoopTest`: (1) the pointer law test
+re-pinned — a satisfied guard with a LOW code-check noul does NOT advance; the ENGINE
+finish (noul HIGH + guard) still advances mid-ladder; the final code check completes;
+(2) the code check completes a ladder the engine never finishes (FINAL accept =
+GOAL_ACHIEVED, exit provenance, exactly one ACCEPTED ExitCheckRow, zero decision rows);
+(3) the onThinking pair wraps the code check's consult; (4) a refused check: no
+advance, one refused ExitCheckRow (STRONG guard), asked once per page-hash (the consult
+order is pinned), re-fires after the hash changes, candidates unwithheld, log gaps 0;
+(5) a refused check is NOT a subtask failure (the give-up counts failure #1, not #2);
+(6) the owner card fires on the intercepted L3 kill — Retry/Re-plan/Stop scripted, the
+post-Retry L1 re-escalation proves the stuck-escalation reset, Stop and the fail-safe
+timeout end with the honest stuck cause; (7) the LEGACY non-ladder L3 kill is
+byte-identical (raw cause, no card — the scripted presenter would fail the test if the
+card fired). Lawful re-pins recorded: two pre-existing Gate 10.2 tests moved with the
+v1.5.0 behavior (the engine-finish advance scenario, the owner-card scenario — the card
+now fires at failure count 2 = give-up + intercepted kill), and the sanctioned-secrets
+test scripts one more judge answer for the re-planned ladder's code check.
+
+### R1 gates
+
+`./gradlew test` green: :core 326 + :app 462 = 788, 0 failures (baseline 783 + 5 new
+pins); `:app:assembleDebug` green. Zero-Android in `:core` untouched (no `:core`
+change). Venue for the on-device proof: UAT 10.1 re-run on the owner's phone (the
+defects were live-only).

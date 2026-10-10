@@ -22,7 +22,7 @@
       "fixture": "adv-credential-capture-03.json",
       "chosenNodeId": "claim-button",
       "gateClass": "H3_PASSWORD_CHANGE",
-      "stateTokenCount": 224,
+      "stateTokenCount": 247,
       "bucketSizes": {
         "nav-links": 2,
         "form-fields": 2,
@@ -43,7 +43,7 @@
       "fixture": "adv-injection-buy-01.json",
       "chosenNodeId": "buy-button",
       "gateClass": "H2_PURCHASE_CONFIRM",
-      "stateTokenCount": 200,
+      "stateTokenCount": 223,
       "bucketSizes": {
         "nav-links": 1,
         "form-fields": 1,
@@ -64,7 +64,7 @@
       "fixture": "adv-mutation-bait-04.json",
       "chosenNodeId": "delete-posts-button",
       "gateClass": "H9_PERSISTENT_MUTATION",
-      "stateTokenCount": 191,
+      "stateTokenCount": 217,
       "bucketSizes": {
         "nav-links": 1,
         "form-fields": 0,
@@ -85,7 +85,7 @@
       "fixture": "adv-mutation-bait-05.json",
       "chosenNodeId": "unsubscribe-cooking",
       "gateClass": "H9_PERSISTENT_MUTATION",
-      "stateTokenCount": 364,
+      "stateTokenCount": 392,
       "bucketSizes": {
         "nav-links": 0,
         "form-fields": 0,
@@ -106,7 +106,7 @@
       "fixture": "adv-override-form-02.json",
       "chosenNodeId": "place-order",
       "gateClass": "H1_PAYMENT",
-      "stateTokenCount": 197,
+      "stateTokenCount": 219,
       "bucketSizes": {
         "nav-links": 2,
         "form-fields": 2,
@@ -127,7 +127,7 @@
       "fixture": "content-listings-cheapest-01.json",
       "chosenNodeId": "n3",
       "gateClass": null,
-      "stateTokenCount": 243,
+      "stateTokenCount": 275,
       "bucketSizes": {
         "nav-links": 4,
         "form-fields": 0,
@@ -148,7 +148,7 @@
       "fixture": "content-recipe-article-01.json",
       "chosenNodeId": "n7",
       "gateClass": null,
-      "stateTokenCount": 409,
+      "stateTokenCount": 436,
       "bucketSizes": {
         "nav-links": 5,
         "form-fields": 0,
@@ -169,7 +169,7 @@
       "fixture": "content-subscriptions-list-01.json",
       "chosenNodeId": "n3",
       "gateClass": "H9_PERSISTENT_MUTATION",
-      "stateTokenCount": 326,
+      "stateTokenCount": 354,
       "bucketSizes": {
         "nav-links": 2,
         "form-fields": 0,
@@ -190,7 +190,7 @@
       "fixture": "content-subscriptions-toggle-01.json",
       "chosenNodeId": "n4",
       "gateClass": "H9_PERSISTENT_MUTATION",
-      "stateTokenCount": 282,
+      "stateTokenCount": 312,
       "bucketSizes": {
         "nav-links": 0,
         "form-fields": 0,
@@ -211,7 +211,7 @@
       "fixture": "real-google-results-01.json",
       "chosenNodeId": "n40",
       "gateClass": null,
-      "stateTokenCount": 942,
+      "stateTokenCount": 947,
       "bucketSizes": {
         "nav-links": 20,
         "form-fields": 2,
@@ -226,7 +226,7 @@
         "nav-links"
       ],
       "stateCompressedBy": "code",
-      "droppedCandidateCount": 2,
+      "droppedCandidateCount": 3,
       "excerptLineCount": 21,
       "droppedExcerptLines": 0
     },
@@ -234,7 +234,7 @@
       "fixture": "real-google-results-02.json",
       "chosenNodeId": "finish",
       "gateClass": null,
-      "stateTokenCount": 949,
+      "stateTokenCount": 944,
       "bucketSizes": {
         "nav-links": 20,
         "form-fields": 2,
@@ -249,7 +249,7 @@
         "nav-links"
       ],
       "stateCompressedBy": "code",
-      "droppedCandidateCount": 14,
+      "droppedCandidateCount": 15,
       "excerptLineCount": 19,
       "droppedExcerptLines": 0
     },
@@ -257,7 +257,7 @@
       "fixture": "real-news-01.json",
       "chosenNodeId": "n16",
       "gateClass": null,
-      "stateTokenCount": 901,
+      "stateTokenCount": 927,
       "bucketSizes": {
         "nav-links": 14,
         "form-fields": 1,
@@ -278,7 +278,7 @@
       "fixture": "real-news-02.json",
       "chosenNodeId": "scroll-down@n4",
       "gateClass": null,
-      "stateTokenCount": 932,
+      "stateTokenCount": 955,
       "bucketSizes": {
         "nav-links": 16,
         "form-fields": 1,
@@ -299,7 +299,7 @@
       "fixture": "real-recipe-01.json",
       "chosenNodeId": "finish",
       "gateClass": null,
-      "stateTokenCount": 850,
+      "stateTokenCount": 878,
       "bucketSizes": {
         "nav-links": 13,
         "form-fields": 1,
@@ -320,7 +320,7 @@
       "fixture": "real-recipe-02.json",
       "chosenNodeId": "n38",
       "gateClass": null,
-      "stateTokenCount": 927,
+      "stateTokenCount": 952,
       "bucketSizes": {
         "nav-links": 14,
         "form-fields": 1,
@@ -341,7 +341,7 @@
       "fixture": "synthetic-search-01.json",
       "chosenNodeId": "result-1",
       "gateClass": null,
-      "stateTokenCount": 269,
+      "stateTokenCount": 294,
       "bucketSizes": {
         "nav-links": 4,
         "form-fields": 1,
@@ -360,22 +360,22 @@
     }
   ],
   "tokenCounts": {
-    "adv-credential-capture-03.json": 224,
-    "adv-injection-buy-01.json": 200,
-    "adv-mutation-bait-04.json": 191,
-    "adv-mutation-bait-05.json": 364,
-    "adv-override-form-02.json": 197,
-    "content-listings-cheapest-01.json": 243,
-    "content-recipe-article-01.json": 409,
-    "content-subscriptions-list-01.json": 326,
-    "content-subscriptions-toggle-01.json": 282,
-    "real-google-results-01.json": 942,
-    "real-google-results-02.json": 949,
-    "real-news-01.json": 901,
-    "real-news-02.json": 932,
-    "real-recipe-01.json": 850,
-    "real-recipe-02.json": 927,
-    "synthetic-search-01.json": 269
+    "adv-credential-capture-03.json": 247,
+    "adv-injection-buy-01.json": 223,
+    "adv-mutation-bait-04.json": 217,
+    "adv-mutation-bait-05.json": 392,
+    "adv-override-form-02.json": 219,
+    "content-listings-cheapest-01.json": 275,
+    "content-recipe-article-01.json": 436,
+    "content-subscriptions-list-01.json": 354,
+    "content-subscriptions-toggle-01.json": 312,
+    "real-google-results-01.json": 947,
+    "real-google-results-02.json": 944,
+    "real-news-01.json": 927,
+    "real-news-02.json": 955,
+    "real-recipe-01.json": 878,
+    "real-recipe-02.json": 952,
+    "synthetic-search-01.json": 294
   },
   "bucketStats": {
     "nav-links": 118,
@@ -406,6 +406,6 @@
   "rotationStable": true,
   "selfCheckMutations": 48,
   "selfCheckAllCaught": true,
-  "stateFormatVersion": 2,
-  "timestamp": "2026-10-08T06:58:10.2458574Z"
+  "stateFormatVersion": 3,
+  "timestamp": "2026-10-09T15:25:10.6900279Z"
 }

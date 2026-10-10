@@ -44,23 +44,28 @@ without a device.
   subtree — browser UI, never a credential target — stays an ordinary ungated
   candidate);
   law: `Project Vision/03` §3
-* `src/main/kotlin/navigator/core/state/` — the state-text family (vision 03 §4 v2.1.0,
-  STATE_FORMAT_VERSION = 2): `StateTextBuilder` — the canonical state text v2 (sections in
-  order GOAL/URL/TITLE/PLAN/TASK PROGRESS/HISTORY/UNTRUSTED PAGE CONTENT; dual budget
-  ≤960 tokens enforced with the real laya tokenizer; PLAN lines from the 08G plan source
-  re-authored by code — flattened, bounded, omitted when no plan; TASK PROGRESS from the
-  08G tracker, omitted without one; the content excerpt rides the untrusted block ahead
-  of the candidate lines; deterministic-first compression — lowest-rank candidate drops,
-  then head-anchored whole-line excerpt shrinking — with `compressedBy=code` logging, the
-  cloud page-compressor LLM role is Phase 10's seam; Phase 8F: the `secrets` parameter —
-  sanctioned-secret redaction (doc 05 §2's render): every occurrence of a known secret in
-  ANY section is MASKED to `[credential-redacted]` — the UNTRUSTED PAGE CONTENT block
-  (where a successfully injected secret legitimately appears as page content, live
-  Chrome carries the typed value in the field's a11y text) AND the app-authored sections
-  alike (the 2026-10-08 collision fix: the old app-authored throw knew only SANCTIONED
-  secrets, so it could only ever deadlock the run on collisions — a card value that is a
-  substring of the URL/goal/title, live-proven S25+ — and could never catch a genuine
-  leak, an unsanctioned secret being unknown to the builder by construction; the
+* `src/main/kotlin/navigator/core/state/` — the state-text family (vision 03 §4 v2.2.0,
+  STATE_FORMAT_VERSION = 3 since Phase 10): `StateTextBuilder` — the canonical state text
+  v3 (sections in order GOAL/URL/TITLE/ACTIVE SUBTASK/LADDER PROGRESS/HISTORY/UNTRUSTED
+  PAGE CONTENT; dual budget ≤960 tokens enforced with the real laya tokenizer; ACTIVE
+  SUBTASK + LADDER PROGRESS render the validated task ladder re-authored by code —
+  flattened, bounded, from the Phase-10 `activeSubtask`/`ladderProgress` parameters — and
+  their DEGENERATE goal-only forms when no ladder is active: the goal itself as the
+  active-subtask line and a constant `(no ladder)` progress line, byte-stable across
+  runs; the v2 PLAN / TASK PROGRESS sections are REPLACED — the 08G plan source and the
+  legacy tracker stay row/report provenance, never a v3 state section; the content
+  excerpt rides the untrusted block ahead of the candidate lines; deterministic-first
+  compression — lowest-rank candidate drops, then head-anchored whole-line excerpt
+  shrinking — with `compressedBy=code` logging, the cloud page-compressor LLM role stays
+  a logged seam; Phase 8F: the `secrets` parameter — sanctioned-secret redaction (doc 05
+  §2's render): every occurrence of a known secret in ANY section is MASKED to
+  `[credential-redacted]` — the UNTRUSTED PAGE CONTENT block (where a successfully
+  injected secret legitimately appears as page content, live Chrome carries the typed
+  value in the field's a11y text) AND the app-authored sections alike (the 2026-10-08
+  collision fix: the old app-authored throw knew only SANCTIONED secrets, so it could
+  only ever deadlock the run on collisions — a card value that is a substring of the
+  URL/goal/title, live-proven S25+ — and could never catch a genuine leak, an
+  unsanctioned secret being unknown to the builder by construction; the
   emission-boundary invariant stays LOUD — a secret equal to a structural constant, e.g.
   the untrusted marker or a bucket header, must never be emittable), doc 06 §2a),
   `ContentExtractor` — the bounded non-candidate prose excerpt
@@ -70,9 +75,34 @@ without a device.
   candidate lines then excerpt shrunk head-anchored by whole lines, within the
   checkpoint's `maxLen − headMaxLen − 1` budget passed by the caller (the FORMULA lives
   beside the app marker ceilings, ART-5); identity when the canonical fits; LOUD failure
-  when nothing lawful remains to shrink — silent marker-layer truncation is unlawful);
+  when nothing lawful remains to shrink — silent marker-layer truncation is unlawful;
+  derivation is layout-agnostic, so the v3 sections derive unchanged);
   the token counter is injectable (`deriveWith`) — the cross-language parity seam vs
   `tools/laya_reference.py --state-view-parity`; law: `Project Vision/03` §1, §4
+* `src/main/kotlin/navigator/core/ladder/` — the task-ladder types (Phase 10, vision 04
+  §1 v1.4.0 / vision 03 §4 v2.2.0): `Ladder.kt` — `Ladder {summary, subtasks,
+  taskClass}` + `Subtask {instruction, done}` + `LadderTaskClass` (read/action/multi) +
+  the ART-4 construction invariants (single-line display-only summary, non-blank
+  instructions, the ≤8-subtask + size caps of `LadderLimits`, and the shape-vs-class
+  law: MULTI ⇔ some done-condition is count-shaped — the LLM's class claim is validated
+  against the whitelist shapes, mismatch fails in `init`) + `LadderValidator` (the
+  gen-boundary matrix: per-condition field checks, count bounds 1..100, condition-text
+  caps; loud `LadderValidationException` listing every violation — nothing navigates) +
+  the `DoneCondition` whitelist (ART-4 LAW: `urlHost(host)` / `markerText(text)` /
+  `elementPresent(description)` / `count(target, n)` — the ONLY machine-checkable
+  IS-DONE shapes; an opinion-phrased condition cannot even be constructed);
+  `DoneConditionChecker.kt` — the code-side IS-DONE checker over CODE-READ evidence
+  (`Evidence{url,title,pageText,candidateLabels,counters}`; urlHost verifies with the
+  scheme/port/www-insensitive host surgery, markerText is a case-insensitive literal
+  match over page text, elementPresent matches enumerable candidate labels only
+  (both-direction deterministic token-run containment + the ≥0.9 token-overlap bound —
+  the STRONG matcher's discipline), count reads the code-owned working memory
+  (`counters[target]` else `WORKING_MEMORY_KEY` "processed" — the tracker's processed
+  count) and advances only at n) + `guardStrength` (urlHost = STRONG page identity,
+  other shapes WEAK) + one-line `render`; `SubtaskPointer.kt` — the pointer that
+  advances ONLY on a verified IS-DONE (one step at a time, loud past the final subtask —
+  the final subtask's IS-DONE is the task's goal-achieved, never a pointer move); law:
+  `Project Vision/04` §1/§3 v1.4.0, `Project Vision/03` §4 v2.2.0
 * `src/main/kotlin/navigator/core/gate/` — the risk gate (ART-1: code owns the gate,
   no model judgment in the gate path): `RiskGate` (deterministic H1–H9 classifier over
   (action, context); ambiguous classification fails to the stricter class — never
@@ -142,7 +172,11 @@ without a device.
   fallback noul, guard level (NONE/WEAK/STRONG — refusals can be NONE), verdict, and
   accepted path; loud incoherent shapes in `init`); pure data + math, zero I/O (ART-8);
   law: `Project Vision/05` §1–§5, `Project Vision/02` §4–§5
-* `src/main/kotlin/navigator/core/StateFormat.kt` — `STATE_FORMAT_VERSION`
+* `src/main/kotlin/navigator/core/StateFormat.kt` — `STATE_FORMAT_VERSION` (= 3 since
+  Phase 10: ACTIVE SUBTASK + LADDER PROGRESS replace PLAN / TASK PROGRESS, vision 03 §4
+  v2.2.0; the bump gated on the Tier A retire-and-add re-pin and restarts the RLCD
+  accumulation counter — v1 and v2 rows decode unchanged and are excluded from the
+  export corpus, counted loudly per version)
 * `src/test/resources/fixtures/` — golden fixtures (recorded a11y dumps + wire transcripts;
   `transcripts/phase3/` holds provider-shape wire transcripts for Gates 3.1–3.3, including
   two LIVE GOLDENS (`live-*.json`, response bodies captured verbatim from the provider
@@ -164,7 +198,11 @@ without a device.
   `replay-pairings.json` (each dump's gold decision: goal + chosen node + optional explicit
   action kind + note) and `replay-expectations.json` (golden chosen node id + gate class
   per fixture). Expectation fixes are NEW/edited entries with a note — the a11y-dump
-  fixtures themselves never mutate (vision 07 §2; UAT 7.1: the owner reviews these)
+  fixtures themselves never mutate (vision 07 §2; UAT 7.1: the owner reviews these).
+  Since Phase 10 the table carries THREE generations per fixture where both bumps
+  touched it: the retired v1 pin, the retired v2 pin, and the active v3 re-pin (the
+  loader allows several retired entries per fixture — one per superseded format
+  generation; what it still forbids is a retired entry with no active replacement)
 * `src/test/resources/log/goldens/` — byte-stable JSON snapshots of the DecisionLog row
   schema (Gate 5.1); immutable once accepted — regenerate only with `UPDATE_GOLDENS=true`
   after a reviewed, vision-level schema change
@@ -202,11 +240,11 @@ without a device.
   or a pinned model ID must re-run Tier A green (`.state/eval/` artifacts byte-stable) —
   the committed artifacts are the drift detector; regenerate with
   `./gradlew :core:generateTierAReport` and commit the result when a reviewed change
-  moves them. The 2026-10-08 `password` kind marker is such a format-relevant change:
-  Tier A re-ran green with every measured value byte-identical (278 rotations stable,
-  48/48 mutations caught, tokens 191–949, stateFormatVersion 2) — no fixture produces
-  the marker (all decode isPassword=false), so no pins moved and only the artifacts'
-  timestamp fields refreshed
+  moves them. The Phase-10 v3 bump is the current baseline: retire-and-add re-pinned all
+  16 fixtures (the v1 AND v2 pins retired with provenance notes, 16 active v3 pins),
+  278 rotations stable, 48/48 mutations caught, tokens 217–955 ≤ 960,
+  stateFormatVersion 3 — the degenerate goal-only ladder sections shifted every token
+  count, so the artifacts moved lawfully (the drift detector re-armed at v3)
 * Loaders validate strictly: unknown/missing fields and cross-field inconsistencies fail
   loudly (`FixtureValidationException`); malformed fixture = test failure, never silent default
 * Probability maps are name/id-keyed, never positional (vision 02 §2); callers branch on
@@ -312,11 +350,13 @@ without a device.
   `NoulQuestion` payload with its `anchoredNoulVersion`, `gold` the authoritative pTrue).
   AUTHORITATIVE-GOLD LAW: gold is always the EXECUTED answer — the fallback's when
   `escalated=true`, the primary's otherwise; a student engine is never its own gold.
-  FORMAT SCOPING: only rows of the current `STATE_FORMAT_VERSION` export (since the 08H
-  bump the retired v1 rows are the excluded ones); rows of other versions are excluded
+  FORMAT SCOPING: only rows of the current `STATE_FORMAT_VERSION` export (since the
+  Phase-10 v3 bump the retired v1 AND v2 rows are the excluded ones); rows of other versions
+  are excluded
   and counted by version in the manifest (loudly, never silently dropped) — the
   manifest's `rowCount` IS the Road L accumulation counter and restarts at every bump
-  (doc 01 Road L Phase 3). STATE VIEW (Phase 08H): the canonical export (default) copies
+  (doc 01 Road L Phase 3; the v3 export's manifest shows the v2 rows excluded+counted
+  and the rowCount restarted). STATE VIEW (Phase 08H): the canonical export (default) copies
   the rows' state text verbatim; the on-device lineage (`RlcdStateView.LAYA_VIEW`) derives
   the LAYA STATE VIEW through the same versioned builder ([LayaStateView.derive] within
   the caller checkpoint's view budget) and the manifest carries
@@ -333,9 +373,11 @@ without a device.
 
 * `./gradlew :core:test` — banding boundaries, type serialization round-trips, fixture
   accept/reject tests, enumeration determinism + taxonomy gates (2.1), tokenizer reference
-  vectors (2.2), state-text law (2.3, v2 since Phase 8H: section order, ≤960 canonical,
-  excerpt rendering + head-anchored shrink, PLAN/TASK-PROGRESS rendering + omission,
-  `ContentExtractorTest` Gate 8H.1, `LayaStateViewTest` Gate 8H.2 core half — the ≤319
+  vectors (2.2), state-text law (2.3, v3 since Phase 10: section order
+  GOAL/URL/TITLE/ACTIVE SUBTASK/LADDER PROGRESS/HISTORY/untrusted, ≤960 canonical,
+  excerpt rendering + head-anchored shrink, the ladder sections' code-authored +
+  degenerate goal-only forms (byte-stable) + bounds, `ContentExtractorTest` Gate 8H.1,
+  `LayaStateViewTest` Gate 8H.2 core half — the ≤319
   dual-view derivation with the REAL tokenizer, loud unfittable views; since Phase 8F
   incl. the sanctioned-secret redaction — an echoed card-secret value in the untrusted
   block renders `[credential-redacted]` (partial overlaps mask in place, surrounding
@@ -344,6 +386,13 @@ without a device.
   `login.html`) masks in place and the run survives, a secret equal to a structural
   constant fails at the emission-boundary invariant, and the
   default `secrets` parameter keeps non-credential output byte-identical), the
+  ladder gates (`LadderTest` — the whitelist construction law (an opinion-phrased
+  done-condition cannot be constructed), the shape-vs-class matrix (MULTI ⇔ a
+  count-shaped condition exists), the caps + `LadderValidator`'s loud violation list,
+  the checker matrix over code-read evidence (urlHost scheme/www/port-insensitive,
+  markerText literal, elementPresent candidate-labels-only with both-direction token
+  containment, count working memory advancing only at n), guard strength (urlHost
+  STRONG, others WEAK), renders, and the SubtaskPointer one-step advance law), the
   wire gates (3.1 transcript round-trips incl.
   the live goldens, 3.2 failover + retry law, 3.3 name-indexing + banding — all keyless;
   real request bytes/statuses via MockWebServer, transport-failure simulations
@@ -376,12 +425,12 @@ shapes + the typedSecret and plan loud-incoherence proofs, 5.2 RLCD export vs a
   replay vs `eval/replay-expectations.json` + byte-identical consecutive runs + committed
   `.state/eval/` artifact drift detection, 7.2 injected-regression self-check, 7.3 rotation
   stability, report schema) must all pass; the standard regression command for any later
-  change to state format, wire parsing, taxonomy, or gate classes. Since the Phase-08H
-  bump the table runs retire-and-add: 11 retired v1 pins (`retired: true`, provenance
-  only) + 16 active v2 pins (the 11 re-pins, the 2 content-rich fixtures, and the 3
-  Phase-08I suite-row fixtures); the drift detector is re-armed at the v2 baseline with
-  the Phase-08I additions (`.state/eval/tier-a-report.{md,json}`,
-  stateFormatVersion=2, 278 rotations stable, 48/48 mutations caught, tokens 191–949 ≤ 960)
+  change to state format, wire parsing, taxonomy, or gate classes. The table runs
+  retire-and-add — since the Phase-10 v3 bump: 27 retired entries (11 v1 pins + the 16
+  v2 pins, `retired: true`, provenance only) + 16 active v3 pins (the re-pins, gold
+  decisions unchanged); the drift detector is re-armed at the v3 baseline
+  (`.state/eval/tier-a-report.{md,json}`, stateFormatVersion=3, 278 rotations stable,
+  48/48 mutations caught, tokens 217–955 ≤ 960)
 
 ## Child DOX Index
 

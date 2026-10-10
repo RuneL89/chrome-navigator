@@ -119,7 +119,22 @@ setup wizard (`setup/`).
     (vision 04 §3 Path C) timeout = keep going; the PLAN section on every card;
     focusable modal windows that BLOCK while presenting (CompletableDeferred); plus
     `OverlayGatePresenter`/`OverlayCompletionCardPresenter` implementing the loop's
-    presenter seams — a missing overlay manager fails LOUDLY (never a silent deny)),
+    presenter seams — a missing overlay manager fails LOUDLY (never a silent deny));
+    PHASE 10: the cards' PLAN display became the ACTIVE-SUBTASK display (the manager's
+    plan slot now carries the ACTIVE subtask line — the owner always sees what the agent
+    thinks it is doing; the Gate 9.3 "plan-display-held" evidence check is untouched),
+    the NEW `EscalationCardWindow` (the owner escalation card "Retry / Re-plan / Stop"
+    riding the Phase-9 card machinery: focusable modal, 30s countdown ring,
+    **timeout = STOP** fail-safe, re-plans-remaining disclosed) +
+    `OverlayEscalationCardPresenter` (the same loud missing-overlay law)),
+    `LadderBlock.kt` (Phase 10, PURE JVM — the corner log's ladder block formatter,
+    owner directive 2026-10-09: `GOAL: <the LLM's one-sentence rewrite>` +
+    `Sub Task N [x]/[ ]` lines, the ACTIVE subtask marked `▶ `, the re-plan generation
+    line ("re-plan 2") under the GOAL line, summary flattened + capped for corner
+    readability; Gate 10.2 pins it incl. pointer-advance + re-plan regeneration; the
+    block is a PINNED HEADER in `LiveLogOverlay` — rendered above the streaming step
+    lines in EVERY collapsed/expanded state (the latest-N slice law applies to the step
+    lines only), with color spans only (the text is the formatter's law)),
     `NavigatorService` (§2.3 — the product foreground service, `specialUse` type,
     START_STICKY, the `navigator` channel's persistent ready/working notification,
     tap → SetupActivity + a "New task" action; hosts product runs: the SAME recorded
@@ -132,7 +147,12 @@ setup wizard (`setup/`).
     control — `manager.onStopTask` → the service's `TaskCancelFlag`, `beginTask` at
     every task start, `isCancelled = flag::isCancelled` into the loop's seam,
     `setTaskRunning(true/false)` around the run (finally), the task-state line
-    rendered through `LoopUiListener.taskStateLine`; DEBUG-ONLY stub override for the Gate 9.3
+    rendered through `LoopUiListener.taskStateLine`; PHASE 10: every PRODUCT goal
+    restructures first (vision 01 §3 v1.4.0) — the run wires ONE `GenLadderSource`
+    (both the ladder + extraction seams) over the Setup-stored key; the listener's
+    `onLadderBlock` renders the corner log's pinned ladder block; the owner escalation
+    card rides `OverlayEscalationCardPresenter`; the DEBUG-ONLY stub override stays
+    UN-laddered (a scripted $0 run has no writer); DEBUG-ONLY stub override for the Gate 9.3
     $0 emulator flow (its run is wrapped loud-but-polite — a stub mismatch fails the
     RUN, never the PROCESS the a11y service lives in)), `GateScenarios.kt` (MAIN source — the four gates' assertion
     bodies written ONCE, debug-gated at the caller; returns
@@ -151,6 +171,33 @@ setup wizard (`setup/`).
     gate-runner actions — each runs its scenario on a background thread and logcats
     `GATE9x RESULT: PASS|FAIL <summary>` + `GATE9x CHECK: <name> PASS|FAIL - <detail>`
     under the `NavigatorGates` tag; refused unless debuggable)
+  * `src/main/kotlin/navigator/app/gen/` — the generative writer layer (Phase 10, phase
+    doc §2.1): `GenClient.kt` — the ONE OpenRouter `/api/v1/chat/completions` client for
+    BOTH writer roles (restructure + answer extraction), over the SAME injected
+    `WireTransport` seam (no second HTTP speaker); `GenConfig` + `GenEngineConfigs` (the
+    PINNED generative model id + the chat URL + the integer micro-USD price table — the
+    decision engines' pinning law, vision 02 §5: the pin lives here only, upgrades are
+    eval-gated bump commits); retry law identical to the wire client (transport errors
+    only, ≤2, exponential backoff; any HTTP status and any malformed 200 are content —
+    never retried, never failed over); `restructure(goal, generation)` — ONE call,
+    versioned `Prompts.PROMPT_VERSION`, producing a code-validated `Ladder` with
+    EXACTLY ONE bounded content retry ([LadderSchema.LadderSchemaException] → one fresh
+    attempt → [GenRefusedException] = the clean pre-navigation refusal; nothing
+    navigates on an invalid ladder); `extractAnswer(goal, finalState)` — reports
+    content, not instructions (doc 06 §4); usage = provider-reported token counts ×
+    pinned prices in INTEGER micro-dollars (the provider's float cost is ignored for
+    accounting, the wire-client precedent); `Prompts.kt` — the versioned prompt surface
+    (the prompt TEXT is fixture law: the Gate 10.1 golden records it verbatim per
+    version; the goal text is pinned as UNTRUSTED DATA in the system prompt; extraction
+    prompts "report data, not actions"); `LadderSchema.kt` — the wire-shape parser: the
+    done-condition WHITELIST is enforced at the schema boundary (exactly one of
+    urlHost/markerText/elementPresent/count — an opinion shape is schema-REJECTED),
+    code-fence stripping, unknown fields ignored / missing fields loud, then
+    `:core`'s `LadderValidator`; `GenLadderSource.kt` — the `:app` `LadderSource` +
+    `AnswerExtractor` over a GenClient (the harness live-ladder mode AND the product run
+    path, one wiring); NO SECRET EVER ENTERS A WRITER PROMPT (doc 06 §2a): the loop
+    masks sanctioned secrets out of the goal/final-state before any call; law:
+    `Project Vision/01` §3, `Project Vision/04` §1 v1.4.0, `Project Vision/06` §2a/§4
   * `src/main/kotlin/navigator/app/setup/` — the setup wizard (Phase 9, §2.2):
     `SetupLogic` (PURE state derivation, JVM-pinned: the a11y-enabled check string
     parsing, the Samsung-only battery branching — non-Samsung passes with an info line
@@ -209,7 +256,7 @@ setup wizard (`setup/`).
     (debug fixture capture into the `:core` `A11yDump` schema, including
     `A11yNode.isPassword`; refused in non-debuggable builds)
   * `src/main/kotlin/navigator/app/loop/` — the navigation loop (Phase 6,
-    vision 04): `NavigationLoop` (STRICT step order OBSERVE → ENUMERATE → DECIDE →
+    vision 04; Phase 10 added the ladder execution): `NavigationLoop` (STRICT step order OBSERVE → ENUMERATE → DECIDE →
     GATE → EXECUTE → LOG; the GATE step classifies with `RiskGate` and — Phase 8E,
     vision 06 §3 — when the code net is UNCERTAIN (`mutationNet` SUSPICIOUS: no
     confident H-class) consults the injected engine ADDITIVELY via
@@ -362,7 +409,10 @@ setup wizard (`setup/`).
     `StuckDetector` (6 signals / 8-step window / 3 levels; the Phase-8J sixth signal is
     the exit conflict — 3 consecutive refused finishes with no screen progress; the L1
     hint carries "engine wants to finish, evidence says <level>"; a screen change resets
-    both escalations; L2 recovery set, rephrase = deterministic stub until Phase 10), 
+    both escalations; L2 recovery set, rephrase = deterministic stub until Phase 10;
+    R1 added `resetEscalations()` — the owner card's Retry clears the escalation LEVEL
+    so the detector re-escalates from L1 instead of re-tripping straight to L3, doc 04
+    §1 v1.5.0),
     `TaskBudget` + `BudgetProfiles` (Phase 8D, vision 04 §5: per-class profiles —
     Standard lookup·research·form-fill 40/60 steps · 5/10 min · $0.20/$0.25 (built
     FROM the pre-08D companion constants, byte-identical); Action 60/100 ·
@@ -438,7 +488,55 @@ setup wizard (`setup/`).
     insert-only `ExitCheckRow` through the `DecisionLogSink.writeExitCheck` edge (the
     loop captures the anchored judge's escalation separately from the step's choose;
     on a primary hard failure the executed fallback noul stands in as `answer`,
-    decision-row precedent)
+    decision-row precedent).
+    PHASE 10 (the task ladder, vision 04 §1 v1.4.0) added, all inside the loop package:
+    `LadderSource.kt` (the restructure seam — consulted for EVERY goal when wired; the
+    default `None` leaves every existing path byte-identical; `null` = the clean
+    pre-navigation refusal; `RestructuredLadder{ladder, version "<prompt>/gen<n>",
+    costMicroUsd}`; plus the `AnswerExtractor` seam + `ExtractedAnswer` and the
+    `LadderRunReport` run-report block), `WriterBudget.kt` (the SEPARATE per-task
+    writer cap — $0.05 soft / $0.10 hard, integer micro-dollars, ART-5; the hard cap
+    blocks further writer calls, navigation untouched), `SiteEntry.kt` (the
+    OUTCOME-BASED site-entry chooser — a urlHost subtask's mechanism: VIEW intent when
+    a URL resolves from the goal/instruction/done-condition host (explicit URL >
+    bare domain > the validated host), logged with its derivation source; no
+    hardcoding, ART-2 intact — the engine still navigates when nothing resolves),
+    `EscalationCard.kt` (the owner escalation card payload + presenter seam —
+    "Retry / Re-plan / Stop"; the default `StopEscalationPresenter` is the fail-safe
+    (the timeout's resolution); `ScriptedEscalationCardPresenter` for JVM tests), and
+    the NavigationLoop ladder execution itself: restructure → `applyLadder` (class
+    mapping read→lookup / action→action / multi→action-multi, guards, tracker for
+    MULTI, per-subtask exit policy, row provenance via the EXISTING additive `plan`
+    field with version "<prompt-version>/gen<n>"); the ACTIVE SUBTASK/LADDER PROGRESS
+    state sections (v3) from the pointer + working memory; the finish check at SUBTASK
+    granularity (engine noul HIGH AND `DoneConditionChecker` — urlHost=STRONG,
+    others WEAK; the proposition anchored to the ACTIVE subtask's done-condition,
+    `AnchoredNoul.subtaskQuestion`); the pointer advances ONLY on accept (mid-ladder
+    accepts log the row + advance + fresh ExitPolicy + site entry + overlay publish;
+    the FINAL subtask's accept = GOAL_ACHIEVED + the answer extraction through the
+    masked final state); UAT 10.1-a revision R1 (doc 04 §1/§3 v1.5.0, owner-ratified):
+    the CODE-TRIGGERED IS-DONE check — the IS-DONE evaluation is no longer gated on the
+    engine volunteering `finish`: when the ACTIVE subtask's code done-condition is
+    satisfied (the guard alone) the loop runs the SAME anchored check through the
+    SHARED verification path (`verifyFinishCheck` — judge + escalation + exit policy +
+    completion card + ExitCheckRow, one copy for both entries; identical
+    guard/question construction via `subtaskGuardLevel`/`subtaskNoulQuestion`),
+    rate-bounded to ONE check per (page-hash, active ordinal), re-arming on any hash
+    change or pointer advance; the check CONSUMES its step (no engine choose happened —
+    no decision row, one `metaDecisions` increment keeps the zero-log-gaps invariant);
+    a refused check writes its ExitCheckRow (decoy contrast) but withholds nothing,
+    feeds no stuck signal, and counts NO failure — ART-4 intact (code satisfaction
+    triggers the QUESTION; engine noul HIGH still advances); and the GUARANTEED owner
+    card: the bounded failure path (`handleSubtaskFailureOrKill`: give-up →
+    consecutive-failure count → auto re-plan ≤2/task metered into the writer budget →
+    the card at 3 consecutive failures) is joined by `handleStuckKill` — every stuck
+    L3 auto-kill on a LADDER run is INTERCEPTED (counts one failure) and routes through
+    the card (`arbitrateSubtaskFailure`): Retry resets the failure streak AND
+    `StuckDetector.resetEscalations()` (re-escalation from L1, never straight to L3),
+    Re-plan draws the same cap, Stop/30s-timeout = STUCK_KILL with the honest stuck
+    cause; the LEGACY (non-ladder) L3 kill stays byte-stable; the new
+    `TerminalState.LADDER_REFUSED`; `RunResult` gained additive `ladder`/`answer`/
+    `writerSpendMicroUsd` (null/0 on every non-ladder path)
   * `src/main/kotlin/navigator/app/stub/` — `StubEngine` (Phase 6): a
     `DecisionEngine` replaying a `StubScript` deterministically ($0 spend); answers
     select by option id, `labelContains`, or `bucketFirst`(+ordinal), with an
@@ -517,7 +615,17 @@ setup wizard (`setup/`).
     terminal the harness returns to the front with one ~200ms buzz and the final verdict
     notification — the owner always knows a run is over),
     `HarnessRunners` (`HarnessObserver`, engine factory,
-    Room-backed `DecisionLogSink`, `RunReportStore`). Gate-6.3 key delivery: the
+    Room-backed `DecisionLogSink`, `RunReportStore`). Phase 10: `--ez ladder true` (the
+    LIVE LADDER mode, phase doc §2.4 / Gate 10.4) — the run restructures the goal
+    through the writer (`GenLadderSource` over `GenClient` + the pinned generative
+    config, keyed by the standard key-delivery priority; a missing key fails LOUDLY),
+    executes over the validated ladder (pointer, IS-DONE, bounded re-plans), extracts
+    the answer, and wires the writer-usage logging; refused loudly under STUB (the
+    writer needs the key). The run report gained the additive `ladder` (`LadderReport`:
+    version/generation/summary/taskClass + per-subtask done/active flags), `answer`
+    (`AnswerReport`: text + promptVersion + tokens + integer cost) and
+    `writerSpendMicroUsd` blocks — omitted from the JSON on every non-ladder path.
+    Gate-6.3 key delivery: the
     factory resolves the OpenRouter key by priority intent extra
     (`--es openrouterKey <KEY>` — the only delivery that works inside an app process,
     which has neither an environment nor the repo's `.tools/`) > env > keys file,
@@ -558,7 +666,8 @@ setup wizard (`setup/`).
   (the Phase-9 wizard; MainActivity is a thin launcher onto it — the declaration was
   briefly lost in the Phase-9 restructure and its absence crashed every fresh-install
   launch; restored 2026-10-09)
-* `src/main/kotlin/navigator/app/log/` — Room persistence for the DecisionLog
+  * `src/main/kotlin/navigator/app/log/` — Room persistence for the DecisionLog
+    (Phase 5, vision 05 §2): `DecisionLogDb.kt` — `DecisionLogEntity` (nested log objects
   (Phase 5, vision 05 §2): `DecisionLogDb.kt` — `DecisionLogEntity` (nested log objects
   as `DECISION_LOG_JSON` columns), `DecisionLogConverters` (row ↔ entity, loud decode),
   `DecisionLogDao` + `DecisionLogger` (the Phase-6 insert/query API),
@@ -649,7 +758,22 @@ setup wizard (`setup/`).
 * The log path is local-only (ART-8): no network code may ever touch
   `navigator.app.log` or `navigator.core.log`
 * Room DAO tests run on the JVM under Robolectric (test-only dependency, `@Config(sdk=[34])`);
-  the JUnit4 runner rides the JUnit platform via the vintage engine
+  the JUnit4 runner rides the JUnit platform via the vintage engine; Phase 10 added the
+  test-only MockWebServer dependency for Gate 10.1 (the writer client's golden +
+  validation gates — no gate ever calls a live provider, the `:core` wire-gate precedent)
+* Phase 10 writer law (vision 04 §1 v1.4.0 / doc 06 §2a): the generative writer never
+  decides (ART-2 — only `DecisionEngine`s decide; the ladder re-scopes the objective,
+  Jev chooses every action); NO secret ever enters a writer prompt (the loop masks
+  sanctioned secrets out of any re-plan goal context and the extraction final state
+  before the call — pinned by the LadderExecutionLoopTest writer-redaction test); the
+  pinned generative model id lives only in `GenEngineConfigs` (the vision 02 §5
+  pinning law; the pin is `anthropic/claude-haiku-5.5` since the 2026-10-09 verifier
+  bump — the pre-commit guess `anthropic/claude-3.5-haiku` was verified NOT a live
+  OpenRouter slug; the golden fixture's model fields moved with it; a further bump is
+  an eval-gated commit); the price table keeps the ORIGINAL conservative $0.80/$4-per-M
+  as an UPPER BOUND for the cheaper haiku tier (writer-cap accounting never
+  understates); writer spend is integer micro-dollars in `WriterBudget`, separate from
+  the decision-spend `SpendMeter`
 * `Observation.nodes` is Phase 2's bucketing input — the node list shape is frozen
   (PHASE_01 §6); changes to it are a cross-phase contract change (Phase 6 added the
   separate `observeForLoop()` + `LoopObservation` instead of touching it)
@@ -678,6 +802,53 @@ setup wizard (`setup/`).
 ## Verification
 
 * `./gradlew :app:assembleDebug` must produce an APK
+* Phase 10 gates: `GenClientTest` (Gate 10.1, isolation — MockWebServer + the
+  deterministic in-memory transport, $0, NO live provider call): the golden
+  request/response per prompt version (`src/test/resources/gen/
+  golden-restructure-v1.json` — the prompt text is fixture law; a PROMPT_VERSION or
+  wording change ADDS v2 and retires v1, never mutates), the validation matrix (valid
+  ladders pass; opinion done-conditions, malformed JSON, wrong shapes, oversized
+  ladders → loud rejection through EXACTLY ONE bounded content retry then the clean
+  `GenRefusedException`), the adversarial rows (hostile goal texts produce schema-VALID
+  ladders only — a weakened/suppressed check has no whitelisted shape and is
+  schema-rejected; a self-correcting second attempt is recovered), the retry law
+  (transport errors ≤2 with exponential backoff; any HTTP status = content, never
+  retried; a malformed 200 never answer-shopped), integer micro-dollar usage, and the
+  extraction path; `LadderExecutionLoopTest` (Gate 10.2, JVM, scripted-engine runs over
+  hand-built ladders): the pointer advances ONLY on (engine noul HIGH AND the code
+  guard) — a satisfied guard with noul below HIGH does NOT advance and vice versa
+  (guard NONE refuses every path); count done-conditions track the tracker's working
+  memory ("2 of 3" does not advance, 3 of 3 does — the LADDER PROGRESS count line rides
+  the state); the FINAL subtask's IS-DONE = GOAL_ACHIEVED with the answer riding the
+  run report; the bounded failure path (re-plan refusal → the loop keeps going → the
+  fail-safe escalation card stops it; the owner card's
+  Retry/Re-plan/Stop resolutions scripted — every card discloses the failure count, the
+  effective re-plan capacity, and the ACTIVE subtask); the writer budget separate from
+  decision spend (exact integers); the restructure refusal = LADDER_REFUSED with 0
+  steps and 0 rows; the outcome-based site entry (pure chooser pins + the logged VIEW
+  intent in the real loop); the R1 pins (doc 04 v1.5.0, the UAT 10.1-a defects — the
+  Gate 10.2 blind spot "guard satisfied but the engine never finishes" is closed): the
+  CODE-TRIGGERED check completes a ladder the engine never finishes (the FINAL accept =
+  GOAL_ACHIEVED with the report's exit block + exactly one ACCEPTED ExitCheckRow and NO
+  decision row — the engine was only asked to JUDGE, ART-2); a refused code check does
+  not advance, is asked ONCE per page-hash (re-fires after the hash changes), leaves
+  the candidates unwithheld, and is NOT a subtask failure; the onThinking pair wraps
+  the code check's consult; the L3 stuck-kill on a LADDER run presents the owner card
+  (Retry resets the streak AND the stuck escalations — the L1 re-escalation is proven;
+  Stop and the fail-safe timeout end with the honest stuck cause; every card discloses
+  the failure count = give-up + intercepted kill); the LEGACY non-ladder L3 kill is
+  byte-identical (raw cause, no card); `LadderBlockTest` (the corner-log block's exact
+  phase-doc shape, pointer-advance + re-plan regeneration pins, flatten/cap,
+  presentation-parse predicate); `WriterBudgetTest` (the $0.05/$0.10 caps, integer
+  accumulation, the hard cap blocking further writer calls);
+  `./gradlew test` since the R1 revision: :core 326 + :app 462 = 788 tests, 0 failures
+  (the lawful re-pins that moved: the two Gate 10.2 ladder tests re-pinned to the
+  v1.5.0 behavior — the engine-finish advance scenario now passes the code-triggered
+  check first, and the owner-card test pins the GUARANTEED card on the intercepted L3
+  kill (failure count 2 = give-up + kill) instead of the old 3-count race; the
+  sanctioned-secrets test scripts one more judge answer for the re-planned ladder's
+  code check; the v3 re-pins of Phase 10 itself are recorded above, unchanged);
+  :app:assembleDebug green
 * `./gradlew :app:testDebugUnitTest` — Gate 1.1 serializer goldens (+ the 2026-10-08
   H8-gap `password`-kind marker tests — flagged nodes emit `edit password`, unflagged
   nodes render exactly as before) + Gate 1.2 URL-bar
@@ -895,6 +1066,21 @@ tracked as last-known (normalized) and serves on an empty card URL, and garbage
   the Phase-9 JVM pins (`SetupLogicTest`, `LiveLogAnchorTest`, `LoopUiListenerTest`,
   `TaskCancelFlagTest`, `NavigationLoopListenerTest`) green; emulator screenshots in
   `.state/uidesign-*.png`
+* Gate 10.4 (on-device, Phase 10 — orchestrator run 2026-10-09, evidence
+  `.state/phase-10-gate104/`): the LIVE ladder path end-to-end on the emulator —
+  live restructure proven via the harness report (validated 2-subtask elementPresent
+  ladder, `writerSpendMicroUsd=1614`, provenance `restructure-v1/gen1`); the product
+  path run live ("open wikipedia.org and open the world war 2 page" on the goal
+  overlay): site-entry VIEW intent loaded real wikipedia.org, the corner log rendered
+  the live ladder block throughout (GOAL summary per generation, `Sub Task N [x]/[ ]`
+  with the ACTIVE marker, `re-plan 2`→`re-plan 3` — the initial+≤2 re-plan cap held),
+  25 live Jev rows (`stateFormatVersion=3`, `planJson` ladder provenance, zero exit
+  rows, zero secrets), and the bounded failure path executed live (3 consecutive
+  subtask failures → owner escalation card → 30s timeout = STOP → STUCK_KILL). The
+  completion leg (IS-DONE advancing over readable content → GOAL_ACHIEVED +
+  extraction on-device) is ENVIRONMENT-BLOCKED by KD-5 (webview-shell content a11y;
+  7 recovery attempts recorded) — JVM-proven by Gate 10.2; venue = UAT 10.1 on real
+  Chrome. Phase live spend ≤ ~$0.03 of the $1/$3 caps
 * Gate 8J (on-device smoke): the `exit-reliability-1` harness goal (stub engine, auto
   keep-going) runs the scripted finish path end-to-end on the emulator — refusals with
   the anti-oscillation window, one completion card answered keep-going, then the

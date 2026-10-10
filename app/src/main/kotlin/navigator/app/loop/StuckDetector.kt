@@ -85,6 +85,16 @@ class StuckDetector(private val windowSize: Int = WINDOW) {
     }
 
     /**
+     * Clears the escalation LEVEL (vision 04 §1 v1.5.0: the owner escalation card's
+     * Retry — the detector must not re-trip straight back to L3). The next assessment
+     * re-escalates from L1 while the window still trips; the footprints and the
+     * exit-conflict evidence stay (they are history, not the level).
+     */
+    fun resetEscalations() {
+        stuckCount = 0
+    }
+
+    /**
      * Assesses the window after the last recorded step. Returns null while fewer than
      * [SIGNALS_TO_TRIP] signals trip; otherwise the next escalation level.
      */

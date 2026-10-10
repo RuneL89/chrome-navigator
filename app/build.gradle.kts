@@ -91,6 +91,10 @@ dependencies {
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.kotlin.test.junit5)
     testRuntimeOnly(libs.junit.platform.launcher)
+    // Phase 10 Gate 10.1: the generative writer client's golden request/response +
+    // validation-matrix gates run against MockWebServer (test-only — no gate ever calls
+    // a live provider; the :core wire gates' precedent).
+    testImplementation(libs.mockwebserver)
     // Gate 8.1/8.3: the REAL laya int8 graph runs on the desktop JVM through the same
     // ai.onnxruntime API the device uses (test-only artifact, never shipped)
     testImplementation(libs.onnxruntime.desktop)

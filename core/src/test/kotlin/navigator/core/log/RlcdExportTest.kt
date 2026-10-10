@@ -183,21 +183,22 @@ class RlcdExportTest {
     fun `format scoping - foreign-format rows are excluded and counted loudly in the manifest`() {
         // vision 05 §4: an export includes only rows whose stateFormatVersion matches
         // the current serve shape; rows of other versions are excluded and counted by
-        // version — never silently dropped. Since the Phase-08H bump the retired v1
-        // rows are the foreign ones (the Road L accumulation counter restarts at the
-        // bump, doc 01 Road L Phase 3).
+        // version — never silently dropped. Since the Phase-10 bump (STATE_FORMAT_VERSION
+        // = 3) the retired v2 rows are the foreign ones (the Road L accumulation counter
+        // restarts at the bump, doc 01 Road L Phase 3) — the v3 export's manifest shows
+        // the v2 rows excluded + counted and the rowCount restarted (Gate 10.3).
         val current = LogRowFixtures.complete()
-        val foreign = LogRowFixtures.complete(rowId = "row-v1").copy(stateFormatVersion = 1)
+        val foreign = LogRowFixtures.complete(rowId = "row-v2").copy(stateFormatVersion = 2)
         val jsonl = exporter.export(listOf(current, foreign))
         val lines = jsonl.split("\n")
         assertEquals(1, lines.size, "only the current-format row exports")
-        assertTrue("row-v1" !in lines.single())
-        assertTrue("\"open-first-result\"" in lines.single(), "the surviving case is the v2 choose case")
+        assertTrue("row-v2" !in lines.single())
+        assertTrue("\"open-first-result\"" in lines.single(), "the surviving case is the v3 choose case")
         val manifest = exporter.manifest(listOf(current, foreign))
-        assertEquals(1, manifest.rowCount)
-        assertEquals(listOf(2), manifest.stateFormatVersions)
+        assertEquals(1, manifest.rowCount, "the accumulation counter restarted at the v3 bump")
+        assertEquals(listOf(3), manifest.stateFormatVersions)
         assertEquals(1, manifest.excludedRowCount)
-        assertEquals(mapOf(1 to 1), manifest.excludedByStateFormatVersion)
+        assertEquals(mapOf(2 to 1), manifest.excludedByStateFormatVersion)
     }
 
     @Test

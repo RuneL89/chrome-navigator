@@ -102,6 +102,22 @@ data class RunReport(
      * never executor (ART-2). Null on the deterministic default path.
      */
     val plan: PlanReport? = null,
+    /**
+     * Phase 10 (vision 04 §1 v1.4.0): the executed task ladder at the terminal (the
+     * pointer state, the generation, the summary). Null on every non-ladder path.
+     */
+    val ladder: LadderReport? = null,
+    /**
+     * Phase 10: the extracted answer (vision 04 §6, doc 06 §4) — the Phase-11 result
+     * screen's input. Null when no extractor was wired or extraction failed.
+     */
+    val answer: AnswerReport? = null,
+    /**
+     * Phase 10 (vision 04 §5 v1.4.0): the SEPARATE per-task writer spend (integer
+     * micro-USD, ART-5) — restructure + re-plans + extraction, beside
+     * [RunReport.spendMicroUsd] (the decision spend; the caps never mix).
+     */
+    val writerSpendMicroUsd: Long = 0,
 )
 
 /**
@@ -142,6 +158,52 @@ data class TargetTrackerReport(
 data class PlanReport(
     val version: String,
     val subgoals: List<String>,
+)
+
+/**
+ * Phase 10 (vision 04 §1 v1.4.0): the executed task ladder at the terminal — the
+ * `<prompt-version>/gen<n>` provenance, the generation count, the LLM's one-sentence
+ * summary, the validated task class, and per-subtask done/active flags. Present only on
+ * LADDER runs; omitted from the JSON elsewhere (never ambiguous with "no ladder").
+ */
+@Serializable
+data class LadderReport(
+    /** `<prompt-version>/gen<n>` of the ACTIVE (last) ladder generation. */
+    val version: String,
+    /** The generation live at the terminal (1 = no re-plan; 2..3 = bounded re-plans). */
+    val generation: Int,
+    /** The LLM's one-sentence rewrite (display only — never feeds decisions). */
+    val summary: String,
+    /** read | action | multi (the validated ladder's task class). */
+    val taskClass: String,
+    val subtasks: List<LadderSubtaskReport>,
+)
+
+/** One subtask's terminal state in the ladder report. */
+@Serializable
+data class LadderSubtaskReport(
+    val instruction: String,
+    /** The done-condition's whitelisted shape, rendered one-line. */
+    val done: String,
+    /** Verified IS-DONE (the pointer passed it, or the final subtask of an achieved goal). */
+    val completed: Boolean,
+    /** True when this was the ACTIVE subtask at the terminal. */
+    val active: Boolean,
+)
+
+/**
+ * Phase 10: the extracted answer (vision 04 §6; doc 06 §4 "report data, not actions") —
+ * the Phase-11 result screen's input, riding the run report until then. Present only
+ * when an extractor was wired AND extraction succeeded.
+ */
+@Serializable
+data class AnswerReport(
+    val text: String,
+    val promptVersion: String,
+    val inputTokens: Long,
+    val outputTokens: Long,
+    /** Integer micro-USD (ART-5) — the writer budget's metered cost of the call. */
+    val costMicroUsd: Long,
 )
 
 /**

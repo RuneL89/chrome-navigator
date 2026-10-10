@@ -101,16 +101,22 @@ When the user requests a durable behavior change, record it here or in the relev
 * `handoff/` — source documents (handoff v1, handoff v2 Road L) and feasibility research; input material, not law
 * `core/` — `:core`, the pure-JVM decision core (DecisionEngine + JevEngine + the
   Phase-8C FallbackEngine composition, types, banding, the systemone wire client + engine
-  configs, golden-fixture schemas + loaders, candidate enumeration, state text builder,
+  configs, golden-fixture schemas + loaders, candidate enumeration, the state-text
+  builder (Phase 10 bumped STATE_FORMAT_VERSION to 3: ACTIVE SUBTASK + LADDER PROGRESS
+  replace PLAN / TASK PROGRESS; degenerate goal-only forms without a ladder), the
+  Phase-10 task-ladder types (`ladder/`: the Ladder + the ART-4 done-condition whitelist
+  (urlHost / markerText / elementPresent / count) + the code-side IS-DONE checker + the
+  SubtaskPointer that advances only on a verified IS-DONE),
   the laya tokenizer port (BOTH checkpoint families — the 421M ByteLevel BPE and the
   Phase-8C v32b 256k Metaspace BPE), risk gate: H1–H9 classifier (Phase 8E added H9
   persistent-state mutation: broad code net + the additive-only engine check) + per-task trust state
   machine + gate card (Phase 8F: the credential-secret card variant per vision 06 §2a),
   DecisionLog row schema (incl. the Phase-8C escalated/fallback fields + the Phase-8F
   typedSecret redaction flag — the credential value itself is never stored)
-  fields) + companion shadow-result rows + RLCD export + agreement calculators incl. the
+  fields) + companion shadow-result rows + RLCD export (format-scoped; the Road L
+  accumulation counter restarted at the v3 bump) + agreement calculators incl. the
   joined view, the Tier-A eval harness: deterministic replay + position-bias rotation +
-  measurement reports). See `core/AGENTS.md`
+  measurement reports (re-pinned on v3, retire-and-add). See `core/AGENTS.md`
 * `app/` — `:app`, the Android application (a11y observation, the Phase-6 navigation
   loop + budgets/stuck-detector/completion-guards + the fixture-driven stub engine and
   headless debug harness, DecisionLog + companion-row Room persistence; Phase 8 added the on-device
@@ -137,6 +143,17 @@ When the user requests a durable behavior change, record it here or in the relev
   into it); UAT ACCEPTED 2026-10-09 (owner on-device, two revision rounds); a 2026-10-09
   owner design pass (warm brand-forward, dark-first compact) restyled the setup wizard
   (card layout + progress) and the corner live log (amber accent, outcome-colored
-  segments, latest-N slice); the result screen stays Phase 11). See `app/AGENTS.md`
+  segments, latest-N slice); Phase 10 added the task ladder: the generative writer layer
+  (`gen/` — the OpenRouter chat-completions `GenClient` with the pinned generative model,
+  the versioned restructure/extract prompts, the whitelist-enforcing `LadderSchema`,
+  `GenLadderSource`), the loop's ladder execution (`LadderSource` seam — default null
+  byte-identical; pointer advances only on engine-HIGH AND the code done-condition
+  checker; outcome-based site entry; ≤2 bounded re-plans + the owner escalation card
+  "Retry / Re-plan / Stop" at 3 consecutive subtask failures; the SEPARATE per-task
+  writer budget $0.05/$0.10; answer extraction rides the run report), the overlay
+  surfaces (`LadderBlock` — the corner log's pinned GOAL + `Sub Task N [x]/[ ]` header;
+  the cards' ACTIVE-SUBTASK display; `EscalationCardWindow`), the harness `--ez ladder`
+  live-ladder mode, and the product path wiring (every product goal restructures first);
+  the result screen stays Phase 11). See `app/AGENTS.md`
 * `tools/` — Phase-8/8C model-acquisition + reference-vector scripts (uv-driven; build-time
   HF downloads only). See `tools/AGENTS.md`

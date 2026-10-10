@@ -1,7 +1,7 @@
 # Navigation Loop
 
 **Document ID:** `NAVIGATOR-VISION-004`
-**Version:** 1.4.0 *(amended 2026-10-09: goal restructuring — the pipeline opens with a writer-LLM restructure stage that turns the free-text goal into a validated task ladder (ordered subtasks, each with a machine-checkable IS-DONE condition); the loop executes over the ACTIVE subtask with the §3 exit law applied at subtask granularity; cold-start folds into the outcome-based site-entry mechanism; triage and the 08G context-plan are subsumed. Owner-ratified via the Phase-10 interview (12 decisions, 2026-10-09).)*
+**Version:** 1.5.0 *(amended 2026-10-10: code-triggered subtask IS-DONE checks — the IS-DONE evaluation is no longer gated on the engine volunteering `finish`; when the ACTIVE subtask's code done-condition is satisfied the loop proactively runs the same anchored noul check (ART-4 intact — engine HIGH still required to advance); and on ladder runs a stuck L3 auto-kill routes through the owner escalation card instead of ending the task silently. Owner-ratified after UAT 10.1-a caught both defects live on-device.)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-06, 2026-10-07, 2026-10-09)
 **Date:** 2026-10-03
 **Implements:** ART-4 (no self-report completion), ART-5 (numbers in code), ART-9 (bounded
@@ -45,6 +45,12 @@ after **3 consecutive subtask failures** the loop raises an owner card ("Retry /
 Re-plan / Stop") instead of dying silently. Gate denials keep §2 step-4 semantics
 (double-deny aborts). Writer calls are capped by a **separate per-task writer budget**
 beside the decision-spend budget (§5; ART-5/ART-9).
+**Card guarantee (v1.5.0, 2026-10-10 — owner-ratified after UAT 10.1-a):** on a ladder
+run the card is not optional: a stuck L3 auto-kill (or any task-ending internal kill)
+routes through the SAME owner card — Retry resets the streak, Re-plan draws the bounded
+capacity, Stop (and the 30s timeout) ends the task — so a ladder task never ends
+silently while owner arbitration is available. Non-ladder (legacy harness) runs keep
+the old direct L3 kill, byte-stable.
 
 **Untrusted-ladder law (ART-4):** the ladder is untrusted input. Done-conditions may
 reference ONLY code-checkable facts (the whitelist above) — an opinion-phrased
@@ -93,6 +99,19 @@ the **ACTIVE subtask's done-condition** ("the URL host is wikipedia.org", "the m
 done only when the engine noul check passes AND the code guard on the done-condition
 holds — the ladder's own claim of completion is never evidence (ART-4). The final
 subtask's IS-DONE is the task's goal-achieved.
+
+**Code-triggered IS-DONE checks (v1.5.0, 2026-10-10 — owner-ratified after UAT 10.1-a):
+the evaluation is NOT gated on the engine volunteering `finish`.** When the ACTIVE
+subtask's code done-condition becomes satisfied (the code guard alone), the loop
+proactively runs the SAME anchored noul check — identical question construction,
+escalation, ExitCheckRow logging, and exit paths as the engine-initiated finish branch.
+The advance law is unchanged (engine noul HIGH AND the code guard; ART-4 — code
+satisfaction triggers the QUESTION, never the advance). Rate-bounded: at most one
+code-triggered check per (page-hash, active subtask) pair (a static page is asked once;
+the check re-arms on any page change, a pointer advance, or a re-plan), and a refused
+check does not withhold candidates (the anti-oscillation finish window keeps applying
+to engine-initiated finish only). Refused code-triggered checks still write their
+ExitCheckRows (the corpus's decoy contrast, doc 05 §2).
 
 **Guard levels (code-only):**
 - **WEAK** — the per-triage-class contentful predicates: lookup/research (a non-empty

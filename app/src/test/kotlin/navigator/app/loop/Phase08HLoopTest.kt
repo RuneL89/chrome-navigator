@@ -17,11 +17,12 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * Gate 8H.2 (loop half): the v2 state the DECIDE step builds carries the new sections —
- * the content excerpt inside the untrusted block (vision 03 §1), the PLAN lines
- * re-authored from the 08G [PlanSource] proposal, and the tracker's TASK PROGRESS lines
- * on action-multi tasks — and omits both sections on the default (no plan, no
- * multi-target) path, whose shape stays the pre-08H layout.
+ * Gate 8H.2 (loop half) under the v3 law (Phase 10, vision 03 §4 v2.2.0): the state the
+ * DECIDE step builds carries the content excerpt inside the untrusted block (vision 03
+ * §1) and the ACTIVE SUBTASK / LADDER PROGRESS sections — which render their DEGENERATE
+ * goal-only forms on every non-ladder path (the v2 PLAN / TASK PROGRESS sections are
+ * REPLACED: the 08G plan source stays row/report provenance only, and the legacy
+ * tracker's working memory rides the L1 stuck hint + the run report).
  */
 class Phase08HLoopTest {
 
@@ -128,7 +129,10 @@ class Phase08HLoopTest {
     }
 
     @Test
-    fun `a proposed plan renders as bounded app-authored PLAN lines`() {
+    fun `the v2 PLAN section is REPLACED - a proposed plan source leaves the degenerate ladder forms`() {
+        // Phase 10 (vision 03 §4 v2.2.0): ACTIVE SUBTASK + LADDER PROGRESS replace
+        // PLAN / TASK PROGRESS; the 08G plan source stays provenance-only (rows +
+        // report — pinned by PlanSourceLoopTest), never a state section again.
         val engine = runLoop(
             "action-multi",
             planSource = ProposedPlanPlanSource(
@@ -137,34 +141,54 @@ class Phase08HLoopTest {
             observations = listOf(page),
         )
         val (_, state) = engine.states.first { it.first == "action" }
+        assertFalse("PLAN:" in state, "the v2 PLAN section is gone under v3")
+        assertFalse("TASK PROGRESS:" in state, "the v2 TASK PROGRESS section is gone under v3")
         val lines = state.split("\n")
-        assertEquals("PLAN: open the list page", lines[3], "PLAN follows TITLE, before TASK PROGRESS")
-        assertEquals("PLAN: resolve every listed target", lines[4])
-        assertTrue(lines[5].startsWith("TASK PROGRESS:"), "TASK PROGRESS follows PLAN on a multi-target task")
-        assertTrue(lines.any { it.startsWith("HISTORY:") }, "HISTORY follows")
+        assertEquals(
+            "ACTIVE SUBTASK: open every saved item in the reading list",
+            lines[3],
+            "the degenerate ACTIVE SUBTASK form carries the goal (no ladder)",
+        )
+        assertEquals(
+            "LADDER PROGRESS: ${StateTextBuilder.NO_LADDER_PROGRESS}",
+            lines[4],
+            "the degenerate LADDER PROGRESS form is byte-stable (no ladder)",
+        )
+        assertTrue(lines[5].startsWith("HISTORY:"), "the degenerate forms sit between TITLE and HISTORY")
     }
 
     @Test
-    fun `the action-multi tracker's progress lines ride TASK PROGRESS`() {
+    fun `the legacy tracker's working memory no longer rides a state section (v3) - it rides the run report`() {
         val engine = runLoop("action-multi", observations = listOf(page))
         val (_, state) = engine.states.first { it.first == "action" }
-        val progress = state.split("\n").filter { it.startsWith("TASK PROGRESS:") }
-        assertTrue(progress.isNotEmpty(), "an action-multi step carries the section")
-        assertTrue(
-            progress.first().contains("0 processed") && progress.first().contains("2 pending"),
-            "the counts line reflects the tracker's working memory: ${progress.first()}",
+        assertFalse("TASK PROGRESS:" in state, "the v2 TASK PROGRESS section is gone under v3")
+        val progress = state.split("\n").filter { it.startsWith("LADDER PROGRESS:") }
+        assertTrue(progress.size == 1, "exactly the degenerate form renders (no ladder)")
+        assertEquals(
+            "LADDER PROGRESS: ${StateTextBuilder.NO_LADDER_PROGRESS}",
+            progress.single(),
         )
     }
 
     @Test
-    fun `the default path omits both sections - the pre-08H layout`() {
+    fun `the default path renders the degenerate goal-only ladder sections byte-stably`() {
         val engine = runLoop("lookup", planSource = PlanSource.None)
         val (_, state) = engine.states.first { it.first == "action" }
-        assertFalse("PLAN:" in state, "no plan source -> no PLAN section")
-        assertFalse("TASK PROGRESS:" in state, "not an action-multi task -> no TASK PROGRESS section")
+        assertFalse("PLAN:" in state, "the v2 PLAN section is gone under v3")
+        assertFalse("TASK PROGRESS:" in state, "the v2 TASK PROGRESS section is gone under v3")
         val lines = state.split("\n")
         assertEquals("TITLE: ", lines[2], "TITLE renders even when the page title is blank")
-        assertTrue(lines[3].startsWith("HISTORY:"), "HISTORY follows TITLE directly on the default path")
+        assertEquals(
+            "ACTIVE SUBTASK: open every saved item in the reading list",
+            lines[3],
+            "the degenerate ACTIVE SUBTASK form is the goal itself",
+        )
+        assertEquals(
+            "LADDER PROGRESS: ${StateTextBuilder.NO_LADDER_PROGRESS}",
+            lines[4],
+            "the degenerate LADDER PROGRESS form",
+        )
+        assertTrue(lines[5].startsWith("HISTORY:"), "HISTORY follows the degenerate forms")
     }
 
     /** A one-shot plan source returning a fixed proposal. */

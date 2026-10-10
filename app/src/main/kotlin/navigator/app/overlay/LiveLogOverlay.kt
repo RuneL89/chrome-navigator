@@ -132,6 +132,17 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
 
     private val lines = ArrayDeque<String>()
 
+    /**
+     * The pinned LADDER BLOCK header (Phase 10, phase doc §2.4): the task ladder's
+     * GOAL summary + `Sub Task N [x]/[ ]` checklist, rendered ABOVE the streaming step
+     * lines in EVERY state (collapsed AND expanded — the latest-N slice law applies to
+     * the step lines only; the block is a header, never sliced). Text comes from the
+     * pure [LadderBlock] formatter (the loop owns the state; this overlay never builds
+     * ladder text itself). Empty = no ladder (byte-identical rendering).
+     */
+    @Volatile
+    private var ladderHeader: List<String> = emptyList()
+
     /** Process-lifetime gate for the orchestrator's Gate 9.4 evidence collection. */
     fun measuredLatenciesMs(): List<Long> = g94Latencies.toList()
 
@@ -373,6 +384,7 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
             windowParams = null
         }
         lines.clear()
+        ladderHeader = emptyList()
         expanded = false
     }
 
@@ -424,18 +436,23 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
      * The rendered slice: the LATEST 6 logical lines collapsed / latest 14 expanded
      * (the phase doc's collapsed/expanded law — applied here by slicing, never by
      * TextView maxLines, which would clip the newest lines from the top under
-     * wrapping).
+     * wrapping). The pinned ladder header (Phase 10) rides ABOVE the slice in every
+     * state — it is a header, never sliced.
      */
-    private fun renderedSlice(): List<String> =
-        if (expanded) lines.takeLast(EXPANDED_LINES) else lines.takeLast(COLLAPSED_LINES)
+    private fun renderedSlice(): List<String> {
+        val stepLines = if (expanded) lines.takeLast(EXPANDED_LINES) else lines.takeLast(COLLAPSED_LINES)
+        return ladderHeader + stepLines
+    }
 
     /**
      * The kept lines' latest slice as one CharSequence — the text is byte-identical
-     * to the plain newline join (the formatting law lives in [LoopUiListener]); this
-     * only ADDS per-segment presentation color: the step number in the brand amber,
-     * and a gated step's gate marker in its outcome color (denied = danger,
-     * approved = success, other = amber). Ungated steps ("gate: —") and terminal
-     * lines keep the coloring described in [applyLineColors].
+     * to the plain newline join (the formatting law lives in [LoopUiListener] and
+     * [LadderBlock]); this only ADDS per-segment presentation color: the step number
+     * in the brand amber, a gated step's gate marker in its outcome color (denied =
+     * danger, approved = success, other = amber), and the ladder block's marks (the
+     * GOAL line + done marks in the brand amber, the active `▶` line brightened).
+     * Ungated steps ("gate: —") and terminal lines keep the coloring described in
+     * [applyLineColors].
      */
     private fun styledLines(): CharSequence {
         val builder = SpannableStringBuilder()
@@ -459,6 +476,23 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
                 }
                 builder.setSpan(
                     ForegroundColorSpan(color),
+                    start,
+                    start + line.length,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+                )
+            }
+            line.startsWith(LadderBlock.GOAL_PREFIX) || line.startsWith(LadderBlock.REPLAN_PREFIX) -> {
+                builder.setSpan(
+                    ForegroundColorSpan(COLOR_ACCENT),
+                    start,
+                    start + line.length,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+                )
+            }
+            line.startsWith(LadderBlock.ACTIVE_MARK) -> {
+                // The ACTIVE subtask line: brightened so it reads at corner size.
+                builder.setSpan(
+                    ForegroundColorSpan(COLOR_ACTIVE_LINE),
                     start,
                     start + line.length,
                     Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
@@ -492,6 +526,14 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
                     }
                 }
             }
+        }
+    }
+
+    /** Sets (or clears) the pinned ladder block header (Phase 10; main-thread marshaled). */
+    fun setLadderHeader(blockLines: List<String>) {
+        manager.postOnMainThread {
+            ladderHeader = blockLines
+            renderLines()
         }
     }
 
@@ -538,6 +580,9 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
         private val COLOR_SUCCESS = Color.rgb(76, 195, 138)
         private val COLOR_DANGER = Color.rgb(240, 113, 108)
         private val COLOR_LINE = Color.rgb(233, 226, 214)
+
+        /** The ladder block's ACTIVE-subtask line (brighter than body text, Phase 10). */
+        private val COLOR_ACTIVE_LINE = Color.rgb(255, 226, 170)
         private val COLOR_CONTROL_BG = Color.argb(235, 46, 38, 28)
         private val COLOR_CONTROL_TEXT = Color.rgb(207, 198, 184)
         private val COLOR_STOP_BG = Color.argb(235, 62, 26, 24)

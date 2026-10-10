@@ -81,6 +81,39 @@ object AnchoredNoul {
         "PAGE IDENTITY: the currently displayed page's title is \"${excerpt(pageTitle)}\" " +
             "and its address is ${excerpt(pageUrl)}."
 
+    /**
+     * The per-subtask finish question (vision 04 §3 v1.4.0 — "the SAME discipline
+     * applies at subtask granularity: the goal-achieved proposition is anchored to the
+     * ACTIVE subtask's done-condition"): the proposition names the ACTIVE subtask's
+     * instruction and its machine-checkable done-condition, code-rendered — the ladder's
+     * own completion claim is never the question (ART-4). The [isFinal] subtask's IS-DONE
+     * is the task's goal-achieved, so its proposition says so. Versioned with the same
+     * [ANCHORED_NOUL_VERSION] template family; the PAGE IDENTITY line rides every
+     * proposition (v2 law unchanged).
+     */
+    fun subtaskQuestion(
+        subtaskInstruction: String,
+        doneConditionText: String,
+        isFinal: Boolean,
+        pageTitle: String,
+        pageUrl: String,
+    ): NoulQuestion {
+        val taskClause = if (isFinal) {
+            "This is the ladder's FINAL subtask: its completion is the task's goal-achieved."
+        } else {
+            "This is one subtask of a larger task ladder."
+        }
+        val body = "The ACTIVE subtask \"${anchor(subtaskInstruction)}\" is complete: " +
+            "$doneConditionText — verified against the page identified below. $taskClause"
+        return NoulQuestion(
+            name = NavigationLoop.GOAL_ACHIEVED_QUESTION,
+            proposition = "$body\n${identityLine(pageTitle, pageUrl)}",
+        )
+    }
+
+    /** Anchors a span for a proposition (quoted, control-flattened, bounded). */
+    private fun anchor(text: String): String = excerpt(text.replace(Regex("[\\n\\r\\t]"), " "))
+
     /** Excerpt cap for the identity line (a title/URL is bounded evidence, not state). */
     internal const val EXCERPT_MAX = 120
 

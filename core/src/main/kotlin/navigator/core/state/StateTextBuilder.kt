@@ -7,7 +7,7 @@ import navigator.core.enumerate.CandidateList
 import navigator.core.laya.Tokenizer
 
 /**
- * Builds the canonical state text v2 (vision 03 §4 — law; STATE_FORMAT_VERSION = 2).
+ * Builds the canonical state text v3 (vision 03 §4 v2.2.0 — law; STATE_FORMAT_VERSION = 3).
  * One canonical format, dual-view budgets — canonical ≤960 tokens here, the on-device
  * laya view ≤319 derived from this text by [LayaStateView]. Sections, in order:
  *
@@ -15,42 +15,50 @@ import navigator.core.laya.Tokenizer
  * GOAL: <goal text>
  * URL: <url or hidden>
  * TITLE: <page title>
- * PLAN: <subgoal, one app-authored line each — omitted when no plan exists>
- * TASK PROGRESS: <working-memory line(s) — omitted when no tracker exists>
+ * ACTIVE SUBTASK: <the ladder's current subtask: instruction + its done-condition +
+ *                  subtask index/total>
+ * LADDER PROGRESS: <completed subtasks one-line each + working-memory counts for
+ *                  count-shaped done-conditions>
  * HISTORY: <digest of prior steps this task, ≤3 lines>
  * UNTRUSTED PAGE CONTENT:
  * <content excerpt — bounded page prose, deterministically selected>
  * <bucketed candidate lines — serialized nodes, bucket headers>
  * ```
  *
+ * Without a ladder the two ladder sections render their DEGENERATE goal-only forms
+ * (byte-stable across runs): ACTIVE SUBTASK carries the goal itself (the goal is the
+ * whole task), LADDER PROGRESS renders a constant `(no ladder)` line. The former v2
+ * PLAN / TASK PROGRESS sections are REPLACED (vision 03 §4 v2.2.0); the Phase-08G
+ * plan-proposal provenance keeps riding the log rows (`plan`, doc 05 §2), never a v3
+ * state section.
+ *
  * Laws enforced here:
  * - Third-party page text — BOTH the content excerpt and the candidate labels — appears
- *   ONLY inside the `UNTRUSTED PAGE CONTENT` block (ART-4): goal, url, title, plan,
- *   progress, and history lines are app-authored, rendered verbatim (whitespace-flattened,
- *   one line each) and never mixed with page text. PLAN lines derive from the writer
- *   LLM's proposal but are re-authored by code — flattened, bounded, one line each;
- *   they are context, never instructions (the gate reads actions, not plans).
+ *   ONLY inside the `UNTRUSTED PAGE CONTENT` block (ART-4): goal, url, title,
+ *   active-subtask, progress, and history lines are app-authored, rendered verbatim
+ *   (whitespace-flattened, one line each) and never mixed with page text. ACTIVE SUBTASK
+ *   lines derive from the writer LLM's validated ladder but are re-authored by code —
+ *   flattened, bounded, one line each; they re-scope the objective, never bypass
+ *   anything: the gate reads actions, not ladders, and the done-condition is verified
+ *   by code ([navigator.core.ladder.DoneConditionChecker]), never trusted from the text.
  * - Oversized trees are compressed deterministically in code FIRST (vision 03 §4):
  *   whole candidates are dropped lowest-rank-first within buckets ([Candidate.RANKING]);
  *   if still over, the content excerpt shrinks head-anchored — whole excerpt lines drop
  *   from the tail, keeping the ranking's head — never a corrupted mid-line cut. Every
- *   drop is recorded; `compressedBy = "code"` when anything was dropped (the cloud
- *   page-compressor LLM role that could rewrite the untrusted block is Phase 10's —
- *   the seam is logged here as the compressedBy vocabulary's `llm` half, never called).
+ *   drop is recorded; `compressedBy = "code"` when anything was dropped.
  * - Never-exceed: if even an empty content block cannot fit the budget the builder fails
  *   loudly — an oversized state text is never emitted.
  * - Secrets never appear in any section (vision 03 §4, doc 06 §2a redaction law): the
  *   caller passes the credentials supplied so far this task in [build]'s `secrets`,
- *   and every occurrence in EVERY section — app-authored (GOAL/URL/TITLE/PLAN/TASK
- *   PROGRESS/HISTORY) and the UNTRUSTED PAGE CONTENT block alike — is REPLACED with
- *   [CREDENTIAL_REDACTED] (doc 05 §2's render). Masking is the only lawful response:
- *   the builder knows only SANCTIONED (card-typed) secrets, so a loud app-authored
- *   check could never catch a genuine leak (an unsanctioned secret is unknown to it
- *   by construction) — it could only ever fire on a collision (a card value that is
- *   a substring of the URL/goal/title; live-proven 2026-10-08: the typed value inside
- *   the login page's own URL deadlocked nine card approvals) and kill the run. The
- *   masked render keeps section semantics: the URL line still shows the address, the
- *   colliding substring redacted.
+ *   and every occurrence in EVERY section — app-authored (GOAL/URL/TITLE/ACTIVE
+ *   SUBTASK/LADDER PROGRESS/HISTORY) and the UNTRUSTED PAGE CONTENT block alike — is
+ *   REPLACED with [CREDENTIAL_REDACTED] (doc 05 §2's render). Masking is the only lawful
+ *   response: the builder knows only SANCTIONED (card-typed) secrets, so a loud
+ *   app-authored check could never catch a genuine leak (an unsanctioned secret is
+ *   unknown to it by construction) — it could only ever fire on a collision (a card
+ *   value that is a substring of the URL/goal/title) and kill the run. The masked render
+ *   keeps section semantics: the URL line still shows the address, the colliding
+ *   substring redacted.
  *
  * The ≤960-token count is measured with the real laya tokenizer port (vision 05 §6),
  * not an approximation.
@@ -84,13 +92,13 @@ class StateTextBuilder(private val tokenizer: Tokenizer = Tokenizer.loadDefault(
      * @param excerpt the bounded non-candidate page prose ([ContentExtractor]'s product);
      *   rendered inside the untrusted block ahead of the candidate lines, shrunk
      *   head-anchored when the budget demands it
-     * @param plan the (optional) plan source's subgoals, re-authored by code — flattened,
-     *   bounded to [MAX_PLAN_LINES] lines, one app-authored `PLAN:` line each; null omits
-     *   the section (vision 03 §4: the section exists only when a plan exists)
-     * @param progress the (optional) tracker's working-memory lines (done/pending counts
-     *   + recent, the 08G [navigator.app.loop.TargetTracker.progressLines] shape minus
-     *   its section prefix), bounded to [MAX_PROGRESS_LINES] app-authored lines; null
-     *   omits the section
+     * @param activeSubtask the ladder's ACTIVE-SUBTASK lines, re-authored by code —
+     *   flattened, bounded to [MAX_ACTIVE_SUBTASK_LINES] lines, one `ACTIVE SUBTASK:`
+     *   line each (v3, vision 03 §4 v2.2.0); null renders the DEGENERATE goal-only form
+     *   (byte-stable): the goal itself as the single active-subtask line
+     * @param ladderProgress the ladder-progress lines (completed subtasks one line each
+     *   + the working-memory counts of count-shaped conditions), bounded to
+     *   [MAX_PROGRESS_LINES]; null renders the degenerate `(no ladder)` line
      * @param secrets the credential values supplied via gate cards so far this task
      *   (doc 06 §2a; empty for every non-credential task — the default keeps every
      *   non-credential call site unchanged). Every occurrence in any section — the
@@ -104,8 +112,8 @@ class StateTextBuilder(private val tokenizer: Tokenizer = Tokenizer.loadDefault(
         history: List<String>,
         candidates: CandidateList,
         excerpt: List<String> = emptyList(),
-        plan: List<String>? = null,
-        progress: List<String>? = null,
+        activeSubtask: List<String>? = null,
+        ladderProgress: List<String>? = null,
         secrets: List<String> = emptyList(),
     ): StateText {
         val redactions = secrets.filter { it.isNotEmpty() }
@@ -114,8 +122,8 @@ class StateTextBuilder(private val tokenizer: Tokenizer = Tokenizer.loadDefault(
         // the untrusted block. Masking is the only lawful response here: the builder
         // knows only SANCTIONED (card-typed) secrets, so a loud app-authored check could
         // never catch a genuine leak (an unsanctioned secret is unknown to it by
-        // construction) — it could only ever fire on a collision (a card value that is a
-        // substring of the URL/goal/title, live-proven 2026-10-08: the typed value
+        // construction) — it could only ever fire on a collision (a card value that is
+        // a substring of the URL/goal/title, live-proven 2026-10-08: the typed value
         // inside the login page's own URL) and deadlock the run. Applied at line level
         // so compression counts the emitted (masked) text.
         fun mask(line: String): String =
@@ -124,8 +132,16 @@ class StateTextBuilder(private val tokenizer: Tokenizer = Tokenizer.loadDefault(
             add("GOAL: " + mask(flatten(goal)))
             add("URL: " + mask(flatten(url)))
             add("TITLE: " + mask(flatten(title)))
-            plan?.take(MAX_PLAN_LINES)?.forEach { subgoal -> add("PLAN: " + mask(flatten(subgoal))) }
-            progress?.take(MAX_PROGRESS_LINES)?.forEach { line -> add("TASK PROGRESS: " + mask(flatten(line))) }
+            // v3 ACTIVE SUBTASK / LADDER PROGRESS (vision 03 §4 v2.2.0): from the
+            // validated ladder when one is active, else the degenerate goal-only forms.
+            val activeLines = activeSubtask ?: listOf(goal)
+            activeLines.take(MAX_ACTIVE_SUBTASK_LINES).forEach { line ->
+                add("ACTIVE SUBTASK: " + mask(flatten(line)))
+            }
+            val progressLines = ladderProgress ?: listOf(NO_LADDER_PROGRESS)
+            progressLines.take(MAX_PROGRESS_LINES).forEach { line ->
+                add("LADDER PROGRESS: " + mask(flatten(line)))
+            }
             val digest = history.takeLast(MAX_HISTORY_LINES).map(::flatten)
             addAll(digest.map { "HISTORY: " + mask(it) })
             if (digest.isEmpty()) add("HISTORY: (none)")
@@ -183,7 +199,7 @@ class StateTextBuilder(private val tokenizer: Tokenizer = Tokenizer.loadDefault(
     }
 
     /**
-     * The exact v2 template: the (pre-masked) app-authored header lines, the
+     * The exact v3 template: the (pre-masked) app-authored header lines, the
      * untrusted-block marker, the content-excerpt lines, then bucket headers (taxonomy
      * order, vision 03 §3) with serialized candidate lines (serializer line discipline,
      * vision 03 §2). Candidate lines ride the caller's [mask] — the excerpt and the app
@@ -230,11 +246,21 @@ class StateTextBuilder(private val tokenizer: Tokenizer = Tokenizer.loadDefault(
         /** Vision 03 §4: history digest is at most 3 lines. */
         const val MAX_HISTORY_LINES = 3
 
-        /** Vision 03 §4: PLAN lines are re-authored by code — flattened AND bounded. */
-        const val MAX_PLAN_LINES = 8
+        /**
+         * ACTIVE SUBTASK lines are re-authored by code — flattened AND bounded (v3,
+         * vision 03 §4 v2.2.0: instruction + done-condition + index/total; two lines of
+         * headroom above the one-line template).
+         */
+        const val MAX_ACTIVE_SUBTASK_LINES = 3
 
-        /** TASK PROGRESS lines are bounded too (counts + recent; the tracker emits ≤7). */
+        /** LADDER PROGRESS lines are bounded too (completed subtasks + count lines). */
         const val MAX_PROGRESS_LINES = 8
+
+        /**
+         * The degenerate LADDER PROGRESS render when no ladder is active (byte-stable
+         * across runs — the non-ladder paths' v3 form).
+         */
+        const val NO_LADDER_PROGRESS = "(no ladder)"
 
         /** The untrusted block marker (ART-4 boundary — page text lives only below it). */
         const val UNTRUSTED_HEADER = "UNTRUSTED PAGE CONTENT:"

@@ -49,6 +49,9 @@ class OverlayManager(private val service: AccessibilityService) {
     @Volatile
     private var completionCardWindow: CompletionCardWindow? = null
 
+    @Volatile
+    private var escalationCardWindow: EscalationCardWindow? = null
+
     /** The loop's plan proposal (Phase 08G) held for the cards' PLAN display. */
     @Volatile
     private var planLines: List<String>? = null
@@ -229,12 +232,22 @@ class OverlayManager(private val service: AccessibilityService) {
 
     fun toggleLiveLogExpanded() = liveLog.toggleExpanded()
 
+    /**
+     * The pinned LADDER BLOCK header (Phase 10, phase doc §2.4): the loop's pure
+     * [LadderBlock]-rendered lines (GOAL summary + `Sub Task N [x]/[ ]` + the re-plan
+     * generation), shown above the streaming step lines in every collapsed/expanded
+     * state. Empty clears it (non-ladder runs render nothing).
+     */
+    fun setLadderBlock(blockLines: List<String>) = liveLog.setLadderHeader(blockLines)
+
     // -- plan display ---------------------------------------------------------------------
 
     /**
-     * The loop's plan proposal (provenance, ART-2) — shown on every subsequent card.
-     * EMPTY lists are nulled (nothing to render), so the listener contract "a non-null
-     * proposal fires" never produces an empty display.
+     * The loop's plan proposal (Phase 08G) — and, since Phase 10, the ACTIVE-SUBTASK
+     * display of a ladder run — shown on every subsequent card (the cards' PLAN section
+     * became the ACTIVE-SUBTASK display, phase doc §2.4; provenance/context only,
+     * ART-2). EMPTY lists are nulled (nothing to render), so the listener contract "a
+     * non-null proposal fires" never produces an empty display.
      */
     fun updatePlan(subgoals: List<String>) {
         planLines = subgoals.takeIf { it.isNotEmpty() }
@@ -264,6 +277,20 @@ class OverlayManager(private val service: AccessibilityService) {
         }
     }
 
+    /**
+     * The Phase-10 escalation card ("Retry / Re-plan / Stop"; 30s timeout = STOP,
+     * fail-safe) riding the Phase-9 card window machinery.
+     */
+    suspend fun presentEscalationCard(card: navigator.app.loop.EscalationCard): navigator.app.loop.EscalationResolution {
+        val window = EscalationCardWindow(this, card)
+        escalationCardWindow = window
+        try {
+            return window.present()
+        } finally {
+            escalationCardWindow = null
+        }
+    }
+
     // -- task-state line ------------------------------------------------------------------
 
     /** One terminal task-state line in the corner log (the run is over). */
@@ -272,27 +299,32 @@ class OverlayManager(private val service: AccessibilityService) {
     // -- teardown + test surface ----------------------------------------------------------
 
     /**
-     * Force-resolves BOTH card windows (fail-safe resolutions: gate timeout=deny,
-     * completion timeout=keep going) and removes them — the debug command surface's
-     * "hide" for the modal cards (the owner-visible hide IS a timeout resolution).
+     * Force-resolves EVERY card window (fail-safe resolutions: gate timeout=deny,
+     * completion timeout=keep going, escalation timeout=stop) and removes them — the
+     * debug command surface's "hide" for the modal cards (the owner-visible hide IS a
+     * timeout resolution).
      */
     fun hideCards() {
         gateCardWindow?.teardown()
         completionCardWindow?.teardown()
+        escalationCardWindow?.teardown()
     }
 
     /**
      * Removes EVERY window and resolves pending cards fail-safe (gate timeout=deny,
-     * completion timeout=keep going). Called from the service's `onDestroy` — the
-     * one lifecycle override that owns the manager (created `onServiceConnected`).
+     * completion timeout=keep going, escalation timeout=stop). Called from the service's
+     * `onDestroy` — the one lifecycle override that owns the manager (created
+     * `onServiceConnected`).
      */
     fun teardown() {
         goalInput.teardown()
         liveLog.teardown()
         gateCardWindow?.teardown()
         completionCardWindow?.teardown()
+        escalationCardWindow?.teardown()
         gateCardWindow = null
         completionCardWindow = null
+        escalationCardWindow = null
     }
 
     /**

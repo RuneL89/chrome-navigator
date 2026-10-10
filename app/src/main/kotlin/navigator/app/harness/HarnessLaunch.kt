@@ -29,6 +29,14 @@ data class HarnessLaunch(
     val shadow: Boolean,
     val shadowEveryNth: Long,
     val settleMs: Long,
+    /**
+     * Phase 10 (phase doc §2.4, Gate 10.4): `--ez ladder true` — the LIVE LADDER mode:
+     * the run restructures the goal through the writer ([navigator.app.gen.GenClient])
+     * and executes over the validated ladder (pointer advance per IS-DONE, bounded
+     * re-plans, answer extraction). Needs a non-STUB engine (the writer calls need the
+     * OpenRouter key); refused loudly under STUB.
+     */
+    val ladder: Boolean,
     /** Whether an OpenRouter key extra rode along — the SOURCE only, never the value. */
     val keyPresent: Boolean,
     val startDelayMs: Long,
@@ -88,6 +96,9 @@ data class HarnessLaunch(
         /** The loop's post-gesture page settle (adb-settable; ms; mirrors the loop default). */
         const val EXTRA_SETTLE_MS = "navigator.harness.extra.SETTLE_MS"
 
+        /** Phase 10: the LIVE LADDER mode (`--ez ladder true` — restructure + ladder loop + extraction). */
+        const val EXTRA_LADDER = "navigator.harness.extra.LADDER"
+
         /** Owner-directed 2026-10-06: show-only front-and-refresh launch. */
         const val EXTRA_SHOW_ONLY = "navigator.harness.extra.SHOW_ONLY"
 
@@ -107,6 +118,7 @@ data class HarnessLaunch(
         const val EXTRA_CUSTOM_GOAL_ID_SHORT = "customGoalId"
         const val EXTRA_SETTLE_MS_SHORT = "settleMs"
         const val EXTRA_SHOW_ONLY_SHORT = "showOnly"
+        const val EXTRA_LADDER_SHORT = "ladder"
 
         const val DEFAULT_SETTLE_MS = 700L
         const val DEFAULT_START_DELAY_MS = 4_000L
@@ -117,7 +129,7 @@ data class HarnessLaunch(
             EXTRA_GOAL, EXTRA_ENGINE, EXTRA_AUTO_DENY, EXTRA_START_DELAY_MS,
             EXTRA_SHADOW, EXTRA_SHADOW_EVERY_NTH, EXTRA_OPENROUTER_KEY,
             EXTRA_CUSTOM_GOAL_TEXT, EXTRA_CUSTOM_START_URL, EXTRA_CUSTOM_GOAL_ID,
-            EXTRA_SETTLE_MS, EXTRA_SHOW_ONLY,
+            EXTRA_SETTLE_MS, EXTRA_SHOW_ONLY, EXTRA_LADDER,
         )
 
         /** Parses one launch intent's extras. Never throws for bad custom extras —
@@ -164,6 +176,7 @@ data class HarnessLaunch(
                 settleMs = extras.long(EXTRA_SETTLE_MS, extras.long(
                     EXTRA_SETTLE_MS_SHORT, DEFAULT_SETTLE_MS,
                 )).coerceAtLeast(0),
+                ladder = extras.bool(EXTRA_LADDER, extras.bool(EXTRA_LADDER_SHORT, false)),
                 // SECRET: read only to report PRESENCE; the value never leaves this function.
                 keyPresent = !extras.string(EXTRA_OPENROUTER_KEY).isNullOrBlank() ||
                     !extras.string(EXTRA_OPENROUTER_KEY_SHORT).isNullOrBlank(),
