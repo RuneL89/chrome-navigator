@@ -1,7 +1,7 @@
 # Navigation Loop
 
 **Document ID:** `NAVIGATOR-VISION-004`
-**Version:** 1.5.0 *(amended 2026-10-10: code-triggered subtask IS-DONE checks — the IS-DONE evaluation is no longer gated on the engine volunteering `finish`; when the ACTIVE subtask's code done-condition is satisfied the loop proactively runs the same anchored noul check (ART-4 intact — engine HIGH still required to advance); and on ladder runs a stuck L3 auto-kill routes through the owner escalation card instead of ending the task silently. Owner-ratified after UAT 10.1-a caught both defects live on-device.)*
+**Version:** 1.6.0 *(amended 2026-10-10: the decision cascade — §2's DECIDE step becomes the two-stage cascade (stage-1 intent, stage-2 score-per-candidate target) with the bounded uncertainty handshake; typed text is writer-phrased on fill-field; §3's finish CHOICE retires in favor of the verify-done intent while Path B's sustained streak re-keys to the active done-condition and gains a bounded held-hash re-check. Owner-ratified after the Phase-10 UAT root-cause analysis (flat hollow-criteria lists → hedged engines → dead tasks).)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-06, 2026-10-07, 2026-10-09)
 **Date:** 2026-10-03
 **Implements:** ART-4 (no self-report completion), ART-5 (numbers in code), ART-9 (bounded
@@ -71,20 +71,30 @@ against count-shaped done-conditions, and survives scrolls and navigation; the g
 1. **OBSERVE** (code) — fresh a11y read + URL bar (doc 03 §1). Unusable tree → graceful
    refusal (doc 03 §5).
 2. **ENUMERATE** (code) — bucket taxonomy, deterministic order (doc 03 §3).
-3. **DECIDE** — `ShadowRouter`: primary chooses the action (flat list); shadow answers the
-   bucketed form asynchronously (doc 02 §4).
-4. **GATE** (code) — risk-gate check against the chosen action **before any execution**
+3. **DECIDE — the cascade (v1.6.0, doc 02 §3)** — `ShadowRouter`: stage-1 intent
+   choice over the 9 fixed categories on the INTENT STATE VIEW; when the intent needs
+   a target, stage-2 batched score-per-candidate over its bucket slate (code takes
+   the argmax; a flat spread = no-good-target). **Uncertainty handshake:** stage-1
+   UNCERTAIN → ONE writer assist (re-describe the page relative to the active
+   subtask — facts, no directives) → ONE re-ask with the assist riding the state as
+   labeled untrusted context; still UNCERTAIN → code fallback (recovery / re-plan /
+   owner card); LOW → wrong-page signal feeding recovery. Bounds (one assist per
+   page-hash, one re-ask, all thresholds) are code constants (ART-5). The shadow
+   answers both stages asynchronously (doc 02 §4).
+4. **GATE** (code) — risk-gate check against the resolved action **before any execution**
    (doc 06): high-stakes class (H1–H9) without task trust → confirmation card (with the
    credential-secret variant per doc 06 §2a when the action types a secret). Approve →
    execute; Deny or 30s timeout → skip; same action denied twice → clean abort; first
    approval of a class grants per-task trust (same-site). The **additive engine check**
    (doc 06 §3) may raise additional gates; it can never suppress one. Every gate outcome
    is logged (`gateEvent`, doc 05).
-5. **EXECUTE** (code) — `dispatchGesture` tap/scroll/back at the node's coordinates, or
-   text entry via focus-first SET_TEXT (+paste fallback). Typed text comes from a
-   `TextSource`: writer-LLM phrasing for ordinary text (locked decision #4), or a
-   gate-supplied credential for secrets (redacted everywhere — doc 05 §2). One call,
-   logged.
+5. **EXECUTE** (code) — the intent's code path: `open-site` → the site-entry VIEW
+   intent; `follow-link`/`activate-control`/`dismiss-nag` → `dispatchGesture` tap at the
+   target's coordinates; `fill-field` → focus-first text entry with the content PHRASED
+   BY THE WRITER (`phrase-v1`, locked decision #4 — never the raw goal text; a phrase
+   failure routes to recovery, it never falls back to goal-text typing); `submit` →
+   tap (the SUBMIT_TRAP gate semantics apply); `go-back`/`scroll` → gesture; secrets
+   always from the gate card, injected directly (redacted everywhere — doc 05 §2).
 6. **LOG** (code) — the DecisionLog row (doc 05), including guard outcomes, execution
    result, both engines' answers, and plan/progress provenance.
 
@@ -123,13 +133,24 @@ ExitCheckRows (the corpus's decoy contrast, doc 05 §2).
   never yields STRONG. STRONG is a strict superset of WEAK: it fires only when the
   class's WEAK predicate is satisfied AND the identity match holds.
 
-**Goal-achieved requires the engine to choose `finish` AND verification to pass via one of
-three paths** (the engine can never finish alone — ART-4; code evidence lowers the bar,
-never replaces it):
+**Goal-achieved completion requires the engine to propose completion AND verification
+to pass via one of three paths** (v1.6.0: the proposal is the `verify-done` intent or
+the code-triggered check — the `finish` pseudo-action choice is retired from slates;
+the engine can never complete alone — ART-4; code evidence lowers the bar, never
+replaces it):
 
 - **Path A (classic):** anchored noul > 0.70 (HIGH) with any guard level.
 - **Path B (sustained evidence):** STRONG guard + noul ≥ 0.55 sustained over **K=3
   consecutive** finish checks → accept, logged `exitPath=SUSTAINED`.
+  **Streak re-keying (v1.6.0):** the sustained streak is keyed to the ACTIVE
+  SUBTASK'S DONE-CONDITION — it survives a re-plan that keeps the condition (a
+  re-plan is not evidence against arrival) and resets only when the condition or the
+  pointer changes. The v1.5.0 per-generation reset is corrected: it made sustained
+  acceptance structurally unreachable (live-proven 2026-10-10 — three STRONG 0.55+
+  checks split across three generations, each streak reset to 1). The code-triggered
+  check's rate bound likewise re-keys: on an UNCHANGED page-hash whose guard stays
+  satisfied, re-checks fire at a bounded interval (every 3rd step, at most 3 per
+  hash) so honest leaning evidence can mature on a static page.
 - **Path C (owner arbiter):** finish refused on K consecutive checks while the guard still
   passes → **completion card** ("Goal appears complete — [Confirm done] / [Keep going]";
   30s timeout = keep going; **max one card per task**) → `exitPath=OWNER_CONFIRM`.
@@ -137,6 +158,11 @@ never replaces it):
 **Anchored noul:** the goal-achieved proposition is code-constructed per goal — anchored
 to the triaged target entity (e.g. "the article titled <entity> is now displayed") — and
 versioned with the state format. Generic "is the goal achieved?" phrasing is forbidden.
+**v3 (2026-10-10):** subtask propositions are ATOMIC — one crisp sentence per
+done-condition shape (urlHost / markerText / elementPresent / count; the question a
+knowledgeable person answers in a second), with the page-identity line carrying the
+real title/URL (the observation layer reads the page title; a blank title is a defect,
+never normal input).
 
 **Anti-oscillation:** a refused finish **excludes `finish` from the next M=2 decisions**
 unless the page hash changes; consecutive refused finishes feed StuckDetector as a signal

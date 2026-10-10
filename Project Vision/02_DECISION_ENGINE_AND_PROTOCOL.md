@@ -1,7 +1,7 @@
 # Decision Engine & Protocol
 
 **Document ID:** `NAVIGATOR-VISION-002`
-**Version:** 1.2.0 *(amended 2026-10-06: §7 primary register corrected after the v32b demotion; §6 graduation gains the exit-calibration leg — owner-directed fine-tuning audit; incorporates the 2026-10-04 companion-rows amendment)*
+**Version:** 1.3.0 *(amended 2026-10-10: the decision cascade — §3 gains the stage-1 fixed-intent vocabulary + stage-2 batched score-per-candidate law and per-question instructions (reversing the Phase-3 shared-instructions decision, owner-ratified after the UAT root-cause analysis); §4 the shadow mirrors both cascade stages)*
 **Status:** Ratified (2026-10-03; amendment ratified 2026-10-04)
 **Date:** 2026-10-03
 **Implements:** ART-2 (one decision gateway), ART-11 (offline endgame)
@@ -55,18 +55,58 @@ Wire-client rules (from documented provider caveats — these are law):
 
 | Primitive | Input | Output | Constraints |
 |---|---|---|---|
-| `choice` | state + options (name + short description each) | chosen option + full probability distribution + confidence | Primary path: ≤255 options, flat list. Shadow path: bucketed two-stage (bucket choice, then ≤20-element choice within bucket) — the two-stage pattern is upstream-sanctioned for Laya. |
-| `noul` | state + proposition | P(true) ∈ [0,1] | Used for goal-achieved; always paired with code completion guards (ART-4, doc 04 §4). |
-| `score` | state + ordered rubric levels (2–10) | expected value over levels + per-level probabilities | Rubric is ordinal levels, **not** numeric; any numeric mapping is defined in `:core` code, never by the model (ART-5). |
+| `choice` | state + options (id + criteria description each) | chosen option + full probability distribution + confidence | Cascade stage-1: the FIXED 9-intent vocabulary (below). Legacy flat ≤255 lists remain lawful for non-cascade questions (triage, recovery). |
+| `noul` | state + proposition | P(true) ∈ [0,1] | Used for done-checks (engine-chosen or code-triggered); always paired with code completion guards (ART-4, doc 04 §3). |
+| `score` | state + ordered rubric levels (2–10) | expected value over levels + per-level probabilities | Cascade stage-2: ONE request carries N per-candidate score questions over the same relevance rubric; `:core` computes expected levels and takes the argmax (ART-5). Rubric is ordinal levels, **not** numeric. |
+
+**The decision cascade (v1.3.0, 2026-10-10 — owner-ratified; supersedes the flat
+per-step action list):** every step's navigation decision is a two-stage cascade of
+typed questions:
+
+- **Stage 1 — intent.** ONE `choice` over the FIXED intent vocabulary — 9 categories:
+  `open-site, follow-link, activate-control, fill-field, submit, go-back, scroll,
+  dismiss-nag, verify-done` — each option carrying a stable one-sentence criteria
+  description; judged against the small INTENT STATE VIEW (doc 03 §4), never the full
+  canonical state. The option set is identical on every call and every task: a stable,
+  learnable prior (the Phase-10 UAT proved per-page dynamic lists with hollow criteria
+  produce hedged, low-confidence answers).
+- **Stage 2 — target (only when the intent needs one: follow-link, activate-control,
+  fill-field, dismiss-nag).** ONE wire request carrying N `score` questions (one per
+  candidate of the intent's bucket slate; browser-chrome candidates excluded — URL
+  needs are the `open-site` intent's code path), all over the same 5-level relevance
+  rubric ("does not advance the active subtask … advances it decisively"); `:core`
+  computes each candidate's expected level and takes the argmax. A flat distribution
+  (spread below a code threshold) is the no-good-target signal — evidence for the
+  handshake/fallback, never an action.
+- **Uncertainty handshake.** Stage-1 UNCERTAIN → ONE bounded writer assist
+  re-describes the page relative to the active subtask → ONE re-ask of stage-1 with
+  the assist text riding the state as labeled untrusted context; still UNCERTAIN →
+  code fallback (recovery / re-plan / owner card). LOW → wrong-page signal. Bounds
+  are code constants (ART-5); law detail in doc 04 §2.
+- **Per-question instructions.** Every question carries its own complete
+  `instructions` text — the judgment, phrased for a knowledgeable person answering in
+  a second, never the answer format (the typed API already fixes the format). The
+  shared per-primitive instruction constants are retired. *(This reverses the
+  Phase-3 recorded decision to share one instruction string per primitive; reversed
+  by the owner on 2026-10-10.)*
+
+The `finish` pseudo-action is RETIRED from decision slates — the `verify-done` intent
+and the code-triggered IS-DONE checks own completion (doc 04 §3); the finish bucket
+remains in the taxonomy (doc 03 §3) for schema compatibility only.
 
 ## 4. ShadowRouter semantics
 
 `ShadowRouter` is the only `DecisionEngine` the navigation loop sees:
 
-1. Calls the **primary** synchronously; returns its answer to the loop.
+1. Calls the **primary** synchronously; returns its answer to the loop. Under the
+   cascade (§3) the primary's stage-1 intent choice is the step's decision of record,
+   and its stage-2 argmax target is the executed candidate.
 2. Fires the **shadow** (Laya, on-device) asynchronously — fire-and-forget; the loop never
-   waits for it. If the shadow answer isn't ready before the next step, the log row records
-   `shadowMiss=true`.
+   waits for it. The shadow **mirrors both cascade stages** (v1.3.0): its stage-1 is the
+   same fixed-intent choice; its stage-2 answers the same batched per-candidate score
+   form (teacher and student now answer identical questions — the graduation metric
+   measures the real serve shape). If the shadow answer isn't ready before the next
+   step, the log row records `shadowMiss=true`.
 3. Under thermal/battery pressure the shadow samples **every 3rd step** instead of every
    step (deterministic toggle, logged per row) — shadow execution must never block or slow
    the primary loop (perf law, doc 01 §1).

@@ -1,7 +1,7 @@
 # Chrome Navigator (working title) — Product Vision and Architecture
 
 **Document ID:** `NAVIGATOR-VISION-001`
-**Version:** 1.4.0 *(amended 2026-10-09: goal restructuring — the writer LLM turns every free-text goal into a validated task ladder with per-subtask IS-DONE conditions (doc 04 §1 v1.4.0); supersedes the cold-start/triage/plan-proposal pipeline; owner-ratified via the Phase-10 interview)*
+**Version:** 1.5.0 *(amended 2026-10-10: the decision cascade — every step's navigation decision becomes a two-stage typed cascade (stage-1 fixed-intent choice + stage-2 batched score-per-candidate) with a bounded LLM uncertainty assist and writer-phrased typed text; owner-ratified after the Phase-10 UAT root-cause analysis showed the flat per-step option list left the engine hedging on hollow criteria)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-03, 2026-10-06)
 **Date:** 2026-10-03
 
@@ -91,14 +91,19 @@ GOAL RESTRUCTURE (writer LLM, ONE call; code validates) — free-text goal → t
                (owner-ratified 2026-10-09 — doc 04 §1; outcome-based, task-independent)
    ▼
 NAVIGATION LOOP (per step, over the ACTIVE subtask):
-   1. OBSERVE        (code) AccessibilityService reads Chrome a11y tree + URL bar + content excerpt
+   1. OBSERVE        (code) AccessibilityService reads Chrome a11y tree + URL bar + page title + content excerpt
    2. ENUMERATE      (code) bucket candidates, ≤20/bucket, deterministic order
-   3. DECIDE         ShadowRouter → primary (flat list, ≤255 opts)
-                                → Laya shadow (bucketed two-stage, async, logged only)
+   3. DECIDE         (cascade, doc 02 §3) ShadowRouter → primary: stage-1 INTENT choice
+                     over the 9 fixed action categories on the small intent state view;
+                     stage-2 batched score-per-candidate over one bucket slate when the
+                     intent needs a target; UNCERTAIN → ONE bounded writer assist
+                     re-describes the page → one re-ask (doc 04 §2)
+                                → Laya shadow mirrors both stages (async, logged only)
    4. GATE           (code) risk-gate check — H1–H9 detection (broad net; engine may ADD
                      gates, never suppress) → user acceptance; credential secrets typed
                      locally on the card (doc 06 §2a)
-   5. EXECUTE        (code) gestures / text entry (writer LLM phrases ordinary text;
+   5. EXECUTE        (code) gestures / text entry (the writer LLM phrases ordinary typed
+                     text via the fill-field intent — locked decision #4 realized;
                      gate-supplied secrets are redacted everywhere)
    6. LOG            DecisionLog row (RLCD-compatible; ladder/progress provenance)
    ▼
@@ -113,7 +118,9 @@ RESULT SCREEN: answer + replayable decision log + local/cloud counter + agreemen
 |---|---|---|
 | A11y observation, URL-bar read, node serialization | Code | Deterministic perception; no model needed |
 | Candidate enumeration + bucketing + ordering | Code | ART-6; the model chooses, code proposes |
-| Navigation decisions (which action) | DecisionEngine (Jev primary / Laya shadow) | The project's core bet |
+| Navigation decisions (which action) | DecisionEngine cascade (doc 02 §3): stage-1 intent choice over 9 fixed categories, stage-2 score-per-candidate over a bucket slate (Jev primary / Laya shadow mirroring both stages) | The project's core bet |
+| **Decision assist (v1.5.0, 2026-10-10)**: when stage-1 is UNCERTAIN, ONE bounded writer call re-describes the page relative to the active subtask (discrimination-focused facts, ≤4 sentences, NO directives — ART-2: it informs the re-ask, never decides), then one re-ask | Cloud LLM (generative, versioned `assist-v1`) | Owner-ratified cascade decision; the reserved page-compression slot's first job |
+| **Typed-text phrasing realized (locked decision #4, 2026-10-10)**: the `fill-field` intent's content is phrased by the writer (`phrase-v1`, capped) — never the raw goal text; secrets stay gate-card-supplied and redacted (doc 06 §2a) | Cloud LLM (generative, versioned) | Phase-10 UAT evidence: raw-goal typing wasted ~20 steps |
 | Goal-achieved judgment | DecisionEngine `noul` **+ code completion guards** | ART-4: never self-report alone |
 | Stuck detection | Code (5 signals / 8-step window / 3 levels) | Deterministic trigger; engine only picks the recovery |
 | Recovery-strategy choice | DecisionEngine (`choice` over recovery set) | Model chooses within code-defined options |

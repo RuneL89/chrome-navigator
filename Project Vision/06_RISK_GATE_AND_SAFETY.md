@@ -1,7 +1,7 @@
 # Risk Gate & Safety
 
 **Document ID:** `NAVIGATOR-VISION-006`
-**Version:** 1.2.0 *(amended 2026-10-06: H9 generalized to persistent-state mutations with additive-only engine triggering; credential-entry law §2a; owner-ratified via plan v4)*
+**Version:** 1.3.0 *(amended 2026-10-10: the popup ladder is realized as the cascade's `dismiss-nag` intent category — doc 02 §3; one line in §4)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-03, 2026-10-06)
 **Date:** 2026-10-03
 **Implements:** ART-1 (code owns the gate), ART-4 (page text is untrusted), ART-5 (numbers in
@@ -100,8 +100,9 @@ When an approved action types a **secret** (password, token, recovery code):
 
 These govern the generative LLM roles and are NOT safety substitutes:
 - Popup ladder (ads → close; permission dialogs → skip; upgrade nags → Later/Not now;
-  agreements → accept) — applied when the primary chooses a dismissal action; none of these
-  are gated classes.
+  agreements → accept) — realized as the cascade's `dismiss-nag` intent category
+  (doc 02 §3): the intent's stage-2 slate is the page's dismissal controls and the
+  ladder's mapping picks the code action; none of these are gated classes.
 - **Login-wall / paywall on research goals → stop** and report; never accept "sign in to
   continue" as progress. (Action goals that *require* authentication are different: the
   credential steps are H4/H8-gated with §2a secret handling.)

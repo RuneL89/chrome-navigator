@@ -3,7 +3,7 @@
 # Decision Log & RLCD Corpus
 
 **Document ID:** `NAVIGATOR-VISION-005`
-**Version:** 1.5.0 *(amended 2026-10-06: exit-check rows — every finish check becomes corpus data, §2 amendment; §4 rewritten — two export kinds, authoritative-gold law, on-device state-view export, format-scoped filtering; owner-directed fine-tuning audit)*
+**Version:** 1.6.0 *(amended 2026-10-10: cascade rows — additive `targetScores` + `targetAgreement`; the choose case's questions become the intent form and a `score` case kind joins the export; the manifest gains the choose-question-schema version and the accumulation counter restarts on it)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-04, 2026-10-06)
 **Date:** 2026-10-03
 **Implements:** ART-3 (everything logs), ART-8 (privacy boundary)
@@ -41,6 +41,8 @@ It exists from v1 day one in its final shape — retrofitting is explicitly reje
 | `outcome` | post-step label from observation diff: `progressed / no-change / error / exited` |
 | `compressedBy` | `code \| llm \| null` (doc 03 §4) |
 | `shadowSampled` | bool — whether this step ran the shadow (every-step vs every-3rd) |
+| `targetScores` | `null`, or the executed stage-2 slate's per-candidate expected levels (additive, v1.6.0 — cascade stage-2 evidence; present on target-bearing steps) |
+| `targetAgreement` | `null`, or bool — teacher stage-2 target == shadow stage-2 target (additive, v1.6.0; excluded from the §3 headline agreement, which stays top-1 on stage-1 intent ids) |
 
 Storage: Room (`:app`), one row per decision, exported as JSONL. Local-only (ART-8).
 
@@ -107,12 +109,15 @@ Rules (law):
 
 ## 4. RLCD export
 
-A user-initiated export produces JSONL shaped for upstream `docs/finetune.md`, in **two
-case kinds** — a graduated Laya is asked both at serve time:
+A user-initiated export produces JSONL shaped for upstream `docs/finetune.md`, in **three
+case kinds** — a graduated Laya is asked all at serve time (v1.6.0: the score kind joins):
 
-- **`choose` case:** `state`, `questions` (the **bucketed shadow form** — what a
-  graduated Laya will actually be asked), `gold` (a probability distribution over option
-  ids — not a bare label). Source: decision rows.
+- **`choose` case:** `state`, `questions` (the **intent choice form** — the fixed
+  9-category vocabulary a graduated Laya will actually be asked, v1.6.0), `gold` (a
+  probability distribution over option ids — not a bare label). Source: decision rows.
+- **`score` case (v1.6.0):** `state` (the target view), `questions` (the batched
+  per-candidate rubric), `gold` (the authoritative per-candidate expected levels —
+  always the executed answer's slate). Source: decision rows with `targetScores`.
 - **`noul` case:** `state`, `question` (the anchored `NoulQuestion` payload with its
   `anchoredNoulVersion`), `gold` (the authoritative `pTrue`). Source: exit-check rows.
 
@@ -130,8 +135,10 @@ Laws:
 - **Format scoping:** an export includes only rows whose `stateFormatVersion`,
   laya-view version, and question schemas match the current serve shape; rows of other
   versions are excluded and **counted by version in the manifest** (loudly, never
-  silently dropped). A format bump therefore resets corpus accumulation for training
-  (doc 01 Road L Phase 3) — historical rows remain for replay and diagnostics.
+  silently dropped). The manifest carries a **choose-question-schema version** (v1.6.0 —
+  the intent-vocabulary version): the accumulation counter restarts when it bumps, as
+  it does for every state-format/view/question-version bump — historical rows remain
+  for replay and diagnostics.
 - A mixed-teacher corpus (any teacher bump mid-window, doc 02 §5) is flagged in the
   manifest so fine-tune runs can subset if desired.
 

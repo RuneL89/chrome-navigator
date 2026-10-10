@@ -1,7 +1,7 @@
 # State Observation
 
 **Document ID:** `NAVIGATOR-VISION-003`
-**Version:** 2.2.0 *(amended 2026-10-09: state format v3 — the PLAN section becomes the ACTIVE-SUBTASK rendering of the validated task ladder (doc 04 §1 v1.4.0): active subtask instruction + its machine-checkable done-condition + ladder progress; v3 gates on the Tier A re-pin and restarts the RLCD accumulation counter per doc 05 §4; owner-ratified via the Phase-10 interview)*
+**Version:** 2.3.0 *(amended 2026-10-10: cascade state views v4 — the INTENT STATE VIEW and TARGET STATE VIEW join the dual-view law as per-stage derivations feeding the doc-02 §3 cascade; the taxonomy's role becomes stage-2 slate grouping with browser-chrome excluded from target slates; STATE_FORMAT_VERSION = 4; owner-ratified)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-06, 2026-10-09)
 **Date:** 2026-10-03
 **Implements:** ART-4 (page text is untrusted), ART-6 (deterministic candidate order),
@@ -68,19 +68,24 @@ Rules:
   (position on screen top-to-bottom, then DOM/a11y order; stable tiebreak by node id) and
   truncation — never by model suggestion.
 - **Deterministic order** (ART-6): same tree in → same candidate list out, always.
+- **Cascade role (v2.3.0):** the taxonomy is the stage-2 slate grouping — each
+  target-bearing intent draws its score slate from ONE bucket (follow-link →
+  nav-links; activate-control/fill-field/dismiss-nag → buttons/form-fields). Browser-
+  chrome candidates (the omnibox/URL-bar subtree — browser UI, never page content)
+  are EXCLUDED from target slates: URL needs are the `open-site` intent's code path.
+  The `finish` bucket is retired from offered slates (doc 02 §3) and remains in the
+  taxonomy for schema compatibility only.
 - The taxonomy is also the shadow's training vocabulary: it changes only via eval-harness-
   gated vision amendment.
-- **Primary sees the flat candidate list** (all buckets' options, ≤255 total — beyond that,
-  the same deterministic ranking truncates and the truncation is logged). **Shadow sees the
-  two-stage bucketed form** (bucket choice → element choice), matching how a graduated Laya
-  will be queried.
+- **The shadow sees the cascade's own forms** (v2.3.0): stage-1 mirrors the primary's
+  fixed intent choice; stage-2 answers the same batched per-candidate score slate —
+  identical questions to the teacher (doc 02 §4).
 
-## 4. The canonical state-text format (v2)
+## 4. The canonical state-text format (v4)
 
-`STATE_FORMAT_VERSION = 2`. **Dual-view law (amended 2026-10-06 after the v32b
+`STATE_FORMAT_VERSION = 4`. **Dual-view law (amended 2026-10-06 after the v32b
 demotion):** one canonical state text, two lawful per-engine views — mirroring the
-per-engine question forms already in §3 (the primary sees the flat candidate list, the
-on-device engine the bucketed form; each engine is asked in the form it will actually
+per-engine question forms in §3 (each engine is asked in the form it will actually
 be asked at graduation):
 
 - **Canonical view — budget ≤960 tokens.** Feeds the cloud primary engines and is the
@@ -125,6 +130,16 @@ Laws:
 - The template and its section order are version-controlled; every bump (v1→v2→v3)
   gates on the eval harness per ART-7 (Tier A golden re-pin by retire-and-add) and —
   for any serve-shape change — restarts the RLCD accumulation counter (doc 05 §4).
+- **Stage views (v4, 2026-10-10 — cascade law, doc 02 §3):** two additional lawful
+  per-stage derivations of the same observation, built by the same versioned builder
+  family — the **INTENT STATE VIEW** (≈100–120 tokens: the active subtask + its
+  done-condition + the page's host/title/excerpt head; plus the labeled assist block
+  when a handshake re-ask is in flight) feeding every stage-1 intent call, and the
+  **TARGET STATE VIEW** (the subtask + one bucket's candidate lines, browser-chrome
+  excluded) feeding each stage-2 score request. Both are pure, deterministic,
+  budget-checked (loud on overflow — silent truncation stays unlawful), versioned as
+  `STAGE_VIEW_VERSION`, and NEVER replace the canonical text as the logged/corpus
+  record of the step.
 - Oversized trees are compressed **deterministically in code first** (drop lowest-rank
   candidates; shrink the content excerpt by its own deterministic ranking — head-anchored)
   until the canonical ≤960 budget fits (the laya view likewise within its own ≤319). If
