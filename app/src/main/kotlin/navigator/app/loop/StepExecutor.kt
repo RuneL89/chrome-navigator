@@ -93,7 +93,7 @@ fun phraseStub(goal: String, field: String): String {
     return flat.take(MAX_PHRASE_LENGTH)
 }
 
-private const val MAX_PHRASE_LENGTH = 80
+internal const val MAX_PHRASE_LENGTH = 80
 
 /**
  * The real executor: gestures through the service's [dispatchGesture]; text entry by

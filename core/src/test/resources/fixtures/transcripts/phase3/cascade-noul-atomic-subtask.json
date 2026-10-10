@@ -1,0 +1,43 @@
+{
+  "engine": "jev",
+  "model": "typesafe/jev-1.13-20260917",
+  "state": "SUBTASK: open the world war 2 article on wikipedia.org\nPAGE IDENTITY: the currently displayed page's title is \"World War II - Wikipedia\" and its address is https://en.wikipedia.org/wiki/World_War_II.",
+  "note": "Phase 10B Gate 10B.1 (vision 04 §3 v1.6.0): the anchored noul finish check with its own per-question instructions — the v3 ATOMIC subtask proposition (urlHost shape: one crisp sentence + the PAGE IDENTITY line). Hand-crafted transcript, $0.",
+  "questions": {
+    "goal-achieved": {
+      "type": "noul",
+      "name": "goal-achieved",
+      "instructions": "Judge whether the proposition is true of the state. Answer with P(true), a single probability in [0,1].",
+      "proposition": "The page's address is on the host 'en.wikipedia.org'.\nPAGE IDENTITY: the currently displayed page's title is \"World War II - Wikipedia\" and its address is https://en.wikipedia.org/wiki/World_War_II."
+    }
+  },
+  "requestBody": {
+    "state": "SUBTASK: open the world war 2 article on wikipedia.org\nPAGE IDENTITY: the currently displayed page's title is \"World War II - Wikipedia\" and its address is https://en.wikipedia.org/wiki/World_War_II.",
+    "model": "typesafe/jev-1.13-20260917",
+    "questions": {
+      "goal-achieved": {
+        "type": "noul",
+        "instructions": "Judge whether the proposition is true of the state. Answer with P(true), a single probability in [0,1].",
+        "proposition": "The page's address is on the host 'en.wikipedia.org'.\nPAGE IDENTITY: the currently displayed page's title is \"World War II - Wikipedia\" and its address is https://en.wikipedia.org/wiki/World_War_II."
+      }
+    }
+  },
+  "responseBody": {
+    "id": "resp_cascade_noul_1",
+    "model": "typesafe/jev-1.13-20260917",
+    "usage": { "input_tokens": 210, "output_tokens": 12, "cost": 0.0000084 },
+    "answers": {
+      "goal-achieved": {
+        "type": "noul",
+        "noul": 0.94,
+        "reasoning": "The address line names the anchored host."
+      }
+    }
+  },
+  "expectedResults": {
+    "goal-achieved": {
+      "type": "noul",
+      "pTrue": 0.94
+    }
+  }
+}

@@ -251,7 +251,7 @@ class StateTextBuilderTest {
     // -- budget + structure over every fixture -----------------------------------------
 
     @Test
-    fun `every fixture renders within the 960-token canonical budget under format v3`() {
+    fun `every fixture renders within the 960-token canonical budget under the current format`() {
         for ((name, _) in TestFixtures.loadAll()) {
             val state = buildFor(name)
             assertTrue(
@@ -259,8 +259,10 @@ class StateTextBuilderTest {
                 "$name: state text is ${state.tokenCount} tokens > ${StateTextBuilder.TOKEN_BUDGET}",
             )
             assertEquals(tokenizer.count(state.text), state.tokenCount, "$name")
-            assertEquals(3, state.formatVersion, "$name: the v3 format is the current law")
+            // v4 (Phase 10B): the canonical sections are unchanged from v3 — the bump is
+            // the version constant + the stage views + the question-schema coupling.
             assertEquals(STATE_FORMAT_VERSION, state.formatVersion, "$name")
+            assertEquals(4, state.formatVersion, "$name: the v4 format is the current law")
         }
     }
 

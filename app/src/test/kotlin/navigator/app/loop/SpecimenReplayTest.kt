@@ -108,7 +108,7 @@ class SpecimenReplayTest {
     }
 
     @Test
-    fun `the anchored proposition names the entity and pins the page identity (v2, never generic)`() {
+    fun `the anchored proposition names the entity and pins the page identity (v3, never generic)`() {
         val spec = fixture()
         val entity = TargetEntity.extract(spec.goal)
         val proposition = AnchoredNoul.proposition(
@@ -119,8 +119,8 @@ class SpecimenReplayTest {
             spec.terminalPage.url,
         )
         assertTrue(proposition.contains("Tarte Tatin"), "entity-anchored: $proposition")
-        assertEquals(2, AnchoredNoul.ANCHORED_NOUL_VERSION, "Round 2: the PAGE IDENTITY templates")
-        assertTrue(proposition.contains("PAGE IDENTITY"), "v2 judges arrival against page identity: $proposition")
+        assertEquals(3, AnchoredNoul.ANCHORED_NOUL_VERSION, "v1.6.0: the ATOMIC per-shape templates")
+        assertTrue(proposition.contains("PAGE IDENTITY"), "v3 judges arrival against page identity: $proposition")
         assertTrue(proposition.contains(spec.terminalPage.title))
         assertTrue(proposition.contains(spec.terminalPage.url))
         assertTrue(

@@ -41,6 +41,12 @@ data class EvalReport(
     val selfCheckAllCaught: Boolean,
     /** the state-text format the run replayed (ART-7: the harness gates format bumps). */
     val stateFormatVersion: Int,
+    /**
+     * The fixed intent-vocabulary version the run's stage-1 replayed (vision 07 §2
+     * v1.3.0: the intent vocabulary is fixture law; the report records which generation
+     * the pins hold under).
+     */
+    val intentsVersion: String,
     /** run timestamp (caller-supplied, ISO-8601); written verbatim into both artifacts. */
     val timestamp: String,
 ) {
@@ -64,6 +70,7 @@ data class EvalReport(
         require(fixtures == fixtures.sorted()) {
             "EvalReport: fixtures must be sorted (deterministic writers)"
         }
+        require(intentsVersion.isNotBlank()) { "EvalReport: intentsVersion must not be blank" }
     }
 
     /** The outcome for [fixture], or a loud failure naming it. */
@@ -80,19 +87,21 @@ data class EvalReport(
         append('\n')
         append("- timestamp: $timestamp\n")
         append("- state format version: $stateFormatVersion\n")
+        append("- intent vocabulary: $intentsVersion\n")
         append("- fixtures: ${fixtures.size}\n")
         append("- rotation stability (Gate 7.3): ${if (rotationStable) "STABLE" else "UNSTABLE"} — " +
             "${rotationMatrix.values.sum()} rotations across ${rotationMatrix.size} fixtures\n")
         append("- harness self-check (Gate 7.2): ${if (selfCheckAllCaught) "ALL CAUGHT" else "FALSE GREEN"} — " +
             "$selfCheckMutations mutations injected\n")
         append('\n')
-        append("## Replay outcomes\n")
+        append("## Replay outcomes (the cascade: stage-1 intent -> stage-2 target)\n")
         append('\n')
-        append("| fixture | chosen | gate class | state tokens | flat | compressed | truncated |\n")
-        append("|---|---|---|---:|---:|---|---|\n")
+        append("| fixture | intent | chosen | gate class | state tokens | slate | intent view tokens | compressed | truncated |\n")
+        append("|---|---|---|---|---:|---:|---:|---|---|\n")
         for (o in outcomes) {
-            append("| ${o.fixture} | ${o.chosenNodeId} | ${o.gateClass ?: "none"} | ")
-            append("${o.stateTokenCount} | ${o.flatSize} | ${o.stateCompressedBy ?: "-"} | ")
+            append("| ${o.fixture} | ${o.intent} | ${o.chosenNodeId} | ${o.gateClass ?: "none"} | ")
+            append("${o.stateTokenCount} | ${o.stage2SlateSize} | ${o.intentViewTokenCount} | ")
+            append("${o.stateCompressedBy ?: "-"} | ")
             append(if (o.flatTruncated || o.truncatedBuckets.isNotEmpty()) o.truncatedBuckets.joinToString(" ") else "-")
             append(" |\n")
         }

@@ -1,0 +1,87 @@
+{
+  "engine": "jev",
+  "model": "typesafe/jev-1.13-20260917",
+  "state": "SUBTASK: open the world war 2 article on wikipedia.org\nDONE WHEN: the page's address is on the host 'en.wikipedia.org'\nPAGE: en.wikipedia.org — World War II - Wikipedia\nResults about world war 2\nThe world war 2 article",
+  "note": "Phase 10B Gate 10B.1 (vision 02 §3 v1.3.0): the stage-1 INTENT choice — the FIXED 9-category vocabulary with the INTENT_INSTRUCTIONS per-question text, the cascade's own wire shape. Added under the per-question-instruction surface (jev-instructions-2); hand-crafted transcript, $0.",
+  "questions": {
+    "intent": {
+      "type": "choice",
+      "name": "intent",
+      "instructions": "You are navigating a web browser toward the active subtask. Choose the ONE next move from the categories. Judge from the subtask, its done-condition, and the page description.",
+      "options": [
+        { "id": "open-site", "label": "open-site", "description": "The subtask needs a different site or page loaded by its address; code opens the URL directly." },
+        { "id": "follow-link", "label": "follow-link", "description": "A link or search result on this page plausibly leads toward the subtask's target." },
+        { "id": "activate-control", "label": "activate-control", "description": "A button, toggle, or other control on this page advances the subtask when pressed." },
+        { "id": "fill-field", "label": "fill-field", "description": "A form or search field on this page needs text typed to advance; the content will be phrased for you." },
+        { "id": "submit", "label": "submit", "description": "A search or form submission should fire now to advance." },
+        { "id": "go-back", "label": "go-back", "description": "This page is a dead end or wrong turn; going back is the best move." },
+        { "id": "scroll", "label": "scroll", "description": "The subtask's target is likely below the visible area." },
+        { "id": "dismiss-nag", "label": "dismiss-nag", "description": "A popup, cookie, permission, or upgrade dialog blocks the page; dismiss it." },
+        { "id": "verify-done", "label": "verify-done", "description": "The subtask's done-condition may now hold on this page; run the completion check." }
+      ]
+    }
+  },
+  "requestBody": {
+    "state": "SUBTASK: open the world war 2 article on wikipedia.org\nDONE WHEN: the page's address is on the host 'en.wikipedia.org'\nPAGE: en.wikipedia.org — World War II - Wikipedia\nResults about world war 2\nThe world war 2 article",
+    "model": "typesafe/jev-1.13-20260917",
+    "questions": {
+      "intent": {
+        "type": "choice",
+        "instructions": "You are navigating a web browser toward the active subtask. Choose the ONE next move from the categories. Judge from the subtask, its done-condition, and the page description.",
+        "criteria": {
+          "open-site": "The subtask needs a different site or page loaded by its address; code opens the URL directly.",
+          "follow-link": "A link or search result on this page plausibly leads toward the subtask's target.",
+          "activate-control": "A button, toggle, or other control on this page advances the subtask when pressed.",
+          "fill-field": "A form or search field on this page needs text typed to advance; the content will be phrased for you.",
+          "submit": "A search or form submission should fire now to advance.",
+          "go-back": "This page is a dead end or wrong turn; going back is the best move.",
+          "scroll": "The subtask's target is likely below the visible area.",
+          "dismiss-nag": "A popup, cookie, permission, or upgrade dialog blocks the page; dismiss it.",
+          "verify-done": "The subtask's done-condition may now hold on this page; run the completion check."
+        }
+      }
+    }
+  },
+  "responseBody": {
+    "id": "resp_cascade_intent_1",
+    "model": "typesafe/jev-1.13-20260917",
+    "usage": { "input_tokens": 380, "output_tokens": 64, "cost": 0.0000198 },
+    "answers": {
+      "intent": {
+        "type": "choice",
+        "choice": "follow-link",
+        "probabilities": {
+          "open-site": 0.12,
+          "follow-link": 0.61,
+          "activate-control": 0.08,
+          "fill-field": 0.05,
+          "submit": 0.04,
+          "go-back": 0.03,
+          "scroll": 0.03,
+          "dismiss-nag": 0.02,
+          "verify-done": 0.02
+        },
+        "confidence": 0.78,
+        "reasoning": "The search-results page carries a plausible link to the target article."
+      }
+    }
+  },
+  "expectedResults": {
+    "intent": {
+      "type": "choice",
+      "chosenId": "follow-link",
+      "probabilities": {
+        "open-site": 0.12,
+        "follow-link": 0.61,
+        "activate-control": 0.08,
+        "fill-field": 0.05,
+        "submit": 0.04,
+        "go-back": 0.03,
+        "scroll": 0.03,
+        "dismiss-nag": 0.02,
+        "verify-done": 0.02
+      },
+      "confidence": 0.78
+    }
+  }
+}

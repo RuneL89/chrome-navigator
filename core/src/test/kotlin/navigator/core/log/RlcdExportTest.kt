@@ -3,9 +3,9 @@ package navigator.core.log
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import navigator.core.decision.Intents
 import navigator.core.decision.NoulQuestion
 import navigator.core.decision.band
-import navigator.core.enumerate.Bucket
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -14,16 +14,23 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Gate 5.2 — export correctness (vision 05 §4 v1.5.0): each exported case is the
- * upstream `docs/finetune.md` row shape in ONE of two kinds — `choose` (state verbatim,
- * `questions` the **bucketed shadow form**, `gold` the **full probability
- * distribution**, never a bare label) from decision rows, and `noul` (state verbatim,
- * `question` the anchored payload with its version, `gold` the **authoritative pTrue**)
- * from exit-check rows. Every line loads through a strict validator written from that
- * shape. Laws pinned here: authoritative gold (the executed answer — the fallback's
- * when escalated; a student is never its own gold), format scoping (only current-serve-
- * shape rows export; others are counted loudly in the manifest), and the mixed-teacher
- * flag (two teacher pins present, vision 02 §5).
+ * Gate 5.2 — export correctness (vision 05 §4 v1.6.0): each exported case is the
+ * upstream `docs/finetune.md` row shape in ONE of THREE kinds — `choose` (state
+ * verbatim, `questions` the **fixed intent choice form** — cascade stage 1, the
+ * vocabulary a graduated Laya will actually be asked — and `gold` the **full probability
+ * distribution** over the intent ids, never a bare label) from decision rows; `score`
+ * (state under the export's view discipline, `questions` the batched per-candidate
+ * rubric, `gold` the **authoritative per-candidate expected levels** — the executed
+ * slate) from decision rows with `targetScores`; and `noul` (state verbatim, `question`
+ * the anchored payload with its version, `gold` the **authoritative pTrue**) from
+ * exit-check rows. Every line loads through a strict validator written from that shape.
+ * Laws pinned here: authoritative gold (the executed answer — the fallback's when
+ * escalated; a student is never its own gold), format scoping (only current-serve-shape
+ * rows export; others are counted loudly in the manifest), QUESTION-SCHEMA scoping (the
+ * choose form must be the fixed intent vocabulary — legacy flat rows are excluded and
+ * counted), and the mixed-teacher flag (two teacher pins present, vision 02 §5). The
+ * accumulation restarts are pinned on BOTH counters: the state-format bump (v4) and the
+ * choose-question-schema version ([Intents.INTENTS_VERSION]).
  */
 class RlcdExportTest {
 
@@ -47,7 +54,8 @@ class RlcdExportTest {
     @Serializable
     private data class FinetuneQuestions(
         val name: String,
-        val buckets: Map<String, List<FinetuneOption>>,
+        val instructions: String,
+        val options: List<FinetuneOption>,
     )
 
     @Serializable
@@ -57,56 +65,101 @@ class RlcdExportTest {
         val description: String,
     )
 
-    /** Strict load + shape law of one exported JSONL line. */
+    /** STRICT decoder of one exported score line. */
+    @Serializable
+    private data class ScoreRow(
+        val kind: String,
+        val state: String,
+        val stateFormatVersion: Int,
+        val questions: ScoreQuestions,
+        val gold: Map<String, Double>,
+    )
+
+    @Serializable
+    private data class ScoreQuestions(
+        val rubric: List<String>,
+        val candidates: List<String>,
+    )
+
+    /** Strict load + shape law of one exported choose line. */
     private fun validateCase(line: String, source: DecisionLogRow): FinetuneRow {
         val row = strict.decodeFromString(FinetuneRow.serializer(), line)
         assertEquals("choose", row.kind, "a decision row exports as the choose kind (vision 05 §4)")
         // state is the canonical state text, verbatim — the export never rewrites it
         assertEquals(source.stateText, row.state, "export must not rewrite state text")
         assertEquals(source.stateFormatVersion, row.stateFormatVersion)
-        // questions are the bucketed shadow form: known buckets, ≤20 options each
-        assertEquals(source.questionShadow.name, row.questions.name)
-        val validBuckets = Bucket.entries.map { it.serialName }.toSet()
-        for ((bucket, options) in row.questions.buckets) {
-            assertTrue(bucket in validBuckets, "unknown bucket '$bucket' in exported questions")
-            assertTrue(options.isNotEmpty() && options.size <= 20, "bucket $bucket outside 1..20 options")
-            val ids = options.map { it.id }
-            assertEquals(ids.size, ids.toSet().size, "duplicate option ids in bucket $bucket")
-        }
-        // gold is the teacher's distribution over the question's option ids — normalized
-        val optionIds = row.questions.buckets.values.flatten().map { it.id }.toSet()
+        // questions are the fixed intent form: the 9-category vocabulary, verbatim
+        assertEquals(Intents.QUESTION.name, row.questions.name)
+        assertEquals(Intents.INTENT_INSTRUCTIONS, row.questions.instructions)
+        assertEquals(
+            Intents.IDS,
+            row.questions.options.map { it.id },
+            "the intent options carry the fixed vocabulary in the table order (vision 02 §3)",
+        )
+        // gold is the teacher's distribution over the intent ids — normalized
+        val ids = Intents.IDS.toSet()
         assertTrue(row.gold.isNotEmpty(), "gold must be a distribution, not empty")
-        val foreign = row.gold.keys - optionIds
-        assertTrue(foreign.isEmpty(), "gold keys outside the bucketed option ids: $foreign")
+        val foreign = row.gold.keys - ids
+        assertTrue(foreign.isEmpty(), "gold keys outside the fixed intent ids: $foreign")
         val sum = row.gold.values.sum()
         assertTrue(kotlin.math.abs(sum - 1.0) < 1e-6, "gold must be normalized, Σp = $sum")
         return row
     }
 
+    /** Strict load + shape law of one exported score line. */
+    private fun validateScoreCase(line: String, source: DecisionLogRow): ScoreRow {
+        val row = strict.decodeFromString(ScoreRow.serializer(), line)
+        assertEquals("score", row.kind, "a target-bearing step exports a score case (vision 05 §4 v1.6.0)")
+        assertEquals(source.stateText, row.state, "export must not rewrite state text")
+        assertEquals(source.stateFormatVersion, row.stateFormatVersion)
+        assertEquals(
+            navigator.core.decision.TargetRubric.LEVEL_DESCRIPTIONS,
+            row.questions.rubric,
+            "the score case's rubric is the declared 5-level relevance rubric, verbatim",
+        )
+        assertEquals(
+            source.targetScores!!.keys.sorted().map { navigator.core.decision.TargetRubric.questionName(it) },
+            row.questions.candidates,
+            "the score case names the slate's cand-<id> questions in sorted order",
+        )
+        assertEquals(
+            source.targetScores,
+            row.gold,
+            "gold = the authoritative per-candidate expected levels (the executed slate)",
+        )
+        return row
+    }
+
+    /** Export lines for cascade rows (a target-bearing row emits choose + score lines). */
     private fun exportLines(rows: List<DecisionLogRow>): List<String> {
         val jsonl = exporter.export(rows)
-        if (rows.isEmpty()) return emptyList()
+        if (jsonl.isEmpty()) return emptyList()
         assertFalse(jsonl.endsWith("\n"), "no trailing newline")
-        val lines = jsonl.split("\n")
-        assertEquals(rows.size, lines.size, "one case per row")
-        return lines
+        return jsonl.split("\n")
     }
+
+    private val cascadeRow: DecisionLogRow = LogRowFixtures.cascadeRow()
+    private val plainCascadeRow: DecisionLogRow =
+        LogRowFixtures.cascadeRow(rowId = "row-cascade-plain", targetScores = null)
 
     // ---- export shape ----
 
     @Test
     fun `every exported line loads with the strict finetune validator`() {
-        val rows = listOf(LogRowFixtures.complete(), LogRowFixtures.shadowMiss())
+        val rows = listOf(cascadeRow, plainCascadeRow)
         val lines = exportLines(rows)
-        for ((line, row) in lines.zip(rows)) validateCase(line, row)
+        // the target-bearing row emits choose + score; the plain row choose only
+        assertEquals(3, lines.size, "choose, score (target-bearing), choose")
+        validateCase(lines[0], cascadeRow)
+        validateScoreCase(lines[1], cascadeRow)
+        validateCase(lines[2], plainCascadeRow)
     }
 
     @Test
     fun `gold is the full teacher distribution not a bare label`() {
-        val row = LogRowFixtures.complete()
-        val line = exportLines(listOf(row)).single()
-        val parsed = validateCase(line, row)
-        assertEquals(row.teacherAnswer.probabilities, parsed.gold, "gold = teacher distribution verbatim")
+        val line = exportLines(listOf(plainCascadeRow)).single()
+        val parsed = validateCase(line, plainCascadeRow)
+        assertEquals(LogRowFixtures.intentTeacherAnswer.probabilities, parsed.gold, "gold = teacher distribution verbatim")
         assertTrue(parsed.gold.size > 1, "a distribution has more than one option: ${parsed.gold}")
         // no chosen/label fields anywhere in the case — distribution, not bare label
         assertFalse("\"chosen\"" in line)
@@ -114,25 +167,52 @@ class RlcdExportTest {
     }
 
     @Test
-    fun `questions are the bucketed shadow form`() {
-        val row = LogRowFixtures.complete()
-        val line = exportLines(listOf(row)).single()
-        val parsed = validateCase(line, row)
-        assertEquals("next-action-bucketed", parsed.questions.name)
+    fun `questions are the fixed intent form - the legacy flat form never leaks`() {
+        val line = exportLines(listOf(plainCascadeRow)).single()
+        val parsed = validateCase(line, plainCascadeRow)
+        assertEquals("intent", parsed.questions.name)
         assertEquals(
-            setOf("form-fields", "nav-links", "buttons"),
-            parsed.questions.buckets.keys,
-            "buckets keyed by the shadow's training vocabulary (vision 03 §3)",
+            Intents.IDS.toSet(),
+            parsed.gold.keys.toSet(),
+            "the gold lives on the fixed vocabulary's option space",
         )
         assertFalse(
             "\"next-action\"" in line,
-            "the flat primary question must not leak into the export (only the bucketed form)",
+            "the legacy flat primary question must not leak into the export",
         )
     }
 
     @Test
+    fun `question-schema scoping - legacy flat rows are excluded and counted loudly`() {
+        // vision 05 §4 v1.6.0: question schemas are format-scoped — a current-format row
+        // whose primary question is NOT the fixed intent form (a legacy triage/recovery
+        // shape) is excluded and counted in the manifest, never silently dropped or
+        // reshaped.
+        val cascade = plainCascadeRow
+        val legacy = LogRowFixtures.complete(rowId = "row-legacy")
+        val lines = exportLines(listOf(cascade, legacy))
+        assertEquals(1, lines.size, "only the cascade-schema row exports")
+        assertTrue("\"kind\":\"choose\"" in lines.single().replace(" ", ""))
+        val manifest = exporter.manifest(listOf(cascade, legacy))
+        assertEquals(1, manifest.rowCount, "the counter counts only the current-schema rows")
+        assertEquals(1, manifest.excludedByQuestionSchema, "the legacy row is counted loudly")
+        assertEquals(
+            emptyMap<Int, Int>(),
+            manifest.excludedByStateFormatVersion,
+            "its FORMAT matches — only the schema mismatches",
+        )
+    }
+
+    @Test
+    fun `a schema-mismatched row can never be reshaped by hand`() {
+        assertFailsWith<IllegalArgumentException> {
+            exporter.toChooseCase(LogRowFixtures.complete())
+        }
+    }
+
+    @Test
     fun `export is byte-stable and deterministic`() {
-        val rows = listOf(LogRowFixtures.complete(), LogRowFixtures.denied(), LogRowFixtures.shadowMiss())
+        val rows = listOf(cascadeRow, plainCascadeRow, LogRowFixtures.denied())
         assertEquals(exporter.export(rows), exporter.export(rows))
     }
 
@@ -142,6 +222,34 @@ class RlcdExportTest {
         val manifest = exporter.manifest(emptyList())
         assertEquals(0, manifest.rowCount)
         assertFalse(manifest.mixedTeacher)
+        assertNull(manifest.chooseQuestionVersion, "no choose cases — no choose-schema version")
+    }
+
+    // ---- the score kind (vision 05 §4 v1.6.0) --------------------------------------
+
+    @Test
+    fun `a target-bearing step exports choose AND score cases - the batched rubric + authoritative slate`() {
+        val lines = exportLines(listOf(cascadeRow))
+        assertEquals(2, lines.size, "choose first, then the row's score case")
+        validateCase(lines[0], cascadeRow)
+        val score = validateScoreCase(lines[1], cascadeRow)
+        assertTrue(
+            score.questions.candidates.all { it.startsWith("cand-") },
+            "the stage-2 question names carry the cand- prefix (vision 02 §3): ${score.questions.candidates}",
+        )
+        assertTrue("\"kind\":\"score\"" in lines[1].replace(" ", ""))
+    }
+
+    @Test
+    fun `a step without a stage-2 slate exports no score case`() {
+        val lines = exportLines(listOf(plainCascadeRow))
+        assertEquals(1, lines.size)
+        assertFalse("\"kind\":\"score\"" in lines[0].replace(" ", ""))
+    }
+
+    @Test
+    fun `a score case without its executed slate is incoherent`() {
+        assertFailsWith<IllegalArgumentException> { exporter.toScoreCase(plainCascadeRow) }
     }
 
     // ---- manifest ----
@@ -149,11 +257,13 @@ class RlcdExportTest {
     @Test
     fun `mixed-teacher manifest fires with two teacher pins`() {
         val rows = listOf(
-            LogRowFixtures.complete(rowId = "row-1", teacherConfigId = "primary"),
-            LogRowFixtures.complete(
+            LogRowFixtures.cascadeRow(rowId = "row-1"),
+            LogRowFixtures.cascadeRow(
                 rowId = "row-2",
-                teacherConfigId = "fallback-1",
-                teacherModel = LogRowFixtures.PINNED_FALLBACK_MODEL,
+                shadowAnswer = null,
+            ).copy(
+                teacher = EngineIdentity(configId = "fallback-1", model = LogRowFixtures.PINNED_FALLBACK_MODEL),
+                escalated = false,
             ),
         )
         val manifest = exporter.manifest(rows)
@@ -171,7 +281,7 @@ class RlcdExportTest {
 
     @Test
     fun `single teacher pin does not flag mixed-teacher`() {
-        val manifest = exporter.manifest(listOf(LogRowFixtures.complete(), LogRowFixtures.denied()))
+        val manifest = exporter.manifest(listOf(plainCascadeRow, LogRowFixtures.cascadeRow(rowId = "row-2")))
         assertFalse(manifest.mixedTeacher)
         assertEquals(
             listOf(RlcdTeacherPin("primary", LogRowFixtures.PINNED_PRIMARY_MODEL)),
@@ -183,27 +293,64 @@ class RlcdExportTest {
     fun `format scoping - foreign-format rows are excluded and counted loudly in the manifest`() {
         // vision 05 §4: an export includes only rows whose stateFormatVersion matches
         // the current serve shape; rows of other versions are excluded and counted by
-        // version — never silently dropped. Since the Phase-10 bump (STATE_FORMAT_VERSION
-        // = 3) the retired v2 rows are the foreign ones (the Road L accumulation counter
-        // restarts at the bump, doc 01 Road L Phase 3) — the v3 export's manifest shows
-        // the v2 rows excluded + counted and the rowCount restarted (Gate 10.3).
-        val current = LogRowFixtures.complete()
-        val foreign = LogRowFixtures.complete(rowId = "row-v2").copy(stateFormatVersion = 2)
+        // version — never silently dropped. Since the Phase-10B bump
+        // (STATE_FORMAT_VERSION = 4) the retired v3 rows are the foreign ones (the Road
+        // L accumulation counter restarts at the bump, doc 01 Road L Phase 3) — the v4
+        // export's manifest shows the v3 rows excluded + counted and the rowCount
+        // restarted.
+        val current = plainCascadeRow
+        val foreign = LogRowFixtures.cascadeRow(rowId = "row-v3").copy(stateFormatVersion = 3)
         val jsonl = exporter.export(listOf(current, foreign))
         val lines = jsonl.split("\n")
         assertEquals(1, lines.size, "only the current-format row exports")
-        assertTrue("row-v2" !in lines.single())
-        assertTrue("\"open-first-result\"" in lines.single(), "the surviving case is the v3 choose case")
+        assertTrue("row-v3" !in lines.single())
         val manifest = exporter.manifest(listOf(current, foreign))
-        assertEquals(1, manifest.rowCount, "the accumulation counter restarted at the v3 bump")
-        assertEquals(listOf(3), manifest.stateFormatVersions)
+        assertEquals(1, manifest.rowCount, "the accumulation counter restarted at the v4 bump")
+        assertEquals(listOf(4), manifest.stateFormatVersions)
         assertEquals(1, manifest.excludedRowCount)
-        assertEquals(mapOf(2 to 1), manifest.excludedByStateFormatVersion)
+        assertEquals(mapOf(3 to 1), manifest.excludedByStateFormatVersion)
+    }
+
+    @Test
+    fun `the accumulation restarts on BOTH counters - state format v4 AND the choose-question schema`() {
+        // vision 05 §4 v1.6.0: the manifest carries a choose-question-schema version and
+        // the accumulation counter restarts when it bumps, as it does for every
+        // state-format/view/question-version bump. The Phase-10B window restarts BOTH.
+        val manifest = exporter.manifest(listOf(cascadeRow, plainCascadeRow))
+        assertEquals(Intents.INTENTS_VERSION, manifest.chooseQuestionVersion, "intents-v1 rides the manifest")
+        assertEquals(listOf(navigator.core.STATE_FORMAT_VERSION), manifest.stateFormatVersions)
+        assertEquals(2, manifest.rowCount, "the counter counts ONLY current-serve-shape rows")
+        // an older choose-schema row (a foreign vocabulary) is excluded + counted: the
+        // restart is visible in what the counter does NOT count
+        val foreignVocabulary = plainCascadeRow.copy(
+            rowId = "row-old-vocab",
+            questionPrimary = navigator.core.decision.ChoiceQuestion(
+                name = "intent",
+                options = listOf(
+                    navigator.core.decision.Option("open-site", "open-site", "old wording"),
+                    navigator.core.decision.Option("tap", "tap", "the retired flat action"),
+                ),
+            ),
+            teacherAnswer = TeacherAnswer(
+                chosen = "open-site",
+                probabilities = mapOf("open-site" to 0.70, "tap" to 0.30),
+                confidence = 0.70,
+            ),
+            shadow = null,
+            shadowAnswer = null,
+            agreementExactMatch = null,
+            agreementKL = null,
+            targetScores = null,
+            targetAgreement = null,
+        )
+        val mixed = exporter.manifest(listOf(plainCascadeRow, foreignVocabulary))
+        assertEquals(1, mixed.rowCount, "the counter restarted on the intents-v1 schema")
+        assertEquals(1, mixed.excludedByQuestionSchema)
     }
 
     @Test
     fun `manifest serializes and records state format versions of the exported rows`() {
-        val manifest = exporter.manifest(listOf(LogRowFixtures.complete(), LogRowFixtures.denied()))
+        val manifest = exporter.manifest(listOf(plainCascadeRow, LogRowFixtures.cascadeRow(rowId = "row-2")))
         assertEquals(listOf(navigator.core.STATE_FORMAT_VERSION), manifest.stateFormatVersions)
         val encoded = exporter.encodeManifest(manifest)
         val decoded = strict.decodeFromString(RlcdExportManifest.serializer(), encoded)
@@ -214,13 +361,10 @@ class RlcdExportTest {
 
     @Test
     fun `manifest carries the companion row count informationally - training rows unchanged (amendment rule e)`() {
-        val rows = listOf(LogRowFixtures.complete(), LogRowFixtures.shadowMiss())
+        val rows = listOf(cascadeRow, plainCascadeRow)
         val manifest = exporter.manifest(rows, companionRowCount = 7)
         assertEquals(7, manifest.companionRowCount)
         assertEquals(2, manifest.rowCount, "rowCount stays the decision-row (training) count")
-        // the JSONL cases themselves are untouched by companions — rule (e)
-        val cases = exportLines(rows)
-        for ((line, row) in cases.zip(rows)) validateCase(line, row)
         val encoded = exporter.encodeManifest(manifest)
         val decoded = strict.decodeFromString(RlcdExportManifest.serializer(), encoded)
         assertEquals(7, decoded.companionRowCount)
@@ -228,7 +372,7 @@ class RlcdExportTest {
 
     @Test
     fun `companion row count defaults to zero`() {
-        assertEquals(0, exporter.manifest(listOf(LogRowFixtures.complete())).companionRowCount)
+        assertEquals(0, exporter.manifest(listOf(plainCascadeRow)).companionRowCount)
         assertEquals(0, exporter.manifest(emptyList()).companionRowCount)
     }
 
@@ -261,7 +405,7 @@ class RlcdExportTest {
                 "PAGE IDENTITY: the currently displayed page's title is \"Classic Apple Pie Recipe\" " +
                 "and its address is https://www.allrecipes.com/recipe/15896/classic-apple-pie.",
         ),
-        anchoredNoulVersion = 2,
+        anchoredNoulVersion = 3,
         teacher = EngineIdentity(configId = "primary", model = LogRowFixtures.PINNED_PRIMARY_MODEL),
         answer = ExitCheckAnswer(pTrue = pTrue, band = band(pTrue).toLoggedBand()),
         escalated = escalated,
@@ -291,7 +435,7 @@ class RlcdExportTest {
         val jsonl = exporter.export(emptyList(), listOf(check))
         val parsed = validateNoulLine(jsonl, check)
         assertEquals(0.58, parsed.gold, "not escalated: gold is the primary's pTrue")
-        assertFalse("\"questions\"" in jsonl, "a noul case has no bucketed questions field")
+        assertFalse("\"questions\"" in jsonl, "a noul case has no questions field")
     }
 
     @Test
@@ -307,11 +451,13 @@ class RlcdExportTest {
     @Test
     fun `authoritative gold - an escalated choose case trains on the FALLBACK's distribution`() {
         val fallbackChoice = navigator.core.decision.ChoiceResult(
-            chosenId = "type-query",
-            probabilities = mapOf("type-query" to 0.70, "open-first-result" to 0.20, "scroll-results" to 0.10),
+            chosenId = "verify-done",
+            probabilities = Intents.IDS.associate { id ->
+                id to if (id == "verify-done") 0.70 else 0.0375
+            },
             confidence = 0.72,
         )
-        val escalatedRow = LogRowFixtures.complete().copy(
+        val escalatedRow = LogRowFixtures.cascadeRow(
             escalated = true,
             fallback = FallbackInfo(
                 engine = "fallback-1",
@@ -319,45 +465,48 @@ class RlcdExportTest {
                 answer = fallbackChoice,
             ),
         )
-        val line = exportLines(listOf(escalatedRow)).single()
+        val line = exportLines(listOf(escalatedRow)).first()
         val parsed = strict.decodeFromString(FinetuneRow.serializer(), line)
         assertEquals(fallbackChoice.probabilities, parsed.gold, "gold = the executed (fallback) distribution")
         assertFalse(
-            parsed.gold.equals(LogRowFixtures.teacherAnswer.probabilities),
+            parsed.gold == LogRowFixtures.intentTeacherAnswer.probabilities,
             "the primary's own distribution is NOT the gold of an escalated row",
         )
     }
 
     @Test
     fun `authoritative gold - a non-escalated choose case keeps the teacher's distribution`() {
-        val line = exportLines(listOf(LogRowFixtures.complete())).single()
+        val line = exportLines(listOf(plainCascadeRow)).single()
         val parsed = strict.decodeFromString(FinetuneRow.serializer(), line)
-        assertEquals(LogRowFixtures.teacherAnswer.probabilities, parsed.gold)
+        assertEquals(LogRowFixtures.intentTeacherAnswer.probabilities, parsed.gold)
     }
 
     @Test
-    fun `the manifest counts case kinds and carries the noul schema versions`() {
-        val decisionRows = listOf(LogRowFixtures.complete(), LogRowFixtures.denied())
+    fun `the manifest counts case kinds and carries the schema versions`() {
+        val decisionRows = listOf(cascadeRow, plainCascadeRow)
         val exitChecks = listOf(exitCheck(), exitCheck(rowId = "exit-check:t:10", pTrue = 0.58))
         val manifest = exporter.manifest(decisionRows, exitChecks)
         assertEquals(4, manifest.rowCount)
-        assertEquals(mapOf("choose" to 2, "noul" to 2), manifest.caseKinds)
-        assertEquals(2, manifest.anchoredNoulVersion)
+        assertEquals(mapOf("choose" to 2, "score" to 1, "noul" to 2), manifest.caseKinds)
+        assertEquals(3, manifest.anchoredNoulVersion, "the v3 anchored templates ride the manifest")
+        assertEquals(Intents.INTENTS_VERSION, manifest.chooseQuestionVersion)
         assertNull(
             manifest.layaStateViewVersion,
             "canonical export (the default): the rows' state text is the corpus view of record",
         )
         assertEquals(0, manifest.excludedRowCount)
-        // the JSONL itself: choose lines first, then noul lines
+        // the JSONL itself: the cascade row's choose + score, the plain choose, then noul
         val lines = exporter.export(decisionRows, exitChecks).split("\n")
-        assertEquals(4, lines.size)
+        assertEquals(5, lines.size)
         assertTrue("\"kind\":\"choose\"" in lines[0].replace(" ", ""))
-        assertTrue("\"kind\":\"noul\"" in lines[3].replace(" ", ""))
+        assertTrue("\"kind\":\"score\"" in lines[1].replace(" ", ""))
+        assertTrue("\"kind\":\"choose\"" in lines[2].replace(" ", ""))
+        assertTrue("\"kind\":\"noul\"" in lines[4].replace(" ", ""))
     }
 
     @Test
     fun `a mixed anchoredNoulVersion window is incoherent and fails loudly`() {
-        val older = exitCheck(rowId = "exit-check:t:1").copy(anchoredNoulVersion = 1)
+        val older = exitCheck(rowId = "exit-check:t:1").copy(anchoredNoulVersion = 2)
         val newer = exitCheck(rowId = "exit-check:t:2")
         assertFailsWith<IllegalArgumentException> {
             exporter.manifest(emptyList(), listOf(older, newer))
@@ -393,13 +542,13 @@ class RlcdExportTest {
             "UNTRUSTED PAGE CONTENT:\n" +
             excerpt.joinToString("\n", postfix = "\n") +
             "nav-links:\n" + buckets
-        return LogRowFixtures.complete(stateText = state)
+        return LogRowFixtures.cascadeRow(targetScores = null).copy(stateText = state)
     }
 
     @Test
     fun `the laya-view export derives the view through the versioned builder - rows keep the canonical`() {
         val row = oversizedRow()
-        val case = viewExporter.toCase(row)
+        val case = viewExporter.toChooseCase(row)
         // the ROW keeps the canonical text verbatim; the exported CASE state is the view
         val expectedView = navigator.core.state.LayaStateView.derive(row.stateText, tokenizer, viewBudget)
         assertEquals(expectedView, case.state, "the case carries the derived laya state view")
@@ -416,7 +565,7 @@ class RlcdExportTest {
     @Test
     fun `the laya-view manifest names the view version and keeps the loud exclusion counts`() {
         val current = oversizedRow()
-        val foreign = LogRowFixtures.complete(rowId = "row-v1").copy(stateFormatVersion = 1)
+        val foreign = LogRowFixtures.cascadeRow(rowId = "row-v1", targetScores = null).copy(stateFormatVersion = 1)
         val manifest = viewExporter.manifest(listOf(current, foreign))
         assertEquals(1, manifest.layaStateViewVersion, "LAYA_STATE_VIEW_VERSION rides the manifest")
         assertEquals(1, manifest.rowCount)
@@ -453,7 +602,7 @@ class RlcdExportTest {
 
     @Test
     fun `the laya-view export is byte-stable and deterministic`() {
-        val rows = listOf(oversizedRow(), LogRowFixtures.complete(rowId = "row-2"))
+        val rows = listOf(oversizedRow(), LogRowFixtures.cascadeRow(rowId = "row-2", targetScores = null))
         assertEquals(viewExporter.export(rows), viewExporter.export(rows))
     }
 }

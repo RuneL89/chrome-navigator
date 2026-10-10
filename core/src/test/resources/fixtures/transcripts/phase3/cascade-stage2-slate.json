@@ -1,0 +1,105 @@
+{
+  "engine": "jev",
+  "model": "typesafe/jev-1.13-20260917",
+  "state": "SUBTASK: unsubscribe from the first mailing list\nDONE WHEN: an element matching 'Unsubscribe' is present\n[page: your subscriptions on lists.example.test]",
+  "note": "Phase 10B Gate 10B.1 (vision 02 §3 v1.3.0): the stage-2 BATCHED score slate — ONE wire request carrying N per-candidate score questions (cand-<id>) over the 5-level relevance rubric, each with its own per-question instructions naming the subtask and the candidate. The multi-question body proves name-keyed batched parsing on the cascade shape. Hand-crafted transcript, $0.",
+  "questions": {
+    "cand-n4": {
+      "type": "score",
+      "name": "cand-n4",
+      "instructions": "Score how well acting on 'Unsubscribe from Cooking Classics' advances: unsubscribe from the first mailing list.",
+      "levels": [
+        { "id": "level-1", "description": "does not advance the active subtask" },
+        { "id": "level-2", "description": "unlikely to advance — peripheral or unrelated" },
+        { "id": "level-3", "description": "possibly advances — plausible but unclear" },
+        { "id": "level-4", "description": "likely advances — directly relevant" },
+        { "id": "level-5", "description": "decisively advances — the obvious target" }
+      ]
+    },
+    "cand-n7": {
+      "type": "score",
+      "name": "cand-n7",
+      "instructions": "Score how well acting on 'Unsubscribe from Trailer Reviews' advances: unsubscribe from the first mailing list.",
+      "levels": [
+        { "id": "level-1", "description": "does not advance the active subtask" },
+        { "id": "level-2", "description": "unlikely to advance — peripheral or unrelated" },
+        { "id": "level-3", "description": "possibly advances — plausible but unclear" },
+        { "id": "level-4", "description": "likely advances — directly relevant" },
+        { "id": "level-5", "description": "decisively advances — the obvious target" }
+      ]
+    }
+  },
+  "requestBody": {
+    "state": "SUBTASK: unsubscribe from the first mailing list\nDONE WHEN: an element matching 'Unsubscribe' is present\n[page: your subscriptions on lists.example.test]",
+    "model": "typesafe/jev-1.13-20260917",
+    "questions": {
+      "cand-n4": {
+        "type": "score",
+        "instructions": "Score how well acting on 'Unsubscribe from Cooking Classics' advances: unsubscribe from the first mailing list.",
+        "criteria": [
+          "does not advance the active subtask",
+          "unlikely to advance — peripheral or unrelated",
+          "possibly advances — plausible but unclear",
+          "likely advances — directly relevant",
+          "decisively advances — the obvious target"
+        ]
+      },
+      "cand-n7": {
+        "type": "score",
+        "instructions": "Score how well acting on 'Unsubscribe from Trailer Reviews' advances: unsubscribe from the first mailing list.",
+        "criteria": [
+          "does not advance the active subtask",
+          "unlikely to advance — peripheral or unrelated",
+          "possibly advances — plausible but unclear",
+          "likely advances — directly relevant",
+          "decisively advances — the obvious target"
+        ]
+      }
+    }
+  },
+  "responseBody": {
+    "id": "resp_cascade_slate_1",
+    "model": "typesafe/jev-1.13-20260917",
+    "usage": { "input_tokens": 402, "output_tokens": 88, "cost": 0.0000223 },
+    "answers": {
+      "cand-n4": {
+        "type": "score",
+        "score": 4.07,
+        "legend": {
+          "0": "does not advance the active subtask",
+          "1": "unlikely to advance — peripheral or unrelated",
+          "2": "possibly advances — plausible but unclear",
+          "3": "likely advances — directly relevant",
+          "4": "decisively advances — the obvious target"
+        },
+        "probabilities": { "0": 0.06, "1": 0.06, "2": 0.13, "3": 0.25, "4": 0.5 },
+        "confidence": 0.81
+      },
+      "cand-n7": {
+        "type": "score",
+        "score": 1.93,
+        "legend": {
+          "0": "does not advance the active subtask",
+          "1": "unlikely to advance — peripheral or unrelated",
+          "2": "possibly advances — plausible but unclear",
+          "3": "likely advances — directly relevant",
+          "4": "decisively advances — the obvious target"
+        },
+        "probabilities": { "0": 0.5, "1": 0.25, "2": 0.13, "3": 0.06, "4": 0.06 },
+        "confidence": 0.74
+      }
+    }
+  },
+  "expectedResults": {
+    "cand-n4": {
+      "type": "score",
+      "expectedLevel": 4.07,
+      "levelProbabilities": { "1": 0.06, "2": 0.06, "3": 0.13, "4": 0.25, "5": 0.5 }
+    },
+    "cand-n7": {
+      "type": "score",
+      "expectedLevel": 1.93,
+      "levelProbabilities": { "1": 0.5, "2": 0.25, "3": 0.13, "4": 0.06, "5": 0.06 }
+    }
+  }
+}

@@ -108,13 +108,13 @@ class ExitCheckRowLoopTest {
     }
 
     @Test
-    fun `the row carries the anchored v2 question with the PAGE IDENTITY line`() = runBlocking {
+    fun `the row carries the anchored v3 question with the PAGE IDENTITY line`() = runBlocking {
         val fixture = run(seriesScript(listOf(0.99)), listOf(seedPage(), articlePage()))
         val check = fixture.sink.exitChecks.single()
-        assertEquals(2, check.anchoredNoulVersion)
+        assertEquals(3, check.anchoredNoulVersion)
         assertEquals(NavigationLoop.GOAL_ACHIEVED_QUESTION, check.question.name)
         assertTrue(check.question.proposition.contains("Tarte Tatin"), "entity-anchored")
-        assertTrue(check.question.proposition.contains("PAGE IDENTITY"), "v2: arrival is judged against identity")
+        assertTrue(check.question.proposition.contains("PAGE IDENTITY"), "v3: arrival is judged against identity")
         assertTrue(check.question.proposition.contains("http://m0.test/tarte-tatin"), "the current page's URL")
         assertTrue(check.stateText.startsWith("GOAL: Open Wikipedia article Tarte Tatin"), "canonical state, verbatim")
         assertEquals(navigator.core.STATE_FORMAT_VERSION, check.stateFormatVersion)

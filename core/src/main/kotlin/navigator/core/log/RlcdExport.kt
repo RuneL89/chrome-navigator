@@ -2,36 +2,70 @@ package navigator.core.log
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import navigator.core.decision.ChoiceQuestion
 import navigator.core.decision.ChoiceResult
+import navigator.core.decision.Intents
 import navigator.core.decision.NoulQuestion
 import navigator.core.STATE_FORMAT_VERSION
 import navigator.core.laya.Tokenizer
 import navigator.core.state.LayaStateView
 
 /**
- * The training-case kind of one exported RLCD row (vision 05 §4 v1.5.0): a graduated
- * Laya is asked BOTH at serve time — `choose` over the bucketed page action form,
- * `noul` over the anchored goal-achieved proposition — so the corpus carries both.
+ * The training-case kind of one exported RLCD row (vision 05 §4 v1.6.0): a graduated
+ * Laya is asked ALL THREE at serve time — `choose` over the fixed intent vocabulary (the
+ * cascade's stage 1), `score` over the batched per-candidate rubric (the cascade's
+ * stage 2), and `noul` over the anchored goal-achieved proposition — so the corpus
+ * carries all three.
  */
 @Serializable
 enum class RlcdCaseKind {
     @SerialName("choose") CHOOSE,
+    @SerialName("score") SCORE,
     @SerialName("noul") NOUL,
 }
 
 /**
- * One exported RLCD `choose` case (vision 05 §4): the upstream `docs/finetune.md` row
- * shape — `state` (canonical state text with its `stateFormatVersion` recorded),
- * `questions` (the **bucketed shadow form** — what a graduated Laya will actually be
- * asked), and `gold` (the **full probability distribution** over option ids — never a
- * bare label).
+ * One exported RLCD `choose` case (vision 05 §4 v1.6.0): the upstream `docs/finetune.md`
+ * row shape — `state` (canonical state text with its `stateFormatVersion` recorded),
+ * `questions` (the **intent choice form** — the FIXED 9-category vocabulary a graduated
+ * Laya will actually be asked, cascade stage 1), and `gold` (the **full probability
+ * distribution** over the intent ids — never a bare label).
  */
 @Serializable
 data class RlcdChooseCase(
     val kind: RlcdCaseKind = RlcdCaseKind.CHOOSE,
     val state: String,
     val stateFormatVersion: Int,
-    val questions: BucketedQuestion,
+    val questions: ChoiceQuestion,
+    val gold: Map<String, Double>,
+)
+
+/**
+ * The batched per-candidate rubric of one exported RLCD `score` case (vision 05 §4
+ * v1.6.0): the 5-level relevance rubric VERBATIM (the serve shape's declared levels) and
+ * the slate's `cand-<candidate-id>` question names in declaration order. The candidate
+ * labels ride the case's state text (the target view's candidate lines) — the pair is
+ * the complete serve-time question.
+ */
+@Serializable
+data class RlcdScoreQuestions(
+    val rubric: List<String>,
+    val candidates: List<String>,
+)
+
+/**
+ * One exported RLCD `score` case (vision 05 §4 v1.6.0): `state` (the target view the
+ * stage-2 request rode, under the export's state-view discipline), `questions` (the
+ * batched per-candidate rubric), and `gold` (the **authoritative per-candidate expected
+ * levels** — always the executed answer's slate). Source: decision rows with
+ * `targetScores`.
+ */
+@Serializable
+data class RlcdScoreCase(
+    val kind: RlcdCaseKind = RlcdCaseKind.SCORE,
+    val state: String,
+    val stateFormatVersion: Int,
+    val questions: RlcdScoreQuestions,
     val gold: Map<String, Double>,
 )
 
@@ -82,12 +116,16 @@ enum class RlcdStateView {
  * only: companion `ShadowResultRow`s serve agreement measurement, never training —
  * the exported cases are never touched by them.
  *
- * v1.5.0 (exit-check rows + export kinds): [caseKinds] counts the exported cases by
- * kind; [excludedRowCount]/[excludedByStateFormatVersion] count rows of other format
- * versions LOUDLY (format scoping — never silently dropped); [anchoredNoulVersion] is
- * the noul cases' question-schema version; [layaStateViewVersion] names the state view
- * the cases carry — null for a canonical export, [LAYA_STATE_VIEW_VERSION] when the
- * export is of the on-device lineage (vision 05 §4 "State view").
+ * v1.6.0 (the cascade corpus): [caseKinds] counts the exported cases by kind (choose +
+ * score + noul); [excludedRowCount]/[excludedByStateFormatVersion] count rows of other
+ * format versions LOUDLY, and [excludedByQuestionSchema] counts current-format rows
+ * whose primary question is NOT the fixed intent form (legacy/triage shapes) — question
+ * schemas are format-scoped (never silently dropped); [anchoredNoulVersion] is the noul
+ * cases' question-schema version; [chooseQuestionVersion] is the choose cases'
+ * question-schema version ([Intents.INTENTS_VERSION]) — **the accumulation counter
+ * restarts on it** as on every state-format/view/question-version bump; and
+ * [layaStateViewVersion] names the state view the cases carry — null for a canonical
+ * export, [LAYA_STATE_VIEW_VERSION] when the export is of the on-device lineage.
  *
  * Road L Phase 3 accumulation law (doc 01): [rowCount] IS the export-eligible
  * accumulation counter — it counts only rows of the current serve shape, so it
@@ -105,14 +143,17 @@ data class RlcdExportManifest(
     val caseKinds: Map<String, Int> = emptyMap(),
     val excludedRowCount: Int = 0,
     val excludedByStateFormatVersion: Map<Int, Int> = emptyMap(),
+    val excludedByQuestionSchema: Int = 0,
     val anchoredNoulVersion: Int? = null,
+    val chooseQuestionVersion: String? = null,
     val layaStateViewVersion: Int? = null,
 )
 
 /**
  * The RLCD export (vision 05 §4 — "the training data IS the strategy"): a filtering +
- * reshaping of log rows into JSONL — one [RlcdChooseCase] per decision row and one
- * [RlcdNoulCase] per exit-check row.
+ * reshaping of log rows into JSONL — one [RlcdChooseCase] AND (when the step carried a
+ * stage-2 slate) one [RlcdScoreCase] per decision row, plus one [RlcdNoulCase] per
+ * exit-check row.
  *
  * Laws:
  * - the canonical state text is copied verbatim — the export never rewrites it; the
@@ -122,10 +163,12 @@ data class RlcdExportManifest(
  *   `escalated=true`, the primary's otherwise. A student engine is never its own gold:
  *   in laya-primary modes an escalated row's primary answer is the mistake the
  *   fallback corrected, and training on it would teach the mistake (vision 05 §4);
- * - **format scoping**: only rows whose `stateFormatVersion` matches the current serve
- *   shape export; rows of other versions are excluded and counted by version in the
- *   [manifest] (loudly, never silently dropped) — the Road L accumulation counter
- *   restarts at the bump (doc 01 Road L Phase 3);
+ * - **format scoping**: only rows whose `stateFormatVersion` AND question schema match
+ *   the current serve shape export — the choose form must be the FIXED intent
+ *   vocabulary (vision 02 §3); rows of other versions or schemas are excluded and
+ *   counted loudly in the [manifest] (never silently dropped) — the Road L accumulation
+ *   counter restarts at the bumps (doc 01 Road L Phase 3; the manifest records BOTH the
+ *   state-format restart and the choose-question-schema restart);
  * - `gold` distributions are key-sorted so exports are byte-canonical;
  * - the [manifest] travels alongside the cases (caller writes it as a sidecar or last
  *   line of its choosing) — the cases themselves stay strictly upstream-shaped;
@@ -140,6 +183,8 @@ class RlcdExporter(
     private val now: () -> Long = System::currentTimeMillis,
     /** The current serve shape (vision 05 §4 format scoping, ART-7). */
     private val serveStateFormatVersion: Int = STATE_FORMAT_VERSION,
+    /** The current choose-question schema (vision 05 §4 v1.6.0); the fixed intent vocabulary. */
+    private val serveChooseQuestion: ChoiceQuestion = Intents.QUESTION,
     /** Which state text the cases carry (vision 05 §4 "State view"; canonical default). */
     private val stateView: RlcdStateView = RlcdStateView.CANONICAL,
     /** The laya view budget (`maxLen - headMaxLen - 1`, ART-5); required iff [stateView] is [RlcdStateView.LAYA_VIEW]. */
@@ -170,20 +215,37 @@ class RlcdExporter(
         )
     }
 
-    /** Exports [decisionRows] + [exitChecks] as JSONL — choose cases first (row order),
-     *  then noul cases (row order); one case per format-matching row. */
+    /** Whether [row]'s primary question IS the current serve shape's choose form. */
+    private fun matchesChooseSchema(row: DecisionLogRow): Boolean =
+        row.questionPrimary.options.map { it.id } == serveChooseQuestion.options.map { it.id }
+
+    /**
+     * Exports [decisionRows] + [exitChecks] as JSONL — choose cases first (row order,
+     * score cases interleaved per row after its choose case), then noul cases (row
+     * order); one case per format- AND schema-matching row (two for a target-bearing
+     * cascade step).
+     */
     fun export(decisionRows: List<DecisionLogRow>, exitChecks: List<ExitCheckRow> = emptyList()): String {
-        val chooseLines = decisionRows
-            .filter { it.stateFormatVersion == serveStateFormatVersion }
-            .map { row -> json.encodeToString(RlcdChooseCase.serializer(), toCase(row)) }
-        val noulLines = exitChecks
-            .filter { it.stateFormatVersion == serveStateFormatVersion }
-            .map { check -> json.encodeToString(RlcdNoulCase.serializer(), toCase(check)) }
-        return (chooseLines + noulLines).joinToString(separator = "\n")
+        val lines = mutableListOf<String>()
+        for (row in decisionRows.filter { it.stateFormatVersion == serveStateFormatVersion && matchesChooseSchema(it) }) {
+            lines += json.encodeToString(RlcdChooseCase.serializer(), toChooseCase(row))
+            if (row.targetScores != null) {
+                lines += json.encodeToString(RlcdScoreCase.serializer(), toScoreCase(row))
+            }
+        }
+        for (check in exitChecks.filter { it.stateFormatVersion == serveStateFormatVersion }) {
+            lines += json.encodeToString(RlcdNoulCase.serializer(), toCase(check))
+        }
+        return lines.joinToString(separator = "\n")
     }
 
     /** Maps one decision row to its exported `choose` case (authoritative-gold law applied). */
-    fun toCase(row: DecisionLogRow): RlcdChooseCase {
+    fun toChooseCase(row: DecisionLogRow): RlcdChooseCase {
+        require(matchesChooseSchema(row)) {
+            "DecisionLogRow ${row.rowId}: the primary question is not the current serve shape's " +
+                "choose form (the fixed intent vocabulary, vision 02 §3) — a schema-mismatched " +
+                "row is excluded by [export], never reshaped"
+        }
         val goldAnswer = if (row.escalated) {
             // The executed answer is the fallback's (vision 02 §7); the primary's own
             // answer — when it even produced one — is the mistake training must NOT teach.
@@ -202,10 +264,28 @@ class RlcdExporter(
         return RlcdChooseCase(
             state = stateFor(row.stateText),
             stateFormatVersion = row.stateFormatVersion,
-            questions = row.questionShadow,
+            questions = serveChooseQuestion,
             gold = goldAnswer.probabilities.entries
                 .sortedBy { it.key }
                 .associate { it.key to it.value },
+        )
+    }
+
+    /** Maps one decision row to its exported `score` case (the executed slate is the gold). */
+    fun toScoreCase(row: DecisionLogRow): RlcdScoreCase {
+        val scores = requireNotNull(row.targetScores) {
+            "DecisionLogRow ${row.rowId}: a score case needs the executed stage-2 slate " +
+                "(targetScores, doc 05 §2 v1.6.0)"
+        }
+        return RlcdScoreCase(
+            state = stateFor(row.stateText),
+            stateFormatVersion = row.stateFormatVersion,
+            questions = RlcdScoreQuestions(
+                rubric = navigator.core.decision.TargetRubric.LEVEL_DESCRIPTIONS,
+                candidates = scores.keys.map { navigator.core.decision.TargetRubric.questionName(it) }
+                    .sorted(),
+            ),
+            gold = scores.entries.sortedBy { it.key }.associate { it.key to it.value },
         )
     }
 
@@ -219,24 +299,28 @@ class RlcdExporter(
     )
 
     /**
-     * Builds the manifest for the exported window: format-scoped cases + loud
-     * exclusion counts. [companionRowCount] is informational (amendment rule e).
+     * Builds the manifest for the exported window: format- AND schema-scoped cases +
+     * loud exclusion counts. [companionRowCount] is informational (amendment rule e).
      */
     fun manifest(
         decisionRows: List<DecisionLogRow>,
         exitChecks: List<ExitCheckRow> = emptyList(),
         companionRowCount: Int = 0,
     ): RlcdExportManifest {
-        val exportedDecisions = decisionRows.filter { it.stateFormatVersion == serveStateFormatVersion }
+        val formatMatching = decisionRows.filter { it.stateFormatVersion == serveStateFormatVersion }
+        val exportedDecisions = formatMatching.filter { matchesChooseSchema(it) }
+        val schemaExcluded = formatMatching.count { !matchesChooseSchema(it) }
         val exportedChecks = exitChecks.filter { it.stateFormatVersion == serveStateFormatVersion }
         val excludedDecisions = decisionRows.filterNot { it.stateFormatVersion == serveStateFormatVersion }
         val excludedChecks = exitChecks.filterNot { it.stateFormatVersion == serveStateFormatVersion }
+        val scoreCases = exportedDecisions.count { it.targetScores != null }
         val pins = (exportedDecisions.map { RlcdTeacherPin(configId = it.teacher.configId, model = it.teacher.model) } +
             exportedChecks.map { RlcdTeacherPin(configId = it.teacher.configId, model = it.teacher.model) })
             .distinct()
         val distinctModels = pins.map { it.model }.distinct()
         val caseKinds = buildMap {
             if (exportedDecisions.isNotEmpty()) put("choose", exportedDecisions.size)
+            if (scoreCases > 0) put("score", scoreCases)
             if (exportedChecks.isNotEmpty()) put("noul", exportedChecks.size)
         }
         val excludedByVersion = buildMap<Int, Int> {
@@ -244,7 +328,7 @@ class RlcdExporter(
             for (check in excludedChecks) merge(check.stateFormatVersion, 1, Int::plus)
         }
         // One exported window is ONE serve shape (vision 05 §4 format scoping covers the
-        // question schema too): noul cases of mixed anchored-question versions cannot
+        // question schemas too): noul cases of mixed anchored-question versions cannot
         // share a manifest — that is incoherent data, not a subsettable corpus.
         val checkVersions = exportedChecks.map { it.anchoredNoulVersion }.distinct()
         require(checkVersions.size <= 1) {
@@ -264,7 +348,9 @@ class RlcdExporter(
             caseKinds = caseKinds,
             excludedRowCount = excludedDecisions.size + excludedChecks.size,
             excludedByStateFormatVersion = excludedByVersion,
+            excludedByQuestionSchema = schemaExcluded,
             anchoredNoulVersion = checkVersions.singleOrNull(),
+            chooseQuestionVersion = if (exportedDecisions.isNotEmpty()) Intents.INTENTS_VERSION else null,
             layaStateViewVersion = if (stateView == RlcdStateView.LAYA_VIEW) {
                 LayaStateView.LAYA_STATE_VIEW_VERSION
             } else {

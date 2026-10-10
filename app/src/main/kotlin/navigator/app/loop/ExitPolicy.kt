@@ -15,9 +15,20 @@ import navigator.core.enumerate.CandidateList
  *   (inclusive) sustained over **K = [ExitPolicyConfig.SUSTAINED_CHECKS] consecutive**
  *   finish checks. Consecutive means the counter RESETS on any check that fails the
  *   full condition (the Test-1 specimen's 0.44 breaks its streak — that reset is the law).
+ *   **Streak re-keying (v1.6.0, Phase 10B):** the streak is keyed to the ACTIVE
+ *   SUBTASK'S DONE-CONDITION — the caller passes the condition's rendered text as the
+ *   [ExitPolicy.onFinishCheck] condition key; the streak SURVIVES a re-plan that keeps
+ *   the condition (a re-plan is not evidence against arrival) and RESETS when the
+ *   condition or the pointer changes. (The v1.5.0 per-generation reset made sustained
+ *   acceptance structurally unreachable — live-proven 2026-10-10.)
  * - **Path C (owner arbiter):** finish refused on K consecutive checks while the guard
  *   still passes (guard != NONE) → one completion card (max ONE per task). Confirm →
  *   OWNER_CONFIRM exit; keep-going / 30s timeout → the loop continues.
+ * - **Held-hash re-checks (v1.6.0):** on an UNCHANGED page-hash whose guard stays
+ *   satisfied, code-triggered re-checks fire at a bounded interval — every
+ *   [ExitPolicyConfig.heldHashRecheckEverySteps] steps, at most
+ *   [ExitPolicyConfig.heldHashRecheckMax] per hash — so honest leaning evidence can
+ *   mature on a static page. The rate-bound API is [ExitPolicy.heldHashRecheckDue].
  *
  * **Anti-oscillation:** a refused finish excludes `finish` from the next
  * [ExitPolicyConfig.EXCLUSION_DECISIONS] decisions unless the page hash changes — the
@@ -37,12 +48,24 @@ data class ExitPolicyConfig(
     val sustainedChecks: Int = SUSTAINED_CHECKS,
     /** M: decisions `finish` stays excluded after a refused finish. */
     val exclusionDecisions: Int = EXCLUSION_DECISIONS,
+    /**
+     * v1.6.0 held-hash re-check cadence (ART-5): on an unchanged page-hash whose guard
+     * stays satisfied, a code-triggered re-check fires every Nth step. The loop consumes
+     * this (Round-2 cascade wiring); the policy exposes the pure decision.
+     */
+    val heldHashRecheckEverySteps: Int = HELD_HASH_RECHECK_EVERY_STEPS,
+    /** v1.6.0 held-hash re-check cap: at most this many checks per unchanged page-hash. */
+    val heldHashRecheckMax: Int = HELD_HASH_RECHECK_MAX,
 ) {
     init {
         require(highFloor in 0.0..1.0) { "highFloor out of range: $highFloor" }
         require(sustainedFloor in 0.0..1.0) { "sustainedFloor out of range: $sustainedFloor" }
         require(sustainedChecks >= 1) { "sustainedChecks must be >= 1, was $sustainedChecks" }
         require(exclusionDecisions >= 0) { "exclusionDecisions must be >= 0, was $exclusionDecisions" }
+        require(heldHashRecheckEverySteps >= 1) {
+            "heldHashRecheckEverySteps must be >= 1, was $heldHashRecheckEverySteps"
+        }
+        require(heldHashRecheckMax >= 1) { "heldHashRecheckMax must be >= 1, was $heldHashRecheckMax" }
     }
 
     companion object {
@@ -51,6 +74,10 @@ data class ExitPolicyConfig(
         const val SUSTAINED_FLOOR = 0.55
         const val SUSTAINED_CHECKS = 3
         const val EXCLUSION_DECISIONS = 2
+
+        /** Vision 04 §3 v1.6.0, ART-5: the bounded held-hash re-check cadence + cap. */
+        const val HELD_HASH_RECHECK_EVERY_STEPS = 3
+        const val HELD_HASH_RECHECK_MAX = 3
     }
 }
 
@@ -92,6 +119,8 @@ class ExitPolicy(private val config: ExitPolicyConfig = ExitPolicyConfig()) {
     private var cardShown = false
     private var exclusionRemaining = 0
     private var exclusionHash: Int? = null
+    /** The condition key of the previous check — the sustained streak's key (v1.6.0). */
+    private var lastConditionKey: String? = null
 
     /** Finish checks evaluated so far (the run report's exit block). */
     var finishChecks: Int = 0
@@ -105,12 +134,33 @@ class ExitPolicy(private val config: ExitPolicyConfig = ExitPolicyConfig()) {
      * Evaluates one engine finish claim against the three paths (vision 04 §3). Order
      * of evaluation: guard NONE → refuse; Path A → accept; Path B (sustained) → accept;
      * Path C (K guard-pass refusals, card unused) → ask the owner; otherwise refuse.
+     *
+     * [conditionKey] (v1.6.0 streak re-keying) is the ACTIVE done-condition's rendered
+     * text — the sustained streak is keyed to it: it SURVIVES a re-plan that keeps the
+     * condition and RESETS when the condition (or the pointer, which changes the
+     * condition) changes. The caller derives it (the loop renders the active subtask's
+     * [navigator.core.ladder.DoneCondition]; the task-level path keys on its condition
+     * text). Never blank.
+     *
      * [guardDetail] (Phase 08G) is the guard's own why-it-failed detail — it is appended
      * to the NONE refusal's reason (e.g. the action-multi tracker's pending count) and
      * never changes the verdict: with a NONE guard every path is closed regardless.
      */
-    fun onFinishCheck(guardLevel: GuardLevel, noul: Double, guardDetail: String? = null): ExitDecision {
+    fun onFinishCheck(
+        conditionKey: String,
+        guardLevel: GuardLevel,
+        noul: Double,
+        guardDetail: String? = null,
+    ): ExitDecision {
+        require(conditionKey.isNotBlank()) { "the condition key must not be blank (the streak is keyed to it)" }
         finishChecks += 1
+        // Streak re-keying (vision 04 §3 v1.6.0): a condition/pointer change resets the
+        // sustained streak — evidence under the OLD condition says nothing about the new.
+        val previousKey = lastConditionKey
+        lastConditionKey = conditionKey
+        if (previousKey != null && previousKey != conditionKey) {
+            sustainedStreak = 0
+        }
         if (guardLevel == GuardLevel.NONE) {
             // No code evidence at all: every path is closed and both streaks reset —
             // the code says the goal is not plausibly done.
@@ -187,6 +237,17 @@ class ExitPolicy(private val config: ExitPolicyConfig = ExitPolicyConfig()) {
             exclusionRemaining -= 1
         }
     }
+
+    /**
+     * The v1.6.0 bounded held-hash re-check decision (the rate-bound re-key API): on an
+     * UNCHANGED page-hash whose guard stays satisfied, a code-triggered re-check is due
+     * when at least [ExitPolicyConfig.heldHashRecheckEverySteps] steps have passed since
+     * the last check AND fewer than [ExitPolicyConfig.heldHashRecheckMax] checks have
+     * run on this hash. Pure — the loop owns the counters (Round-2 cascade wiring).
+     */
+    fun heldHashRecheckDue(stepsSinceLastCheck: Int, checksOnThisHash: Int): Boolean =
+        checksOnThisHash < config.heldHashRecheckMax &&
+            stepsSinceLastCheck >= config.heldHashRecheckEverySteps
 }
 
 /**

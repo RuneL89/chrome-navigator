@@ -1,28 +1,33 @@
 package navigator.app.loop
 
-import navigator.core.log.TriageClass
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Gate 8J.1 — the ExitPolicy matrix (vision 04 §3 v1.2.0): path boundaries
- * (0.70 exclusive / 0.55 inclusive, per Bands semantics), K=3 consecutive-check
- * counting (the streak RESETS on any failing check), the once-per-task card, and the
- * M=2 anti-oscillation window cleared on a page-hash change.
+ * Gate 8J.1 — the ExitPolicy matrix (vision 04 §3 v1.2.0 + the v1.6.0 amendments):
+ * path boundaries (0.70 exclusive / 0.55 inclusive, per Bands semantics), K=3
+ * consecutive-check counting (the streak RESETS on any failing check), the once-per-task
+ * card, the M=2 anti-oscillation window cleared on a page-hash change — and the Phase
+ * 10B v1.6.0 laws: the sustained streak is KEYED to the active done-condition's rendered
+ * text (it survives a re-plan that keeps the condition and resets when the condition or
+ * the pointer changes), and the bounded held-hash re-check API (every 3rd step, at most
+ * 3 per hash) is code config.
  */
 class ExitPolicyTest {
+
+    /** The condition key the single-condition tests run under (the rendered done-condition). */
+    private val key = "subtask:the URL host is wikipedia.org"
 
     // -- Path A (classic): HIGH band, any guard level --------------------------------
 
     @Test
     fun `path A accepts at the first check above the high floor with a WEAK guard`() {
         val policy = ExitPolicy()
-        val decision = policy.onFinishCheck(GuardLevel.WEAK, 0.99)
+        val decision = policy.onFinishCheck(key, GuardLevel.WEAK, 0.99)
         assertIs<ExitDecision.Accept>(decision)
         assertEquals(ExitPath.HIGH, decision.path)
         assertEquals(GuardLevel.WEAK, decision.guardLevel)
@@ -33,10 +38,10 @@ class ExitPolicyTest {
     fun `path A boundary - exactly the high floor is the UNCERTAIN band and is refused`() {
         val policy = ExitPolicy()
         // band(): HIGH is strictly > 0.70; 0.70 itself is UNCERTAIN -> no Path A
-        val atFloor = policy.onFinishCheck(GuardLevel.STRONG, ExitPolicyConfig.HIGH_FLOOR)
+        val atFloor = policy.onFinishCheck(key, GuardLevel.STRONG, ExitPolicyConfig.HIGH_FLOOR)
         assertIs<ExitDecision.Refuse>(atFloor)
         // one micro-step above the floor IS the HIGH band -> Path A
-        val above = policy.onFinishCheck(GuardLevel.STRONG, ExitPolicyConfig.HIGH_FLOOR + 1e-9)
+        val above = policy.onFinishCheck(key, GuardLevel.STRONG, ExitPolicyConfig.HIGH_FLOOR + 1e-9)
         assertIs<ExitDecision.Accept>(above)
         assertEquals(ExitPath.HIGH, above.path)
     }
@@ -44,7 +49,7 @@ class ExitPolicyTest {
     @Test
     fun `a NONE guard refuses even a maximal noul - no path accepts without code evidence`() {
         val policy = ExitPolicy()
-        val decision = policy.onFinishCheck(GuardLevel.NONE, 0.99)
+        val decision = policy.onFinishCheck(key, GuardLevel.NONE, 0.99)
         assertIs<ExitDecision.Refuse>(decision)
         assertTrue(decision.reason.contains("guard failed"))
         assertEquals(GuardLevel.NONE, decision.guardLevel)
@@ -54,8 +59,9 @@ class ExitPolicyTest {
     fun `a NONE guard refusal carries the guard's detail - the pending count, named (Phase 08G)`() {
         val policy = ExitPolicy()
         val decision = policy.onFinishCheck(
-            GuardLevel.NONE,
-            0.99,
+            conditionKey = key,
+            guardLevel = GuardLevel.NONE,
+            noul = 0.99,
             guardDetail = "2 target(s) still pending (drained=false)",
         )
         assertIs<ExitDecision.Refuse>(decision)
@@ -72,9 +78,9 @@ class ExitPolicyTest {
     @Test
     fun `path B accepts on the third consecutive STRONG sustained check`() {
         val policy = ExitPolicy()
-        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(GuardLevel.STRONG, 0.55))
-        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(GuardLevel.STRONG, 0.55))
-        val third = policy.onFinishCheck(GuardLevel.STRONG, 0.55)
+        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(key, GuardLevel.STRONG, 0.55))
+        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(key, GuardLevel.STRONG, 0.55))
+        val third = policy.onFinishCheck(key, GuardLevel.STRONG, 0.55)
         assertIs<ExitDecision.Accept>(third)
         assertEquals(ExitPath.SUSTAINED, third.path)
         assertEquals(3, policy.finishChecks)
@@ -84,7 +90,7 @@ class ExitPolicyTest {
     fun `path B floor is inclusive - exactly the sustained floor sustains`() {
         val policy = ExitPolicy()
         assertEquals(ExitPolicyConfig.SUSTAINED_FLOOR, 0.55)
-        val decision = policy.onFinishCheck(GuardLevel.STRONG, 0.55)
+        val decision = policy.onFinishCheck(key, GuardLevel.STRONG, 0.55)
         // first sustained check: streak 1 of 3, refused for now
         assertIs<ExitDecision.Refuse>(decision)
     }
@@ -92,13 +98,13 @@ class ExitPolicyTest {
     @Test
     fun `a check below the sustained floor resets the streak - K counts CONSECUTIVE checks`() {
         val policy = ExitPolicy()
-        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(GuardLevel.STRONG, 0.60)) // streak 1
-        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(GuardLevel.STRONG, 0.61)) // streak 2
+        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(key, GuardLevel.STRONG, 0.60)) // streak 1
+        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(key, GuardLevel.STRONG, 0.61)) // streak 2
         // 0.44 resets the streak AND is the third guard-pass refusal -> the card asks
-        assertIs<ExitDecision.AskOwner>(policy.onFinishCheck(GuardLevel.STRONG, 0.44)) // streak RESET
-        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(GuardLevel.STRONG, 0.60)) // streak 1
-        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(GuardLevel.STRONG, 0.61)) // streak 2
-        val sixth = policy.onFinishCheck(GuardLevel.STRONG, 0.60) // streak 3 -> accept
+        assertIs<ExitDecision.AskOwner>(policy.onFinishCheck(key, GuardLevel.STRONG, 0.44)) // streak RESET
+        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(key, GuardLevel.STRONG, 0.60)) // streak 1
+        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(key, GuardLevel.STRONG, 0.61)) // streak 2
+        val sixth = policy.onFinishCheck(key, GuardLevel.STRONG, 0.60) // streak 3 -> accept
         assertIs<ExitDecision.Accept>(sixth)
         assertEquals(ExitPath.SUSTAINED, sixth.path)
         assertEquals(6, policy.finishChecks)
@@ -107,9 +113,9 @@ class ExitPolicyTest {
     @Test
     fun `a WEAK guard cannot sustain even with a passing noul`() {
         val policy = ExitPolicy()
-        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(GuardLevel.WEAK, 0.60))
-        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(GuardLevel.WEAK, 0.60))
-        val third = policy.onFinishCheck(GuardLevel.WEAK, 0.60)
+        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(key, GuardLevel.WEAK, 0.60))
+        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(key, GuardLevel.WEAK, 0.60))
+        val third = policy.onFinishCheck(key, GuardLevel.WEAK, 0.60)
         // not sustained (WEAK) - but 3 guard-pass refusals now ask the owner (Path C)
         assertIs<ExitDecision.AskOwner>(third)
     }
@@ -117,16 +123,60 @@ class ExitPolicyTest {
     @Test
     fun `a guard-failed check resets both streaks`() {
         val policy = ExitPolicy()
-        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(GuardLevel.STRONG, 0.60)) // streak 1, refusals 1
-        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(GuardLevel.STRONG, 0.60)) // streak 2, refusals 2
-        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(GuardLevel.NONE, 0.60)) // everything resets
-        val fourth = policy.onFinishCheck(GuardLevel.STRONG, 0.60)
+        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(key, GuardLevel.STRONG, 0.60)) // streak 1, refusals 1
+        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(key, GuardLevel.STRONG, 0.60)) // streak 2, refusals 2
+        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(key, GuardLevel.NONE, 0.60)) // everything resets
+        val fourth = policy.onFinishCheck(key, GuardLevel.STRONG, 0.60)
         assertIs<ExitDecision.Refuse>(fourth)
         // the refusal streak restarted too: 1 guard-pass refusal, not 3 - no card ask
         assertTrue(fourth.reason.contains("1/3"), "streak restarted: ${fourth.reason}")
-        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(GuardLevel.STRONG, 0.30)) // refusals 2
-        val card = policy.onFinishCheck(GuardLevel.STRONG, 0.30) // refusal 3 -> the card
+        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(key, GuardLevel.STRONG, 0.30)) // refusals 2
+        val card = policy.onFinishCheck(key, GuardLevel.STRONG, 0.30) // refusal 3 -> the card
         assertIs<ExitDecision.AskOwner>(card)
+    }
+
+    // -- Streak re-keying (v1.6.0): the streak is keyed to the ACTIVE done-condition --
+
+    @Test
+    fun `the sustained streak survives a re-plan that keeps the condition`() {
+        // vision 04 §3 v1.6.0: a re-plan is not evidence against arrival — two checks
+        // under the same condition, a "re-plan" gap (no checks), then the third check:
+        // the streak continues and Path B accepts on the same condition's third check.
+        val policy = ExitPolicy()
+        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(key, GuardLevel.STRONG, 0.58)) // streak 1
+        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(key, GuardLevel.STRONG, 0.59)) // streak 2
+        val third = policy.onFinishCheck(key, GuardLevel.STRONG, 0.60) // SAME condition -> streak 3
+        assertIs<ExitDecision.Accept>(third)
+        assertEquals(ExitPath.SUSTAINED, third.path)
+    }
+
+    @Test
+    fun `a condition change resets the sustained streak - evidence under the old condition says nothing`() {
+        val otherKey = "subtask:the text 'Mediterranean cuisine' appears on the page"
+        val policy = ExitPolicy()
+        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(key, GuardLevel.STRONG, 0.58)) // streak 1, refusals 1
+        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(key, GuardLevel.STRONG, 0.59)) // streak 2, refusals 2
+        // the pointer advanced: a NEW condition — the sustained streak resets (streak 1
+        // on the new condition) and the guard-pass refusal counter (not keyed) hits K:
+        // the completion card asks here, once per task.
+        val card = policy.onFinishCheck(otherKey, GuardLevel.STRONG, 0.60)
+        assertIs<ExitDecision.AskOwner>(card)
+        assertEquals(1, policy.completionCardsShown)
+        // the owner keeps going; the new condition's own streak continues
+        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(otherKey, GuardLevel.STRONG, 0.60)) // streak 2
+        // the accept lands on the NEW condition's own third consecutive check
+        val accepted = policy.onFinishCheck(otherKey, GuardLevel.STRONG, 0.60)
+        assertIs<ExitDecision.Accept>(accepted)
+        assertEquals(ExitPath.SUSTAINED, accepted.path)
+        assertEquals(5, policy.finishChecks, "five checks were evaluated across the two conditions")
+    }
+
+    @Test
+    fun `a blank condition key fails loudly - the streak is keyed to it`() {
+        val policy = ExitPolicy()
+        assertThrows<IllegalArgumentException> {
+            policy.onFinishCheck("  ", GuardLevel.STRONG, 0.60)
+        }
     }
 
     // -- Path C (owner arbiter): K guard-pass refusals, card once per task ------------
@@ -135,16 +185,16 @@ class ExitPolicyTest {
     fun `the completion card asks on the Kth guard-pass refusal and only once per task`() {
         val policy = ExitPolicy()
         // 0.30 keeps the sustained streak at zero: pure Path C territory
-        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(GuardLevel.STRONG, 0.30))
-        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(GuardLevel.STRONG, 0.30))
-        val third = policy.onFinishCheck(GuardLevel.STRONG, 0.30)
+        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(key, GuardLevel.STRONG, 0.30))
+        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(key, GuardLevel.STRONG, 0.30))
+        val third = policy.onFinishCheck(key, GuardLevel.STRONG, 0.30)
         assertIs<ExitDecision.AskOwner>(third)
         assertEquals(3, third.refusedChecks)
         assertEquals(1, policy.completionCardsShown)
         // the owner keeps going: later refusals never re-ask (once per task)
-        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(GuardLevel.STRONG, 0.30))
-        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(GuardLevel.STRONG, 0.30))
-        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(GuardLevel.STRONG, 0.30))
+        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(key, GuardLevel.STRONG, 0.30))
+        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(key, GuardLevel.STRONG, 0.30))
+        assertIs<ExitDecision.Refuse>(policy.onFinishCheck(key, GuardLevel.STRONG, 0.30))
         assertEquals(1, policy.completionCardsShown)
     }
 
@@ -181,7 +231,20 @@ class ExitPolicyTest {
         assertFalse(policy.finishExcluded(100))
     }
 
-    // -- config law (ART-5: numbers in code) -------------------------------------------
+    // -- Held-hash re-checks (v1.6.0): the bounded re-key API --------------------------
+
+    @Test
+    fun `held-hash re-checks fire every third step, at most three per hash`() {
+        val policy = ExitPolicy(config = ExitPolicyConfig())
+        // before the cadence: not due
+        assertFalse(policy.heldHashRecheckDue(stepsSinceLastCheck = 1, checksOnThisHash = 0))
+        assertFalse(policy.heldHashRecheckDue(stepsSinceLastCheck = 2, checksOnThisHash = 0))
+        assertTrue(policy.heldHashRecheckDue(stepsSinceLastCheck = 3, checksOnThisHash = 0), "every 3rd step")
+        assertTrue(policy.heldHashRecheckDue(stepsSinceLastCheck = 7, checksOnThisHash = 1))
+        // the per-hash cap: three checks on one hash close the window
+        assertFalse(policy.heldHashRecheckDue(stepsSinceLastCheck = 9, checksOnThisHash = 3))
+        assertFalse(policy.heldHashRecheckDue(stepsSinceLastCheck = 9, checksOnThisHash = 4))
+    }
 
     @Test
     fun `the law thresholds are the default config`() {
@@ -190,6 +253,8 @@ class ExitPolicyTest {
         assertEquals(0.55, config.sustainedFloor)
         assertEquals(3, config.sustainedChecks)
         assertEquals(2, config.exclusionDecisions)
+        assertEquals(3, config.heldHashRecheckEverySteps, "the v1.6.0 held-hash cadence (ART-5)")
+        assertEquals(3, config.heldHashRecheckMax, "the v1.6.0 per-hash cap (ART-5)")
     }
 
     @Test
@@ -197,5 +262,7 @@ class ExitPolicyTest {
         assertThrows<IllegalArgumentException> { ExitPolicyConfig(highFloor = 1.2) }
         assertThrows<IllegalArgumentException> { ExitPolicyConfig(sustainedChecks = 0) }
         assertThrows<IllegalArgumentException> { ExitPolicyConfig(exclusionDecisions = -1) }
+        assertThrows<IllegalArgumentException> { ExitPolicyConfig(heldHashRecheckEverySteps = 0) }
+        assertThrows<IllegalArgumentException> { ExitPolicyConfig(heldHashRecheckMax = 0) }
     }
 }

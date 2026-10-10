@@ -8,6 +8,8 @@ import navigator.core.decision.ChoiceQuestion
 import navigator.core.decision.ChoiceResult
 import navigator.core.decision.Option
 import navigator.core.decision.TypedResult
+import navigator.core.decision.Intents
+import navigator.core.decision.TargetRubric
 import navigator.core.enumerate.Bucket
 import navigator.core.enumerate.Candidate
 import navigator.core.gate.ActionKind
@@ -453,6 +455,21 @@ data class DecisionLogRow(
      * with plan=null.
      */
     val plan: LoggedPlan? = null,
+    /**
+     * The executed stage-2 slate's per-candidate expected levels (doc 05 §2 v1.6.0
+     * `targetScores`, additive — cascade stage-2 evidence; present on target-bearing
+     * steps, null elsewhere). Expected levels are computed in `:core`
+     * ([navigator.core.decision.TargetRubric.resolve], ART-5), keyed by candidate id.
+     * Earlier rows decode unchanged with targetScores=null.
+     */
+    val targetScores: Map<String, Double>? = null,
+    /**
+     * Teacher stage-2 target == shadow stage-2 target (doc 05 §2 v1.6.0
+     * `targetAgreement`, additive; null unless both engines produced a stage-2 target).
+     * EXCLUDED from the §3 headline agreement, which stays top-1 on stage-1 intent ids.
+     * Earlier rows decode unchanged with targetAgreement=null.
+     */
+    val targetAgreement: Boolean? = null,
 ) {
     init {
         require(rowId.isNotBlank()) { "DecisionLogRow.rowId must not be blank" }
@@ -476,30 +493,54 @@ data class DecisionLogRow(
             "DecisionLogRow: teacherAnswer distribution keys outside questionPrimary option ids: $teacherForeignKeys"
         }
 
-        // Shadow answer lives on its chosen bucket's options
+        // Shadow answer lives on its chosen stage's option space. On a CASCADE row (the
+        // primary question IS the fixed intent form, vision 05 §2 v1.6.0) the shadow's
+        // bucket stage carries the INTENT id (doc 05 §2 v1.6.0 / vision 02 §4: the
+        // shadow answers both cascade stages) and its element stage is the argmax target
+        // — the slate is not stored on the row, so the element's option space is its own
+        // distribution's coverage. On a legacy row the two-stage bucket/element law is
+        // unchanged.
         if (shadowAnswer != null) {
             require(shadow != null) {
                 "DecisionLogRow ${rowId}: a shadowAnswer without a shadow ref is incoherent"
             }
-            val bucketNames = questionShadow.buckets.keys.map { it.serialName }.toSet()
-            require(shadowAnswer.bucket.chosen in bucketNames) {
-                "DecisionLogRow ${rowId}: shadowAnswer.bucket.chosen '${shadowAnswer.bucket.chosen}' " +
-                    "is not a bucket of questionShadow '${questionShadow.name}'"
-            }
-            val bucketForeignKeys = shadowAnswer.bucket.probabilities.keys - bucketNames
-            require(bucketForeignKeys.isEmpty()) {
-                "DecisionLogRow ${rowId}: shadowAnswer bucket distribution keys outside questionShadow buckets: $bucketForeignKeys"
-            }
-            val chosenBucketOptions = questionShadow.buckets.entries
-                .first { it.key.serialName == shadowAnswer.bucket.chosen }.value
-            val elementIds = chosenBucketOptions.map { it.id }.toSet()
-            require(shadowAnswer.element.chosen in elementIds) {
-                "DecisionLogRow ${rowId}: shadowAnswer.element.chosen '${shadowAnswer.element.chosen}' " +
-                    "is not an option of the chosen bucket"
-            }
-            val elementForeignKeys = shadowAnswer.element.probabilities.keys - elementIds
-            require(elementForeignKeys.isEmpty()) {
-                "DecisionLogRow ${rowId}: shadowAnswer element distribution keys outside the chosen bucket: $elementForeignKeys"
+            val cascadePrimary = questionPrimary.options.map { it.id } == Intents.IDS
+            if (cascadePrimary) {
+                val intentIds = Intents.IDS.toSet()
+                require(shadowAnswer.bucket.chosen in intentIds) {
+                    "DecisionLogRow ${rowId}: cascade shadowAnswer.bucket.chosen " +
+                        "'${shadowAnswer.bucket.chosen}' is not a stage-1 intent id (vision 02 §3)"
+                }
+                val intentForeignKeys = shadowAnswer.bucket.probabilities.keys - intentIds
+                require(intentForeignKeys.isEmpty()) {
+                    "DecisionLogRow ${rowId}: cascade shadowAnswer bucket distribution keys outside " +
+                        "the fixed intent ids: $intentForeignKeys"
+                }
+                require(shadowAnswer.element.chosen in shadowAnswer.element.probabilities.keys) {
+                    "DecisionLogRow ${rowId}: cascade shadowAnswer.element.chosen " +
+                        "'${shadowAnswer.element.chosen}' is missing from its own distribution"
+                }
+            } else {
+                val bucketNames = questionShadow.buckets.keys.map { it.serialName }.toSet()
+                require(shadowAnswer.bucket.chosen in bucketNames) {
+                    "DecisionLogRow ${rowId}: shadowAnswer.bucket.chosen '${shadowAnswer.bucket.chosen}' " +
+                        "is not a bucket of questionShadow '${questionShadow.name}'"
+                }
+                val bucketForeignKeys = shadowAnswer.bucket.probabilities.keys - bucketNames
+                require(bucketForeignKeys.isEmpty()) {
+                    "DecisionLogRow ${rowId}: shadowAnswer bucket distribution keys outside questionShadow buckets: $bucketForeignKeys"
+                }
+                val chosenBucketOptions = questionShadow.buckets.entries
+                    .first { it.key.serialName == shadowAnswer.bucket.chosen }.value
+                val elementIds = chosenBucketOptions.map { it.id }.toSet()
+                require(shadowAnswer.element.chosen in elementIds) {
+                    "DecisionLogRow ${rowId}: shadowAnswer.element.chosen '${shadowAnswer.element.chosen}' " +
+                        "is not an option of the chosen bucket"
+                }
+                val elementForeignKeys = shadowAnswer.element.probabilities.keys - elementIds
+                require(elementForeignKeys.isEmpty()) {
+                    "DecisionLogRow ${rowId}: shadowAnswer element distribution keys outside the chosen bucket: $elementForeignKeys"
+                }
             }
         }
 
@@ -513,10 +554,21 @@ data class DecisionLogRow(
                 "(shadowAnswer present=${shadowAnswer != null})"
         }
         if (agreementExactMatch != null && shadowAnswer != null) {
-            val derived = teacherAnswer.chosen == shadowAnswer.element.chosen
+            // Headline top-1 (vision 05 §3 + the v1.6.0 targetAgreement amendment): on a
+            // cascade row (the primary question IS the fixed intent form) the comparable
+            // top-1 is the stage-1 INTENT — the teacher's chosen id vs the shadow's bucket
+            // stage (which carries the shadow's intent id); on a legacy row it stays the
+            // flat choice vs the shadow's element choice.
+            val cascadePrimary = questionPrimary.options.map { it.id } == Intents.IDS
+            val derived = if (cascadePrimary) {
+                teacherAnswer.chosen == shadowAnswer.bucket.chosen
+            } else {
+                teacherAnswer.chosen == shadowAnswer.element.chosen
+            }
             require(agreementExactMatch == derived) {
                 "DecisionLogRow ${rowId}: agreementExactMatch=$agreementExactMatch contradicts the " +
-                    "stored choices (teacher '${teacherAnswer.chosen}' vs shadow element '${shadowAnswer.element.chosen}')"
+                    "stored choices (teacher '${teacherAnswer.chosen}' vs shadow " +
+                    "'${if (cascadePrimary) shadowAnswer.bucket.chosen else shadowAnswer.element.chosen}')"
             }
             require(agreementKL!! >= -NORMALIZATION_TOLERANCE) {
                 "DecisionLogRow ${rowId}: agreementKL must be non-negative, was $agreementKL"
@@ -556,6 +608,24 @@ data class DecisionLogRow(
         ) {
             "DecisionLogRow ${rowId}: typedSecret=true is only coherent for an EXECUTED type " +
                 "action, was kind=${executedAction.kind} disposition=${executedAction.disposition}"
+        }
+
+        // Cascade stage-2 evidence coherence (doc 05 §2 v1.6.0): targetScores carries
+        // expected levels in the rubric's 1..5 band; targetAgreement is present exactly
+        // when both engines produced stage-2 targets (mirrors the §3 agreement law).
+        targetScores?.let { scores ->
+            require(scores.isNotEmpty()) {
+                "DecisionLogRow ${rowId}: an empty targetScores map is incoherent — omit it"
+            }
+            val outOfBand = scores.filterValues { it !in 1.0..TargetRubric.LEVEL_COUNT.toDouble() }
+            require(outOfBand.isEmpty()) {
+                "DecisionLogRow ${rowId}: targetScores outside the 1..${TargetRubric.LEVEL_COUNT} " +
+                    "rubric band: $outOfBand"
+            }
+        }
+        require((targetAgreement != null) == (targetScores != null && shadowAnswer != null)) {
+            "DecisionLogRow ${rowId}: targetAgreement is present exactly when stage-2 ran " +
+                "(targetScores) and a shadow answer exists"
         }
     }
 

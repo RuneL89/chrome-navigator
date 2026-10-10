@@ -94,10 +94,12 @@ internal object ExitReplaySupport {
         noulSeries: List<Double>,
         cards: CompletionCardPresenter? = null,
         screenHash: Int = 0xABCD,
+        /** The v1.6.0 sustained-streak condition key (constant: the replays' page/condition never change). */
+        conditionKey: String = "replay:the terminal condition holds",
     ): List<CheckOutcome> {
         val outcomes = mutableListOf<CheckOutcome>()
         for ((index, noul) in noulSeries.withIndex()) {
-            val first = policy.onFinishCheck(guardLevel, noul)
+            val first = policy.onFinishCheck(conditionKey, guardLevel, noul)
             var resolution: CompletionResolution? = null
             val decision = when (first) {
                 is ExitDecision.AskOwner -> {

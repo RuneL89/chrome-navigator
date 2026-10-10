@@ -94,6 +94,22 @@ data class ExtractionResult(
     val promptVersion: String,
 )
 
+/** One completed uncertainty-handshake assist (Phase 10B, doc 04 §2). */
+data class AssistResult(
+    /** The page re-description — discriminating FACTS only, never directives. */
+    val text: String,
+    val usage: GenUsage,
+    val promptVersion: String,
+)
+
+/** One completed writer-phrased typed text (Phase 10B, doc 04 §2 — locked decision #4). */
+data class PhraseResult(
+    /** The field content — one line, at most [Prompts.PHRASE_MAX_CHARS] chars, content only. */
+    val text: String,
+    val usage: GenUsage,
+    val promptVersion: String,
+)
+
 /**
  * The generative writer client (Phase 10, phase doc §2.1): ONE OpenRouter
  * chat-completions caller for both writer roles — `restructure(goal): Ladder` (ONE call,
@@ -177,6 +193,127 @@ class GenClient(
         onUsage(usage)
         return ExtractionResult(answer, usage, Prompts.EXTRACTION_PROMPT_VERSION)
     }
+
+    /**
+     * The uncertainty-handshake assist (Phase 10B, vision 04 §2, doc 02 §3): ONE writer
+     * call re-describing the page relative to the ACTIVE subtask — discriminating FACTS
+     * only, at most [Prompts.MAX_ASSIST_SENTENCES] sentences AND [Prompts.MAX_ASSIST_CHARS]
+     * characters, NEVER a directive (ART-2: the writer never steers).
+     *
+     * Output law: every completed call's usage meters through [onUsage] (wire it into
+     * `WriterBudget.record` at the Round-2 cascade wiring — the cap never understates
+     * spend, even for refused outputs). Validation = the length caps + the directive
+     * blocklist; an invalid output earns EXACTLY ONE fresh attempt, then `null` — the
+     * SKIP-TO-FALLBACK signal (the caller runs its code fallback: recovery / re-plan /
+     * owner card), never a loop. The honesty path — the model answering exactly
+     * [Prompts.ASSIST_SKIP_MARKER] — returns `null` immediately.
+     *
+     * NO SECRET EVER ENTERS THE PROMPT (doc 06 §2a): the caller masks sanctioned secrets
+     * out of [pageMaterial] before this call.
+     */
+    suspend fun assist(
+        subtask: String,
+        doneCondition: String,
+        pageMaterial: String,
+    ): AssistResult? {
+        require(subtask.isNotBlank()) { "assist: the subtask must not be blank" }
+        require(doneCondition.isNotBlank()) { "assist: the done-condition must not be blank" }
+        val body = chatBody(
+            Prompts.ASSIST_SYSTEM,
+            Prompts.assistUser(subtask, doneCondition, pageMaterial),
+        )
+        repeat(CONTENT_ATTEMPTS) { attempt ->
+            val (content, usage) = post(body, "assist")
+            onUsage(usage) // metered even when the output is refused: spend is spend
+            val text = content.trim()
+            if (text.equals(Prompts.ASSIST_SKIP_MARKER, ignoreCase = true)) {
+                return null // the honesty path: skip-to-fallback
+            }
+            val violation = assistViolation(text)
+            if (violation == null) {
+                return AssistResult(text, usage, Prompts.ASSIST_PROMPT_VERSION)
+            }
+            if (attempt == CONTENT_ATTEMPTS - 1) {
+                // ONE bounded retry spent: skip-to-fallback, never a loop (vision 04 §2).
+                return null
+            }
+        }
+        return null // unreachable
+    }
+
+    /**
+     * The writer-phrased typed text (Phase 10B, vision 04 §2 — locked decision #4): ONE
+     * call phrasing the content for [fieldLabel] under the ACTIVE [subtask]. ONE line, at
+     * most [Prompts.PHRASE_MAX_CHARS] chars, content only — never the raw goal text, and
+     * never a directive.
+     *
+     * Returns `null` on any refused output (invalid after the ONE bounded retry, or the
+     * honesty path [Prompts.PHRASE_SKIP_MARKER]): the Round-2 loop treats it as a
+     * fill-field FAILURE routed to recovery — it never falls back to raw-goal typing.
+     * Usage meters through [onUsage] (wire it into `WriterBudget.record` at the Round-2
+     * cascade wiring). NO SECRET EVER ENTERS THE PROMPT (doc 06 §2a) — the field label
+     * rides the observation's redaction fold upstream.
+     */
+    suspend fun phrase(subtask: String, fieldLabel: String): PhraseResult? {
+        require(subtask.isNotBlank()) { "phrase: the subtask must not be blank" }
+        val body = chatBody(Prompts.PHRASE_SYSTEM, Prompts.phraseUser(subtask, fieldLabel))
+        repeat(CONTENT_ATTEMPTS) { attempt ->
+            val (content, usage) = post(body, "phrase")
+            onUsage(usage)
+            val text = content.trim()
+            if (text.equals(Prompts.PHRASE_SKIP_MARKER, ignoreCase = true)) {
+                return null
+            }
+            val violation = phraseViolation(text)
+            if (violation == null) {
+                return PhraseResult(text, usage, Prompts.PHRASE_PROMPT_VERSION)
+            }
+            if (attempt == CONTENT_ATTEMPTS - 1) {
+                return null
+            }
+        }
+        return null // unreachable
+    }
+
+    /**
+     * The assist output law: `null` when valid, else WHY it is invalid (over the
+     * sentence cap, over the character cap, or carrying a directive/verb-of-choice —
+     * the adversarial Gate 10B.1 rows pin the blocklist both ways).
+     */
+    private fun assistViolation(text: String): String? {
+        if (text.isEmpty()) return "empty assist"
+        if (text.length > Prompts.MAX_ASSIST_CHARS) {
+            return "assist is ${text.length} chars, over the ${Prompts.MAX_ASSIST_CHARS}-char cap"
+        }
+        val sentences = countSentences(text)
+        if (sentences > Prompts.MAX_ASSIST_SENTENCES) {
+            return "assist carries $sentences sentences, over the ${Prompts.MAX_ASSIST_SENTENCES}-sentence cap"
+        }
+        DIRECTIVE_BLOCKLIST.find(text)?.let {
+            return "assist carries the directive '${it.value}' — the writer describes, it never steers (ART-2)"
+        }
+        return null
+    }
+
+    /**
+     * The phrase output law: `null` when valid, else WHY it is invalid (not ONE line,
+     * over the 80-char cap, empty, or commentary/directive-shaped).
+     */
+    private fun phraseViolation(text: String): String? {
+        if (text.isEmpty()) return "empty phrase"
+        if (text.contains('\n') || text.contains('\r')) return "phrase must be ONE line"
+        if (text.length > Prompts.PHRASE_MAX_CHARS) {
+            return "phrase is ${text.length} chars, over the ${Prompts.PHRASE_MAX_CHARS}-char cap"
+        }
+        DIRECTIVE_BLOCKLIST.find(text)?.let {
+            return "phrase carries the directive '${it.value}' — the answer is data, not an action (doc 06 §4)"
+        }
+        return null
+    }
+
+    /** Sentence count by terminator ([.!?] runs), the [Prompts.MAX_ASSIST_SENTENCES] measure. */
+    private fun countSentences(text: String): Int =
+        text.split(SENTENCE_BOUNDARY).count { it.isNotBlank() }
 
     /**
      * Posts one chat-completions request and returns the assistant message content with
@@ -275,6 +412,20 @@ class GenClient(
 
         /** The bounded content-retry budget for restructure: exactly ONE fresh attempt. */
         const val CONTENT_ATTEMPTS = 2
+
+        /**
+         * The directive blocklist (Gate 10B.1's adversarial rows): word-boundary
+         * verbs-of-choice and steering phrases — an assist or phrase carrying one is
+         * INVALID by construction (ART-2: the writer describes, it never decides).
+         */
+        val DIRECTIVE_BLOCKLIST: Regex =
+            Regex(
+                "\\b(click|tap|press|scroll|navigate|select|choose|submit|dismiss|ignore|" +
+                    "click on|go back|next step|you should|you must|first,? then)\\b",
+                RegexOption.IGNORE_CASE,
+            )
+
+        private val SENTENCE_BOUNDARY = Regex("[.!?]+\\s")
 
         /** Integer micro-dollar writer spend from provider-reported token counts (ART-5). */
         fun writerCostMicroUsd(inputTokens: Long, outputTokens: Long): Long =

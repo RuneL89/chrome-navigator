@@ -471,7 +471,7 @@ class LadderExecutionLoopTest {
         assertEquals(navigator.core.log.ExitCheckVerdict.ACCEPTED, row.verdict)
         assertEquals(navigator.core.log.LoggedExitPath.HIGH, row.acceptedPath)
         assertEquals(navigator.core.log.ExitCheckGuardLevel.WEAK, row.guardLevel)
-        assertEquals(2, row.anchoredNoulVersion, "the SAME anchored v2 question family")
+        assertEquals(3, row.anchoredNoulVersion, "the SAME anchored v3 question family (the atomic templates)")
         assertEquals(0, row.stepIndex, "the check consumed step 0 (its own row key)")
         assertTrue(result.stepLog.any { it.contains("code-triggered IS-DONE check") })
         assertTrue(

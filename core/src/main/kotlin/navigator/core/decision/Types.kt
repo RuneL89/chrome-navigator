@@ -2,6 +2,7 @@ package navigator.core.decision
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import navigator.core.wire.SystemOneClient
 
 /**
  * A single selectable option in a [ChoiceQuestion].
@@ -29,15 +30,23 @@ sealed interface TypedResult
 /**
  * `choice` question: pick one option from a flat list (primary path: ≤255 options,
  * vision 02 §3).
+ *
+ * @param instructions this question's own complete instruction text (vision 02 §3
+ *   v1.3.0 per-question-instructions law). The default is the Phase-3 shared choice
+ *   instruction ([SystemOneClient.CHOICE_INSTRUCTIONS]) so every legacy construction
+ *   site — and the wire bytes it produces — stays identical; the cascade's questions
+ *   carry their own ([Intents.INTENT_INSTRUCTIONS]).
  */
 @Serializable
 @SerialName("choice")
 data class ChoiceQuestion(
     val name: String,
     val options: List<Option>,
+    val instructions: String = SystemOneClient.CHOICE_INSTRUCTIONS,
 ) : TypedQuestion {
     init {
         require(name.isNotBlank()) { "ChoiceQuestion.name must not be blank" }
+        require(instructions.isNotBlank()) { "ChoiceQuestion '$name' instructions must not be blank" }
         require(options.isNotEmpty()) { "ChoiceQuestion '$name' must offer at least one option" }
         require(options.size <= 255) {
             "ChoiceQuestion '$name' exceeds the 255-option flat-list limit (vision 02 §3): ${options.size}"
@@ -75,15 +84,23 @@ data class ChoiceResult(
     }
 }
 
-/** `noul` question: judge whether [proposition] is true of [state]. */
+/**
+ * `noul` question: judge whether [proposition] is true of [state].
+ *
+ * @param instructions this question's own complete instruction text (vision 02 §3
+ *   v1.3.0 per-question-instructions law); the default is the Phase-3 shared noul
+ *   instruction ([SystemOneClient.NOUL_INSTRUCTIONS]).
+ */
 @Serializable
 @SerialName("noul")
 data class NoulQuestion(
     val name: String,
     val proposition: String,
+    val instructions: String = SystemOneClient.NOUL_INSTRUCTIONS,
 ) : TypedQuestion {
     init {
         require(name.isNotBlank()) { "NoulQuestion.name must not be blank" }
+        require(instructions.isNotBlank()) { "NoulQuestion '$name' instructions must not be blank" }
         require(proposition.isNotBlank()) { "NoulQuestion '$name' proposition must not be blank" }
     }
 }
@@ -116,15 +133,24 @@ data class ScoreLevel(
     val description: String,
 )
 
-/** `score` question: judge [state] against an ordered rubric of 2–10 levels. */
+/**
+ * `score` question: judge [state] against an ordered rubric of 2–10 levels.
+ *
+ * @param instructions this question's own complete instruction text (vision 02 §3
+ *   v1.3.0 per-question-instructions law); the default is the Phase-3 shared score
+ *   instruction ([SystemOneClient.SCORE_INSTRUCTIONS]). The cascade's stage-2 questions
+ *   name the subtask and the candidate instead ([TargetRubric]).
+ */
 @Serializable
 @SerialName("score")
 data class ScoreQuestion(
     val name: String,
     val levels: List<ScoreLevel>,
+    val instructions: String = SystemOneClient.SCORE_INSTRUCTIONS,
 ) : TypedQuestion {
     init {
         require(name.isNotBlank()) { "ScoreQuestion.name must not be blank" }
+        require(instructions.isNotBlank()) { "ScoreQuestion '$name' instructions must not be blank" }
         require(levels.size in 2..10) {
             "ScoreQuestion '$name' must have 2..10 rubric levels (vision 02 §3): ${levels.size}"
         }

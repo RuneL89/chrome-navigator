@@ -172,8 +172,10 @@ setup wizard (`setup/`).
     `GATE9x RESULT: PASS|FAIL <summary>` + `GATE9x CHECK: <name> PASS|FAIL - <detail>`
     under the `NavigatorGates` tag; refused unless debuggable)
   * `src/main/kotlin/navigator/app/gen/` — the generative writer layer (Phase 10, phase
-    doc §2.1): `GenClient.kt` — the ONE OpenRouter `/api/v1/chat/completions` client for
-    BOTH writer roles (restructure + answer extraction), over the SAME injected
+    doc §2.1; Phase 10B added the cascade's writer surfaces): `GenClient.kt` — the ONE
+    OpenRouter `/api/v1/chat/completions` client for the writer roles (restructure +
+    answer extraction + the Phase-10B `assist(subtask, doneCondition, pageMaterial)` and
+    `phrase(subtask, fieldLabel)`), over the SAME injected
     `WireTransport` seam (no second HTTP speaker); `GenConfig` + `GenEngineConfigs` (the
     PINNED generative model id + the chat URL + the integer micro-USD price table — the
     decision engines' pinning law, vision 02 §5: the pin lives here only, upgrades are
@@ -195,9 +197,22 @@ setup wizard (`setup/`).
     code-fence stripping, unknown fields ignored / missing fields loud, then
     `:core`'s `LadderValidator`; `GenLadderSource.kt` — the `:app` `LadderSource` +
     `AnswerExtractor` over a GenClient (the harness live-ladder mode AND the product run
-    path, one wiring); NO SECRET EVER ENTERS A WRITER PROMPT (doc 06 §2a): the loop
-    masks sanctioned secrets out of the goal/final-state before any call; law:
-    `Project Vision/01` §3, `Project Vision/04` §1 v1.4.0, `Project Vision/06` §2a/§4
+    path, one wiring); Phase 10B writer surfaces (doc 04 §2 v1.6.0): `Prompts.assist-v1`
+    (the FIVE ratified system clauses — discriminating facts only, ≤4 sentences AND
+    ≤400 chars, never a directive, the honest "I cannot describe this page usefully."
+    skip path, the untrusted-data clause; fixture law per version in
+    `src/test/resources/gen/golden-assist-v1.json`) and `Prompts.phrase-v1`
+    (content-only, ONE line ≤80 chars = `StepExecutor.MAX_PHRASE_LENGTH`, the honest
+    "I cannot phrase this." path; fixture law in `golden-phrase-v1.json`);
+    `GenClient.assist`/`.phrase` validate their outputs (length caps + the word-boundary
+    DIRECTIVE BLOCKLIST — ART-2: the writer describes, it never steers), earn EXACTLY
+    ONE bounded content retry, then return `null` — the SKIP-TO-FALLBACK signal for the
+    handshake and the fill-field-to-recovery signal for the phrase (never a loop, never
+    raw-goal typing); usage meters through `onUsage` on EVERY completed call (refused
+    outputs included — the writer cap never understates; the Round-2 cascade loop wires
+    the edge into `WriterBudget.record`); NO SECRET EVER ENTERS A WRITER PROMPT (doc 06
+    §2a): the loop masks sanctioned secrets out of the goal/final-state before any call;
+    law: `Project Vision/01` §3, `Project Vision/04` §1 v1.4.0 + §2 v1.6.0, `Project Vision/06` §2a/§4
   * `src/main/kotlin/navigator/app/setup/` — the setup wizard (Phase 9, §2.2):
     `SetupLogic` (PURE state derivation, JVM-pinned: the a11y-enabled check string
     parsing, the Samsung-only battery branching — non-Samsung passes with an info line
@@ -393,8 +408,14 @@ setup wizard (`setup/`).
     `ExitPolicy` (Phase 8J, vision 04 §3 v1.2.0 — the exit law as pure code: Path A
     HIGH anchored noul > 0.70 (Bands semantics, exclusive) with any guard level; Path
     B SUSTAINED = STRONG + noul >= 0.55 over K=3 CONSECUTIVE checks (the streak RESETS
-    on any failing check — the Test-1 specimen's 0.44 breaks it); Path C = one
-    completion card after K guard-pass refusals (once per task); anti-oscillation:
+    on any failing check — the Test-1 specimen's 0.44 breaks it; Phase 10B v1.6.0:
+    the streak is KEYED to the active done-condition's rendered text passed as
+    `onFinishCheck`'s conditionKey — it survives a re-plan that keeps the condition and
+    resets on condition/pointer change); Path C = one
+    completion card after K guard-pass refusals (once per task); Phase 10B v1.6.0: the
+    bounded held-hash re-check API (`ExitPolicyConfig.heldHashRecheckEverySteps = 3` /
+    `heldHashRecheckMax = 3` + the pure `heldHashRecheckDue(steps, checks)` — the
+    Round-2 cascade loop consumes it); anti-oscillation:
     a refused finish excludes `finish` from the next M=2 decisions via
     `CandidateList.withoutFinish()`, cleared on any page-hash change; thresholds are
     code config (ART-5) gated by the exit-calibration family). Phase 8G: an additive
@@ -402,10 +423,15 @@ setup wizard (`setup/`).
     action-multi pending count) to the NONE refusal's reason — it never changes a
     verdict; null keeps the pre-08G reason bytes),
     `AnchoredNoul` (Phase 8J: the finish question's proposition is code-constructed per
-    triage class, anchored to the extracted entity; Round 2 = v2
-    (`ANCHORED_NOUL_VERSION=2`): every proposition carries a code-derived PAGE IDENTITY
-    line (title/URL excerpt, capped) so the engine judges ARRIVAL against page identity,
-    not content vibes; generic "is the goal achieved?" phrasing is forbidden),
+    triage class, anchored to the extracted entity; Round 2 = v2: every proposition
+    carries a code-derived PAGE IDENTITY line (title/URL excerpt, capped) so the engine
+    judges ARRIVAL against page identity, not content vibes; Phase 10B = v3
+    (`ANCHORED_NOUL_VERSION=3`, vision 04 §3 v1.6.0): SUBTASK propositions are ATOMIC —
+    ONE crisp sentence per done-condition shape (`subtaskQuestion(done, title, url)` /
+    `atomicProposition`: the phase-doc exact forms for urlHost/markerText/
+    elementPresent/count) + the PAGE IDENTITY line; the task-level (non-ladder)
+    fallback keeps the single-sentence per-class forms; generic "is the goal achieved?"
+    phrasing is forbidden),
     `StuckDetector` (6 signals / 8-step window / 3 levels; the Phase-8J sixth signal is
     the exit conflict — 3 consecutive refused finishes with no screen progress; the L1
     hint carries "engine wants to finish, evidence says <level>"; a screen change resets
@@ -841,14 +867,23 @@ setup wizard (`setup/`).
   phase-doc shape, pointer-advance + re-plan regeneration pins, flatten/cap,
   presentation-parse predicate); `WriterBudgetTest` (the $0.05/$0.10 caps, integer
   accumulation, the hard cap blocking further writer calls);
-  `./gradlew test` since the R1 revision: :core 326 + :app 462 = 788 tests, 0 failures
-  (the lawful re-pins that moved: the two Gate 10.2 ladder tests re-pinned to the
-  v1.5.0 behavior — the engine-finish advance scenario now passes the code-triggered
-  check first, and the owner-card test pins the GUARANTEED card on the intercepted L3
-  kill (failure count 2 = give-up + kill) instead of the old 3-count race; the
-  sanctioned-secrets test scripts one more judge answer for the re-planned ladder's
-  code check; the v3 re-pins of Phase 10 itself are recorded above, unchanged);
-  :app:assembleDebug green
+  `./gradlew test` since Phase 10B Round 1: :core 359 + :app 482 = 841 tests, 0 failures
+  (the lawful re-pins that moved with Phase 10B Round 1: the exit-family version pins
+  — `AnchoredNoulTest` v3 + the ATOMIC per-shape proposition pins (the task-level v2
+  body pins unchanged), `SpecimenReplayTest`/`ExitCheckRowLoopTest`/
+  `LadderExecutionLoopTest` ANCHORED_NOUL_VERSION 2→3 pins, `ExitPolicyTest` re-written
+  for the condition-keyed streak (re-key reset, re-plan survival, held-hash API, the
+  two new config constants) with `ExitReplaySupport` passing a constant condition key;
+  `RlcdExportTest` re-written for the v1.6.0 intent-form choose + score case kinds;
+  the Tier A eval tests for the cascade replay; the 9 DecisionLog goldens regenerated
+  via UPDATE_GOLDENS under the ratified additive amendment; the Phase-10 R1 re-pins
+  recorded above are unchanged); :app:assembleDebug green. Phase 10B Round 1 additions:
+  `GenAssistPhraseTest` (13 — the assist/phrase goldens byte-pin `assist-v1`/
+  `phrase-v1`; the validation matrix incl. the directive blocklist and the honesty
+  paths; ONE bounded retry then null; usage metered refused-included into the
+  `WriterBudget` edge; transport vs content retry law); the :core additions are in
+  core/AGENTS.md (IntentsTest/TargetRubricTest/StageViewsTest + the 4 cascade
+  transcripts)
 * `./gradlew :app:testDebugUnitTest` — Gate 1.1 serializer goldens (+ the 2026-10-08
   H8-gap `password`-kind marker tests — flagged nodes emit `edit password`, unflagged
   nodes render exactly as before) + Gate 1.2 URL-bar

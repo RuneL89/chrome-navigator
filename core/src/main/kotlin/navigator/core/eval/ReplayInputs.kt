@@ -3,6 +3,7 @@ package navigator.core.eval
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
+import navigator.core.decision.Intents
 import navigator.core.fixtures.A11yDump
 import navigator.core.fixtures.FixtureValidationException
 import navigator.core.gate.ActionKind
@@ -42,13 +43,20 @@ private val EVAL_INPUT_JSON = Json {
     isLenient = false
 }
 
-/** One dump-to-decision pairing: the gold decision the recorded response encodes. */
+/** One dump-to-decision pairing: the gold decision the recorded responses encode. */
 @Serializable
 data class ReplayPairing(
     /** a11y-dump fixture file name, e.g. `real-google-results-01.json`. */
     val fixture: String,
     /** the task goal the decision was made under (app-authored state-text line). */
     val goal: String,
+    /**
+     * The gold stage-1 intent (vision 07 v1.3.0 cascade replay): one of the FIXED
+     * 9-category vocabulary (vision 02 §3). Target-bearing intents draw their stage-2
+     * slate from the intent's bucket; `verify-done` re-recorded the two retired
+     * `finish` pairings (the finish pseudo-action is retired from slates, doc 02 §3).
+     */
+    val intent: String,
     /** the gold chosen candidate id — must be enumerable from the fixture dump. */
     val chosenNodeId: String,
     /**
@@ -66,6 +74,10 @@ data class ReplayPairing(
     init {
         require(fixture.endsWith(".json")) { "ReplayPairing.fixture must be a .json dump name: '$fixture'" }
         require(goal.isNotBlank()) { "ReplayPairing '$fixture': goal must not be blank" }
+        require(Intents.isValid(intent)) {
+            "ReplayPairing '$fixture': intent '$intent' is not in the fixed 9-intent vocabulary " +
+                "(${Intents.IDS})"
+        }
         require(chosenNodeId.isNotBlank()) { "ReplayPairing '$fixture': chosenNodeId must not be blank" }
         actionKind?.let {
             require(run { ActionKind.entries.map { kind -> kind.name }.contains(it) }) {

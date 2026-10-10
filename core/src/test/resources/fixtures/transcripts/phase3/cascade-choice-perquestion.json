@@ -1,0 +1,52 @@
+{
+  "engine": "jev",
+  "model": "typesafe/jev-1.13-20260917",
+  "state": "SUBTASK: search for the bake time of apple pie\nDONE WHEN: the bake time is visible on the page\n[page: a recipe search box]",
+  "note": "Phase 10B Gate 10B.1 (vision 02 §3 v1.3.0): a per-question-instructions CHOICE — the question carries its own complete instruction text (the judgment, never the answer format) instead of the retired shared constant. Hand-crafted transcript, $0.",
+  "questions": {
+    "search-move": {
+      "type": "choice",
+      "name": "search-move",
+      "instructions": "Judge which single control most directly serves the active subtask on the page described in the state. Weigh the labeled affordances against the subtask's done-condition.",
+      "options": [
+        { "id": "search-box", "label": "Search box", "description": "type the query into the site search box" },
+        { "id": "recipes-tab", "label": "Recipes tab", "description": "open the recipes section" }
+      ]
+    }
+  },
+  "requestBody": {
+    "state": "SUBTASK: search for the bake time of apple pie\nDONE WHEN: the bake time is visible on the page\n[page: a recipe search box]",
+    "model": "typesafe/jev-1.13-20260917",
+    "questions": {
+      "search-move": {
+        "type": "choice",
+        "instructions": "Judge which single control most directly serves the active subtask on the page described in the state. Weigh the labeled affordances against the subtask's done-condition.",
+        "criteria": {
+          "search-box": "type the query into the site search box",
+          "recipes-tab": "open the recipes section"
+        }
+      }
+    }
+  },
+  "responseBody": {
+    "id": "resp_cascade_choice_1",
+    "model": "typesafe/jev-1.13-20260917",
+    "usage": { "input_tokens": 240, "output_tokens": 30, "cost": 0.0000112 },
+    "answers": {
+      "search-move": {
+        "type": "choice",
+        "choice": "search-box",
+        "probabilities": { "search-box": 0.83, "recipes-tab": 0.17 },
+        "confidence": 0.71
+      }
+    }
+  },
+  "expectedResults": {
+    "search-move": {
+      "type": "choice",
+      "chosenId": "search-box",
+      "probabilities": { "search-box": 0.83, "recipes-tab": 0.17 },
+      "confidence": 0.71
+    }
+  }
+}

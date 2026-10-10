@@ -65,9 +65,15 @@ data class WireDecision(
  *  - `score`: `{"type":"score","instructions":"<string>","criteria":["<level-0>","<level-1>",...]}`
  *    — `criteria` is an ARRAY of the declared rubric levels, in order (the order is the
  *    wire name space, ART-6; ART-5: any numeric mapping is computed in `:core`).
- * `instructions` is a required per-question string; the client supplies versioned default
- * constants ([PROMPT_VERSION], [CHOICE_INSTRUCTIONS], [NOUL_INSTRUCTIONS],
- * [SCORE_INSTRUCTIONS]) — the prompt surface is owned here, not by callers.
+ * `instructions` is a required per-question string. Since vision 02 §3 v1.3.0 (Phase
+ * 10B) EVERY question carries its own complete [navigator.core.decision.TypedQuestion]
+ * `instructions` text — the shared per-primitive constants below ([CHOICE_INSTRUCTIONS],
+ * [NOUL_INSTRUCTIONS], [SCORE_INSTRUCTIONS]) are RETIRED as emitted defaults and live on
+ * only as the legacy question types' default field values, so pre-cascade construction
+ * sites keep byte-identical wire bytes. The prompt surface is owned by the question's
+ * author (the cascade constants in [navigator.core.decision.Intents] /
+ * [navigator.core.decision.TargetRubric]); [PROMPT_VERSION] records the emitted
+ * instruction surface generation.
  *
  * Response: `{"model", "answers": {"<name>": <answer>}, "usage": {"input_tokens",
  * "output_tokens", "cost"}, "id", "provider"}`. `answers` is keyed by question NAME —
@@ -184,18 +190,27 @@ class SystemOneClient(
         const val DEFAULT_BACKOFF_BASE_MS = 200L
 
         /**
-         * Version of the default `instructions` surface below. Bump on any wording change
-         * (the prompt text is part of the wire contract the fixtures record verbatim).
+         * Version of the emitted `instructions` surface. Bump on any wording change (the
+         * prompt text is part of the wire contract the fixtures record verbatim).
+         *
+         * `jev-instructions-2` (Phase 10B, vision 02 §3 v1.3.0): instructions moved onto
+         * the question types — the emitted text is `question.instructions` verbatim; the
+         * legacy constants below survive as the typed questions' default field values so
+         * pre-cascade construction sites keep byte-identical request bodies (the 13
+         * jev-instructions-1 transcripts still pass untouched).
          */
-        const val PROMPT_VERSION = "jev-instructions-1"
+        const val PROMPT_VERSION = "jev-instructions-2"
 
+        /** The Phase-3 shared choice instruction — now the legacy [navigator.core.decision.ChoiceQuestion] default. */
         const val CHOICE_INSTRUCTIONS =
             "Choose the one option that best advances the goal given in the state. " +
                 "Answer with the chosen option key, the full probability distribution over " +
                 "all offered option keys, and your confidence."
+        /** The Phase-3 shared noul instruction — now the legacy [navigator.core.decision.NoulQuestion] default. */
         const val NOUL_INSTRUCTIONS =
             "Judge whether the proposition is true of the state. " +
                 "Answer with P(true), a single probability in [0,1]."
+        /** The Phase-3 shared score instruction — now the legacy [navigator.core.decision.ScoreQuestion] default. */
         const val SCORE_INSTRUCTIONS =
             "Rate the state against the ordered rubric levels. " +
                 "Answer with a probability for every rubric level, in order, and your confidence."
@@ -227,7 +242,7 @@ class SystemOneClient(
                 }
                 buildJsonObject {
                     put("type", "choice")
-                    put("instructions", CHOICE_INSTRUCTIONS)
+                    put("instructions", question.instructions)
                     put("criteria", buildJsonObject {
                         question.options.forEach { put(it.id, it.description) }
                     })
@@ -236,13 +251,13 @@ class SystemOneClient(
 
             is NoulQuestion -> buildJsonObject {
                 put("type", "noul")
-                put("instructions", NOUL_INSTRUCTIONS)
+                put("instructions", question.instructions)
                 put("proposition", question.proposition)
             }
 
             is ScoreQuestion -> buildJsonObject {
                 put("type", "score")
-                put("instructions", SCORE_INSTRUCTIONS)
+                put("instructions", question.instructions)
                 // Ordered level array: declared rubric order is the wire name space
                 // (ART-6); the typed ScoreLevel.id stays internal.
                 put("criteria", buildJsonArray {

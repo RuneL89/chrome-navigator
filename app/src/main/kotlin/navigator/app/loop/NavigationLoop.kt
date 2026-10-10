@@ -756,17 +756,30 @@ class NavigationLoop(
         /**
          * The anchored noul question for the ACTIVE subtask — identical construction on
          * both finish-check entries (the engine-initiated finish and the code-triggered
-         * check): `AnchoredNoul.subtaskQuestion` over the instruction, the rendered
-         * done-condition, finality, and the page identity (vision 04 §3 v1.4.0/v1.5.0).
+         * check): the v3 ATOMIC [AnchoredNoul.subtaskQuestion] over the subtask's
+         * done-condition shape and the page identity (vision 04 §3 v1.6.0).
          */
         fun subtaskNoulQuestion(p: SubtaskPointer, o: StepObservation): NoulQuestion =
             AnchoredNoul.subtaskQuestion(
-                subtaskInstruction = p.active.instruction,
-                doneConditionText = DoneConditionChecker.render(p.active.done),
-                isFinal = p.isFinal,
+                done = p.active.done,
                 pageTitle = o.title,
                 pageUrl = o.url,
             )
+
+        /**
+         * The v1.6.0 sustained-streak condition key: the ACTIVE done-condition's rendered
+         * text on a ladder run (the streak survives re-plans that keep the condition and
+         * resets when the condition/pointer changes), the task-level condition text on a
+         * legacy run.
+         */
+        fun exitConditionKey(): String {
+            val p = pointer
+            return if (p != null) {
+                "subtask:" + DoneConditionChecker.render(p.active.done)
+            } else {
+                "task:" + (entity?.text ?: goalText)
+            }
+        }
 
         /**
          * The outcome-based site entry for the ACTIVE subtask (vision 04 §1 v1.4.0):
@@ -959,6 +972,7 @@ class NavigationLoop(
             noulQuestion: NoulQuestion,
             obs: StepObservation,
             state: StateTextBuilder.StateText,
+            conditionKey: String = exitConditionKey(),
         ): ExitDecision {
             uiListener?.onThinking(true)
             val noul = engine.judge(state.text, noulQuestion)
@@ -973,7 +987,12 @@ class NavigationLoop(
                     "proposition=v${AnchoredNoul.ANCHORED_NOUL_VERSION}",
             )
             val verdict: ExitDecision = when (
-                val first = exitPolicy.onFinishCheck(guardLevel, noul.pTrue, guards!!.refusalDetail())
+                val first = exitPolicy.onFinishCheck(
+                    conditionKey = conditionKey,
+                    guardLevel = guardLevel,
+                    noul = noul.pTrue,
+                    guardDetail = guards!!.refusalDetail(),
+                )
             ) {
                 is ExitDecision.AskOwner -> {
                     line(

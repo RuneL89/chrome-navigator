@@ -120,6 +120,7 @@ class TierAHarness(
             selfCheckMutations = selfCheck.mutations.size,
             selfCheckAllCaught = selfCheck.allCaught,
             stateFormatVersion = steps.first().stateText.formatVersion,
+            intentsVersion = navigator.core.decision.Intents.INTENTS_VERSION,
             timestamp = timestamp,
         )
     }

@@ -1,7 +1,7 @@
 {
     "family": "exit-calibration",
     "law": "vision 07 §3a / vision 04 §3 v1.3.0",
-    "anchoredNoulVersion": 2,
+    "anchoredNoulVersion": 3,
     "bounds": {
         "terminalMaxFinishChecks": 5,
         "highFloor": 0.7,

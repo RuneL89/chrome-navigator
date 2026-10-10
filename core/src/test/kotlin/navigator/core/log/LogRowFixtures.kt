@@ -266,4 +266,112 @@ internal object LogRowFixtures {
             ),
         ),
     )
+
+    // ---- the cascade shapes (Phase 10B, vision 05 §2 v1.6.0) -------------------------
+
+    /** The teacher's stage-1 answer over the fixed intent vocabulary (activate-control gold). */
+    val intentTeacherAnswer = TeacherAnswer(
+        chosen = "activate-control",
+        probabilities = navigator.core.decision.Intents.IDS.associate { id ->
+            id to when (id) {
+                "activate-control" -> 0.61
+                "fill-field" -> 0.12
+                "verify-done" -> 0.09
+                else -> 0.03
+            }
+        },
+        confidence = 0.72,
+    )
+
+    /**
+     * The executed stage-2 slate of a target-bearing step (doc 05 §2 v1.6.0
+     * `targetScores`): expected levels over the cascade's 5-level rubric, computed in
+     * code (ART-5), keyed by candidate id — decisive on the gold, flat-adjacent elsewhere.
+     */
+    val targetScores = mapOf(
+        "n4" to 4.19,
+        "n7" to 1.94,
+        "n12" to 1.44,
+    )
+
+    /**
+     * A full CASCADE decision row (vision 02 §3, doc 05 §2 v1.6.0): the primary question
+     * IS the fixed intent choice, the shadow answered the same stage-1 form (its bucket
+     * field carries the intent id per the shadow's cascade migration), and the executed
+     * stage-2 slate rides `targetScores`/`targetAgreement`. The legacy flat
+     * [primaryQuestion] rows above remain lawful (triage/recovery shapes) — the export
+     * scopes them out by the question-schema law.
+     */
+    fun cascadeRow(
+        rowId: String = "row-cascade-1",
+        stepIndex: Int = 4,
+        shadowAnswer: ShadowAnswer? = intentShadowAnswer,
+        targetScores: Map<String, Double>? = this.targetScores,
+        escalated: Boolean = false,
+        fallback: FallbackInfo? = null,
+        executedId: String = "n4",
+    ): DecisionLogRow = DecisionLogRow(
+        rowId = rowId,
+        taskId = "task-subscriptions",
+        goal = "unsubscribe from the mailing lists on this page",
+        stepIndex = stepIndex,
+        timestamp = 1_760_200_100_000 + stepIndex,
+        stateText = "GOAL: unsubscribe from the mailing lists on this page\n" +
+            "URL: https://lists.example.test/subscriptions\n" +
+            "TITLE: Your subscriptions\n" +
+            "ACTIVE SUBTASK: unsubscribe from the first mailing list\n" +
+            "LADDER PROGRESS: (no ladder)\n" +
+            "HISTORY: (none)\n" +
+            "UNTRUSTED PAGE CONTENT:\n" +
+            "buttons:\n" +
+            "[n4] \"Unsubscribe from Cooking Classics\" tap (540,320)",
+        stateFormatVersion = STATE_FORMAT_VERSION,
+        triageClass = TriageClass.ACTION,
+        questionPrimary = navigator.core.decision.Intents.QUESTION,
+        questionShadow = shadowQuestion,
+        teacher = EngineIdentity(configId = "primary", model = PINNED_PRIMARY_MODEL),
+        teacherAnswer = intentTeacherAnswer,
+        shadow = shadowAnswer?.let { ShadowRef(checkpoint = "laya", precision = ShadowPrecision.INT8) },
+        shadowAnswer = shadowAnswer,
+        // Cascade headline top-1 (vision 05 §3 + v1.6.0): the stage-1 intent vs the
+        // shadow's bucket-stage intent id.
+        agreementExactMatch = shadowAnswer?.let { intentTeacherAnswer.chosen == it.bucket.chosen },
+        agreementKL = shadowAnswer?.let { Agreement.klDivergence(intentTeacherAnswer, it) },
+        executedAction = ExecutedAction(
+            candidateId = executedId,
+            kind = LoggedActionKind.TAP,
+            disposition = ActionDisposition.EXECUTED,
+        ),
+        gateEvent = null,
+        outcome = Outcome.PROGRESSED,
+        compressedBy = null,
+        shadowSampled = true,
+        escalated = escalated,
+        fallback = fallback,
+        targetScores = targetScores,
+        targetAgreement = targetScores?.let { scores ->
+            shadowAnswer?.let { it.element.chosen in scores.keys }
+        },
+    )
+
+    /**
+     * The cascade shadow answer: stage-1 is the SAME intent choice (the bucket field
+     * carries the intent id, vision 05 §2 v1.6.0); the element stage carries its argmax
+     * target — here agreeing with the teacher's intent AND target.
+     */
+    val intentShadowAnswer = ShadowAnswer(
+        bucket = ShadowStageAnswer(
+            chosen = "activate-control",
+            probabilities = mapOf(
+                "activate-control" to 0.55,
+                "fill-field" to 0.15,
+                "verify-done" to 0.10,
+                "follow-link" to 0.20,
+            ),
+        ),
+        element = ShadowStageAnswer(
+            chosen = "n4",
+            probabilities = mapOf("n4" to 0.80, "n7" to 0.20),
+        ),
+    )
 }
