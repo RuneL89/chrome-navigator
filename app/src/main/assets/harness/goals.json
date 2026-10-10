@@ -13,7 +13,9 @@
         { "question": "intent", "intent": "verify-done" },
         { "question": "goal-achieved", "pTrue": 0.95 },
         { "question": "intent", "intent": "verify-done" },
-        { "question": "goal-achieved", "pTrue": 0.95 }
+        { "question": "goal-achieved", "pTrue": 0.95 },
+        { "question": "recovery", "chosen": "scroll" },
+        { "question": "recovery", "chosen": "scroll" }
       ]
     },
     {
@@ -29,7 +31,9 @@
         { "question": "intent", "intent": "verify-done" },
         { "question": "goal-achieved", "pTrue": 0.95 },
         { "question": "intent", "intent": "verify-done" },
-        { "question": "goal-achieved", "pTrue": 0.95 }
+        { "question": "goal-achieved", "pTrue": 0.95 },
+        { "question": "recovery", "chosen": "scroll" },
+        { "question": "recovery", "chosen": "scroll" }
       ]
     },
     {
@@ -47,7 +51,9 @@
         { "question": "intent", "intent": "verify-done" },
         { "question": "goal-achieved", "pTrue": 0.95 },
         { "question": "intent", "intent": "verify-done" },
-        { "question": "goal-achieved", "pTrue": 0.95 }
+        { "question": "goal-achieved", "pTrue": 0.95 },
+        { "question": "recovery", "chosen": "scroll" },
+        { "question": "recovery", "chosen": "scroll" }
       ]
     },
     {
@@ -65,7 +71,9 @@
         { "question": "intent", "intent": "verify-done" },
         { "question": "goal-achieved", "pTrue": 0.95 },
         { "question": "intent", "intent": "verify-done" },
-        { "question": "goal-achieved", "pTrue": 0.95 }
+        { "question": "goal-achieved", "pTrue": 0.95 },
+        { "question": "recovery", "chosen": "scroll" },
+        { "question": "recovery", "chosen": "scroll" }
       ]
     },
     {
@@ -102,7 +110,9 @@
       "startUrl": "http://127.0.0.1:8099/empty.html",
       "expectedTerminal": "REFUSED",
       "script": [
-        { "question": "triage", "chosen": "lookup" }
+        { "question": "triage", "chosen": "lookup" },
+        { "question": "recovery", "chosen": "scroll" },
+        { "question": "recovery", "chosen": "scroll" }
       ]
     },
     {
@@ -132,7 +142,18 @@
         { "question": "intent", "intent": "scroll" },
         { "question": "intent", "intent": "scroll" },
         { "question": "intent", "intent": "verify-done" },
-        { "question": "goal-achieved", "pTrue": 0.6 }
+        { "question": "goal-achieved", "pTrue": 0.6 },
+        { "question": "intent", "intent": "scroll" },
+        { "question": "intent", "intent": "scroll" },
+        { "question": "intent", "intent": "verify-done" },
+        { "question": "goal-achieved", "pTrue": 0.6 },
+        { "question": "intent", "intent": "scroll" },
+        { "question": "intent", "intent": "scroll" },
+        { "question": "intent", "intent": "verify-done" },
+        { "question": "goal-achieved", "pTrue": 0.6 },
+        { "question": "recovery", "chosen": "scroll" },
+        { "question": "recovery", "chosen": "scroll" },
+        { "question": "recovery", "chosen": "scroll" }
       ]
     },
     {
@@ -153,7 +174,9 @@
         { "question": "intent", "intent": "activate-control" },
         { "question": "stage2", "topCandidate": "Star Log" },
         { "question": "intent", "intent": "verify-done" },
-        { "question": "goal-achieved", "pTrue": 0.95 }
+        { "question": "goal-achieved", "pTrue": 0.95 },
+        { "question": "recovery", "chosen": "scroll" },
+        { "question": "recovery", "chosen": "scroll" }
       ]
     },
     {
@@ -167,7 +190,9 @@
         { "question": "intent", "intent": "activate-control" },
         { "question": "stage2", "topCandidate": "Cooking Classics" },
         { "question": "intent", "intent": "activate-control" },
-        { "question": "stage2", "topCandidate": "Cooking Classics" }
+        { "question": "stage2", "topCandidate": "Cooking Classics" },
+        { "question": "recovery", "chosen": "scroll" },
+        { "question": "recovery", "chosen": "scroll" }
       ]
     },
     {
@@ -181,7 +206,9 @@
         { "question": "intent", "intent": "follow-link" },
         { "question": "stage2", "topCandidate": "Field Notebook" },
         { "question": "intent", "intent": "verify-done" },
-        { "question": "goal-achieved", "pTrue": 0.95 }
+        { "question": "goal-achieved", "pTrue": 0.95 },
+        { "question": "recovery", "chosen": "scroll" },
+        { "question": "recovery", "chosen": "scroll" }
       ]
     },
     {
@@ -190,6 +217,7 @@
       "goal": "Sign in to the demo account.",
       "startUrl": "http://127.0.0.1:8099/login.html",
       "expectedTerminal": "GOAL_ACHIEVED",
+      "expectedTerminalUnderAutoDeny": "GUARD_ABORT",
       "script": [
         { "question": "triage", "chosen": "form-fill" },
         { "question": "intent", "intent": "fill-field" },
@@ -199,7 +227,9 @@
         { "question": "intent", "intent": "submit" },
         { "question": "stage2", "topCandidate": "Submit sign in" },
         { "question": "intent", "intent": "verify-done" },
-        { "question": "goal-achieved", "pTrue": 0.95 }
+        { "question": "goal-achieved", "pTrue": 0.95 },
+        { "question": "recovery", "chosen": "scroll" },
+        { "question": "recovery", "chosen": "scroll" }
       ]
     }
   ]

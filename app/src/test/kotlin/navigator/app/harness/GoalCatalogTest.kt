@@ -72,6 +72,13 @@ class GoalCatalogTest {
                 )
             }
             assertTrue(goal.script.first().question == "triage", goal.id)
+            // Gate-105 sweep: EVERY goal scripts recovery answers — any run whose steps
+            // stall can reach the stuck machinery's L2 recovery question, and a missing
+            // answer is a loud stub crash, never a silent skip.
+            assertTrue(
+                goal.script.any { it.question == "recovery" },
+                "${goal.id}: no scripted recovery answers (the L2 question would crash the stub)",
+            )
         }
     }
 
@@ -85,6 +92,12 @@ class GoalCatalogTest {
         assertEquals("GUARD_ABORT", multi.expectedTerminalUnderAutoDeny)
         assertEquals("GUARD_ABORT", multi.expectedTerminalFor(autoDeny = true))
         assertEquals("GOAL_ACHIEVED", multi.expectedTerminalFor(autoDeny = false))
+        // the credential flow's H4 card denies twice under auto-deny (the designed abort);
+        // its happy path needs the real approve-with-secret resolution
+        val credential = catalog.byId("credential-login-1")
+        assertEquals("GOAL_ACHIEVED", credential.expectedTerminal)
+        assertEquals("GUARD_ABORT", credential.expectedTerminalUnderAutoDeny)
+        assertEquals("GUARD_ABORT", credential.expectedTerminalFor(autoDeny = true))
         // goals without the field fall back to expectedTerminal in BOTH modes
         val sr1 = catalog.byId("search-and-read-1")
         assertNull(sr1.expectedTerminalUnderAutoDeny)
@@ -168,7 +181,8 @@ class GoalCatalogTest {
             listOf("fill-field", "fill-field", "submit", "verify-done"),
             credential.script.mapNotNull { it.intent },
         )
-        assertEquals(0.95, credential.script.last().pTrue)
+        // the flow's done-check noul (robustness recovery answers may follow it)
+        assertEquals(0.95, credential.script.last { it.question == "goal-achieved" }.pTrue)
     }
 
     @Test

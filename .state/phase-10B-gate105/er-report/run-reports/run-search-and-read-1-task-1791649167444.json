@@ -1,0 +1,82 @@
+{
+    "goalId": "search-and-read-1",
+    "family": "search-and-read",
+    "goal": "Find the apple pie recipe and read how long to bake it.",
+    "taskId": "task-1791649167444",
+    "engine": "live",
+    "autoDeny": false,
+    "triage": "lookup",
+    "triageClass": "lookup",
+    "budgetProfile": "standard",
+    "terminal": "REFUSED",
+    "terminalDetail": "I can't read this site",
+    "expectedTerminal": "GOAL_ACHIEVED",
+    "terminalMatchesExpected": false,
+    "steps": 0,
+    "rowsLogged": 0,
+    "metaDecisions": 0,
+    "logGaps": 0,
+    "gateEvents": 0,
+    "spendMicroUsd": 0,
+    "elapsedMs": 33234,
+    "softWarnings": [],
+    "partialResult": "",
+    "startedAt": 1791649167444,
+    "finishedAt": 1791649200693,
+    "attempts": 3,
+    "flakeRetried": true,
+    "stepLog": [
+        "[t+3649ms] ladder: restructure-v1/gen1 - 2 subtask(s), class read, writer spend 1578 micro-USD",
+        "[t+3649ms] guard state: lookup: contentful pages read=0 (needs one beyond the first page)",
+        "[t+3649ms] ladder: subtask 1/2 - no site entry (engine navigates)",
+        "[t+3718ms] observe: unusable tree (6 lines, pageNodes=2) - fresh re-read",
+        "[t+5311ms] observe: unusable tree (6 lines, pageNodes=2) - fresh re-read",
+        "[t+6885ms] observe: unusable tree (6 lines, pageNodes=2) - fresh re-read",
+        "[t+8434ms] observe: unusable tree (6 lines, pageNodes=2) - fresh re-read",
+        "[t+10010ms] observe: unusable tree (6 lines, pageNodes=2) - fresh re-read",
+        "[t+11578ms] observe: unusable tree (6 lines, pageNodes=2) - fresh re-read",
+        "[t+13148ms] observe: unusable tree (6 lines, pageNodes=2) - fresh re-read",
+        "[t+14715ms] observe: unusable tree (6 lines, pageNodes=2) - fresh re-read",
+        "[t+16284ms] observe: unusable tree (6 lines, pageNodes=2) - fresh re-read",
+        "[t+17854ms] observe: unusable tree (6 lines, pageNodes=2) - fresh re-read",
+        "[t+19413ms] observe: unusable tree (6 lines, pageNodes=2) - fresh re-read",
+        "[t+20959ms] observe: unusable tree (6 lines, pageNodes=2) - fresh re-read",
+        "[t+22493ms] observe: unusable tree (6 lines, pageNodes=2) - fresh re-read",
+        "[t+24037ms] observe: unusable tree (6 lines, pageNodes=2) - fresh re-read",
+        "[t+25572ms] observe: unusable tree (6 lines, pageNodes=2) - fresh re-read",
+        "[t+27110ms] observe: unusable tree (6 lines, pageNodes=2) - fresh re-read",
+        "[t+28645ms] observe: unusable tree (6 lines, pageNodes=2) - fresh re-read",
+        "[t+30179ms] observe: unusable tree (6 lines, pageNodes=2) - fresh re-read",
+        "[t+31707ms] observe: unusable tree (6 lines, pageNodes=2) - fresh re-read",
+        "[t+33234ms] observe: tree still unusable - graceful refusal (vision 03 §5)",
+        "[t+33234ms] terminal: REFUSED - I can't read this site"
+    ],
+    "plan": {
+        "version": "restructure-v1/gen1",
+        "subgoals": [
+            "Reach an apple pie recipe page.",
+            "Read the baking time stated in the apple pie recipe."
+        ]
+    },
+    "ladder": {
+        "version": "restructure-v1/gen1",
+        "generation": 1,
+        "summary": "Find an apple pie recipe and read its baking time.",
+        "taskClass": "read",
+        "subtasks": [
+            {
+                "instruction": "Reach an apple pie recipe page.",
+                "done": "an element matching 'apple pie recipe title heading' is present",
+                "completed": false,
+                "active": true
+            },
+            {
+                "instruction": "Read the baking time stated in the apple pie recipe.",
+                "done": "an element matching 'baking time or bake duration in the recipe' is present",
+                "completed": false,
+                "active": false
+            }
+        ]
+    },
+    "writerSpendMicroUsd": 1578
+}

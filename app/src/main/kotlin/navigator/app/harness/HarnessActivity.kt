@@ -328,15 +328,24 @@ class HarnessActivity : ComponentActivity() {
         )
     }
 
-    private fun openBrowser(url: String) {
+    private fun openBrowser(url: String, forceRecreate: Boolean = false) {
         val browser = HarnessObserver.installedBrowser(this)
             ?: throw IllegalStateException("no allowlisted browser is installed")
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
             .setPackage(browser)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (forceRecreate) {
+            // Gate-105 escalation: a WARM webview shell ignores onNewIntent URLs (the
+            // activity only reads the intent in onCreate), and killBackgroundProcesses is
+            // unreliable under modern background-kill restrictions. CLEAR_TASK destroys
+            // the shell's task so the next start runs onCreate and honors the URL —
+            // used only on the verified-navigation RETRY path (never the first fire, so
+            // an ordinary run keeps its browsing context).
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        }
         // Both loop VIEW intents ride this seam — cold-start and the 2026-10-08
         // card-restore — so the run trace shows every re-front of the browser.
-        log("browser: firing VIEW intent for $url")
+        log("browser: firing VIEW intent for $url${if (forceRecreate) " (force-recreate)" else ""}")
         try {
             runOnUiThread { startActivity(intent) }
         } catch (e: Exception) {
@@ -476,8 +485,19 @@ class HarnessActivity : ComponentActivity() {
                 is navigator.app.observe.UrlBarReader.Url.Value -> u.text
                 else -> ""
             }
-            if (urlText.contains(startMarker) && read.lines.size >= 5 && read.pageNodeCount >= 5) {
-                log("warm-up: web a11y primed (content visible)")
+            // Gate-105: "primed" must mean ready for the LOOP, not merely text-visible —
+            // the shell materializes prose before interactive nodes, and a run started on
+            // a text-only tree reads an EMPTY candidate slate (the empty-slate grace's
+            // root case). Require a CLICKABLE page-content node (the webview container is
+            // scrollable-only and the browser chrome is excluded — neither proves links).
+            val hasPageCandidate = read.nodes.any {
+                val s = it.snapshot
+                !s.browserChrome && s.clickable
+            }
+            if (urlText.contains(startMarker) && read.lines.size >= 5 &&
+                read.pageNodeCount >= 5 && hasPageCandidate
+            ) {
+                log("warm-up: web a11y primed (content visible, candidates present)")
                 return
             }
             openBrowser(if (navigateToTarget) firstGoal.startUrl else WARMUP_BLANK)
@@ -492,23 +512,62 @@ class HarnessActivity : ComponentActivity() {
      * a process cold-started WHILE the observation service is bound. HOME drops the
      * browser to background so [ActivityManager.killBackgroundProcesses] can kill it,
      * then the harness navigates to [url] — a fresh WebView initialized with
-     * accessibility already enabled.
+     * accessibility already enabled — and VERIFIES the navigation actually landed
+     * ([navigateAndVerify]: the emulator's webview shell ignores VIEW intents while its
+     * activity is warm — proven gate-105 — so an unverified fire silently leaves the
+     * loop reading the previous goal's page).
      */
     private suspend fun coldStartBrowser(
         service: NavigatorAccessibilityService,
         url: String,
-    ) {
-        runCatching { service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME) }
-        delay(BACKGROUND_SETTLE_MS)
-        val browser = HarnessObserver.installedBrowser(this)
-        if (browser != null) {
-            runCatching {
-                (getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager)
-                    ?.killBackgroundProcesses(browser)
+    ) = navigateAndVerify(service, url)
+
+    /**
+     * Fires the browser at [url] and VERIFIES it arrived within a bounded window,
+     * retrying the whole cold-start sequence (HOME -> kill -> VIEW) on failure. Bound:
+     * [NAVIGATE_VERIFY_ATTEMPTS] attempts x [NAVIGATE_VERIFY_WINDOW_MS]. Returns whether
+     * the target URL was observed; callers continue either way (the goals' own
+     * readiness windows own the rest) — but the run trace always knows.
+     */
+    private suspend fun navigateAndVerify(
+        service: NavigatorAccessibilityService,
+        url: String,
+    ): Boolean {
+        val marker = url.substringAfterLast('/')
+        repeat(NAVIGATE_VERIFY_ATTEMPTS) { attempt ->
+            if (attempt > 0) {
+                log("navigate: retrying the browser cold start for $url (attempt ${attempt + 1})")
+            }
+            runCatching { service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME) }
+            delay(BACKGROUND_SETTLE_MS)
+            HarnessObserver.installedBrowser(this)?.let { browser ->
+                runCatching {
+                    (getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager)
+                        ?.killBackgroundProcesses(browser)
+                }
+            }
+            delay(COLD_START_SETTLE_MS)
+            openBrowser(url, forceRecreate = attempt >= 2)
+            val deadline = System.currentTimeMillis() + NAVIGATE_VERIFY_WINDOW_MS
+            while (System.currentTimeMillis() < deadline) {
+                SystemDialogAutoDismiss.dismissIfPresent(service)
+                val read = service.observeForLoop()
+                val urlText = when (val u = read.url) {
+                    is navigator.app.observe.UrlBarReader.Url.Value -> u.text
+                    else -> ""
+                }
+                if (urlText.contains(marker)) {
+                    if (attempt > 0) log("navigate: browser reached $url on attempt ${attempt + 1}")
+                    return true
+                }
+                delay(NAVIGATE_VERIFY_POLL_MS)
             }
         }
-        delay(COLD_START_SETTLE_MS)
-        openBrowser(url)
+        log(
+            "navigate: browser did NOT reach $url after $NAVIGATE_VERIFY_ATTEMPTS " +
+                "cold-start attempts - proceeding (the run's own readiness windows own it)",
+        )
+        return false
     }
 
     /** A failure record so the suite report shows the gap instead of hiding it.
@@ -1247,6 +1306,11 @@ class HarnessActivity : ComponentActivity() {
         const val STARVATION_RETRIES = 2
         const val BACKGROUND_SETTLE_MS = 1_500L
         const val COLD_START_SETTLE_MS = 500L
+
+        /** Verified-navigation bounds (gate-105): attempts x window, poll cadence. */
+        const val NAVIGATE_VERIFY_ATTEMPTS = 3
+        const val NAVIGATE_VERIFY_WINDOW_MS = 8_000L
+        const val NAVIGATE_VERIFY_POLL_MS = 1_000L
 
         /** The loop's own budgets bound a run; this catches a wedged run on top. */
         const val GOAL_TIMEOUT_MS = 15L * 60_000L

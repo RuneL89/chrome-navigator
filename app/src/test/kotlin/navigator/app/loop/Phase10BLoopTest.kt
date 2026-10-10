@@ -218,6 +218,40 @@ class Phase10BLoopTest {
         assertEquals(null, fixture.sink.rows[0].targetScores, "no stage-2 on code-path intents")
     }
 
+    @Test
+    fun `scroll bounce - a repeated scroll intent alternates direction, never hammering a page end`() = runBlocking {
+        // Gate-105: the flat world offered scroll-down AND scroll-up candidates; the
+        // single cascade scroll intent must bounce between them when it repeats (a
+        // repeated same-direction scroll at a page end changes nothing and feeds the
+        // stuck detector's screen-hash/zero-diff signals toward a kill).
+        val page = obs(
+            "http://m0.test/a",
+            N("Header"),
+            N("Body one"),
+            N("Body two"),
+            N("A link", clickable = true),
+            N("Filler", scrollable = true),
+        )
+        val fixture = LoopFixture(
+            script = scriptOf(
+                choose("triage", "lookup"),
+                *intentStep("scroll"),
+                *intentStep("scroll"),
+            ),
+            observations = listOf(page),
+            presenter = ScriptedGatePresenter(),
+            config = NavigationLoop.Config(settleMs = 0, budget = NavigationLoop.BudgetLimits(stepsHard = 2)),
+        )
+        val result = fixture.run()
+
+        assertEquals(TerminalState.BUDGET_EXHAUSTED, result.terminal)
+        assertEquals(
+            listOf("scroll(50,420,true)", "scroll(50,420,false)"),
+            fixture.executor.calls,
+            "the second scroll intent bounces UP (the down candidate was the previous pick)",
+        )
+    }
+
     // -- the uncertainty handshake (ONE assist per page-hash, ONE re-ask, honesty) --------
 
     /** A scripted assist source counting its calls; returns [answer] every time. */

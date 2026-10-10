@@ -375,6 +375,11 @@ class NavigationLoop(
         // no-good-target fallback runs. All bounds code constants (ART-5).
         var consecutiveEmptySlates = 0
 
+        // The scroll bounce (gate-105): the previous scroll candidate's id, so a repeated
+        // scroll intent alternates direction when both are enumerated (never hammers a
+        // page end — the stuck detector's screen-hash/zero-diff signals stay meaningful).
+        var lastScrollCandidateId: String? = null
+
         // -- the no-overlay card restore (2026-10-08 pre-UAT defect) -------------------
         // A card presenter that had to bring the HARNESS to the front to show its card
         // (overlay permission absent) leaves Chrome in the background after the
@@ -2166,9 +2171,18 @@ class NavigationLoop(
                     }
 
                     Intents.SCROLL -> {
-                        val scrollCandidate = candidates.bucketed[Bucket.SCROLL]
-                            ?.firstOrNull { it.id.startsWith(SCROLL_DOWN_PREFIX) }
-                            ?: candidates.bucketed[Bucket.SCROLL]?.firstOrNull()
+                        // The scroll BOUNCE (gate-105): the flat world offered both
+                        // scroll-down and scroll-up candidates; the cascade's single
+                        // scroll intent must not hammer one direction forever — a
+                        // repeated scroll at a page end changes nothing and feeds the
+                        // stuck detector toward a kill. Pick a direction DIFFERENT from
+                        // the previous scroll candidate when both are enumerated
+                        // (deterministic; falls back to the down-first pick).
+                        val scrollSlate = candidates.bucketed[Bucket.SCROLL].orEmpty()
+                        val scrollCandidate = scrollSlate
+                            .firstOrNull { it.id != lastScrollCandidateId }
+                            ?: scrollSlate.firstOrNull { it.id.startsWith(SCROLL_DOWN_PREFIX) }
+                            ?: scrollSlate.firstOrNull()
                         if (scrollCandidate == null) {
                             line("decide: scroll with no scroll candidate - no-good-target fallback")
                             cascadeFallbackStep("the scroll intent found no scroll candidate", withStage2 = false)
@@ -2176,6 +2190,7 @@ class NavigationLoop(
                             continue
                         }
                         val down = scrollCandidate.id.startsWith(CandidateEnumerator.SCROLL_DOWN_ID)
+                        lastScrollCandidateId = scrollCandidate.id
                         ungatedGestureStep(
                             verb = Intents.SCROLL,
                             actionKey = "scroll:${scrollCandidate.id}",
