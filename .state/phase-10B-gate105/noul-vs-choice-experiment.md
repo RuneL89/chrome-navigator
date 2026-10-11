@@ -39,3 +39,34 @@ correctly there — a possible provider-endpoint bug to report.
 **Also observed (small data defect):** the page TITLE on Chrome reads
 "Chrome: Wikipedia, the free encyclopedia" — our title reader takes the raw window
 title including Chrome's "Chrome: " prefix; strip it when present.
+
+---
+
+## RESOLUTION (2026-10-11): it was OUR wire shape, not the primitive
+
+The SDK-documented noul shape carries the question in **`instructions`**
+(`"refund": {"type":"noul","instructions":"Is the customer asking for money back?"}`)
+— there is NO `proposition` field. The Phase-3 reverse-engineered shape put our real
+question in `proposition` (an unknown field the model ignores) with boilerplate in
+`instructions`, so every noul answered the boilerplate → a state-dependent constant.
+That is the entire "hedging" disease, from the first UAT onward.
+
+**Corrected shape, live-verified on BOTH surfaces with our exact state format:**
+
+| Endpoint | host-true | host-false | word-true | word-false |
+|---|---|---|---|---|
+| `/api/v1/systemone` | **0.98** | **0.01** | **0.99** | **0.01** |
+| `/api/alpha/decisions` (pinned) | **0.99** | **0.01** | **0.98** | **0.01** |
+
+Fix shipped (Round 2.3): `SystemOneClient.questionJson` emits the noul question as
+`instructions`, drops the ignored `proposition` field, `PROMPT_VERSION` →
+`jev-instructions-3`; the six noul-carrying transcript fixtures corrected with
+provenance notes; `Types.kt` KDoc records the corrected law. No choice redesign needed;
+no vision-level primitive change (the anchored-proposition law is intact — the
+proposition IS the instruction). The exit bands keep their thresholds: true conditions
+now score 0.98+ (Path A accepts first check), false conditions 0.01 (clean refusal —
+the 0.55-band luck is gone).
+
+Secondary fix shipped alongside: Chrome's window-title prefix ("Chrome: ") is stripped
+by the title reader (`WindowTitles.stripChromePrefix`) — the live rows showed the
+prefix polluting TITLE and the PAGE IDENTITY lines.

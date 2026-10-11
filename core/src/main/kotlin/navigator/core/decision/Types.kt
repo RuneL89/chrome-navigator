@@ -87,9 +87,15 @@ data class ChoiceResult(
 /**
  * `noul` question: judge whether [proposition] is true of [state].
  *
- * @param instructions this question's own complete instruction text (vision 02 §3
- *   v1.3.0 per-question-instructions law); the default is the Phase-3 shared noul
- *   instruction ([SystemOneClient.NOUL_INSTRUCTIONS]).
+ * **Wire shape (corrected 2026-10-11):** the proposition IS this question's complete
+ * instruction — the client emits it as the wire `instructions` field (the
+ * SDK-documented noul shape). The typed [instructions] parameter remains for
+ * symmetry with the other primitives and never rides a noul's wire (see
+ * [SystemOneClient.questionJson]; the Phase-3 `proposition` wire field is retired —
+ * the model ignores unknown fields, and that shape made every noul answer
+ * boilerplate with a state-dependent constant).
+ *
+ * @param instructions kept for construction symmetry; NOT emitted for nouls.
  */
 @Serializable
 @SerialName("noul")

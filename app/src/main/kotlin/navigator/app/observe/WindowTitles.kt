@@ -35,15 +35,30 @@ object WindowTitles {
     /**
      * The lawful page title of one observation, or "" when no allowlisted window
      * exposes one. [isBrowser] defaults to the observation allowlist's pure decision.
+     * A Chrome window title carries the app's own "Chrome: " prefix (live-observed
+     * 2026-10-11: "Chrome: Wikipedia, the free encyclopedia") — stripped when present
+     * so the state's TITLE and the PAGE IDENTITY line carry the PAGE's title, not the
+     * browser's window chrome.
      */
     fun lawfulTitle(
         candidates: List<Candidate>,
         isBrowser: (String) -> Boolean = BrowserPackages::isBrowser,
     ): String {
         val titled = candidates.filter { isBrowser(it.packageName) && it.title.isNotBlank() }
-        return titled.firstOrNull { it.isFocused }?.title
+        val title = titled.firstOrNull { it.isFocused }?.title
             ?: titled.firstOrNull { it.isActive }?.title
             ?: titled.firstOrNull { it.isApplicationWindow }?.title
             .orEmpty()
+        return stripChromePrefix(title)
+    }
+
+    /** Chrome's window-title prefix (its own chrome, never the page's identity). */
+    internal const val CHROME_TITLE_PREFIX = "Chrome:"
+
+    /** Strips the Chrome window prefix when present; a bare "Chrome:" degrades to "". */
+    internal fun stripChromePrefix(title: String): String {
+        val trimmed = title.trim()
+        if (!trimmed.startsWith(CHROME_TITLE_PREFIX)) return trimmed
+        return trimmed.removePrefix(CHROME_TITLE_PREFIX).trim()
     }
 }

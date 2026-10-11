@@ -7,8 +7,16 @@
       "type": "choice",
       "name": "next-action",
       "options": [
-        { "id": "open-recipe", "label": "Open the recipe card", "description": "Open the full apple pie recipe card" },
-        { "id": "back-to-results", "label": "Back to results", "description": "Return to the search result list" }
+        {
+          "id": "open-recipe",
+          "label": "Open the recipe card",
+          "description": "Open the full apple pie recipe card"
+        },
+        {
+          "id": "back-to-results",
+          "label": "Back to results",
+          "description": "Return to the search result list"
+        }
       ]
     },
     "goal-achieved": {
@@ -20,9 +28,18 @@
       "type": "score",
       "name": "result-relevance",
       "levels": [
-        { "id": "irrelevant", "description": "irrelevant — not an apple pie recipe" },
-        { "id": "related", "description": "related — an apple dessert but not a pie recipe" },
-        { "id": "exact-match", "description": "exact-match — the apple pie recipe itself" }
+        {
+          "id": "irrelevant",
+          "description": "irrelevant — not an apple pie recipe"
+        },
+        {
+          "id": "related",
+          "description": "related — an apple dessert but not a pie recipe"
+        },
+        {
+          "id": "exact-match",
+          "description": "exact-match — the apple pie recipe itself"
+        }
       ]
     }
   },
@@ -40,8 +57,7 @@
       },
       "goal-achieved": {
         "type": "noul",
-        "instructions": "Judge whether the proposition is true of the state. Answer with P(true), a single probability in [0,1].",
-        "proposition": "The page currently shows a complete apple pie recipe, so the goal 'find a recipe for apple pie' is achieved."
+        "instructions": "The page currently shows a complete apple pie recipe, so the goal 'find a recipe for apple pie' is achieved."
       },
       "result-relevance": {
         "type": "score",
@@ -56,7 +72,11 @@
   },
   "responseBody": {
     "id": "resp_or_0011",
-    "usage": { "input_tokens": 688, "output_tokens": 151, "cost": 0.0000332 },
+    "usage": {
+      "input_tokens": 688,
+      "output_tokens": 151,
+      "cost": 3.32e-05
+    },
     "answers": {
       "goal-achieved": {
         "type": "noul",
@@ -113,5 +133,6 @@
         "3": 0.5
       }
     }
-  }
+  },
+  "note": "2026-10-11 wire-shape correction: the noul question rides `instructions`; the ignored `proposition` field is retired (live-verified discrimination on the pinned snapshot; see .state/phase-10B-gate105/noul-vs-choice-experiment.md)"
 }

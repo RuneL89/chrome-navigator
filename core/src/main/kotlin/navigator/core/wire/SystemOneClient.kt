@@ -199,7 +199,7 @@ class SystemOneClient(
          * pre-cascade construction sites keep byte-identical request bodies (the 13
          * jev-instructions-1 transcripts still pass untouched).
          */
-        const val PROMPT_VERSION = "jev-instructions-2"
+        const val PROMPT_VERSION = "jev-instructions-3"
 
         /** The Phase-3 shared choice instruction — now the legacy [navigator.core.decision.ChoiceQuestion] default. */
         const val CHOICE_INSTRUCTIONS =
@@ -251,8 +251,20 @@ class SystemOneClient(
 
             is NoulQuestion -> buildJsonObject {
                 put("type", "noul")
-                put("instructions", question.instructions)
-                put("proposition", question.proposition)
+                // THE corrected noul shape (live-verified 2026-10-11, `.state/phase-10B-gate105/
+                // noul-vs-choice-experiment.md`): the noul QUESTION rides `instructions` — the
+                // SDK-documented shape ("refund": {"type":"noul","instructions":"Is the customer
+                // asking for money back?"}). The Phase-3 shape put the question in a
+                // `proposition` field the model IGNORES while `instructions` held generic
+                // boilerplate, so every noul answered the boilerplate and emitted a
+                // state-dependent constant (proven live: true/false/repeat indistinguishable
+                // at 0.32-0.37; the same value floor across unrelated propositions). With the
+                // question in `instructions` the pinned snapshot discriminates perfectly on
+                // our exact state format (host-true 0.98-0.99, host-false 0.01, word-true
+                // 0.99, word-false 0.01 — both surfaces). The `proposition` field is no longer
+                // emitted: an unknown field the model ignores is a footgun, and the typed
+                // [NoulQuestion.proposition] IS this question's complete instruction.
+                put("instructions", question.proposition)
             }
 
             is ScoreQuestion -> buildJsonObject {

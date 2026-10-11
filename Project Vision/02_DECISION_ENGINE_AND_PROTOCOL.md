@@ -1,7 +1,7 @@
 # Decision Engine & Protocol
 
 **Document ID:** `NAVIGATOR-VISION-002`
-**Version:** 1.3.0 *(amended 2026-10-10: the decision cascade — §3 gains the stage-1 fixed-intent vocabulary + stage-2 batched score-per-candidate law and per-question instructions (reversing the Phase-3 shared-instructions decision, owner-ratified after the UAT root-cause analysis); §4 the shadow mirrors both cascade stages)*
+**Version:** 1.3.1 *(amended 2026-10-11: §2 wire rule — the noul question rides the wire `instructions` field; the Phase-3 `proposition` field is retired after live proof that the model ignores it (the exit-hedging root cause). Amended 2026-10-10: the decision cascade — §3 gains the stage-1 fixed-intent vocabulary + stage-2 batched score-per-candidate law and per-question instructions (reversing the Phase-3 shared-instructions decision, owner-ratified after the UAT root-cause analysis); §4 the shadow mirrors both cascade stages)*
 **Status:** Ratified (2026-10-03; amendment ratified 2026-10-04)
 **Date:** 2026-10-03
 **Implements:** ART-2 (one decision gateway), ART-11 (offline endgame)
@@ -48,6 +48,13 @@ Wire-client rules (from documented provider caveats — these are law):
 - Probabilities vary between calls: branch on **bands** — low `< 0.30`, uncertain
   `[0.30, 0.70]`, high `> 0.70` — never on exact values.
 - `noul` has no separate confidence field; values in the uncertain band mean "don't know".
+- **The noul question rides the wire `instructions` field** (v1.3.0, corrected
+  2026-10-11 after live proof): `{"type":"noul","instructions":"<the anchored
+  proposition>"}` — the SDK-documented shape. The Phase-3 `proposition` wire field is
+  retired: the model ignores unknown fields, so that shape made every noul answer
+  boilerplate with a state-dependent constant and no proposition discrimination (the
+  root cause of the exit-hedging failures from the first UAT; with the question in
+  `instructions` the pinned snapshot scores true conditions 0.98–0.99 and false 0.01).
 - A request is retried only on transport errors (max 2, exponential backoff), never on an
   answer the caller dislikes (no answer-shopping).
 

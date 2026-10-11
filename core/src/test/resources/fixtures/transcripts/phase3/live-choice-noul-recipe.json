@@ -7,12 +7,36 @@
       "type": "choice",
       "name": "next-action",
       "options": [
-        { "id": "back", "label": "Go back", "description": "go back" },
-        { "id": "n3 Apple Pie From a Brown Paper Bag", "label": "Open 'Apple Pie From a Brown Paper Bag'", "description": "open the result 'Apple Pie From a Brown Paper Bag'" },
-        { "id": "n7 Classic Apple Pie", "label": "Open 'Classic Apple Pie'", "description": "open the result 'Classic Apple Pie'" },
-        { "id": "scroll-down", "label": "Scroll down", "description": "scroll the page" },
-        { "id": "finish", "label": "Finish", "description": "declare the goal achieved" },
-        { "id": "n9 Jump to Recipe", "label": "Jump to Recipe", "description": "jump straight to the recipe card" }
+        {
+          "id": "back",
+          "label": "Go back",
+          "description": "go back"
+        },
+        {
+          "id": "n3 Apple Pie From a Brown Paper Bag",
+          "label": "Open 'Apple Pie From a Brown Paper Bag'",
+          "description": "open the result 'Apple Pie From a Brown Paper Bag'"
+        },
+        {
+          "id": "n7 Classic Apple Pie",
+          "label": "Open 'Classic Apple Pie'",
+          "description": "open the result 'Classic Apple Pie'"
+        },
+        {
+          "id": "scroll-down",
+          "label": "Scroll down",
+          "description": "scroll the page"
+        },
+        {
+          "id": "finish",
+          "label": "Finish",
+          "description": "declare the goal achieved"
+        },
+        {
+          "id": "n9 Jump to Recipe",
+          "label": "Jump to Recipe",
+          "description": "jump straight to the recipe card"
+        }
       ]
     },
     "goal-achieved": {
@@ -39,8 +63,7 @@
       },
       "goal-achieved": {
         "type": "noul",
-        "instructions": "Judge whether the proposition is true of the state. Answer with P(true), a single probability in [0,1].",
-        "proposition": "The page currently shows the full apple pie recipe, so the goal 'find a recipe for apple pie' is achieved."
+        "instructions": "The page currently shows the full apple pie recipe, so the goal 'find a recipe for apple pie' is achieved."
       }
     }
   },
@@ -65,7 +88,11 @@
         "noul": 0.3
       }
     },
-    "usage": { "input_tokens": 515, "output_tokens": 100, "cost": 0.00002163 },
+    "usage": {
+      "input_tokens": 515,
+      "output_tokens": 100,
+      "cost": 2.163e-05
+    },
     "id": "gen-dec-1791108861-5Njsl1brbhiBSFiraCre",
     "provider": "TypeSafe"
   },
@@ -88,5 +115,5 @@
       "pTrue": 0.3
     }
   },
-  "note": "LIVE GOLDEN: response body captured verbatim from OpenRouter (typesafe/jev-1.13-20260917), HTTP 200 on 2026-10-04 — promoted from .tools/live-smoke-3.json (one combined choice+noul call). The request side is a faithful reconstruction (probe request bytes were not persisted); the response answers/usage/id/provider bytes are the provider's own."
+  "note": "LIVE GOLDEN: response body captured verbatim from OpenRouter (typesafe/jev-1.13-20260917), HTTP 200 on 2026-10-04 — promoted from .tools/live-smoke-3.json (one combined choice+noul call). The request side is a faithful reconstruction (probe request bytes were not persisted); the response answers/usage/id/provider bytes are the provider's own. | 2026-10-11 wire-shape correction: the noul question rides `instructions`; the ignored `proposition` field is retired (live-verified discrimination on the pinned snapshot; see .state/phase-10B-gate105/noul-vs-choice-experiment.md)"
 }

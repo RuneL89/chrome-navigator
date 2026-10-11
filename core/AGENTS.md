@@ -308,12 +308,25 @@ without a device.
   bands (`band()`), never on exact probability values
 * `ScoreQuestion` enforces 2–10 rubric levels; `ChoiceQuestion` enforces 1–255 options (vision 02 §3)
 * Wire laws (vision 02 §2, Phase 3; shapes = the REAL provider protocol, live-verified
-  2026-10-04, evidence `.tools/live-smoke-*.json`): request `POST {baseUrl}` Bearer-auth
-  JSON `{state, model, questions{name: {type, instructions, criteria|proposition}}}` —
+  2026-10-04, evidence `.tools/live-smoke-*.json`; **the noul shape CORRECTED
+  2026-10-11**): request `POST {baseUrl}` Bearer-auth
+  JSON `{state, model, questions{name: {type, instructions, criteria}}}` —
   choice `criteria` is a RECORD keyed by `Option.id` (ids are the wire keys; duplicates
   fail loudly), score `criteria` is an ORDERED ARRAY of level descriptions; every question
-  carries a required `instructions` string from the client's versioned constants
-  (`PROMPT_VERSION`, changes fail Gate 3.1 via fixture bytes). Answers are indexed by
+  carries a required `instructions` string (the client's versioned constants /
+  per-question texts; `PROMPT_VERSION`, changes fail Gate 3.1 via fixture bytes).
+  **THE NOUL SHAPE (corrected 2026-10-11, live-verified):** the noul QUESTION rides
+  `instructions` — `{"type":"noul","instructions":"<the anchored proposition>"}` — the
+  SDK-documented shape. The Phase-3 `proposition` field is RETIRED from the wire: the
+  model IGNORES unknown fields, so that shape made every noul answer its boilerplate
+  `instructions` and emit a state-dependent constant with no proposition discrimination
+  (proven live: true/false/repeated propositions indistinguishable; the same value floor
+  across unrelated propositions — the root cause of every exit-hedging failure since the
+  first UAT). With the question in `instructions` the pinned snapshot discriminates
+  perfectly on our state format (true 0.98–0.99, false 0.01, both surfaces; evidence
+  `.state/phase-10B-gate105/noul-vs-choice-experiment.md`). The typed
+  `NoulQuestion.proposition` is the semantic carrier the client maps into `instructions`.
+  Answers are indexed by
   question NAME, carry a `type` discriminator that must match the question (mismatch
   loud), and the envelope requires `usage {input_tokens, output_tokens, cost}` (returned
   as `Usage` for TaskBudget). Score responses: probabilities keyed "0".."N-1" (0-based)

@@ -15,14 +15,17 @@
     "questions": {
       "goal-achieved": {
         "type": "noul",
-        "instructions": "Judge whether the proposition is true of the state. Answer with P(true), a single probability in [0,1].",
-        "proposition": "The current page already shows a usable apple pie recipe, so the goal 'find a recipe for apple pie' is achieved."
+        "instructions": "The current page already shows a usable apple pie recipe, so the goal 'find a recipe for apple pie' is achieved."
       }
     }
   },
   "responseBody": {
     "id": "resp_or_0006",
-    "usage": { "input_tokens": 263, "output_tokens": 38, "cost": 0.0000128 },
+    "usage": {
+      "input_tokens": 263,
+      "output_tokens": 38,
+      "cost": 1.28e-05
+    },
     "answers": {
       "goal-achieved": {
         "type": "noul",
@@ -36,5 +39,6 @@
       "type": "noul",
       "pTrue": 0.52
     }
-  }
+  },
+  "note": "2026-10-11 wire-shape correction: the noul question rides `instructions`; the ignored `proposition` field is retired (live-verified discrimination on the pinned snapshot; see .state/phase-10B-gate105/noul-vs-choice-experiment.md)"
 }

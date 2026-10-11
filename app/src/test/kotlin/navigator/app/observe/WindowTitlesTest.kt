@@ -93,4 +93,23 @@ class WindowTitlesTest {
             "a non-allowlisted package never serves a title",
         )
     }
+
+    @Test
+    fun `the Chrome window prefix is stripped - the page's title is the identity`() {
+        // Live-observed 2026-10-11: Chrome's window title is "Chrome: <page title>";
+        // the prefix is browser chrome, never the page's identity.
+        assertEquals(
+            "Wikipedia, the free encyclopedia",
+            WindowTitles.lawfulTitle(
+                listOf(candidate("com.android.chrome", "Chrome: Wikipedia, the free encyclopedia", focused = true)),
+            ),
+        )
+        // a title without the prefix is untouched; a bare "Chrome:" degrades to ""
+        assertEquals(
+            "Plain Title",
+            WindowTitles.lawfulTitle(listOf(candidate("com.android.chrome", "Plain Title", focused = true))),
+        )
+        assertEquals("", WindowTitles.stripChromePrefix("Chrome:"))
+        assertEquals("Chrome: two", WindowTitles.stripChromePrefix("Chrome: Chrome: two"))
+    }
 }
