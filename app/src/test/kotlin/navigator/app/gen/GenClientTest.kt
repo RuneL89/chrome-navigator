@@ -22,7 +22,7 @@ import kotlin.test.assertTrue
 /**
  * Gate 10.1 (isolation): the restructure schema + hardening, $0 — NO live provider call.
  * Pinned here:
- * - the GOLDEN request/response per prompt version (`/gen/golden-restructure-v1.json` —
+ * - the GOLDEN request/response per prompt version (`/gen/golden-restructure-v2.json` —
  *   the prompt text is fixture law; a PROMPT_VERSION/wording change adds v2 and retires
  *   v1, never mutates it);
  * - the validation matrix: valid ladders pass; opinion done-conditions, oversized
@@ -41,7 +41,7 @@ import kotlin.test.assertTrue
 class GenClientTest {
 
     private val fixtureJson: String by lazy {
-        javaClass.getResourceAsStream("/gen/golden-restructure-v1.json")!!
+        javaClass.getResourceAsStream("/gen/golden-restructure-v2.json")!!
             .readBytes().decodeToString()
     }
 
@@ -111,8 +111,8 @@ class GenClientTest {
             sentMessages[1].jsonObject["content"]!!.jsonPrimitive.content,
             "the user message carries the goal verbatim",
         )
-        assertEquals("restructure-v1", result.promptVersion, "the prompt version rides the result")
-        assertEquals("restructure-v1", Prompts.PROMPT_VERSION, "the fixture pins the CURRENT version")
+        assertEquals("restructure-v2", result.promptVersion, "the prompt version rides the result")
+        assertEquals("restructure-v2", Prompts.PROMPT_VERSION, "the fixture pins the CURRENT version")
         assertEquals(LadderTaskClass.READ, result.ladder.taskClass)
         assertEquals(2, result.ladder.subtasks.size)
         assertTrue(result.ladder.subtasks[0].done is DoneCondition.UrlHost)
@@ -189,7 +189,7 @@ class GenClientTest {
         val transport = CountingTransport { ok(if (calls <= 1) opinion else validLadderJson()) }
         val result = runBlocking { client(transport).restructure("goal", generation = 1) }
         assertEquals(2, transport.calls)
-        assertEquals("restructure-v1/gen1", result.ladder.versionTag(result.promptVersion, result.generation))
+        assertEquals("restructure-v2/gen1", result.ladder.versionTag(result.promptVersion, result.generation))
     }
 
     // -- adversarial rows (hostile goal texts) ---------------------------------------------
@@ -209,6 +209,9 @@ class GenClientTest {
         result.ladder.subtasks.forEach { subtask ->
             when (val done = subtask.done) {
                 is DoneCondition.UrlHost -> assertTrue(done.host.contains('.'))
+                is DoneCondition.UrlContains -> assertTrue(
+                    done.segment.contains('.') || done.segment.contains('/'),
+                )
                 is DoneCondition.MarkerText -> assertTrue(done.text.isNotBlank())
                 is DoneCondition.ElementPresent -> assertTrue(done.description.isNotBlank())
                 is DoneCondition.CountReached -> assertTrue(done.n in LadderLimitsForTest.MIN..LadderLimitsForTest.MAX)

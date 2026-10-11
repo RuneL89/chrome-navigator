@@ -38,21 +38,36 @@ object SiteEntry {
      */
     fun plan(goal: String, subtaskInstruction: String, doneCondition: navigator.core.ladder.DoneCondition): Plan? {
         if (doneCondition !is navigator.core.ladder.DoneCondition.UrlHost) return null
-        val searchSpace = "$goal \n $subtaskInstruction"
-        ColdStartGoalUrl.find(searchSpace)?.let {
-            return Plan(Mechanism.VIEW_INTENT, it.value.trimEnd('.', ',', ')', ']', '!', '?', ';', ':'), "GOAL_URL")
-        }
-        ColdStartGoalDomain.find(searchSpace)?.let { match ->
-            val tld = match.groupValues[3].lowercase()
-            if (tld in COMMON_TLDS) {
-                val host = "${match.groupValues[2]}.${match.groupValues[3]}".lowercase()
-                return Plan(Mechanism.VIEW_INTENT, "https://$host${match.groupValues[4]}", "GOAL_DOMAIN")
-            }
+        resolveFromText(goal, subtaskInstruction)?.let {
+            return Plan(Mechanism.VIEW_INTENT, it, "GOAL_URL")
         }
         // The done-condition's own host: the writer validated it as a bare host, so it
         // is the lawful resolution of last resort (still goal text, still no hardcoding).
         if (doneCondition.host.isNotBlank() && doneCondition.host.contains('.')) {
             return Plan(Mechanism.VIEW_INTENT, "https://${doneCondition.host}", "DONE_CONDITION_HOST")
+        }
+        return null
+    }
+
+    /**
+     * The URL the search space (goal + subtask instruction) RESOLVES TO, shape-independent
+     * (Phase 10C v1.7.0, doc 04 §1): an explicit http(s) URL first, then a bare domain with
+     * a common TLD (optionally carrying its path). Null when nothing resolves. The
+     * condition-honesty gate uses this to ask whether a subtask NAMES a page to arrive at,
+     * and — when the named page differs from the page in front of us — to derive a
+     * `urlContains` URL identity for it. Pure; the derivation order mirrors [plan].
+     */
+    fun resolveFromText(goal: String, subtaskInstruction: String): String? {
+        val searchSpace = "$goal \n $subtaskInstruction"
+        ColdStartGoalUrl.find(searchSpace)?.let {
+            return it.value.trimEnd('.', ',', ')', ']', '!', '?', ';', ':')
+        }
+        ColdStartGoalDomain.find(searchSpace)?.let { match ->
+            val tld = match.groupValues[3].lowercase()
+            if (tld in COMMON_TLDS) {
+                val host = "${match.groupValues[2]}.${match.groupValues[3]}".lowercase()
+                return "https://$host${match.groupValues[4]}"
+            }
         }
         return null
     }

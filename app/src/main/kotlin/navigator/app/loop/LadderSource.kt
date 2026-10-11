@@ -27,11 +27,43 @@ interface LadderSource {
      */
     suspend fun restructure(goal: String, generation: Int): RestructuredLadder?
 
+    /**
+     * The bounded condition REPAIR (Phase 10C, vision 04 §1 v1.7.0): ONE writer call
+     * re-issuing a subtask's done-condition so it is NOT already satisfied on the page the
+     * subtask starts from — the writer is told the current page and asked for a condition
+     * the subtask's own outcome produces (preferring a `urlContains`/`urlHost` URL identity
+     * of the ARRIVED page). Null = no repair available (unwired, refused output, transport
+     * failure, or out of writer budget) — the caller then derives a code-side URL identity
+     * or refuses the ladder loudly, never accepting a self-satisfying condition.
+     */
+    suspend fun repairCondition(
+        subtaskInstruction: String,
+        current: navigator.core.ladder.DoneCondition,
+        pageUrl: String,
+        pageTitle: String,
+    ): RepairedCondition?
+
     /** The deterministic default: no ladder — the byte-identical legacy path. */
     object None : LadderSource {
         override suspend fun restructure(goal: String, generation: Int): RestructuredLadder? = null
+
+        override suspend fun repairCondition(
+            subtaskInstruction: String,
+            current: navigator.core.ladder.DoneCondition,
+            pageUrl: String,
+            pageTitle: String,
+        ): RepairedCondition? = null
     }
 }
+
+/** One repaired done-condition plus the provenance and metered cost of the repair call. */
+data class RepairedCondition(
+    val done: navigator.core.ladder.DoneCondition,
+    /** The repair prompt version (doc 05 provenance discipline). */
+    val promptVersion: String,
+    /** Integer micro-dollar cost of the repair call (the SEPARATE writer budget, ART-5). */
+    val costMicroUsd: Long,
+)
 
 /** One restructured ladder plus the provenance and metered cost of the call that drafted it. */
 data class RestructuredLadder(

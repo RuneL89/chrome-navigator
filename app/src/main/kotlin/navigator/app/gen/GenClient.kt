@@ -76,6 +76,13 @@ data class GenUsage(
     val costMicroUsd: Long,
 )
 
+/** The condition-repair call's output: the re-issued condition + usage + prompt version. */
+data class ConditionRepairResult(
+    val done: navigator.core.ladder.DoneCondition,
+    val usage: GenUsage,
+    val promptVersion: String,
+)
+
 /** One completed restructure: the validated ladder + its usage + provenance. */
 data class RestructureResult(
     val ladder: Ladder,
@@ -175,6 +182,34 @@ class GenClient(
                 "$CONTENT_ATTEMPTS attempts (${lastError?.message}) — refusing cleanly, " +
                 "nothing navigates on an invalid ladder",
         )
+    }
+
+    /**
+     * The bounded condition repair (Phase 10C, vision 04 §1 v1.7.0): ONE writer call
+     * re-issuing an already-satisfied done-condition so it is not true where its subtask
+     * starts. Invalid or non-whitelisted output returns null (NO retry — the caller then
+     * derives a code-side URL identity or refuses the ladder loudly); transport failures
+     * propagate loudly like every other writer call.
+     */
+    suspend fun repairCondition(
+        subtaskInstruction: String,
+        conditionRendered: String,
+        pageUrl: String,
+        pageTitle: String,
+    ): ConditionRepairResult? {
+        require(subtaskInstruction.isNotBlank()) { "subtask instruction must not be blank" }
+        val body = chatBody(
+            Prompts.CONDITION_REPAIR_SYSTEM,
+            Prompts.conditionRepairUser(subtaskInstruction, conditionRendered, pageUrl, pageTitle),
+        )
+        val (content, usage) = post(body, "condition-repair")
+        val done = try {
+            LadderSchema.parseDoneConditionText(content)
+        } catch (e: LadderSchema.LadderSchemaException) {
+            return null
+        }
+        onUsage(usage)
+        return ConditionRepairResult(done, usage, Prompts.CONDITION_REPAIR_PROMPT_VERSION)
     }
 
     /**

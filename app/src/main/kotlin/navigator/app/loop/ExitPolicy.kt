@@ -9,8 +9,9 @@ import navigator.core.enumerate.CandidateList
  * evidence ([GuardLevel]) lowers the bar, never replaces it:
  *
  * - **Path A (classic):** anchored noul > [ExitPolicyConfig.HIGH_FLOOR] (the HIGH band,
- *   banding semantics: strictly greater) with any guard level (WEAK or STRONG — a NONE
- *   guard refuses every path).
+ *   banding semantics: strictly greater) with a **STRONG** guard (v1.7.0, Phase 10C — the
+ *   battery showed WEAK guards silently accepting already-true conditions; a WEAK HIGH
+ *   claim routes to Path B/C; a NONE guard refuses every path).
  * - **Path B (sustained evidence):** STRONG guard + noul >= [ExitPolicyConfig.SUSTAINED_FLOOR]
  *   (inclusive) sustained over **K = [ExitPolicyConfig.SUSTAINED_CHECKS] consecutive**
  *   finish checks. Consecutive means the counter RESETS on any check that fails the
@@ -173,9 +174,13 @@ class ExitPolicy(private val config: ExitPolicyConfig = ExitPolicyConfig()) {
                 noul = noul,
             )
         }
-        // Path A — classic: HIGH-band anchored noul, any guard level. Bands semantics:
-        // HIGH is strictly greater than the floor (0.70 itself is UNCERTAIN).
-        if (noul > config.highFloor) {
+        // Path A — classic: HIGH-band anchored noul **with a STRONG guard** (v1.7.0, doc 04
+        // §3, Phase 10C owner-ratified): WEAK no longer qualifies — the 2026-10-11 on-device
+        // battery showed weak guards silently accepting conditions already true where the
+        // subtask started (false completions). A WEAK HIGH claim now falls through to Path B's
+        // sustained evidence or Path C's owner card. Bands semantics: HIGH is strictly greater
+        // than the floor (0.70 itself is UNCERTAIN).
+        if (noul > config.highFloor && guardLevel == GuardLevel.STRONG) {
             return ExitDecision.Accept(ExitPath.HIGH, guardLevel, noul)
         }
         // Path B — sustained: STRONG guard + noul >= floor, K CONSECUTIVE checks.

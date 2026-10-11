@@ -148,6 +148,15 @@ class LadderExecutionLoopTest {
             val ladder = generations.lastOrNull { it.first == generation }?.second ?: return null
             return RestructuredLadder(ladder, ladder.versionTag("test", generation), costMicroUsd)
         }
+
+        // Phase 10C: the honesty gate's repair seam — scripted sources expose none (the
+        // gate then derives a code-side URL identity or refuses loudly, per the law).
+        override suspend fun repairCondition(
+            subtaskInstruction: String,
+            current: navigator.core.ladder.DoneCondition,
+            pageUrl: String,
+            pageTitle: String,
+        ): navigator.app.loop.RepairedCondition? = null
     }
 
     private class ScriptedExtractor(

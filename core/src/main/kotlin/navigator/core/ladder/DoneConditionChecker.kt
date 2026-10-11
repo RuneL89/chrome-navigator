@@ -42,6 +42,15 @@ object DoneConditionChecker {
             current == normalizeHost(condition.host)
         }
 
+        is DoneCondition.UrlContains -> {
+            // v1.7.0 (Phase 10C): the URL-identity shape for a different page on the SAME
+            // host. Both sides normalize identically (scheme/userinfo/port/www./trailing
+            // slash stripped, lowercased), then the URL must CONTAIN the segment as data.
+            val current = normalizeUrl(evidence.url) ?: return false
+            val segment = normalizeUrl(condition.segment) ?: return false
+            segment.isNotEmpty() && current.contains(segment)
+        }
+
         is DoneCondition.MarkerText -> {
             val marker = condition.text.trim().lowercase()
             if (marker.isEmpty()) return false
@@ -62,12 +71,14 @@ object DoneConditionChecker {
 
     /**
      * The guard level a satisfied condition earns (the exit law's code-evidence half,
-     * vision 04 §3): `urlHost` is PAGE IDENTITY — the strongest deterministic evidence —
-     * so it earns STRONG; the other shapes earn WEAK. An unsatisfied condition is NONE
-     * (the caller maps it; the checker only speaks for satisfied conditions).
+     * vision 04 §3): `urlHost` and `urlContains` are PAGE IDENTITY — the strongest
+     * deterministic evidence — so they earn STRONG; the other shapes earn WEAK. An
+     * unsatisfied condition is NONE (the caller maps it; the checker only speaks for
+     * satisfied conditions).
      */
     fun guardStrength(condition: DoneCondition): GuardStrength = when (condition) {
         is DoneCondition.UrlHost -> GuardStrength.STRONG
+        is DoneCondition.UrlContains -> GuardStrength.STRONG
         else -> GuardStrength.WEAK
     }
 
@@ -76,6 +87,7 @@ object DoneConditionChecker {
     /** One-line plain-words render (the state text's ACTIVE SUBTASK section, cards, logs). */
     fun render(condition: DoneCondition): String = when (condition) {
         is DoneCondition.UrlHost -> "the URL host is ${condition.host}"
+        is DoneCondition.UrlContains -> "the address contains '${condition.segment}'"
         is DoneCondition.MarkerText -> "the page contains '${condition.text}'"
         is DoneCondition.ElementPresent -> "an element matching '${condition.description}' is present"
         is DoneCondition.CountReached -> "${condition.target} >= ${condition.n}"
@@ -137,4 +149,26 @@ object DoneConditionChecker {
 
     private fun normalizeHost(host: String): String =
         host.trim().lowercase().removePrefix("www.").trimEnd('.')
+
+    /**
+     * The URL-identity normalization shared by BOTH sides of a [DoneCondition.UrlContains]
+     * match (v1.7.0, Phase 10C): scheme, userinfo, port and a leading `www.` stripped,
+     * trailing slashes trimmed, lowercased — the PATH survives, because the path is the
+     * identity that distinguishes two pages on one host. Null for blank input (an
+     * unreadable URL never satisfies a URL condition).
+     */
+    fun normalizeUrl(url: String?): String? {
+        if (url == null) return null
+        var rest = url.trim().lowercase()
+        if (rest.isEmpty()) return null
+        val schemeEnd = rest.indexOf("://")
+        if (schemeEnd >= 0) rest = rest.substring(schemeEnd + 3)
+        rest = rest.substringBefore('#')
+        if (rest.contains('@')) rest = rest.substringAfter('@')
+        val slashIdx = rest.indexOf('/')
+        val authority = if (slashIdx >= 0) rest.substring(0, slashIdx) else rest
+        val path = if (slashIdx >= 0) rest.substring(slashIdx) else ""
+        val hostPart = authority.substringBefore(':').removePrefix("www.")
+        return (hostPart + path).trimEnd('/').takeIf { it.isNotEmpty() }
+    }
 }

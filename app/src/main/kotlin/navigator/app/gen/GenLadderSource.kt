@@ -40,6 +40,29 @@ class GenLadderSource(
             null // the clean pre-navigation refusal (invalid ladder, nothing navigates)
         }
 
+    override suspend fun repairCondition(
+        subtaskInstruction: String,
+        current: navigator.core.ladder.DoneCondition,
+        pageUrl: String,
+        pageTitle: String,
+    ): navigator.app.loop.RepairedCondition? =
+        try {
+            val result = client.repairCondition(
+                subtaskInstruction = subtaskInstruction,
+                conditionRendered = navigator.core.ladder.DoneConditionChecker.render(current),
+                pageUrl = pageUrl,
+                pageTitle = pageTitle,
+            ) ?: return null
+            onUsage(result.usage)
+            navigator.app.loop.RepairedCondition(
+                done = result.done,
+                promptVersion = result.promptVersion,
+                costMicroUsd = result.usage.costMicroUsd,
+            )
+        } catch (e: GenRefusedException) {
+            null // no repair available — the loop derives or refuses loudly
+        }
+
     override suspend fun extract(goal: String, finalState: String): ExtractedAnswer? =
         try {
             val result = client.extractAnswer(goal, finalState)

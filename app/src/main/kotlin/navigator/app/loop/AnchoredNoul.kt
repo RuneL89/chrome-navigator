@@ -117,6 +117,7 @@ object AnchoredNoul {
     /** The v3 atomic one-sentence proposition for one done-condition shape (fixture law). */
     fun atomicProposition(done: DoneCondition): String = when (done) {
         is DoneCondition.UrlHost -> "The page's address is on the host '${anchor(done.host)}'."
+        is DoneCondition.UrlContains -> "The page's address contains '${anchor(done.segment)}'."
         is DoneCondition.MarkerText -> "The text '${anchor(done.text)}' appears on the page."
         is DoneCondition.ElementPresent -> "A control matching '${anchor(done.description)}' is present on the page."
         is DoneCondition.CountReached -> "${done.n} of the counted '${anchor(done.target)}' are complete."

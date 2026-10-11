@@ -104,6 +104,18 @@ object LadderSchema {
      * — is rejected with the whitelist spelled out, and multiple keys are rejected too
      * (the schema is one shape per condition, never a blend).
      */
+    /**
+     * Parses ONE whitelisted done-condition out of the writer's `{"done": {...}}` repair
+     * answer (Phase 10C, v1.7.0). Loud on a missing object, on any non-whitelisted shape,
+     * and on multiple shapes at once — the same [doneCondition] law every ladder obeys.
+     */
+    fun parseDoneConditionText(text: String): DoneCondition {
+        val root = Json.parseToJsonElement(text).jsonObject
+        val done = root["done"] as? JsonObject
+            ?: throw LadderSchemaException("a repaired done-condition must ride a 'done' object")
+        return doneCondition(done, 0)
+    }
+
     private fun doneCondition(obj: JsonObject, index: Int): DoneCondition {
         val keys = obj.keys
         fun exactlyOne(vararg names: String): Boolean = keys.count { it in names } == 1
@@ -111,6 +123,11 @@ object LadderSchema {
             exactlyOne("urlHost") -> {
                 val host = requiredString(obj, "urlHost", "done-condition (subtask $index)")
                 DoneCondition.UrlHost(host)
+            }
+
+            exactlyOne("urlContains") -> {
+                val segment = requiredString(obj, "urlContains", "done-condition (subtask $index)")
+                DoneCondition.UrlContains(segment)
             }
 
             exactlyOne("markerText") -> {
@@ -138,7 +155,7 @@ object LadderSchema {
 
             else -> throw LadderSchemaException(
                 "done-condition (subtask $index) carries none of the whitelisted keys " +
-                    "{urlHost, markerText, elementPresent, count} (got $keys) — an " +
+                    "{urlHost, urlContains, markerText, elementPresent, count} (got $keys) — an " +
                     "opinion-phrased done-condition is schema-REJECTED (ART-4); only " +
                     "machine-checkable conditions may ride a ladder",
             )

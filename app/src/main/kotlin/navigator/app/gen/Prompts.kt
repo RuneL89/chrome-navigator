@@ -25,7 +25,7 @@ object Prompts {
      * The restructure prompt version. Bump on any wording change below; the version is
      * logged with every row and recorded per ladder generation (`…/gen<n>`).
      */
-    const val PROMPT_VERSION = "restructure-v1"
+    const val PROMPT_VERSION = "restructure-v2"
 
     /** The answer-extraction prompt version (doc 06 §4: "report data, not actions"). */
     const val EXTRACTION_PROMPT_VERSION = "extract-v1"
@@ -78,13 +78,67 @@ object Prompts {
           mechanics: no "click", "scroll", "type" steps).
         - Every done-condition comes ONLY from this whitelist:
             {"urlHost": "<bare host like example.org>"}
+            {"urlContains": "<a URL fragment like example.org/pricing or /recipes/dinner>"}
             {"markerText": "<a literal that appears on the page>"}
             {"elementPresent": "<a description of a control on the page>"}
             {"count": {"target": "<what is being counted>", "n": <positive integer>}}
           No other shape exists. "the page looks right" or any judgment call is an error.
+        - Condition honesty: a done-condition must be FALSE where its subtask STARTS and
+          must become true on the page the subtask's own outcome produces. For "open" or
+          "show" outcomes naming a page or section of a site, prefer a URL identity that
+          names the ARRIVED page — "urlContains" with that page's path segment (e.g.
+          "/recipes/dinner") when the host stays the same, "urlHost" when the host differs.
+          NEVER choose a condition the page you are already on could satisfy: not a link
+          whose label merely mentions the target, not a word that already appears on the
+          starting page, not a host you are already on for a subtask that opens a new page.
         - taskClass: "multi" only when some done-condition is a "count"; otherwise
           "read" for a read/lookup goal, "action" for a single consequential operation.
     """.trimIndent()
+
+    /** The condition-repair prompt version (Phase 10C — provenance + fixture pinning). */
+    const val CONDITION_REPAIR_PROMPT_VERSION = "condition-repair-v1"
+
+    /**
+     * The condition-repair system prompt (Phase 10C, vision 04 §1 v1.7.0): ONE bounded
+     * writer repair of a subtask's done-condition that is already satisfied where the
+     * subtask starts. Output is a single done-condition object from the SAME whitelist —
+     * `urlContains`/`urlHost` naming the page the subtask's outcome produces are the
+     * preferred answers. No prose, no directives, no other keys.
+     */
+    val CONDITION_REPAIR_SYSTEM: String = """
+        You fix ONE done-condition in a browser task ladder.
+
+        A subtask's done-condition must be FALSE on the page where the subtask STARTS, and
+        must become true on the page the subtask's own outcome produces. The condition you
+        are shown is already satisfied by the page the browser is on right now, so it cannot
+        prove the subtask happened.
+
+        Output EXACTLY one JSON object, no prose:
+        {"done": <done-condition>}
+
+        The done-condition comes ONLY from this whitelist:
+            {"urlHost": "<bare host like example.org>"}
+            {"urlContains": "<a URL fragment like example.org/pricing or /recipes/dinner>"}
+            {"markerText": "<a literal that appears on the page>"}
+            {"elementPresent": "<a description of a control on the page>"}
+            {"count": {"target": "<what is being counted>", "n": <positive integer>}}
+        Prefer a URL identity of the page the subtask's outcome produces (urlContains with
+        that page's path segment when the host stays the same; urlHost when the host
+        differs). Never repeat a condition the CURRENT page already satisfies.
+    """.trimIndent()
+
+    /** The condition-repair user message for one subtask (page context + the current condition). */
+    fun conditionRepairUser(
+        subtaskInstruction: String,
+        conditionRendered: String,
+        currentUrl: String,
+        currentTitle: String,
+    ): String = buildString {
+        append("Subtask:\n").append(subtaskInstruction).append('\n')
+        append("Its current done-condition (already satisfied here):\n").append(conditionRendered).append('\n')
+        append("The browser is currently on:\n").append(currentTitle).append('\n').append(currentUrl).append('\n')
+        append("Re-issue the done-condition so it is NOT satisfied on that page.")
+    }
 
     /** The restructure user message for [goal] (the writer's only goal-bearing input). */
     fun restructureUser(goal: String, maxSubtasks: Int): String =

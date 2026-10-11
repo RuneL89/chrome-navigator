@@ -99,6 +99,17 @@ sealed interface DoneCondition {
     @SerialName("urlHost")
     data class UrlHost(val host: String) : DoneCondition
 
+    /**
+     * The page's URL (scheme/userinfo/port/trailing-slash-normalized, lowercased)
+     * CONTAINS [segment] — the URL-IDENTITY shape for "a different page on the SAME host"
+     * (v1.7.0, Phase 10C, doc 04 §1): "the DINNER category page is showing" is expressible
+     * as `urlContains("allrecipes.com/recipes")` where [UrlHost] cannot distinguish the
+     * homepage from the category page. Matched as data against the code-read URL-bar text.
+     */
+    @Serializable
+    @SerialName("urlContains")
+    data class UrlContains(val segment: String) : DoneCondition
+
     /** The page contains the literal [text] (code-read page text, case-insensitive). */
     @Serializable
     @SerialName("markerText")
@@ -122,6 +133,7 @@ sealed interface DoneCondition {
 /** Private render used by the total-size cap (the public render lives on the checker). */
 private fun DoneCondition.rendered(): String = when (this) {
     is DoneCondition.UrlHost -> host
+    is DoneCondition.UrlContains -> segment
     is DoneCondition.MarkerText -> text
     is DoneCondition.ElementPresent -> description
     is DoneCondition.CountReached -> "$target$n"
@@ -182,6 +194,18 @@ object LadderValidator {
                 is DoneCondition.MarkerText ->
                     if (done.text.isBlank()) violations.add("subtask ${index + 1}: markerText is blank")
 
+                is DoneCondition.UrlContains ->
+                    if (done.segment.isBlank() || done.segment.any { it.isWhitespace() }) {
+                        violations.add(
+                            "subtask ${index + 1}: urlContains '${done.segment}' is blank or contains whitespace",
+                        )
+                    } else if (!done.segment.contains('.') && !done.segment.contains('/')) {
+                        violations.add(
+                            "subtask ${index + 1}: urlContains '${done.segment}' is not a URL fragment " +
+                                "(needs a host or a path segment)",
+                        )
+                    }
+
                 is DoneCondition.ElementPresent ->
                     if (done.description.isBlank()) {
                         violations.add("subtask ${index + 1}: elementPresent description is blank")
@@ -201,6 +225,7 @@ object LadderValidator {
             // cap; the total cap in Ladder.init is the binding one — this names the field).
             val conditionText = when (val done = subtask.done) {
                 is DoneCondition.UrlHost -> done.host
+                is DoneCondition.UrlContains -> done.segment
                 is DoneCondition.MarkerText -> done.text
                 is DoneCondition.ElementPresent -> done.description
                 is DoneCondition.CountReached -> done.target

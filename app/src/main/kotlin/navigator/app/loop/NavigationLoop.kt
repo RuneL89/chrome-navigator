@@ -359,6 +359,10 @@ class NavigationLoop(
         // counters, [ExitPolicy.heldHashRecheckDue] is the pure decision.
         var lastCodeCheck: Pair<Int, Int>? = null
         var codeCheckHash: Int? = null
+        // Phase 10C (vision 04 §1 v1.7.0): the condition-honesty gate's memo — at most ONE
+        // evaluation per (active subtask ordinal, page-hash); a page change or a pointer
+        // advance re-arms it (the same discipline as the code-triggered check below).
+        var honestyChecked: Pair<Int, Int>? = null
         var codeCheckCountOnHash = 0
         var codeCheckStepsSince = 0
 
@@ -1419,6 +1423,110 @@ class NavigationLoop(
         )
 
         while (true) {
+            /**
+             * Replaces the ACTIVE subtask's done-condition, preserving pointer progress
+             * (Phase 10C): a fresh ladder + a fresh pointer advanced to the same verified
+             * position (the pointer's advance law is preserved — completed subtasks stay
+             * completed).
+             */
+            fun applyCondition(p: SubtaskPointer, replacement: DoneCondition, provenance: String) {
+                val current = ladder ?: return
+                val updated = current.copy(
+                    subtasks = current.subtasks.mapIndexed { i, st ->
+                        if (i == p.index) st.copy(done = replacement) else st
+                    },
+                )
+                val fresh = SubtaskPointer(updated)
+                repeat(p.index) { fresh.advance() }
+                ladder = updated
+                pointer = fresh
+                line(
+                    "honesty: subtask ${fresh.activeOrdinal}/${fresh.total} condition replaced by " +
+                        "$provenance - '${DoneConditionChecker.render(replacement)}'",
+                )
+                history.add(
+                    "step $stepIndex: condition replaced ($provenance) - " +
+                        "'${DoneConditionChecker.render(replacement)}'",
+                )
+                publishLadderSurfaces()
+            }
+
+            /**
+             * The condition-honesty gate (Phase 10C, vision 04 §1 v1.7.0 — owner-ratified
+             * after the 2026-10-11 on-device battery). Fires at most once per (active
+             * ordinal, page-hash) when the ACTIVE subtask's condition is WEAK-shaped and
+             * already satisfied here AND the subtask names a DIFFERENT page to arrive at.
+             * Order of remedies: ONE bounded writer repair → a code-derived URL identity →
+             * a loud ladder refusal. Returns a terminal only on the refusal; null continues.
+             */
+            suspend fun honestyGate(o: StepObservation, cands: CandidateList): RunResult? {
+                val p = pointer ?: return null
+                val active = ladder ?: return null
+                if (honestyChecked == p.index to o.screenHash) return null
+                val evidence = ladderEvidence(o, cands)
+                val condition = p.active.done
+                if (!ConditionHonesty.proxySatisfied(condition, evidence)) {
+                    honestyChecked = p.index to o.screenHash
+                    return null
+                }
+                val named = SiteEntry.resolveFromText(goalText, p.active.instruction)
+                if (!ConditionHonesty.namesDifferentPage(named, o.url)) {
+                    // The condition is satisfied by the page the subtask NAMES (or nothing is
+                    // named): a legitimately arrived outcome, not a proxy — the ordinary exit
+                    // flow decides it (no silent weak acceptance exists: Path A needs STRONG).
+                    honestyChecked = p.index to o.screenHash
+                    return null
+                }
+                honestyChecked = p.index to o.screenHash
+                line(
+                    "honesty: subtask ${p.activeOrdinal}/${p.total} condition " +
+                        "'${DoneConditionChecker.render(condition)}' is already satisfied here, but the " +
+                        "subtask names $named - ONE bounded writer repair",
+                )
+                history.add(
+                    "step $stepIndex: condition honesty - already-satisfied weak condition " +
+                        "on subtask ${p.activeOrdinal}",
+                )
+                val repaired = if (writerBudget.hasHardRoom()) {
+                    ladderSource.repairCondition(p.active.instruction, condition, o.url ?: "", o.title)
+                } else {
+                    line("honesty: no writer budget room for the repair - deriving a URL identity")
+                    null
+                }
+                if (repaired != null) {
+                    writerBudget.record(repaired.costMicroUsd)
+                    if (!ConditionHonesty.proxySatisfied(repaired.done, evidence)) {
+                        applyCondition(p, repaired.done, "writer repair (${repaired.promptVersion})")
+                        return null
+                    }
+                    line(
+                        "honesty: the repaired condition " +
+                            "'${DoneConditionChecker.render(repaired.done)}' is ALSO satisfied here - " +
+                            "deriving a URL identity",
+                    )
+                } else {
+                    line("honesty: no repair available (unwired / refused) - deriving a URL identity")
+                }
+                val derived = named?.let {
+                    DoneCondition.UrlContains(DoneConditionChecker.normalizeUrl(it) ?: it)
+                }
+                if (derived != null && !ConditionHonesty.proxySatisfied(derived, evidence)) {
+                    applyCondition(p, derived, "code-derived urlContains")
+                    return null
+                }
+                line(
+                    "honesty: no honest condition could be produced for subtask ${p.activeOrdinal} " +
+                        "- ladder REFUSED (nothing silently self-satisfies)",
+                )
+                return finish(
+                    TerminalState.LADDER_REFUSED,
+                    "condition honesty: subtask ${p.activeOrdinal} of '${active.summary}' starts on a " +
+                        "page where its weak done-condition is already satisfied and no honest " +
+                        "replacement could be derived",
+                    stepIndex,
+                )
+            }
+
             // -- user cancel -----------------------------------------------------------
             if (isCancelled()) {
                 return finish(TerminalState.USER_CANCEL, "cancelled before step $stepIndex", stepIndex)
@@ -1497,6 +1605,14 @@ class NavigationLoop(
                 secrets = redactionKeys(),
             )
             hints.clear() // the L1 hint rode this step's HISTORY block
+
+            // -- CONDITION HONESTY (Phase 10C, vision 04 §1 v1.7.0) ------------------------
+            // A WEAK-shaped done-condition already satisfied where its subtask starts is the
+            // false-completion defect (the 2026-10-11 battery: "a News link is present" /
+            // "the text 'Dinner' appears" were true on the page the subtask started from).
+            // URL identities already true are LEGITIMATE (immediate verify+advance) and
+            // never enter this gate.
+            honestyGate(obs, candidates)?.let { return it }
 
             // -- CODE-TRIGGERED IS-DONE check (vision 04 §3 v1.5.0) ------------------------
             // The IS-DONE evaluation is NOT gated on the engine volunteering `finish`

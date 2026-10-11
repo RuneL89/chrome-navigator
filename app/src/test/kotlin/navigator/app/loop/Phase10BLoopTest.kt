@@ -502,6 +502,14 @@ class Phase10BLoopTest {
             ladderSource = object : LadderSource {
                 override suspend fun restructure(goal: String, generation: Int): RestructuredLadder? =
                     RestructuredLadder(ladder, "test/gen1", 0)
+
+                // Phase 10C: no scripted repair — the honesty gate derives or refuses.
+                override suspend fun repairCondition(
+                    subtaskInstruction: String,
+                    current: navigator.core.ladder.DoneCondition,
+                    pageUrl: String,
+                    pageTitle: String,
+                ): navigator.app.loop.RepairedCondition? = null
             },
         )
         val result = loop.run("open the demo site", "goal-held-hash", identity, FakeClock())
