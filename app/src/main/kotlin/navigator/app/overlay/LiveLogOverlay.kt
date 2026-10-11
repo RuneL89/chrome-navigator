@@ -456,18 +456,59 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
      */
     private fun styledLines(): CharSequence {
         val builder = SpannableStringBuilder()
+        var previousLineWasActiveSubtask = false
         renderedSlice().forEachIndexed { index, line ->
             if (index > 0) builder.append("\n")
             val start = builder.length
             builder.append(line)
-            applyLineColors(builder, start, line)
+            applyLineColors(builder, start, line, previousLineWasActiveSubtask)
+            previousLineWasActiveSubtask =
+                LadderBlock.isSubtaskLine(line) && line.startsWith(LadderBlock.ACTIVE_MARK)
         }
         return builder
     }
 
     /** Adds one line's presentation color spans (never changes the text). */
-    private fun applyLineColors(builder: SpannableStringBuilder, start: Int, line: String) {
+    private fun applyLineColors(
+        builder: SpannableStringBuilder,
+        start: Int,
+        line: String,
+        previousLineWasActiveSubtask: Boolean,
+    ) {
         when {
+            // The ladder block's SUBTASK lines (before the terminal check — both share
+            // the `▶ ` lead; only subtask lines carry the `[`-state mark).
+            LadderBlock.isSubtaskLine(line) -> {
+                if (line.startsWith(LadderBlock.ACTIVE_MARK)) {
+                    // The ACTIVE subtask: brightened so it reads at corner size. Its
+                    // wrapped continuation row (the formatter's indent-aligned second
+                    // row) inherits the brightness via [previousLineWasActiveSubtask].
+                    builder.setSpan(
+                        ForegroundColorSpan(COLOR_ACTIVE_LINE),
+                        start,
+                        start + line.length,
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+                    )
+                } else {
+                    // Idle: only the STATE MARK is colored — green when verified done,
+                    // dim while pending; the name stays body text (the design vision:
+                    // amber = active, green = done, dim = pending).
+                    val done = line.startsWith(LadderBlock.IDLE_MARK + LadderBlock.DONE_MARK)
+                    builder.setSpan(
+                        ForegroundColorSpan(if (done) COLOR_SUCCESS else COLOR_CONTROL_TEXT),
+                        start + LadderBlock.MARK_START,
+                        start + LadderBlock.MARK_START + LadderBlock.MARK_LENGTH,
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+                    )
+                }
+            }
+            // An active name's wrapped second row (rail-indented): stays bright.
+            previousLineWasActiveSubtask -> builder.setSpan(
+                ForegroundColorSpan(COLOR_ACTIVE_LINE),
+                start,
+                start + line.length,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+            )
             line.startsWith(TERMINAL_PREFIX) -> {
                 val color = when {
                     line.contains("GOAL_ACHIEVED") -> COLOR_SUCCESS
@@ -484,15 +525,6 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
             line.startsWith(LadderBlock.GOAL_PREFIX) || line.startsWith(LadderBlock.REPLAN_PREFIX) -> {
                 builder.setSpan(
                     ForegroundColorSpan(COLOR_ACCENT),
-                    start,
-                    start + line.length,
-                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
-                )
-            }
-            line.startsWith(LadderBlock.ACTIVE_MARK) -> {
-                // The ACTIVE subtask line: brightened so it reads at corner size.
-                builder.setSpan(
-                    ForegroundColorSpan(COLOR_ACTIVE_LINE),
                     start,
                     start + line.length,
                     Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,

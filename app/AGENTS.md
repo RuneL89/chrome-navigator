@@ -134,13 +134,23 @@ setup wizard (`setup/`).
     **timeout = STOP** fail-safe, re-plans-remaining disclosed) +
     `OverlayEscalationCardPresenter` (the same loud missing-overlay law)),
     `LadderBlock.kt` (Phase 10, PURE JVM — the corner log's ladder block formatter,
-    owner directive 2026-10-09: `GOAL: <the LLM's one-sentence rewrite>` +
-    `Sub Task N [x]/[ ]` lines, the ACTIVE subtask marked `▶ `, the re-plan generation
-    line ("re-plan 2") under the GOAL line, summary flattened + capped for corner
-    readability; Gate 10.2 pins it incl. pointer-advance + re-plan regeneration; the
+    owner directive 2026-10-09; **subtask-NAME lines per the owner design interview
+    2026-10-11** — warm brand-forward, dark-first compact, typography-flex): `GOAL: <the
+    LLM's one-sentence rewrite>` + `re-plan 2` + one line per subtask on a stable 2-char
+    lead + 3-char state-mark rail (`▶ [ ]  <name>` active / `  [x]  <name>` done /
+    `  [ ]  <name>` pending; the subtask's OWN instruction as the name, flattened and
+    capped at `MAX_SUBTASK_CHARS`=40, word-wrapped by the FORMATTER at
+    `NAME_LINE_CHARS`=26 into at most two rows with the continuation indent-aligned
+    under the rail (`NAME_INDENT` — a plain TextView wrap at the margin breaks the
+    marker column, measured on the emulator), a blank name lawfully degrades to the
+    numbered label; `isSubtaskLine` keys the presentation parse and never matches the
+    terminal task-state line (shared `▶ ` lead, no `[` mark); Gate 10.2 pins it incl.
+    pointer-advance + re-plan regeneration + the wrap; the
     block is a PINNED HEADER in `LiveLogOverlay` — rendered above the streaming step
     lines in EVERY collapsed/expanded state (the latest-N slice law applies to the step
-    lines only), with color spans only (the text is the formatter's law)),
+    lines only), with color spans only (the text is the formatter's law): the active
+    line bright (+ its wrapped continuation row), idle state marks green-done /
+    dim-pending, the GOAL + re-plan lines amber),
     `NavigatorService` (§2.3 — the product foreground service, `specialUse` type,
     START_STICKY, the `navigator` channel's persistent ready/working notification,
     tap → SetupActivity + a "New task" action; hosts product runs: the SAME recorded

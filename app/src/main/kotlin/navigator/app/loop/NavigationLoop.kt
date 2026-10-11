@@ -833,6 +833,7 @@ class NavigationLoop(
             return navigator.app.overlay.LadderBlock.render(
                 navigator.app.overlay.LadderBlock.State(
                     summary = l.summary,
+                    instructions = l.subtasks.map { it.instruction },
                     doneFlags = List(l.subtasks.size) { index -> index < p.completedCount },
                     activeIndex = p.index,
                     generation = ladderGeneration,
