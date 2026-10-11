@@ -1,7 +1,7 @@
 # State Observation
 
 **Document ID:** `NAVIGATOR-VISION-003`
-**Version:** 2.3.0 *(amended 2026-10-10: cascade state views v4 — the INTENT STATE VIEW and TARGET STATE VIEW join the dual-view law as per-stage derivations feeding the doc-02 §3 cascade; the taxonomy's role becomes stage-2 slate grouping with browser-chrome excluded from target slates; STATE_FORMAT_VERSION = 4; owner-ratified)*
+**Version:** 2.4.0 *(amended 2026-10-11 (Phase 10C): §2/§3 — editable fields are detected by ROLE (editable/searchbox) regardless of accessible label, with the placeholder/container supplying the description when unlabeled; text-less controls (icon buttons, consent-wall buttons) are described by role + container relation; browser-chrome exclusion widens to ALL Chrome UI. Amended 2026-10-10: cascade state views v4 — the INTENT STATE VIEW and TARGET STATE VIEW join the dual-view law as per-stage derivations feeding the doc-02 §3 cascade; the taxonomy's role becomes stage-2 slate grouping with browser-chrome excluded from target slates; STATE_FORMAT_VERSION = 4; owner-ratified)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-06, 2026-10-09)
 **Date:** 2026-10-03
 **Implements:** ART-4 (page text is untrusted), ART-6 (deterministic candidate order),
@@ -54,7 +54,7 @@ Every interactive candidate is bucketed by code before any engine is called:
 | Bucket | Contents |
 |---|---|
 | `nav-links` | links believed to navigate (anchors, headings-with-links) |
-| `form-fields` | editable fields (high-stakes fields are enumerated like any other — gating happens at execution time per doc 06, never by hiding candidates) |
+| `form-fields` | editable fields — **detected by ROLE (editable / searchbox / EditText) regardless of accessible label (v2.4.0)**, with the placeholder or container supplying the description when the field is unlabeled (the observed failure: unlabeled in-page search boxes were invisible to the slate — Wikipedia desktop, Allrecipes); high-stakes fields are enumerated like any other — gating happens at execution time per doc 06, never by hiding candidates |
 | `buttons` | clickable non-link controls |
 | `scroll` | scroll actions (down/up on scrollable containers) |
 | `back` | system back |
@@ -68,11 +68,17 @@ Rules:
   (position on screen top-to-bottom, then DOM/a11y order; stable tiebreak by node id) and
   truncation — never by model suggestion.
 - **Deterministic order** (ART-6): same tree in → same candidate list out, always.
-- **Cascade role (v2.3.0):** the taxonomy is the stage-2 slate grouping — each
-  target-bearing intent draws its score slate from ONE bucket (follow-link →
-  nav-links; activate-control/fill-field/dismiss-nag → buttons/form-fields). Browser-
-  chrome candidates (the omnibox/URL-bar subtree — browser UI, never page content)
-  are EXCLUDED from target slates: URL needs are the `open-site` intent's code path.
+- **Cascade role (v2.3.0; browser-chrome widened v2.4.0):** the taxonomy is the stage-2
+  slate grouping — each target-bearing intent draws its score slate from ONE bucket
+  (follow-link → nav-links; activate-control/fill-field/dismiss-nag → buttons/form-fields).
+  **Browser chrome = ALL Chrome-owned UI (v2.4.0): the omnibox/URL-bar subtree, the toolbar
+  and tab strip, and Chrome menus** (widened from the URL-field-only rule after an observed
+  mis-tap on Chrome's "New tab" destroyed a task) — never page content; browser-chrome
+  candidates are EXCLUDED from target slates: URL needs are the `open-site` intent's code
+  path. **Text-less controls (v2.4.0):** icon buttons and consent-wall buttons with no
+  accessible label are still enumerated and described by role + container relation
+  (e.g. "button inside the dialog 'We Care About Your Privacy'") so a slate can select
+  them — an unlabeled control is never dropped for lacking a label.
   The `finish` bucket is retired from offered slates (doc 02 §3) and remains in the
   taxonomy for schema compatibility only.
 - The taxonomy is also the shadow's training vocabulary: it changes only via eval-harness-

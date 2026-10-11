@@ -1,7 +1,7 @@
 # Decision Engine & Protocol
 
 **Document ID:** `NAVIGATOR-VISION-002`
-**Version:** 1.3.1 *(amended 2026-10-11: §2 wire rule — the noul question rides the wire `instructions` field; the Phase-3 `proposition` field is retired after live proof that the model ignores it (the exit-hedging root cause). Amended 2026-10-10: the decision cascade — §3 gains the stage-1 fixed-intent vocabulary + stage-2 batched score-per-candidate law and per-question instructions (reversing the Phase-3 shared-instructions decision, owner-ratified after the UAT root-cause analysis); §4 the shadow mirrors both cascade stages)*
+**Version:** 1.4.0 *(amended 2026-10-11 (Phase 10C): §2 gains the stage-1 intent-banding rule (route on the chosen option's probability + a top-vs-second margin, not the self-reported confidence); §3's stage-2 rubric is framed per intent and a no-good-target now triggers a bounded stage-1 re-ask; the browser-chrome exclusion covers ALL Chrome UI (URL field, toolbar, tab strip, menus), not only the URL field. Amended 2026-10-11: §2 wire rule — the noul question rides the wire `instructions` field; the Phase-3 `proposition` field is retired after live proof that the model ignores it (the exit-hedging root cause). Amended 2026-10-10: the decision cascade — §3 gains the stage-1 fixed-intent vocabulary + stage-2 batched score-per-candidate law and per-question instructions (reversing the Phase-3 shared-instructions decision, owner-ratified after the UAT root-cause analysis); §4 the shadow mirrors both cascade stages)*
 **Status:** Ratified (2026-10-03; amendment ratified 2026-10-04)
 **Date:** 2026-10-03
 **Implements:** ART-2 (one decision gateway), ART-11 (offline endgame)
@@ -48,6 +48,12 @@ Wire-client rules (from documented provider caveats — these are law):
 - Probabilities vary between calls: branch on **bands** — low `< 0.30`, uncertain
   `[0.30, 0.70]`, high `> 0.70` — never on exact values.
 - `noul` has no separate confidence field; values in the uncertain band mean "don't know".
+- **Stage-1 intent banding (v1.4.0, Phase 10C):** the cascade's HIGH/UNCERTAIN/LOW routing
+  for the fixed 9-intent choice is computed from the chosen option's **probability** plus a
+  top-vs-second margin (code constants, ART-5, calibrated with live evidence) — never from
+  the model's optional self-reported `confidence` alone (the observed trap: chosen p 0.62–0.70
+  with confidence 0.38–0.66 routed UNCERTAIN, so the correct intent never executed). The
+  handshake thresholds follow the same band.
 - **The noul question rides the wire `instructions` field** (v1.3.0, corrected
   2026-10-11 after live proof): `{"type":"noul","instructions":"<the anchored
   proposition>"}` — the SDK-documented shape. The Phase-3 `proposition` wire field is
@@ -79,12 +85,17 @@ typed questions:
   produce hedged, low-confidence answers).
 - **Stage 2 — target (only when the intent needs one: follow-link, activate-control,
   fill-field, dismiss-nag).** ONE wire request carrying N `score` questions (one per
-  candidate of the intent's bucket slate; browser-chrome candidates excluded — URL
-  needs are the `open-site` intent's code path), all over the same 5-level relevance
-  rubric ("does not advance the active subtask … advances it decisively"); `:core`
-  computes each candidate's expected level and takes the argmax. A flat distribution
-  (spread below a code threshold) is the no-good-target signal — evidence for the
-  handshake/fallback, never an action.
+  candidate of the intent's bucket slate; **ALL Chrome UI excluded as browser chrome
+  (v1.4.0) — the URL field, toolbar, tab strip and menus** (widened from the URL-field-only
+  rule after a mis-tap on Chrome's "New tab" destroyed an observed task); URL needs are the
+  `open-site` intent's code path), all over the same 5-level relevance rubric, **framed PER
+  INTENT in the question's `instructions`** (v1.4.0 — e.g. for `fill-field`: "is this the
+  field the active subtask's goal needs filled?"): enablement targets must be able to score
+  at or above the floor (the observed failure mode: the correct search box scoring
+  1.56–2.09 against a floor of 3.0); `:core` computes each candidate's expected level and
+  takes the argmax. A flat distribution (spread below a code threshold) **or an empty /
+  unusable slate** is the no-good-target signal — which (v1.4.0) triggers **ONE bounded
+  stage-1 re-ask with that fact attached** (per page-hash), never a silent subtask failure.
 - **Uncertainty handshake.** Stage-1 UNCERTAIN → ONE bounded writer assist
   re-describes the page relative to the active subtask → ONE re-ask of stage-1 with
   the assist text riding the state as labeled untrusted context; still UNCERTAIN →

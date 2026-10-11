@@ -3,7 +3,7 @@
 # Decision Log & RLCD Corpus
 
 **Document ID:** `NAVIGATOR-VISION-005`
-**Version:** 1.6.0 *(amended 2026-10-10: cascade rows — additive `targetScores` + `targetAgreement`; the choose case's questions become the intent form and a `score` case kind joins the export; the manifest gains the choose-question-schema version and the accumulation counter restarts on it)*
+**Version:** 1.7.0 *(amended 2026-10-11 (Phase 10C): §2 row additions `landingHost`, `assistText` and the per-task `terminalReason` row; `targetScores`/`targetStateText` MUST be persisted by the app store (the observed drop-gap); the live log resets per run. Amended 2026-10-10: cascade rows — additive `targetScores` + `targetAgreement`; the choose case's questions become the intent form and a `score` case kind joins the export; the manifest gains the choose-question-schema version and the accumulation counter restarts on it)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-04, 2026-10-06)
 **Date:** 2026-10-03
 **Implements:** ART-3 (everything logs), ART-8 (privacy boundary)
@@ -41,8 +41,11 @@ It exists from v1 day one in its final shape — retrofitting is explicitly reje
 | `outcome` | post-step label from observation diff: `progressed / no-change / error / exited` |
 | `compressedBy` | `code \| llm \| null` (doc 03 §4) |
 | `shadowSampled` | bool — whether this step ran the shadow (every-step vs every-3rd) |
-| `targetScores` | `null`, or the executed stage-2 slate's per-candidate expected levels (additive, v1.6.0 — cascade stage-2 evidence; present on target-bearing steps) |
+| `targetScores` | `null`, or the executed stage-2 slate's per-candidate expected levels (additive, v1.6.0 — cascade stage-2 evidence; present on target-bearing steps). **v1.7.0: MUST be persisted by the app's store** (the observed gap: `:core` carried it while the Room entity had no column, so on-device rows silently dropped the stage-2 evidence) — likewise `targetStateText` |
 | `targetAgreement` | `null`, or bool — teacher stage-2 target == shadow stage-2 target (additive, v1.6.0; excluded from the §3 headline agreement, which stays top-1 on stage-1 intent ids) |
+| `landingHost` | `null`, or the host actually reached by a code navigation this step (v1.7.0, doc 04 §1 landing-host reconciliation — recorded whenever an `open-site`/site-entry navigation completes; a urlHost condition amended to it carries the amendment in the step log) |
+| `assistText` | `null`, or the writer handshake's assist text for this step (v1.7.0 — the assist rode the re-ask as labeled untrusted context; recorded for auditability, redaction keys applied) |
+| `terminalReason` | one `terminal` row per task (v1.7.0): `{state: GOAL_ACHIEVED \| BUDGET_EXHAUSTED \| STUCK_KILL \| CANCELLED \| REFUSED \| LADDER_REFUSED, detail}` — the loop's terminal verdict is stored, not only rendered (the observed gap: terminals were readable only from the overlay, and the live log did not reset per run) |
 
 Storage: Room (`:app`), one row per decision, exported as JSONL. Local-only (ART-8).
 

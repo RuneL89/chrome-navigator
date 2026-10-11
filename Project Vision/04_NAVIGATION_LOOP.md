@@ -1,7 +1,7 @@
 # Navigation Loop
 
 **Document ID:** `NAVIGATOR-VISION-004`
-**Version:** 1.6.0 *(amended 2026-10-10: the decision cascade — §2's DECIDE step becomes the two-stage cascade (stage-1 intent, stage-2 score-per-candidate target) with the bounded uncertainty handshake; typed text is writer-phrased on fill-field; §3's finish CHOICE retires in favor of the verify-done intent while Path B's sustained streak re-keys to the active done-condition and gains a bounded held-hash re-check. Owner-ratified after the Phase-10 UAT root-cause analysis (flat hollow-criteria lists → hedged engines → dead tasks).)*
+**Version:** 1.7.0 *(amended 2026-10-11: goal-condition honesty — ladder-build validation rejects any IS-DONE condition already true where its subtask starts; the whitelist gains the `answerExtracted` report shape; every code navigation records its landing host and urlHost conditions reconcile to it; stage-1 banding routes on the chosen option's probability + a top-vs-second margin; a stage-2 no-good-target triggers a bounded stage-1 re-ask instead of a subtask failure; Path A requires a STRONG guard. Owner-ratified Phase-10C scope after the 9-run on-device battery. Amended 2026-10-10: the decision cascade — §2's DECIDE step becomes the two-stage cascade (stage-1 intent, stage-2 score-per-candidate target) with the bounded uncertainty handshake; typed text is writer-phrased on fill-field; §3's finish CHOICE retires in favor of the verify-done intent while Path B's sustained streak re-keys to the active done-condition and gains a bounded held-hash re-check. Owner-ratified after the Phase-10 UAT root-cause analysis (flat hollow-criteria lists → hedged engines → dead tasks).)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-06, 2026-10-07, 2026-10-09)
 **Date:** 2026-10-03
 **Implements:** ART-4 (no self-report completion), ART-5 (numbers in code), ART-9 (bounded
@@ -61,6 +61,26 @@ it is doing), and the restructure prompt/output carry adversarial eval rows (hos
 goal texts must produce schema-valid ladders only — never directives that suppress
 gates or weaken done-checks; doc 07).
 
+**Condition honesty (v1.7.0, 2026-10-11 — owner-ratified after the on-device battery):** a
+subtask's IS-DONE condition must be FALSE on the observation where the subtask starts.
+Ladder-build validation evaluates each condition against the CURRENT page; a condition
+already true at entry (a presence/word test satisfied by the very control the subtask must
+act on — the observed failure mode: "a News link is present", "the text 'Dinner' appears")
+is rejected: ONE bounded writer repair, then a code-derived condition (the outcome's
+URL/title identity) or a loud ladder refusal — never a silently self-satisfying ladder.
+Report subtasks ("tell me X") gain the whitelist's **`answerExtracted`** shape: such a
+subtask completes when its source condition holds AND the extraction ran (metered into the
+writer budget; the answer surfaces in the live log and the task's result row). Extraction
+is therefore a completable ladder leg, not only a post-exit action.
+
+**Landing-host reconciliation (v1.7.0):** every code navigation (site entry / `open-site`)
+records the URL actually reached. A urlHost condition whose host does not match the landing
+URL is amended to the landing host (a logged amendment; the Path-B streak re-keys to the
+amended condition) — or matched within the registrable-domain family (www/apex/subdomain)
+when the difference is a benign alias; a site-initiated redirect across ccTLD/apex families
+(the observed bbc.co.uk→bbc.com case) amends. An unsatisfiable URL condition can no longer
+deadlock a subtask.
+
 **Task working memory (code)** — for multi-target ladders, a code-owned tracker
 enumerates target rows from the page, records processed/pending, counts completed
 against count-shaped done-conditions, and survives scrolls and navigation; the guard
@@ -74,7 +94,13 @@ against count-shaped done-conditions, and survives scrolls and navigation; the g
 3. **DECIDE — the cascade (v1.6.0, doc 02 §3)** — `ShadowRouter`: stage-1 intent
    choice over the 9 fixed categories on the INTENT STATE VIEW; when the intent needs
    a target, stage-2 batched score-per-candidate over its bucket slate (code takes
-   the argmax; a flat spread = no-good-target). **Uncertainty handshake:** stage-1
+   the argmax; a flat spread = no-good-target). **No-good-target re-ask (v1.7.0):** a
+   no-good-target — a flat spread OR an empty/unusable slate for the chosen intent —
+   triggers ONE bounded stage-1 re-ask with that fact attached (per page-hash), never a
+   subtask failure; the re-ask's answer executes under the same gates. **Banding
+   (v1.7.0):** stage-1 routes on the chosen option's PROBABILITY plus a top-vs-second
+   margin (code constants, calibrated with live evidence) — not the model's self-reported
+   confidence; the handshake thresholds follow the same band. **Uncertainty handshake:** stage-1
    UNCERTAIN → ONE writer assist (re-describe the page relative to the active
    subtask — facts, no directives) → ONE re-ask with the assist riding the state as
    labeled untrusted context; still UNCERTAIN → code fallback (recovery / re-plan /
@@ -139,7 +165,10 @@ the code-triggered check — the `finish` pseudo-action choice is retired from s
 the engine can never complete alone — ART-4; code evidence lowers the bar, never
 replaces it):
 
-- **Path A (classic):** anchored noul > 0.70 (HIGH) with any guard level.
+- **Path A (classic):** anchored noul > 0.70 (HIGH) with **`guard=STRONG`** (v1.7.0: a
+  WEAK code-side match may never accept on its own — it routes to Path B's sustained
+  evidence or Path C's owner card; the on-device battery showed weak guards accepting
+  already-true conditions).
 - **Path B (sustained evidence):** STRONG guard + noul ≥ 0.55 sustained over **K=3
   consecutive** finish checks → accept, logged `exitPath=SUSTAINED`.
   **Streak re-keying (v1.6.0):** the sustained streak is keyed to the ACTIVE
