@@ -1,0 +1,51 @@
+{
+  "phase": "10C",
+  "title": "Acting correctly — honest conditions, reachable targets, report goals",
+  "spec": "Implementation Plan/PHASE_10C_acting_correctly.md (v1.0.0, owner-ratified 2026-10-11)",
+  "state": "IN PROGRESS — gate 10C.1 (condition validator + wire/form changes, JVM)",
+  "gate_10C1": {
+    "state": "implementation LANDED on the branch; the test-corpus sweep is IN PROGRESS (48 failures remain)",
+    "landed": [
+      "core: DoneCondition.UrlContains (urlContains) — the URL-identity whitelist shape for a different page on the SAME host; LadderValidator rule; private render",
+      "core: DoneConditionChecker — satisfied (normalizeUrl both sides, contains), guardStrength = STRONG for urlContains, render; normalizeUrl is public (the gate needs it)",
+      "core: DoneConditionChecker.normalizeUrl — scheme/userinfo/port/www./trailing-slash normalized, path preserved",
+      "app: AnchoredNoul.atomicProposition for urlContains (\"The page's address contains '<segment>'.\")",
+      "app: LadderSchema — urlContains accepted; parseDoneConditionText() (the repair answer surface)",
+      "app: Prompts — RESTRUCTURE_SYSTEM gains urlContains + the condition-honesty rule; PROMPT_VERSION -> restructure-v2; CONDITION_REPAIR_SYSTEM + CONDITION_REPAIR_PROMPT_VERSION=condition-repair-v1 + conditionRepairUser",
+      "app: GenClient.repairCondition + ConditionRepairResult; GenLadderSource.repairCondition; LadderSource.repairCondition + RepairedCondition (None default = no repair)",
+      "app: SiteEntry.resolveFromText (shape-independent URL resolution; plan() refactored onto it)",
+      "app: ConditionHonesty (pure: proxySatisfied = satisfied + WEAK; namesDifferentPage)",
+      "app: NavigationLoop — the honesty gate wired at the top of the step loop (memo per (active ordinal, page-hash)): WEAK condition already satisfied AND a DIFFERENT page named -> ONE bounded writer repair (budget-metered) -> code-derived urlContains -> loud LADDER_REFUSED; applyCondition replaces the active condition preserving pointer progress; Path A now requires GuardLevel.STRONG (ExitPolicy)",
+      "fixtures: golden-restructure-v2.json (retire-and-add; v1 kept, v2 notes the retirement); GenClientTest points at v2"
+    ],
+    "fallout": {
+      "suite": "523 tests / 48 failures",
+      "log": ".state/10c-app-tests-3.log",
+      "detail": ".state/10c1-fallout.txt",
+      "signatures": {
+        "stub-script-exhausted": 33,
+        "assertion-mismatch": 4,
+        "other": 11
+      },
+      "root_cause": "the corpus was built on the pre-10C exit law: scripted runs ended with a WEAK-guard HIGH acceptance (Path A), and with Path A tightened those claims are refused, so the loops run past their scripted answers.",
+      "sweep_recipe": "per scenario: (a) give the fixture STRONG exit evidence (urlHost/urlContains matching the fixture URL) where the test intends completion; or (b) script the new law (the WEAK HIGH claim is refused; after K=3 guard-pass refusals the completion card asks the owner; the fixture presenter confirms -> OWNER_CONFIRM). Most of the 33 stub-exhaustion cases are (b) with 2 extra scripted noul answers + a confirming completion-card presenter."
+    },
+    "remaining_for_10C1": [
+      "the 48-test sweep (recipe above)",
+      "new tests: UrlContains (checker + validator + schema), Path-A-STRONG matrix (already partly in ExitPolicyTest), the honesty gate (suspect+different page -> repair / derive / refuse; legit urlHost-already-true untouched)",
+      "full-suite green on the branch",
+      "DOX pass (core/AGENTS.md + app/AGENTS.md)"
+    ]
+  },
+  "design_finding_recorded_this_round": "The done-condition whitelist (URL HOST / marker text / element presence / count) CANNOT express 'a different page on the SAME host'. Example (test 5): 'the DINNER category page is showing' on allrecipes.com has NO expressible condition that distinguishes the homepage from the category page — urlHost matches both; markerText 'Dinner' matches the homepage's own nav link. This is the deep cause of D1 (writers reach for weak proxies because the vocabulary lacks URL identity beyond the host) and part of D3. The ratified §4 text ('the outcome's URL/title identity') covers the fix: 10C.1 adds a URL-IDENTITY condition shape (a URL path/segment predicate, e.g. UrlContains) to the whitelist + schema + checker + render + writer prompt + Tier A fixtures (retire-and-add).",
+  "validator_design_decisions_for_10C1_next_round": [
+    "Shared evaluation: the validator calls the EXISTING DoneConditionChecker.satisfied(condition, evidence) — one source of truth, no duplicate guard logic.",
+    "Validation points: ladder build (after the writer returns) AND every subtask entry (pointer advance + after every re-plan), against the current observation's evidence.",
+    "Already-true policy: a URL-identity condition (UrlHost/UrlContains) already true at entry is LEGITIMATE — the code-triggered check verifies and advances immediately (the observed subtask-1-on-the-right-site behaviour must not regress). A WEAK-shaped condition (markerText/elementPresent/count) already true at entry is proxy-suspect: ONE bounded writer repair (bumped prompt version, metered into WriterBudget) → else a code-derived URL/title identity where derivable → else refuse the ladder through the existing loud LADDER_REFUSED path.",
+    "Never a silent self-satisfying ladder; ART-4/ART-5 intact."
+  ],
+  "deviations": [
+    "Subagent quota exhausted (canon-implementer returned 'Weekly/Monthly Limit Exhausted … resets 2026-10-17') — the orchestrator performs the implementer role for 10C, per the owner's earlier standing authorization (recorded again in .state/compliance-log.md)."
+  ],
+  "branch": "phase-10c (owner-directed: all 10C work on a branch for easy revert)"
+}

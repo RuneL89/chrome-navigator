@@ -1144,3 +1144,11 @@ a new dated entry. Format per `Implementation Plan/MASTER_IMPLEMENTATION_PROMPT.
   Vision Docs Checked: the ratified amendments are APPLIED to docs 02/03/04/05/07 as the first act of the spec layer (per the phase doc §4 list), each with a dated version bump.
   Result: RATIFIED — spec layer proceeds (amendments now; then canon loop from gate 10C.1).
   Checked By: orchestrator (owner decisions captured in this entry)
+
+[2026-10-11] Phase 10C gate 10C.1 — start, recon, and a deliberate revert
+  Changed: app/.../loop/ExitPolicy.kt (Path A strictly requires STRONG) + ExitPolicyTest.kt (law-faithful rewrite) — both written, measured, then REVERTED via git checkout to keep the tree green (project rule: a non-green suite is a failed round). Net code change this round: none.
+  Why: the app unit suite with the change = 524 tests / 46 failures across 12 loop-test classes — every failure the same signature ("stub script exhausted for question 'intent'"): the scripted scenarios terminated via a WEAK-guard Path A acceptance, and the tightened law makes that claim refuse, so the loops run past their scripts. Evidence: .state/10c1-app-tests.log + app/build/test-results/testDebugUnitTest/*.xml. The old permissiveness was load-bearing across the whole JVM corpus — the law change must land TOGETHER with the corpus rewrite (STRONG-eligible fixtures where the tests intend completion; owner-path scripts where they intend weakness) plus the condition validator and the new URL-identity condition shape.
+  Design finding (recorded in .state/phase-10C-status.json): the done-condition whitelist cannot express "a different page on the SAME host" — the deep cause of D1/D3 (writers reach for weak proxies because URL identity stops at the host). The ratified §4 text ("the outcome's URL/title identity") covers the fix: 10C.1 adds a URL-path/segment identity shape.
+  Deviation: canon-implementer subagent quota exhausted until 2026-10-17 ("Weekly/Monthly Limit Exhausted") — orchestrator acts as implementer for Phase 10C under the owner's standing authorization (as in the 10B rounds; recorded again here).
+  Result: 10C.1 IN PROGRESS — recon complete, status file written, tree green.
+  Checked By: orchestrator (self-check; verifier cold-check pending the quota window)
