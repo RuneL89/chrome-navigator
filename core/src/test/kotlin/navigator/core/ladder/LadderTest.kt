@@ -197,10 +197,18 @@ class LadderTest {
     }
 
     @Test
-    fun `guard strength - urlHost is STRONG identity, other shapes WEAK`() {
+    fun `guard strength - URL identities and the code-owned count are STRONG, content proxies are WEAK`() {
+        // v1.7.0 (Phase 10C, doc 04 §3): STRONG = evidence that is NOT a page-content
+        // proxy — URL identity (urlHost / urlContains) and the code-owned working-memory
+        // count; WEAK = the content-reading shapes (markerText / elementPresent) that the
+        // on-device battery showed silently accepting already-true conditions.
         assertEquals(
             DoneConditionChecker.GuardStrength.STRONG,
             DoneConditionChecker.guardStrength(DoneCondition.UrlHost("example.com")),
+        )
+        assertEquals(
+            DoneConditionChecker.GuardStrength.STRONG,
+            DoneConditionChecker.guardStrength(DoneCondition.UrlContains("example.com/pricing")),
         )
         assertEquals(
             DoneConditionChecker.GuardStrength.WEAK,
@@ -211,7 +219,7 @@ class LadderTest {
             DoneConditionChecker.guardStrength(DoneCondition.ElementPresent("x")),
         )
         assertEquals(
-            DoneConditionChecker.GuardStrength.WEAK,
+            DoneConditionChecker.GuardStrength.STRONG,
             DoneConditionChecker.guardStrength(DoneCondition.CountReached("t", 3)),
         )
     }

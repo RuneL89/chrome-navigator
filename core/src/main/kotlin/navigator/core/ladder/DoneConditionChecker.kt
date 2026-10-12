@@ -71,14 +71,18 @@ object DoneConditionChecker {
 
     /**
      * The guard level a satisfied condition earns (the exit law's code-evidence half,
-     * vision 04 §3): `urlHost` and `urlContains` are PAGE IDENTITY — the strongest
-     * deterministic evidence — so they earn STRONG; the other shapes earn WEAK. An
-     * unsatisfied condition is NONE (the caller maps it; the checker only speaks for
-     * satisfied conditions).
+     * vision 04 §3 v1.7.0): STRONG for the evidence that is NOT a page-content proxy —
+     * `urlHost`/`urlContains` are PAGE IDENTITY (URL identity), and `count` reads the
+     * CODE-OWNED working memory (the target tracker's processed count — deterministic
+     * code state, never a page mention). WEAK for the content-reading shapes
+     * (`markerText`/`elementPresent`): the on-device battery showed these silently
+     * accepting conditions already true where the subtask started. An unsatisfied
+     * condition is NONE (the caller maps it; the checker only speaks for satisfied ones).
      */
     fun guardStrength(condition: DoneCondition): GuardStrength = when (condition) {
         is DoneCondition.UrlHost -> GuardStrength.STRONG
         is DoneCondition.UrlContains -> GuardStrength.STRONG
+        is DoneCondition.CountReached -> GuardStrength.STRONG
         else -> GuardStrength.WEAK
     }
 

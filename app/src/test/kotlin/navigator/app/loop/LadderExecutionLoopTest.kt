@@ -181,6 +181,20 @@ class LadderExecutionLoopTest {
         N("One more readable line so the tree clears the usable floor.", clickable = false),
     )
 
+    /**
+     * The Phase-10C identity page: its URL CARRIES the subtask's identity, so the ladder's
+     * done-condition can be a `urlContains` — URL identity, guard STRONG (doc 04 §3 v1.7.0:
+     * a WEAK-shaped condition can no longer accept on a ladder run).
+     */
+    private val identityPage = obs(
+        "http://m0.test/world-war-2",
+        N("World War II article body", clickable = false),
+        N("A second body paragraph carrying more prose.", clickable = false),
+        N("Open the article", clickable = true),
+        N("A page footer note that is just prose.", clickable = false),
+        N("One more readable line so the tree clears the usable floor.", clickable = false),
+    )
+
     private fun ladder2(vararg subtasks: Subtask) = Ladder("Two subtask ladder.", subtasks.toList())
 
     private fun runLadder(
@@ -221,8 +235,9 @@ class LadderExecutionLoopTest {
     fun `gate 10_2 r1 - the pointer advances on engine-HIGH AND code-guard - a satisfied guard alone never advances`() {
         val source = ScriptedLadderSource(
             1 to ladder2(
-                Subtask("the article is displayed", DoneCondition.MarkerText("World War II")),
-                Subtask("the second section is displayed", DoneCondition.MarkerText("Second Marker")),
+                // Phase 10C: URL identities (STRONG) — the arrived pages' distinct paths.
+                Subtask("the article is displayed", DoneCondition.UrlContains("m0.test/page")),
+                Subtask("the second section is displayed", DoneCondition.UrlContains("m0.test/second")),
             ),
         )
         // step 0: the marker is NOT on the page (guard NONE -> no code check) -> DECIDE tap.
@@ -233,7 +248,7 @@ class LadderExecutionLoopTest {
         // step 2: "Second Marker" page (new hash, new ordinal) -> the code check fires ->
         //   noul 0.9 -> the FINAL subtask's IS-DONE = GOAL_ACHIEVED.
         val page0 = obs(
-            "http://m0.test/page",
+            "http://m0.test/start", // Phase 10C: NOT the identity page — guard NONE at step 0
             N("Intro prose without the marker.", clickable = false),
             N("A second body paragraph carrying more prose.", clickable = false),
             N("Open the article", clickable = true),
@@ -241,7 +256,7 @@ class LadderExecutionLoopTest {
             N("One more readable line so the tree clears the usable floor.", clickable = false),
         )
         val page2 = obs(
-            "http://m0.test/page",
+            "http://m0.test/second", // Phase 10C: the second page's own identity
             N("Second Marker section body", clickable = false),
             N("A second body paragraph carrying more prose.", clickable = false),
             N("Open the article", clickable = true),
@@ -498,11 +513,17 @@ class LadderExecutionLoopTest {
         val source = ScriptedLadderSource(
             1 to Ladder(
                 "Read the world war 2 page.",
-                listOf(Subtask("the article is displayed", DoneCondition.MarkerText("World War II"))),
+                listOf(
+                    Subtask(
+                        "the article is displayed",
+                        // Phase 10C: URL identity (STRONG) — the arrived page's path.
+                        DoneCondition.UrlContains("m0.test/world-war-2"),
+                    ),
+                ),
             ),
         )
         val engine = ScriptedEngine(noulValues = listOf(0.9)) // only the judge is consulted
-        val (result, sink) = runLadder(engine, source)
+        val (result, sink) = runLadder(engine, source, observations = listOf(identityPage))
         assertEquals(TerminalState.GOAL_ACHIEVED, result.terminal)
         // ART-2/ART-4: the engine was asked to JUDGE the anchored subtask question (the
         // advance still requires engine noul HIGH) but was never asked to CHOOSE - the
@@ -514,13 +535,13 @@ class LadderExecutionLoopTest {
         // Full exit provenance: the report's exit block + the accepted ExitCheckRow.
         val exit = assertNotNull(result.exit)
         assertEquals("HIGH", exit.path)
-        assertEquals("WEAK", exit.guardLevel)
+        assertEquals("STRONG", exit.guardLevel)
         assertEquals(0.9, exit.noul)
         assertEquals(1, sink.exitChecks.size, "exactly one ExitCheckRow for the one check")
         val row = sink.exitChecks.single()
         assertEquals(navigator.core.log.ExitCheckVerdict.ACCEPTED, row.verdict)
         assertEquals(navigator.core.log.LoggedExitPath.HIGH, row.acceptedPath)
-        assertEquals(navigator.core.log.ExitCheckGuardLevel.WEAK, row.guardLevel)
+        assertEquals(navigator.core.log.ExitCheckGuardLevel.STRONG, row.guardLevel)
         assertEquals(3, row.anchoredNoulVersion, "the SAME anchored v3 question family (the atomic templates)")
         assertEquals(0, row.stepIndex, "the check consumed step 0 (its own row key)")
         assertTrue(result.stepLog.any { it.contains("code-triggered IS-DONE check") })
@@ -536,7 +557,12 @@ class LadderExecutionLoopTest {
         val source = ScriptedLadderSource(
             1 to Ladder(
                 "Read the world war 2 page.",
-                listOf(Subtask("the article is displayed", DoneCondition.MarkerText("World War II"))),
+                listOf(
+                    Subtask(
+                        "the article is displayed",
+                        DoneCondition.UrlContains("m0.test/world-war-2"),
+                    ),
+                ),
             ),
         )
         val events = mutableListOf<Pair<Boolean, Int>>() // (active, snapshot size)
@@ -552,7 +578,7 @@ class LadderExecutionLoopTest {
             override fun onTaskState(state: LoopUiListener.TaskStateUpdate) {}
         }
         val engine = ScriptedEngine(noulValues = listOf(0.9))
-        val (result, _) = runLadder(engine, source, uiListener = listener)
+        val (result, _) = runLadder(engine, source, observations = listOf(identityPage), uiListener = listener)
         assertEquals(TerminalState.GOAL_ACHIEVED, result.terminal)
         // Exactly one consult (the code check's judge); its pair strictly encloses it.
         assertEquals(listOf(true, false), events.map { it.first }, "one (true,false) pair")
@@ -714,7 +740,9 @@ class LadderExecutionLoopTest {
         val source = ScriptedLadderSource(
             1 to ladder2(
                 Subtask("the site is loaded", DoneCondition.UrlHost("m0.test")),
-                Subtask("the article is displayed", DoneCondition.MarkerText("World War II")),
+                // Phase 10C: URL identity (STRONG) — MarkerText would be WEAK and cannot
+                // accept on a ladder run (doc 04 §3 v1.7.0).
+                Subtask("the article is displayed", DoneCondition.UrlContains("m0.test/world-war-2")),
             ),
             costMicroUsd = 12_345L,
         )
@@ -723,7 +751,7 @@ class LadderExecutionLoopTest {
             noulValues = listOf(0.9, 0.9),
         )
         val extractor = ScriptedExtractor()
-        val (result, _) = runLadder(engine, source, extractor = extractor)
+        val (result, _) = runLadder(engine, source, extractor = extractor, observations = listOf(identityPage))
         assertEquals(TerminalState.GOAL_ACHIEVED, result.terminal)
         assertEquals(15_345L, result.writerSpendMicroUsd, "restructure 12_345 + extraction 3_000 - exact integers, one SEPARATE cap")
         assertEquals(0L, result.spendMicroUsd, "the decision spend is untouched by the writer")
@@ -755,14 +783,15 @@ class LadderExecutionLoopTest {
         val source = ScriptedLadderSource(
             1 to ladder2(
                 Subtask("wikipedia.org is loaded", DoneCondition.UrlHost("m0.test")),
-                Subtask("the article is displayed", DoneCondition.MarkerText("World War II")),
+                // Phase 10C: URL identity (STRONG) for the ladder-run accept.
+                Subtask("the article is displayed", DoneCondition.UrlContains("m0.test/world-war-2")),
             ),
         )
         val engine = ScriptedEngine(
             actionPicks = listOf("finish", "finish"),
             noulValues = listOf(0.9, 0.9),
         )
-        val (result, _) = runLadder(engine, source, launcher = launcher)
+        val (result, _) = runLadder(engine, source, launcher = launcher, observations = listOf(identityPage))
         assertEquals(TerminalState.GOAL_ACHIEVED, result.terminal)
         assertEquals(
             listOf("https://wikipedia.org"),
@@ -831,7 +860,9 @@ class LadderExecutionLoopTest {
             ),
             2 to Ladder(
                 "Re-planned ladder.",
-                listOf(Subtask("the welcome page is shown", DoneCondition.MarkerText("Welcome back"))),
+                // Phase 10C: URL identity (STRONG) on the page the run already stands on —
+                // the MarkerText form would be WEAK and refused on a ladder run.
+                listOf(Subtask("the welcome page is shown", DoneCondition.UrlContains("m0.test/page"))),
             ),
         )
         // Type -> four identical taps trip L1 (after 3) then L2 -> give-up = subtask
