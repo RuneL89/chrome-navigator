@@ -2,7 +2,7 @@
   "phase": "10C",
   "title": "Acting correctly — honest conditions, reachable targets, report goals",
   "spec": "Implementation Plan/PHASE_10C_acting_correctly.md (v1.0.0, owner-ratified 2026-10-11)",
-  "state": "ALL FIVE CODE GATES COMPLETE (10C.1-10C.5); 10C.6 emulator verification GREEN (gates 18/18) after the canon-verifier round-1 fixes; awaiting the verifier round-2 verdict; then the owner UAT battery",
+  "state": "UAT-READY: all five code gates complete; canon-verifier rounds 1+2 closed (all findings fixed + verified); emulator gates 18/18; suite 1442 executions / 0 failures; awaiting the owner battery",
   "gate_10C1": {
     "state": "landed; suite at 523 tests / 8 failures (was 48) — the remaining 8 are the LADDER-path scenarios that need the new law written into their fixtures",
     "landed": [
@@ -94,7 +94,9 @@
     "suite": "1439 tests / 0 failures"
   },
   "calibration_probe": {
-    "state": "PENDING (honest record)",
-    "proposal": "the UAT rows carry the live intent probabilities (chosen + margin per step) — they can serve as the live calibration evidence for HIGH_FLOOR/HIGH_MARGIN, to be ratified with the owner and recorded in the phase doc"
+    "state": "INTERIM — accepted on post-hoc UAT-row evidence with the verifier’s terms (2026-10-12)",
+    "basis": "the recorded rows: chosen 0.62-0.70 with the runner-up at 0.11 where the confidence band failed (small-N, failure-selected)",
+    "commitment": "the 10C.6 UAT battery logs chosen-p + margin per step; no correct intent below HIGH, no wrong intent HIGH at 0.55/0.15 — else the constants reopen and a dedicated probe runs",
+    "constants_frozen": "Cascade.HIGH_FLOOR=0.55, HIGH_MARGIN=0.15, LOW_FLOOR=0.30"
   }
 }

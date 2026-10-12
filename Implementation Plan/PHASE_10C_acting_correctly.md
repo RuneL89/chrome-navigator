@@ -111,6 +111,13 @@ only venue, and Phase 11's agreement bar is the forcing surface for the decision
 - **10C.4** report goals: `answerExtracted` end-to-end on fixtures (JVM).
 - **10C.5** evidence: Room columns, terminal row, log reset, assist text (JVM + on-device
   proof).
+- **Calibration note (2026-10-12, verifier round 2):** the band constants
+  ([Cascade.HIGH_FLOOR] 0.55 / [Cascade.HIGH_MARGIN] 0.15) stand on POST-HOC live evidence —
+  the recorded battery rows (chosen probability 0.62–0.70 with the runner-up at 0.11, where the
+  old confidence band failed). That is interim evidence (small-N, failure-selected, no labeled
+  ground truth per step). The 10C.6 UAT battery must log the chosen probability + margin per step
+  and confirm: no correct intent routes below HIGH and no wrong intent routes HIGH at 0.55/0.15 —
+  otherwise the constants REOPEN and a dedicated calibration probe runs before acceptance.
 - **10C.6** on-device UAT battery (the acceptance bar, verbatim from the 2026-10-11 scope
   decision): re-run all 8 goals on the S25+; **zero false completions; ≥1 executed tap;
   ≥1 executed type+submit; the redirect goal completes (or reconciles); the read goal
