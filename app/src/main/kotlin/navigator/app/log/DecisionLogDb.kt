@@ -87,6 +87,14 @@ data class DecisionLogEntity(
     /** Phase 08G (vision 05 §2 `plan`, vision 04 §1): plan-proposal provenance. Pre-v7
      *  rows decode as plan=null through the migration's nullable column (additive only). */
     val planJson: String? = null,
+    /** Phase 10C (doc 05 §2 v1.7.0): the executed stage-2 slate's per-candidate expected
+     *  levels (JSON). Pre-v8 rows decode as null (additive only) — the battery's decoding
+     *  gap was exactly this evidence vanishing at persistence. */
+    val targetScoresJson: String? = null,
+    /** Phase 10C: the TARGET STATE VIEW the stage-2 batch rode (doc 05 §2). */
+    val targetStateText: String? = null,
+    /** Phase 10C: the handshake assist text when one rode this step (doc 05 §2). */
+    val assistText: String? = null,
 )
 
 /** Bidirectional mapping row ↔ entity. Decoding validates loudly (core log law). */
@@ -127,6 +135,9 @@ object DecisionLogConverters {
         exitJson = row.exit?.let { DECISION_LOG_JSON.encodeToString(ExitProvenance.serializer(), it) },
         typedSecret = row.typedSecret,
         planJson = row.plan?.let { DECISION_LOG_JSON.encodeToString(LoggedPlan.serializer(), it) },
+        targetScoresJson = row.targetScores?.let { navigator.core.log.TargetScoresCodec.encode(it) },
+        targetStateText = row.targetStateText,
+        assistText = row.assistText,
     )
 
     fun toRow(entity: DecisionLogEntity): DecisionLogRow = DecisionLogRow(
@@ -177,6 +188,9 @@ object DecisionLogConverters {
             DECISION_LOG_JSON.decodeFromString(ExitProvenance.serializer(), it)
         },
         typedSecret = entity.typedSecret,
+        targetScores = entity.targetScoresJson?.let { navigator.core.log.TargetScoresCodec.decode(it) },
+        targetStateText = entity.targetStateText,
+        assistText = entity.assistText,
         plan = entity.planJson?.let {
             DECISION_LOG_JSON.decodeFromString(LoggedPlan.serializer(), it)
         },
@@ -233,9 +247,37 @@ interface DecisionLogDao {
     suspend fun agreementAggregate(): AgreementAggregateRow
 }
 
+/**
+ * One task's terminal verdict (Phase 10C, doc 05 §2 v1.7.0): the loop's end state + its
+ * reason, stored so a run's outcome is readable from the database — the battery showed the
+ * terminal existed only on the overlay (and the live log did not reset per run).
+ */
+@androidx.room.Entity(tableName = "task_terminal")
+data class TerminalEntity(
+    @androidx.room.PrimaryKey val taskId: String,
+    val goal: String,
+    val terminal: String,
+    val detail: String,
+    val timestamp: Long,
+)
+
+@androidx.room.Dao
+interface TerminalDao {
+    @androidx.room.Insert(onConflict = androidx.room.OnConflictStrategy.REPLACE)
+    suspend fun insert(row: TerminalEntity)
+
+    @androidx.room.Query("SELECT * FROM task_terminal ORDER BY timestamp DESC LIMIT :limit")
+    suspend fun newest(limit: Int): List<TerminalEntity>
+}
+
 @Database(
-    entities = [DecisionLogEntity::class, ShadowResultEntity::class, ExitCheckEntity::class],
-    version = 7,
+    entities = [
+        DecisionLogEntity::class,
+        ShadowResultEntity::class,
+        ExitCheckEntity::class,
+        TerminalEntity::class,
+    ],
+    version = 8,
     exportSchema = false,
 )
 abstract class DecisionLogDb : RoomDatabase() {
@@ -245,6 +287,8 @@ abstract class DecisionLogDb : RoomDatabase() {
     abstract fun shadowResultDao(): ShadowResultDao
 
     abstract fun exitCheckDao(): ExitCheckDao
+
+    abstract fun terminalDao(): TerminalDao
 
     companion object {
 
@@ -371,6 +415,25 @@ abstract class DecisionLogDb : RoomDatabase() {
             }
         }
 
+        /**
+         * v7 → v8 (Phase 10C, doc 05 §2 v1.7.0): the stage-2 evidence columns
+         * (`targetScoresJson`, `targetStateText`), the handshake provenance (`assistText`)
+         * and the per-task terminal table. Nullable columns + CREATE TABLE only —
+         * every historical row keeps decoding (insert-only law).
+         */
+        val MIGRATION_7_8: androidx.room.migration.Migration = object : androidx.room.migration.Migration(7, 8) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `decision_log` ADD COLUMN `targetScoresJson` TEXT")
+                db.execSQL("ALTER TABLE `decision_log` ADD COLUMN `targetStateText` TEXT")
+                db.execSQL("ALTER TABLE `decision_log` ADD COLUMN `assistText` TEXT")
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `task_terminal` (" +
+                        "`taskId` TEXT NOT NULL, `goal` TEXT NOT NULL, `terminal` TEXT NOT NULL, " +
+                        "`detail` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, PRIMARY KEY(`taskId`))",
+                )
+            }
+        }
+
         /** Production: a named, on-disk database (indefinite local retention, vision 05 §5). */
         fun open(context: Context, name: String): DecisionLogDb =
             Room.databaseBuilder(context, DecisionLogDb::class.java, name)
@@ -381,6 +444,7 @@ abstract class DecisionLogDb : RoomDatabase() {
                     MIGRATION_4_5,
                     MIGRATION_5_6,
                     MIGRATION_6_7,
+                    MIGRATION_7_8,
                 )
                 .build()
 

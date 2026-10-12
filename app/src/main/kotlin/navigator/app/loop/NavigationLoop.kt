@@ -369,6 +369,9 @@ class NavigationLoop(
         // Phase 10C (doc 04 §1 v1.7.0): the code-owned extraction record the
         // `answerExtracted` done-condition reads — one answer per report subtask ordinal.
         val reportAnswers = mutableMapOf<Int, ExtractedAnswer>()
+        // Phase 10C (doc 05 §2 v1.7.0): the handshake assist text rides EXACTLY the next
+        // row written (the step's decision row), then clears.
+        var pendingAssistText: String? = null
         var codeCheckHash: Int? = null
         // Phase 10C (vision 04 §1 v1.7.0): the condition-honesty gate's memo — at most ONE
         // evaluation per (active subtask ordinal, page-hash); a page change or a pointer
@@ -733,6 +736,7 @@ class NavigationLoop(
                 // enrichment owns targetAgreement (the row is written primary-only).
                 targetScores = targetScores,
                 targetStateText = targetStateText,
+                assistText = pendingAssistText.also { pendingAssistText = null },
             )
             logSink.write(row)
             rows += 1
@@ -1194,7 +1198,7 @@ class NavigationLoop(
             // answer) the executed fallback answer stands in — the decision-row
             // precedent — and `fallbackAnswer` carries the executed judgment whenever
             // the check escalated.
-            fun exitCheckRow(): ExitCheckRow {
+            suspend fun exitCheckRow(): ExitCheckRow {
                 val escalated = noulEscalation?.escalated == true
                 val primaryPTrue = (noulEscalation?.primary as? NoulResult)?.pTrue
                 val fallbackPTrue = (noulEscalation?.fallback as? NoulResult)?.pTrue
@@ -1313,7 +1317,7 @@ class NavigationLoop(
          * code-triggered entry has no choose to log (ART-2), so its provenance is the
          * accepted ExitCheckRow + this exit block.
          */
-        fun concludeGoalAchieved(verdict: ExitDecision.Accept): RunResult {
+        suspend fun concludeGoalAchieved(verdict: ExitDecision.Accept): RunResult {
             exitSummary = ExitSummary(
                 path = verdict.path.name,
                 guardLevel = verdict.guardLevel.name,
@@ -1444,7 +1448,7 @@ class NavigationLoop(
              * The per-step budget gate (vision 04 §5; extracted in Phase 10C — `run`'s size
              * budget): a HARD rail ends the run cleanly, a SOFT rail warns once.
              */
-            fun budgetStep(): RunResult? {
+            suspend fun budgetStep(): RunResult? {
                 when (val check = budget.check(stepIndex)) {
                     is TaskBudget.Check.Hard -> {
                         line("budget: HARD STOP - ${check.dimension.label}: ${check.detail}")
@@ -2020,6 +2024,7 @@ class NavigationLoop(
                         "${assist.promptVersion}) - ONE stage-1 re-ask with the " +
                         "ASSIST (untrusted) block",
                 )
+                pendingAssistText = assist.text
                 uiListener?.onThinking(true)
                 val reasked = engine.choose(buildIntentView(assist.text).text, question)
                 uiListener?.onThinking(false)
@@ -3479,7 +3484,27 @@ interface DecisionLogSink {
 
     /** The exit-calibration corpus edge: insert-only, one row per finish check. */
     suspend fun writeExitCheck(row: ExitCheckRow)
+
+    /**
+     * Phase 10C (doc 05 §2 v1.7.0): the per-task TERMINAL row — the loop's end state + its
+     * reason, stored so a run's outcome is readable from the database (the battery: the
+     * terminal existed only on the overlay). Default: a no-op, so every existing sink (and
+     * every test double) stays byte-identical.
+     */
+    suspend fun writeTerminal(row: TerminalRow) {}
 }
+
+/**
+ * One task's terminal verdict (Phase 10C, doc 05 §2 v1.7.0): [terminal] is the
+ * [TerminalState] name, [detail] the loop's reason line.
+ */
+data class TerminalRow(
+    val taskId: String,
+    val goal: String,
+    val terminal: String,
+    val detail: String,
+    val timestamp: Long,
+)
 
 /** How a task ended (vision 04 §3 exits + the documented pre/extra-navigation aborts). */
 enum class TerminalState {

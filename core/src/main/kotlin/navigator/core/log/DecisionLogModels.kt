@@ -1,5 +1,7 @@
 package navigator.core.log
 
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -487,6 +489,13 @@ data class DecisionLogRow(
      * data is never provisional).
      */
     val targetStateText: String? = null,
+
+    /**
+     * `assistText`, additive (doc 05 §2 v1.7.0, Phase 10C): the uncertainty handshake's
+     * writer assist text when one rode this step's stage-1 re-ask (redaction keys applied
+     * by the loop before it is recorded). Null otherwise.
+     */
+    val assistText: String? = null,
 ) {
     init {
         require(rowId.isNotBlank()) { "DecisionLogRow.rowId must not be blank" }
@@ -660,4 +669,34 @@ data class DecisionLogRow(
          */
         const val NORMALIZATION_TOLERANCE: Double = 1e-6
     }
+}
+
+/**
+ * The `targetScores` persistence codec (doc 05 §2 v1.7.0, Phase 10C): the app's store
+ * serializes the per-candidate expected levels through :core (the module that owns the log
+ * schema) — a stable, sorted-key JSON object so rows are reviewable and byte-reproducible.
+ * Built on the kotlinx-json element types only (no serializer-reflection dependency).
+ */
+object TargetScoresCodec {
+
+    /** Encodes the scores (sorted by candidate id — deterministic bytes). */
+    fun encode(scores: Map<String, Double>): String =
+        kotlinx.serialization.json.JsonObject(
+            scores.toSortedMap().mapValues { (_, level) ->
+                kotlinx.serialization.json.JsonPrimitive(level)
+            },
+        ).toString()
+
+    /** Decodes the scores (loud on malformed text — the log law). */
+    fun decode(text: String): Map<String, Double> =
+        Json.parseToJsonElement(text).let { element ->
+            require(element is kotlinx.serialization.json.JsonObject) {
+                "targetScores JSON must be an object, got ${element::class.simpleName}"
+            }
+            element.mapValues { (id, value) ->
+                val level = (value as? kotlinx.serialization.json.JsonPrimitive)?.content?.toDoubleOrNull()
+                requireNotNull(level) { "targetScores '$id' is not a number: $value" }
+                level
+            }
+        }
 }

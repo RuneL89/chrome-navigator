@@ -153,7 +153,15 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
     fun thinkingActive(): Boolean = thinkingActive
 
     fun show() {
-        if (visible) return
+        // Phase 10C (doc 05 §2 v1.7.0): the live log RESETS PER RUN — the battery saw a
+        // previous run's lines and its "task REFUSED" terminal under a new run's header
+        // (a reused window never cleared). The stale-terminal display cannot recur.
+        lines.clear()
+        ladderHeader = emptyList()
+        if (visible) {
+            renderLines()
+            return
+        }
         visible = true
         manager.postOnMainThread {
             val context = manager.serviceContext()

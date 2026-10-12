@@ -236,6 +236,7 @@ class NavigatorService : Service() {
                 )
             }
             val genLadder = genClient?.let { navigator.app.gen.GenLadderSource(it) }
+            val sink = RoomDecisionLogSink(this)
             val loop = NavigationLoop(
                 engine = engine,
                 observer = HarnessObserver(a11y),
@@ -246,7 +247,7 @@ class NavigatorService : Service() {
                 // Phase 10: the owner escalation card ("Retry / Re-plan / Stop"; 30s
                 // timeout = Stop) riding the Phase-9 card window.
                 escalationCardPresenter = OverlayEscalationCardPresenter(a11y),
-                logSink = RoomDecisionLogSink(this),
+                logSink = sink,
                 spendMeter = meter,
                 uiListener = OverlayUiListener(manager) { notifyState(NOTIFICATION_READY, "Navigator ready") },
                 browserProbe = BrowserProbe { HarnessObserver.browserState(a11y, this) },
@@ -260,12 +261,26 @@ class NavigatorService : Service() {
                 assistSource = genClient?.asAssistSource(),
                 phraseSource = genClient?.asPhraseSource(),
             )
-            loop.run(
+            val result = loop.run(
                 goal = goalText,
                 goalId = stubGoal?.id,
                 engineIdentity = identity,
                 isCancelled = taskCancelFlag::isCancelled,
             )
+            // Phase 10C (doc 05 §2 v1.7.0): the terminal rides the database, not only the
+            // overlay — one row per task (the battery: the terminal was unreadable from
+            // the store, and the live log did not reset between runs).
+            runCatching {
+                sink.writeTerminal(
+                    navigator.app.loop.TerminalRow(
+                        taskId = result.taskId,
+                        goal = result.goal,
+                        terminal = result.terminal.name,
+                        detail = result.terminalDetail,
+                        timestamp = System.currentTimeMillis(),
+                    ),
+                )
+            }.onFailure { Log.w(TAG, "terminal row write failed: ${it::class.simpleName}") }
         } finally {
             // The terminal (whichever it is, including the owner's USER_CANCEL) hides
             // the ⏹ control; the log itself STAYS up showing the task-state line.
