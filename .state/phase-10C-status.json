@@ -2,7 +2,7 @@
   "phase": "10C",
   "title": "Acting correctly — honest conditions, reachable targets, report goals",
   "spec": "Implementation Plan/PHASE_10C_acting_correctly.md (v1.0.0, owner-ratified 2026-10-11)",
-  "state": "IN PROGRESS — gate 10C.1 (condition validator + wire/form changes, JVM)",
+  "state": "ALL FIVE CODE GATES COMPLETE (10C.1-10C.5); 10C.6 emulator verification GREEN (gates 18/18) after the canon-verifier round-1 fixes; awaiting the verifier round-2 verdict; then the owner UAT battery",
   "gate_10C1": {
     "state": "landed; suite at 523 tests / 8 failures (was 48) — the remaining 8 are the LADDER-path scenarios that need the new law written into their fixtures",
     "landed": [
@@ -87,23 +87,14 @@
     "shadow-in-product stays DEFERRED to Phase 11 (owner decision)"
   ],
   "gate_10C6": {
-    "state": "emulator verification IN PROGRESS",
-    "done": [
-      "preflight green (SDK/adb/emulator/AVD/acceleration)",
-      "emulator-5554 (pocketpet-test AVD) booted",
-      "app built (573,084,744-byte debug APK) and INSTALLED successfully",
-      "the four overlay gate scenarios executed via the adb debug surface (evidence: .state/10c6-emulator-gates.log)"
-    ],
-    "gate_results": {
-      "GATE92 (blur + ART-8 zero-file/zero-network)": "PASS 3/3",
-      "GATE94 (live-log render perf)": "PASS 2/2 (p95=534ms)",
-      "GATE91 (touch passthrough)": "FAIL 5/7 - the two touch-injection checks observed 0 -> 0 touches (no touches delivered to the probe at all in those steps; the GATE92/93/94 touch paths worked) - emulator input-injection fragility suspected",
-      "GATE93 (gate card)": "FAIL 5/6 - real-countdown-expiry observed 5058ms vs the 30s+/-1.5s law (the approve/dismiss/credential checks all PASSED) - needs a look: emulator timing or a real regression"
-    },
-    "next": [
-      "re-run GATE91/GATE93 on the S25+ (their proven venue) OR diagnose on the emulator (the countdown measurement especially)",
-      "the emulator harness suite (the goal catalog + a live cascade run) as the cascade-on-device proof",
-      "then the owner UAT battery (acceptance bar as agreed)"
-    ]
+    "state": "emulator verification GREEN after round-1 fixes; external-tap blocking proof recorded",
+    "gates": "GATE91 7/7, GATE92 3/3, GATE93 6/6 (countdown 30057-30080ms), GATE94 2/2 (p95 45-534ms) — evidence .state/10c6-emulator-gates3.log / -gates4.log",
+    "hardening": "the probe-focus await removes the first-tap race; the blocking check asserts the focusable full-screen touch-modal window evidence (the a11y service’s own injected gestures bypass its overlays — MEASURED; the blocking law is proven with external taps: PROBE_TOUCH_COUNT 2->3 without a card, unchanged with the card up)",
+    "round1_fixes": "canon-verifier findings fixed in 8e02d26: (1) RoomDecisionLogSink.writeTerminal now persists the terminal row (+ round-trip test), (2) landingHost row field end-to-end (core row + Room v9 + MIGRATION_8_9 + the loop populates it + the history line), (3) the stage-2 rubric framed PER INTENT (TargetRubric.instructionFor) — D4 complete",
+    "suite": "1439 tests / 0 failures"
+  },
+  "calibration_probe": {
+    "state": "PENDING (honest record)",
+    "proposal": "the UAT rows carry the live intent probabilities (chosen + margin per step) — they can serve as the live calibration evidence for HIGH_FLOOR/HIGH_MARGIN, to be ratified with the owner and recorded in the phase doc"
   }
 }
