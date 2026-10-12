@@ -275,4 +275,33 @@ class LandingAndReaskLoopTest {
         )
     }
 
+
+    @Test
+    fun `the landing host rides the next DECISION row (doc 05)`() {
+        // The amendment step itself is consumed by the code-triggered check (its ExitCheckRow,
+        // no decision row) — so the field is observable on the NEXT decision row, which is
+        // exactly the law's "rides the step's row" shape.
+        val ladder = Ladder(
+            "Read the BBC news.",
+            listOf(
+                Subtask("the bbc site is loaded", DoneCondition.UrlHost("bbc.co.uk")),
+                Subtask("the article is displayed", DoneCondition.MarkerText("Nowhere On This Page")),
+            ),
+        )
+        val (_, sink, _) = run(
+            ladder = ladder,
+            observations = listOf(
+                page("https://www.bbc.com/news", "BBC News", "Headlines"),
+                page("https://www.bbc.com/news", "BBC News", "Headlines"),
+            ),
+            goal = "open https://bbc.co.uk and read the news",
+            intentPicks = listOf("follow-link"),
+            launcher = BrowserLauncher { },
+        )
+        assertTrue(
+            sink.rows.any { it.landingHost == "bbc.com" },
+            "the decision row carries the landing host: " + sink.rows.map { it.landingHost },
+        )
+    }
+
 }

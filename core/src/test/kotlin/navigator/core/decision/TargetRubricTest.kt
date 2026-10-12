@@ -1,6 +1,7 @@
 package navigator.core.decision
 
 import kotlin.test.Test
+import navigator.core.decision.Intents
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
@@ -115,4 +116,44 @@ class TargetRubricTest {
         assertEquals("cand-n4", TargetRubric.questionName("n4"))
         assertEquals("cand-", TargetRubric.CANDIDATE_NAME_PREFIX)
     }
+
+    /**
+     * The per-intent framing texts are fixture law (doc 02 §3 v1.4.0, Phase 10C): a
+     * wording drift must fail here loudly (retire-and-add on a reviewed change).
+     */
+    @Test
+    fun `the stage-2 framing is per intent and byte-pinned (Phase 10C)`() {
+        val sub = "open the world war 2 page"
+        kotlin.test.assertEquals(
+            "Is 'Search' the field the subtask needs filled? Score how well typing into it " +
+                "advances: $sub.",
+            TargetRubric.instructionFor(Intents.FILL_FIELD, "Search", sub),
+        )
+        kotlin.test.assertEquals(
+            "Does acting on 'News' lead toward the subtask's outcome? Score how well it " +
+                "advances: $sub.",
+            TargetRubric.instructionFor(Intents.FOLLOW_LINK, "News", sub),
+        )
+        kotlin.test.assertEquals(
+            "Does acting on 'Sign in' lead toward the subtask's outcome? Score how well it " +
+                "advances: $sub.",
+            TargetRubric.instructionFor(Intents.ACTIVATE_CONTROL, "Sign in", sub),
+        )
+        kotlin.test.assertEquals(
+            "Does pressing 'Go' serve the subtask's next step? Score how well it " +
+                "advances: $sub.",
+            TargetRubric.instructionFor(Intents.SUBMIT, "Go", sub),
+        )
+        kotlin.test.assertEquals(
+            "Does pressing 'Accept cookies' serve the subtask's next step? Score how well it " +
+                "advances: $sub.",
+            TargetRubric.instructionFor(Intents.DISMISS_NAG, "Accept cookies", sub),
+        )
+        kotlin.test.assertEquals(
+            "Score how well acting on 'x' advances: $sub.",
+            TargetRubric.instructionFor(null, "x", sub),
+            "the unknown-intent default keeps the generic form",
+        )
+    }
+
 }

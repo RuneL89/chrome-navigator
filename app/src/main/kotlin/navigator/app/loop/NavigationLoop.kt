@@ -1526,6 +1526,8 @@ class NavigationLoop(
                     "site-entry: landed on '$landedHost' (one site family with the condition's " +
                         "'${done.host}') - the urlHost condition reconciles to the landing host",
                 )
+                // The Path-B sustained streak re-keys by itself: the exit policy keys the
+                // streak on the condition's RENDERED text, and the amendment changes it.
                 pendingLandingHost = landedHost
                 history.add(
                     "step $stepIndex: landing-host reconciliation - '${done.host}' -> '$landedHost'",
