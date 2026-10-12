@@ -28,6 +28,9 @@ object SiteEntry {
     /** The chosen mechanism (logged on the step log, vision 04 §1 "deterministic, logged"). */
     enum class Mechanism { VIEW_INTENT, URL_BAR_ENTRY }
 
+    /** One text-derived URL plus its derivation provenance (Phase 10C). */
+    data class Resolved(val url: String, val source: String)
+
     /** One site-entry plan: the mechanism plus the resolved URL (never null for VIEW_INTENT). */
     data class Plan(val mechanism: Mechanism, val url: String, /** Derivation provenance. */ val source: String)
 
@@ -39,7 +42,7 @@ object SiteEntry {
     fun plan(goal: String, subtaskInstruction: String, doneCondition: navigator.core.ladder.DoneCondition): Plan? {
         if (doneCondition !is navigator.core.ladder.DoneCondition.UrlHost) return null
         resolveFromText(goal, subtaskInstruction)?.let {
-            return Plan(Mechanism.VIEW_INTENT, it, "GOAL_URL")
+            return Plan(Mechanism.VIEW_INTENT, it.url, it.source)
         }
         // The done-condition's own host: the writer validated it as a bare host, so it
         // is the lawful resolution of last resort (still goal text, still no hardcoding).
@@ -57,16 +60,16 @@ object SiteEntry {
      * and — when the named page differs from the page in front of us — to derive a
      * `urlContains` URL identity for it. Pure; the derivation order mirrors [plan].
      */
-    fun resolveFromText(goal: String, subtaskInstruction: String): String? {
+    fun resolveFromText(goal: String, subtaskInstruction: String): Resolved? {
         val searchSpace = "$goal \n $subtaskInstruction"
         ColdStartGoalUrl.find(searchSpace)?.let {
-            return it.value.trimEnd('.', ',', ')', ']', '!', '?', ';', ':')
+            return Resolved(it.value.trimEnd('.', ',', ')', ']', '!', '?', ';', ':'), "GOAL_URL")
         }
         ColdStartGoalDomain.find(searchSpace)?.let { match ->
             val tld = match.groupValues[3].lowercase()
             if (tld in COMMON_TLDS) {
                 val host = "${match.groupValues[2]}.${match.groupValues[3]}".lowercase()
-                return "https://$host${match.groupValues[4]}"
+                return Resolved("https://$host${match.groupValues[4]}", "GOAL_DOMAIN")
             }
         }
         return null

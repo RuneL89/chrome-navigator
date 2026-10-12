@@ -4,7 +4,7 @@
   "spec": "Implementation Plan/PHASE_10C_acting_correctly.md (v1.0.0, owner-ratified 2026-10-11)",
   "state": "IN PROGRESS — gate 10C.1 (condition validator + wire/form changes, JVM)",
   "gate_10C1": {
-    "state": "implementation LANDED on the branch; the test-corpus sweep is IN PROGRESS (48 failures remain)",
+    "state": "landed; suite at 523 tests / 8 failures (was 48) — the remaining 8 are the LADDER-path scenarios that need the new law written into their fixtures",
     "landed": [
       "core: DoneCondition.UrlContains (urlContains) — the URL-identity whitelist shape for a different page on the SAME host; LadderValidator rule; private render",
       "core: DoneConditionChecker — satisfied (normalizeUrl both sides, contains), guardStrength = STRONG for urlContains, render; normalizeUrl is public (the gate needs it)",
@@ -35,7 +35,27 @@
       "new tests: UrlContains (checker + validator + schema), Path-A-STRONG matrix (already partly in ExitPolicyTest), the honesty gate (suspect+different page -> repair / derive / refuse; legit urlHost-already-true untouched)",
       "full-suite green on the branch",
       "DOX pass (core/AGENTS.md + app/AGENTS.md)"
-    ]
+    ],
+    "sweep_2026-10-12": {
+      "done": [
+        "Path A STRONG requirement scoped to LADDER runs (ExitPolicy.onFinishCheck(ladderRun: Boolean)); the loop passes ladderRun = (ladder != null). Legacy scripted runs keep the v1.2.0 class-predicate law (their WEAK is designed completion evidence, not a proxy condition) — this cleared 40 of the 48 failures and matches the battery evidence (all false completions were ladder/product runs).",
+        "SiteEntry.resolveFromText returns Resolved(url, source) — the GOAL_URL/GOAL_DOMAIN provenance is preserved on plan() (the site-entry purity test asserts it).",
+        "ExitPolicyTest: the Path A block now has three law-pins (STRONG+ladder -> HIGH accept; WEAK+ladder -> refuse; WEAK+legacy -> HIGH accept) — PASSING."
+      ],
+      "remaining_8": [
+        "ExitPolicyTest: fixed and passing",
+        "LadderExecutionLoopTest (7): the fixtures distinguish pages by MARKER TEXT on one shared URL (http://m0.test/page for page0/page/page2), so their subtask conditions are MarkerText -> WEAK -> refused on ladder runs by design. Rewrite template per scenario: (a) give each fixture page its own URL (e.g. http://m0.test/article, http://m0.test/second), (b) switch the completing subtask conditions to UrlContains(<path>) / UrlHost identities (STRONG evidence), (c) update the scenario comments (the old comments quote the pre-10C \"HIGH + WEAK -> verified\" choreography), (d) keep every other assertion (pointer law, budgets, masking, onThinking pairs, refusals)."
+      ],
+      "scenarios": [
+        "pointer advances on engine-HIGH AND code-guard (line ~221) — page0/page share a URL; needs distinct URLs + urlContains",
+        "count done-conditions track working memory (line ~354) — page3; a CountReached condition is WEAK by shape: the count law now needs the owner-card path OR a URL identity alongside; decide when rewriting",
+        "code-triggered check completes a ladder the engine never finishes (line ~497) — the canonical completion scenario",
+        "code-triggered check wraps its consult in the onThinking pair (line ~535)",
+        "writer budget is SEPARATE from decision spend (line ~713)",
+        "site entry is outcome-based — the urlHost subtask fires the VIEW intent (line ~752)",
+        "sanctioned secrets never reach the writer (line ~813)"
+      ]
+    }
   },
   "design_finding_recorded_this_round": "The done-condition whitelist (URL HOST / marker text / element presence / count) CANNOT express 'a different page on the SAME host'. Example (test 5): 'the DINNER category page is showing' on allrecipes.com has NO expressible condition that distinguishes the homepage from the category page — urlHost matches both; markerText 'Dinner' matches the homepage's own nav link. This is the deep cause of D1 (writers reach for weak proxies because the vocabulary lacks URL identity beyond the host) and part of D3. The ratified §4 text ('the outcome's URL/title identity') covers the fix: 10C.1 adds a URL-IDENTITY condition shape (a URL path/segment predicate, e.g. UrlContains) to the whitelist + schema + checker + render + writer prompt + Tier A fixtures (retire-and-add).",
   "validator_design_decisions_for_10C1_next_round": [
@@ -47,5 +67,9 @@
   "deviations": [
     "Subagent quota exhausted (canon-implementer returned 'Weekly/Monthly Limit Exhausted … resets 2026-10-17') — the orchestrator performs the implementer role for 10C, per the owner's earlier standing authorization (recorded again in .state/compliance-log.md)."
   ],
-  "branch": "phase-10c (owner-directed: all 10C work on a branch for easy revert)"
+  "branch": "phase-10c (owner-directed: all 10C work on a branch for easy revert)",
+  "verification_plan": {
+    "until_UAT": "emulator-first (owner directive 2026-10-12): use the android-emulator plugin (build/install/run + UI automation) for every on-device check — JVM gates, then the emulator harness suite (GateScenarios via NavigatorGates), then the phone UAT only after 10C is fully implemented.",
+    "owner_UAT": "the 8-goal battery on the S25+ (acceptance bar: zero false completions; >=1 executed tap; >=1 executed type+submit; the redirect goal completes/reconciles; the read goal reports a headline)"
+  }
 }

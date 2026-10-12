@@ -1113,6 +1113,10 @@ class NavigationLoop(
                     guardLevel = guardLevel,
                     noul = noul.pTrue,
                     guardDetail = guards!!.refusalDetail(),
+                    // Phase 10C (doc 04 §3 v1.7.0): the Path A STRONG requirement applies to
+                    // LADDER runs — the production shape where proxy conditions caused the
+                    // battery's false completions; legacy scripted runs keep the v1.2.0 law.
+                    ladderRun = ladder != null,
                 )
             ) {
                 is ExitDecision.AskOwner -> {
@@ -1469,7 +1473,7 @@ class NavigationLoop(
                     honestyChecked = p.index to o.screenHash
                     return null
                 }
-                val named = SiteEntry.resolveFromText(goalText, p.active.instruction)
+                val named = SiteEntry.resolveFromText(goalText, p.active.instruction)?.url
                 if (!ConditionHonesty.namesDifferentPage(named, o.url)) {
                     // The condition is satisfied by the page the subtask NAMES (or nothing is
                     // named): a legitimately arrived outcome, not a proxy — the ordinary exit

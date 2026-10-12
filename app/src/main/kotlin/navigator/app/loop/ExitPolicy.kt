@@ -152,6 +152,16 @@ class ExitPolicy(private val config: ExitPolicyConfig = ExitPolicyConfig()) {
         guardLevel: GuardLevel,
         noul: Double,
         guardDetail: String? = null,
+        /**
+         * v1.7.0 (Phase 10C): true when the run is a LADDER run — the production shape
+         * (every product run wires a ladder source), where the battery's false completions
+         * lived: a WEAK-shaped subtask condition already satisfied by the page the subtask
+         * started from, silently accepted via Path A. On ladder runs Path A therefore
+         * requires `guard=STRONG`. The LEGACY (non-ladder, harness/scripted) runs keep the
+         * v1.2.0 class-predicate law byte-stable: their WEAK is the class predicate
+         * (designed completion evidence for old-style goals), not a proxy subtask condition.
+         */
+        ladderRun: Boolean = false,
     ): ExitDecision {
         require(conditionKey.isNotBlank()) { "the condition key must not be blank (the streak is keyed to it)" }
         finishChecks += 1
@@ -174,13 +184,14 @@ class ExitPolicy(private val config: ExitPolicyConfig = ExitPolicyConfig()) {
                 noul = noul,
             )
         }
-        // Path A — classic: HIGH-band anchored noul **with a STRONG guard** (v1.7.0, doc 04
-        // §3, Phase 10C owner-ratified): WEAK no longer qualifies — the 2026-10-11 on-device
-        // battery showed weak guards silently accepting conditions already true where the
-        // subtask started (false completions). A WEAK HIGH claim now falls through to Path B's
-        // sustained evidence or Path C's owner card. Bands semantics: HIGH is strictly greater
-        // than the floor (0.70 itself is UNCERTAIN).
-        if (noul > config.highFloor && guardLevel == GuardLevel.STRONG) {
+        // Path A — classic: HIGH-band anchored noul. LADDER runs (v1.7.0, doc 04 §3, Phase
+        // 10C owner-ratified) require a STRONG guard: the 2026-10-11 on-device battery showed
+        // WEAK-shaped subtask conditions already true where the subtask started being silently
+        // accepted (false completions). A WEAK HIGH claim on a ladder run falls through to
+        // Path B's sustained evidence or Path C's owner card. LEGACY runs keep the v1.2.0
+        // law (any guard level) — their WEAK is the class predicate, not a proxy condition.
+        // Bands semantics: HIGH is strictly greater than the floor (0.70 itself is UNCERTAIN).
+        if (noul > config.highFloor && (guardLevel == GuardLevel.STRONG || !ladderRun)) {
             return ExitDecision.Accept(ExitPath.HIGH, guardLevel, noul)
         }
         // Path B — sustained: STRONG guard + noul >= floor, K CONSECUTIVE checks.

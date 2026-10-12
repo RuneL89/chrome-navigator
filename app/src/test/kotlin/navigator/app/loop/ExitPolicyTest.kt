@@ -22,16 +22,40 @@ class ExitPolicyTest {
     /** The condition key the single-condition tests run under (the rendered done-condition). */
     private val key = "subtask:the URL host is wikipedia.org"
 
-    // -- Path A (classic): HIGH band, any guard level --------------------------------
+    // -- Path A (classic): HIGH band + a STRONG guard on LADDER runs (v1.7.0) ---------
 
     @Test
-    fun `path A accepts at the first check above the high floor with a WEAK guard`() {
+    fun `path A accepts at the first check above the high floor with a STRONG guard`() {
+        val policy = ExitPolicy()
+        val decision = policy.onFinishCheck(key, GuardLevel.STRONG, 0.99, ladderRun = true)
+        assertIs<ExitDecision.Accept>(decision)
+        assertEquals(ExitPath.HIGH, decision.path)
+        assertEquals(GuardLevel.STRONG, decision.guardLevel)
+        assertEquals(1, policy.finishChecks)
+    }
+
+    @Test
+    fun `a WEAK guard cannot accept via path A on a LADDER run - it routes to B or C`() {
+        // v1.7.0 (doc 04 §3, Phase 10C): the on-device battery showed weak subtask
+        // conditions silently accepting conditions already true where the subtask started
+        // (false completions) — on ladder runs WEAK falls through to the sustained path
+        // or the owner card, never a silent accept.
+        val policy = ExitPolicy()
+        val decision = policy.onFinishCheck(key, GuardLevel.WEAK, 0.99, ladderRun = true)
+        assertIs<ExitDecision.Refuse>(decision)
+        assertEquals(GuardLevel.WEAK, decision.guardLevel)
+        assertEquals(1, policy.finishChecks)
+    }
+
+    @Test
+    fun `a WEAK guard still accepts via path A on a LEGACY run - the class-predicate law is byte-stable`() {
+        // v1.7.0 scope refinement: non-ladder (harness/scripted) runs keep the v1.2.0
+        // law — their WEAK is the class predicate (designed completion evidence for
+        // old-style goals), never a proxy subtask condition.
         val policy = ExitPolicy()
         val decision = policy.onFinishCheck(key, GuardLevel.WEAK, 0.99)
         assertIs<ExitDecision.Accept>(decision)
         assertEquals(ExitPath.HIGH, decision.path)
-        assertEquals(GuardLevel.WEAK, decision.guardLevel)
-        assertEquals(1, policy.finishChecks)
     }
 
     @Test
