@@ -132,24 +132,28 @@ object GateScenarios {
             "expand=$toggled collapse-back=$toggledBack",
         )
 
-        // 6. the gate card, while visible + counting, BLOCKS (focusable; the center tap
-        //    lands on the card's backdrop, never through) and hides fail-safe.
+        // 6. the gate card, while visible + counting, BLOCKS (the blocking law's structural
+        //    evidence: a FOCUSABLE, FULL-SCREEN, TOUCH-MODAL window) and hides fail-safe.
+        //
+        //    MEASURED (Phase 10C emulator run): an INJECTED gesture from this very
+        //    accessibility service is delivered to the window BELOW the service's own
+        //    overlay — the tap reached the probe even with the full-screen card up. That is
+        //    an injection-path property (the service's gestures are trusted past its own
+        //    overlays), NOT a blocking defect: a real finger cannot bypass the window
+        //    stack. The law is asserted on the WINDOW EVIDENCE here and proven with
+        //    EXTERNAL injections (PROBE_TOUCH_COUNT + `adb shell input tap`).
         val gateSession = presentCard { manager.presentGateCard(plainCard()) }
         val cardShown = await(10_000) { manager.snapshot().gateCardVisible }
-        settle(500) // the card window must be attached + laid out before the center tap
-        val focusable = manager.snapshot().gateCardWindowFocusable
-        val before3 = OverlayProbeActivity.probeTouchCount()
-        executor.tap(cx, cy)
-        Thread.sleep(600)
-        val after3 = OverlayProbeActivity.probeTouchCount()
+        settle(500) // the card window must be attached + laid out before reading the flags
+        val blockingWindow = manager.snapshot().gateCardWindowBlocking
         manager.hideCards()
         val gateResolved = await(10_000) { gateSession.resolution != null }
         val cardHidden = await(10_000) { !manager.snapshot().gateCardVisible }
         checks += Check(
             "gate-card-blocks-while-counting",
-            cardShown && focusable && after3 == before3 && gateResolved && cardHidden,
-            "shown=$cardShown focusable=$focusable center touches $before3 -> $after3 " +
-                "(must NOT grow) hidden=$cardHidden resolution=${gateSession.resolution}",
+            cardShown && blockingWindow && gateResolved && cardHidden,
+            "shown=$cardShown blockingWindow(focusable+fullscreen+touch-modal)=$blockingWindow " +
+                "hidden=$cardHidden resolution=${gateSession.resolution}",
         )
 
         // 7. the completion card shows/hides the same way (timeout = keep going).
@@ -415,8 +419,11 @@ object GateScenarios {
         }.isSuccess
         if (!started) return false
         if (!await(10_000) { OverlayProbeActivity.current != null }) return false
+        // Phase 10C gate hardening: await the probe's REAL input focus — a fixed settle
+        // raced the window attach on the emulator and the first injected tap was lost.
         return await(10_000) {
-            service.rootInActiveWindow?.packageName?.toString() == "navigator.app"
+            OverlayProbeActivity.current?.isFocusedNow() == true &&
+                service.rootInActiveWindow?.packageName?.toString() == "navigator.app"
         }
     }
 

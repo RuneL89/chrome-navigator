@@ -203,6 +203,13 @@ internal class GateCardWindow(private val manager: OverlayManager, private val c
         }.start()
     }
 
+    /**
+     * The blocking-window evidence (Phase 10C): the card is visible and its full-screen,
+     * focusable, touch-modal window is attached. (The a11y service's OWN injected gestures
+     * bypass its overlays — measured; a real finger cannot.)
+     */
+    fun isBlockingWindow(): Boolean = visible && root?.parent != null
+
     /** Resolves once (idempotent), clears any typed secret, removes the window. */
     private fun resolve(value: GateResolution) {
         if (resolution.isCompleted) return

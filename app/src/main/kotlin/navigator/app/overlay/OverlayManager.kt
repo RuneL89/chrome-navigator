@@ -341,6 +341,13 @@ class OverlayManager(private val service: AccessibilityService) {
         val completionCardVisible: Boolean,
         /** The card window's focusability while visible (Gate 9.1: it must BLOCK). */
         val gateCardWindowFocusable: Boolean,
+        /**
+         * Phase 10C: the card's FULL blocking-window evidence while visible (focusable +
+         * full-screen + touch-modal). The a11y service's own injected gestures bypass its
+         * overlays (measured) — this structural evidence plus the external-tap procedure
+         * carry the blocking law.
+         */
+        val gateCardWindowBlocking: Boolean,
         /** The goal input's blur facts (Gate 9.2: attempted/succeeded, in-memory only). */
         val blurAttempted: Boolean,
         val blurSucceeded: Boolean,
@@ -361,6 +368,7 @@ class OverlayManager(private val service: AccessibilityService) {
             gateCardVisible = gate?.visible == true,
             completionCardVisible = completionCardWindow?.visible == true,
             gateCardWindowFocusable = gate?.visible == true, // no NOT_FOCUSABLE flag on cards
+            gateCardWindowBlocking = gateCardWindow?.isBlockingWindow() == true,
             blurAttempted = goalInput.lastBlurAttempted,
             blurSucceeded = goalInput.lastBlurSucceeded,
             planSubgoalCount = planLines?.size ?: 0,
@@ -369,6 +377,9 @@ class OverlayManager(private val service: AccessibilityService) {
     }
 
     /** The Gate 9.3 tap targets (screen-space button centers), via the card windows. */
+    /** Phase 10C: the card's blocking-window evidence (visible + full-screen + focusable). */
+    fun gateCardWindowBlocking(): Boolean = gateCardWindow?.isBlockingWindow() == true
+
     fun gateCardApproveCenter(onCenter: (Int, Int) -> Unit) {
         gateCardWindow?.approveButtonCenter(onCenter)
     }

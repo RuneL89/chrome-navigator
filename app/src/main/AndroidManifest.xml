@@ -132,6 +132,7 @@
                 <action android:name="navigator.app.action.GATE92" />
                 <action android:name="navigator.app.action.GATE93" />
                 <action android:name="navigator.app.action.GATE94" />
+                <action android:name="navigator.app.action.PROBE_TOUCH_COUNT" />
             </intent-filter>
         </receiver>
 

@@ -45,6 +45,10 @@ class OverlayDebugReceiver : BroadcastReceiver() {
             ACTION_GATE92 -> runGate("GATE92") { GateScenarios.runGate92(it) }
             ACTION_GATE93 -> runGate("GATE93") { GateScenarios.runGate93(it) }
             ACTION_GATE94 -> runGate("GATE94") { GateScenarios.runGate94(it) }
+            ACTION_PROBE_TOUCH_COUNT -> android.util.Log.i(
+                GateScenarios.TAG,
+                "PROBE_TOUCH_COUNT: ${OverlayProbeActivity.current?.touchCount() ?: -1}",
+            )
             else -> runWindowCommand(context, intent)
         }
     }
@@ -184,6 +188,13 @@ class OverlayDebugReceiver : BroadcastReceiver() {
         const val ACTION_GATE92 = "navigator.app.action.GATE92"
         const val ACTION_GATE93 = "navigator.app.action.GATE93"
         const val ACTION_GATE94 = "navigator.app.action.GATE94"
+
+        /**
+         * Phase 10C: the touch sentinel's count (the external-tap blocking proof's reader —
+         * `adb shell input tap` is an EXTERNAL injector and DOES respect the window stack,
+         * unlike the a11y service's own gestures).
+         */
+        const val ACTION_PROBE_TOUCH_COUNT = "navigator.app.action.PROBE_TOUCH_COUNT"
 
         const val EXTRA_LINE = "line"
         const val EXTRA_PLAN = "plan"

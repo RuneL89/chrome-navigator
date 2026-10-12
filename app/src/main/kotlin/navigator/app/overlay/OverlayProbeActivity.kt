@@ -25,6 +25,23 @@ class OverlayProbeActivity : Activity() {
 
     fun touchCount(): Int = synchronized(touches) { touches.size }
 
+    /**
+     * True while the probe's window holds INPUT FOCUS (Phase 10C gate hardening): the
+     * GATE91 runner awaits this instead of sleeping — on the emulator the first injected
+     * tap raced the probe's window attach (the touch was lost, and the
+     * passthrough-when-hidden check failed on a fresh boot). Real focus is the honest
+     * readiness signal the tap law needs.
+     */
+    @Volatile
+    private var focused = false
+
+    fun isFocusedNow(): Boolean = focused
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        focused = hasFocus
+        super.onWindowFocusChanged(hasFocus)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(
