@@ -268,7 +268,11 @@ class LandingAndReaskLoopTest {
             assertNotNull(result.exit).guardLevel,
             "the answerExtracted condition's evidence is code-owned (STRONG), never page content",
         )
-        assertEquals(2_000L, result.writerSpendMicroUsd, "the extraction meters into the writer budget")
+        assertEquals(
+            4_000L,
+            result.writerSpendMicroUsd,
+            "both extraction calls meter into the writer budget (2 x 2_000 micro-USD)",
+        )
     }
 
 }
