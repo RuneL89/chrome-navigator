@@ -14,6 +14,8 @@ import navigator.core.wire.WireTransport
 import navigator.core.wire.WireTransportException
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -296,4 +298,32 @@ class GenClientTest {
             return this.respond()
         }
     }
+
+    // -- the condition repair (Phase 10C: the honesty gate's writer surface) ------------
+
+    @Test
+    fun `condition repair - the writer done-condition parses, an invalid answer is null (no retry)`() {
+        val transport = CountingTransport { ok("""{"done":{"urlContains":"allrecipes.com/recipes/dinner"}}""") }
+        val result = runBlocking {
+            client(transport).repairCondition(
+                subtaskInstruction = "open the dinner category page",
+                conditionRendered = "the page contains 'Dinner'",
+                pageUrl = "https://allrecipes.com",
+                pageTitle = "Allrecipes",
+            )
+        }
+        assertNotNull(result)
+        assertEquals(DoneCondition.UrlContains("allrecipes.com/recipes/dinner"), result.done)
+        assertEquals("condition-repair-v1", result.promptVersion)
+        assertEquals(1, transport.calls, "exactly ONE repair call (bounded by the loop)")
+
+        // A prose answer is refused as null (never a fabricated condition), with no retry.
+        val bad = CountingTransport { ok("""{"prose":"the page looks right"}""") }
+        val nulled = runBlocking {
+            client(bad).repairCondition("open x", "y", "z", "w")
+        }
+        assertNull(nulled)
+        assertEquals(1, bad.calls, "no retry on an invalid repair")
+    }
+
 }

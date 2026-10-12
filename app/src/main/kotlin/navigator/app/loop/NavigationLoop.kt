@@ -1473,7 +1473,13 @@ class NavigationLoop(
                     honestyChecked = p.index to o.screenHash
                     return null
                 }
-                val named = SiteEntry.resolveFromText(goalText, p.active.instruction)?.url
+                // The SUBTASK's own text resolves first (its instruction names the page the
+                // subtask opens); the goal text is the fallback search space — a bare
+                // goal-level domain would otherwise shadow the subtask's path URL.
+                val named = (
+                    SiteEntry.resolveFromText("", p.active.instruction)
+                        ?: SiteEntry.resolveFromText(goalText, p.active.instruction)
+                    )?.url
                 if (!ConditionHonesty.namesDifferentPage(named, o.url)) {
                     // The condition is satisfied by the page the subtask NAMES (or nothing is
                     // named): a legitimately arrived outcome, not a proxy — the ordinary exit

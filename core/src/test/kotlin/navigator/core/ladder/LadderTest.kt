@@ -270,4 +270,62 @@ class LadderTest {
         pointer.advance()
         assertEquals(listOf("one"), pointer.completed().map { it.instruction })
     }
+
+    // -- the URL-identity shape (v1.7.0, Phase 10C) -------------------------------------
+
+    @Test
+    fun `urlContains validates - a host-or-path fragment is required`() {
+        val ok = Ladder(
+            "Open the dinner category.",
+            listOf(Subtask("open allrecipes.com/recipes/dinner", DoneCondition.UrlContains("allrecipes.com/recipes/dinner"))),
+        )
+        assertEquals(ok, LadderValidator.validate(ok))
+
+        val blank = Ladder(
+            "Open the page.",
+            listOf(Subtask("open the page", DoneCondition.UrlContains("  "))),
+        )
+        val e1 = assertFailsWith<LadderValidationException> { LadderValidator.validate(blank) }
+        assertTrue(e1.message!!.contains("urlContains"), e1.message!!)
+
+        val whitespace = Ladder(
+            "Open the page.",
+            listOf(Subtask("open the page", DoneCondition.UrlContains("two words"))),
+        )
+        val e2 = assertFailsWith<LadderValidationException> { LadderValidator.validate(whitespace) }
+        assertTrue(e2.message!!.contains("whitespace"), e2.message!!)
+
+        val notAFragment = Ladder(
+            "Open the page.",
+            listOf(Subtask("open the page", DoneCondition.UrlContains("recipes"))),
+        )
+        val e3 = assertFailsWith<LadderValidationException> { LadderValidator.validate(notAFragment) }
+        assertTrue(e3.message!!.contains("URL fragment"), e3.message!!)
+    }
+
+    @Test
+    fun `urlContains matches the URL path - normalization keeps the path, strips scheme-www-port`() {
+        val evidence = DoneConditionChecker.Evidence(url = "https://www.Allrecipes.com/recipes/17562/dinner/?page=2")
+        assertTrue(
+            DoneConditionChecker.satisfied(DoneCondition.UrlContains("allrecipes.com/recipes/17562/dinner"), evidence),
+            "the path identity matches under scheme/www/query normalization (trailing slash trimmed)",
+        )
+        assertFalse(
+            DoneConditionChecker.satisfied(DoneCondition.UrlContains("allrecipes.com/recipes/lunch"), evidence),
+            "a different path never satisfies",
+        )
+        assertTrue(
+            DoneConditionChecker.satisfied(DoneCondition.UrlContains("/dinner"), evidence),
+            "a bare path fragment matches too",
+        )
+        assertFalse(
+            DoneConditionChecker.satisfied(DoneCondition.UrlContains("m0.test/page"), evidence),
+            "a different host never satisfies",
+        )
+        assertFalse(
+            DoneConditionChecker.satisfied(DoneCondition.UrlContains("allrecipes.com/recipes"), DoneConditionChecker.Evidence(url = null)),
+            "an unreadable URL never satisfies",
+        )
+    }
+
 }
