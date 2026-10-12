@@ -496,6 +496,13 @@ data class DecisionLogRow(
      * by the loop before it is recorded). Null otherwise.
      */
     val assistText: String? = null,
+
+    /**
+     * `landingHost`, additive (doc 05 §2 v1.7.0, Phase 10C): the host a CODE navigation
+     * actually reached when it differs from the condition it reconciled (the observed
+     * bbc.co.uk -> bbc.com). Null otherwise.
+     */
+    val landingHost: String? = null,
 ) {
     init {
         require(rowId.isNotBlank()) { "DecisionLogRow.rowId must not be blank" }

@@ -367,6 +367,21 @@ class RoomDecisionLogSink(context: Context, name: String = DB_NAME) : DecisionLo
     override suspend fun writeExitCheck(row: ExitCheckRow) = exitChecks.insert(row)
 
     /**
+     * Phase 10C (doc 05 §2 v1.7.0): the per-task terminal row — the product run's end state
+     * + reason. ONE row per task (PRIMARY KEY taskId, REPLACE on a re-run of the same id).
+     */
+    override suspend fun writeTerminal(row: navigator.app.loop.TerminalRow) =
+        db.terminalDao().insert(
+            navigator.app.log.TerminalEntity(
+                taskId = row.taskId,
+                goal = row.goal,
+                terminal = row.terminal,
+                detail = row.detail,
+                timestamp = row.timestamp,
+            ),
+        )
+
+    /**
      * The router's companion edge: guarded, exactly-once inserts into `shadow_result`
      * (amendment rule a at the persistence boundary; duplicates ABORT).
      */

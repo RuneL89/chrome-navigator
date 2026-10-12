@@ -265,7 +265,7 @@ class DecisionLogV3DbTest {
 
         // Open through Room: MIGRATION_2_3 must run, validate, and keep the history.
         val migrated = Room.databaseBuilder(context, DecisionLogDb::class.java, name)
-            .addMigrations(DecisionLogDb.MIGRATION_1_2, DecisionLogDb.MIGRATION_2_3, DecisionLogDb.MIGRATION_3_4, DecisionLogDb.MIGRATION_4_5, DecisionLogDb.MIGRATION_5_6, DecisionLogDb.MIGRATION_6_7, DecisionLogDb.MIGRATION_7_8)
+            .addMigrations(DecisionLogDb.MIGRATION_1_2, DecisionLogDb.MIGRATION_2_3, DecisionLogDb.MIGRATION_3_4, DecisionLogDb.MIGRATION_4_5, DecisionLogDb.MIGRATION_5_6, DecisionLogDb.MIGRATION_6_7, DecisionLogDb.MIGRATION_7_8, DecisionLogDb.MIGRATION_8_9)
             .allowMainThreadQueries()
             .build()
         try {

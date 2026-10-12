@@ -227,6 +227,7 @@ class DecisionLogV7DbTest {
                 DecisionLogDb.MIGRATION_5_6,
                 DecisionLogDb.MIGRATION_6_7,
                 DecisionLogDb.MIGRATION_7_8,
+                DecisionLogDb.MIGRATION_8_9,
             )
             .allowMainThreadQueries()
             .build()
@@ -246,4 +247,30 @@ class DecisionLogV7DbTest {
             context.deleteDatabase(name)
         }
     }
+
+    /**
+     * Phase 10C (doc 05 §2 v1.7.0): the per-task terminal row round-trips — the row the
+     * product run writes after every task must be readable back (the verifier caught the
+     * interface default silently swallowing it).
+     */
+    @Test
+    fun `the terminal row round-trips through Room`() = kotlinx.coroutines.runBlocking {
+        val db = DecisionLogDb.inMemory(androidx.test.core.app.ApplicationProvider.getApplicationContext())
+        db.terminalDao().insert(
+            TerminalEntity(
+                taskId = "task-1",
+                goal = "find a mushroom recipe",
+                terminal = "GOAL_ACHIEVED",
+                detail = "exit path HIGH",
+                timestamp = 42L,
+            ),
+        )
+        val row = db.terminalDao().newest(1).single()
+        kotlin.test.assertEquals("task-1", row.taskId)
+        kotlin.test.assertEquals("GOAL_ACHIEVED", row.terminal)
+        kotlin.test.assertEquals("exit path HIGH", row.detail)
+        kotlin.test.assertEquals(42L, row.timestamp)
+        db.close()
+    }
+
 }

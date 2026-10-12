@@ -95,6 +95,8 @@ data class DecisionLogEntity(
     val targetStateText: String? = null,
     /** Phase 10C: the handshake assist text when one rode this step (doc 05 §2). */
     val assistText: String? = null,
+    /** Phase 10C: the landing host a code navigation reconciled to (doc 05 §2). */
+    val landingHost: String? = null,
 )
 
 /** Bidirectional mapping row ↔ entity. Decoding validates loudly (core log law). */
@@ -138,6 +140,7 @@ object DecisionLogConverters {
         targetScoresJson = row.targetScores?.let { navigator.core.log.TargetScoresCodec.encode(it) },
         targetStateText = row.targetStateText,
         assistText = row.assistText,
+        landingHost = row.landingHost,
     )
 
     fun toRow(entity: DecisionLogEntity): DecisionLogRow = DecisionLogRow(
@@ -191,6 +194,7 @@ object DecisionLogConverters {
         targetScores = entity.targetScoresJson?.let { navigator.core.log.TargetScoresCodec.decode(it) },
         targetStateText = entity.targetStateText,
         assistText = entity.assistText,
+        landingHost = entity.landingHost,
         plan = entity.planJson?.let {
             DECISION_LOG_JSON.decodeFromString(LoggedPlan.serializer(), it)
         },
@@ -277,7 +281,7 @@ interface TerminalDao {
         ExitCheckEntity::class,
         TerminalEntity::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = false,
 )
 abstract class DecisionLogDb : RoomDatabase() {
@@ -434,6 +438,16 @@ abstract class DecisionLogDb : RoomDatabase() {
             }
         }
 
+        /**
+         * v8 -> v9 (Phase 10C, doc 05 §2 v1.7.0): the `landingHost` column (nullable,
+         * additive) — the reconciliation's provable landing host.
+         */
+        val MIGRATION_8_9: androidx.room.migration.Migration = object : androidx.room.migration.Migration(8, 9) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `decision_log` ADD COLUMN `landingHost` TEXT")
+            }
+        }
+
         /** Production: a named, on-disk database (indefinite local retention, vision 05 §5). */
         fun open(context: Context, name: String): DecisionLogDb =
             Room.databaseBuilder(context, DecisionLogDb::class.java, name)
@@ -445,6 +459,7 @@ abstract class DecisionLogDb : RoomDatabase() {
                     MIGRATION_5_6,
                     MIGRATION_6_7,
                     MIGRATION_7_8,
+                    MIGRATION_8_9,
                 )
                 .build()
 

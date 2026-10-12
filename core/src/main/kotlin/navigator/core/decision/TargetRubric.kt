@@ -59,16 +59,23 @@ object TargetRubric {
     /**
      * Builds the stage-2 batch: ONE [ScoreQuestion] per slate candidate, all named
      * `cand-<id>`, all over the same 5-level rubric, each instructions string naming the
-     * subtask and the candidate label (fixture law shape):
-     * `"Score how well acting on '<label>' advances: <subtask instruction>."`
+     * subtask and the candidate label, **framed PER INTENT** (doc 02 §3 v1.4.0, Phase 10C —
+     * the D4 fix: enablement targets like a search box must be able to clear the floor, so
+     * the question asks the intent's own question about the candidate). Fixture law shapes:
+     * - `fill-field`:  `"Is '<label>' the field the subtask needs filled? …"`
+     * - `follow-link` / `activate-control`: `"Does acting on '<label>' lead toward the subtask's outcome? …"`
+     * - `submit` / `dismiss-nag`: `"Does pressing '<label>' serve the subtask's next step? …"`
+     * - any other/unknown intent keeps the generic form `"Score how well acting on '<label>' advances: …"`.
      *
      * @param slate the (id, label) pairs of the intent's bucket slate, in deterministic
      *   enumeration order (browser-chrome candidates excluded upstream — vision 03 §3)
      * @param subtaskInstruction the ACTIVE subtask's instruction text
+     * @param intentId the stage-1 intent whose slate this is (the framing key)
      */
     fun stage2Questions(
         slate: List<Pair<String, String>>,
         subtaskInstruction: String,
+        intentId: String? = null,
     ): Map<String, ScoreQuestion> {
         require(slate.isNotEmpty()) { "TargetRubric: a stage-2 slate must not be empty" }
         return slate.associate { (id, label) ->
@@ -76,10 +83,26 @@ object TargetRubric {
             name to ScoreQuestion(
                 name = name,
                 levels = rubric(),
-                instructions =
-                    "Score how well acting on '$label' advances: $subtaskInstruction.",
+                instructions = instructionFor(intentId, label, subtaskInstruction),
             )
         }
+    }
+
+    /** The per-intent stage-2 instruction (doc 02 §3 v1.4.0; fixture law — retire-and-add on change). */
+    fun instructionFor(intentId: String?, label: String, subtaskInstruction: String): String = when (intentId) {
+        Intents.FILL_FIELD ->
+            "Is '$label' the field the subtask needs filled? Score how well typing into it " +
+                "advances: $subtaskInstruction."
+
+        Intents.FOLLOW_LINK, Intents.ACTIVATE_CONTROL ->
+            "Does acting on '$label' lead toward the subtask's outcome? Score how well it " +
+                "advances: $subtaskInstruction."
+
+        Intents.SUBMIT, Intents.DISMISS_NAG ->
+            "Does pressing '$label' serve the subtask's next step? Score how well it " +
+                "advances: $subtaskInstruction."
+
+        else -> "Score how well acting on '$label' advances: $subtaskInstruction."
     }
 
     /** One scored candidate: the candidate id and its code-computed expected level. */

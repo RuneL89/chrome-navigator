@@ -372,6 +372,9 @@ class NavigationLoop(
         // Phase 10C (doc 05 §2 v1.7.0): the handshake assist text rides EXACTLY the next
         // row written (the step's decision row), then clears.
         var pendingAssistText: String? = null
+        // Phase 10C (doc 05 §2 v1.7.0): the landing host a code navigation reconciled to
+        // rides the NEXT row written (the amendment's own step), then clears.
+        var pendingLandingHost: String? = null
         var codeCheckHash: Int? = null
         // Phase 10C (vision 04 §1 v1.7.0): the condition-honesty gate's memo — at most ONE
         // evaluation per (active subtask ordinal, page-hash); a page change or a pointer
@@ -737,6 +740,7 @@ class NavigationLoop(
                 targetScores = targetScores,
                 targetStateText = targetStateText,
                 assistText = pendingAssistText.also { pendingAssistText = null },
+                landingHost = pendingLandingHost.also { pendingLandingHost = null },
             )
             logSink.write(row)
             rows += 1
@@ -1522,6 +1526,10 @@ class NavigationLoop(
                     "site-entry: landed on '$landedHost' (one site family with the condition's " +
                         "'${done.host}') - the urlHost condition reconciles to the landing host",
                 )
+                pendingLandingHost = landedHost
+                history.add(
+                    "step $stepIndex: landing-host reconciliation - '${done.host}' -> '$landedHost'",
+                )
                 applyCondition(p, DoneCondition.UrlHost(landedHost), "landing-host reconciliation")
             }
 
@@ -1965,6 +1973,7 @@ class NavigationLoop(
                 val stage2 = TargetRubric.stage2Questions(
                     maskedSlate.map { it.id to it.label },
                     subtask,
+                    intentId = intentId,
                 )
                 uiListener?.onThinking(true)
                 val results = engine.scoreBatch(view.text, stage2)
