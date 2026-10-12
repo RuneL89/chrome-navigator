@@ -1300,4 +1300,67 @@ class LadderExecutionLoopTest {
         assertTrue(view.contains("[n2]"), "the view names the slate's candidates: $view")
         assertTrue(view.contains("SUBTASK"), "the view is the TARGET STATE VIEW: $view")
     }
+    // -- Gate 10D.2b: the target view's header is a masked engine input too ---------------
+
+    @Test
+    fun `gate 10D_2b - a secret echoed into the ladder never reaches the target view or its row`() {
+        // The Stage-2 verifier's finding (2026-10-13): the target view's SUBTASK/DONE-WHEN
+        // header rides the ENGINE batch and the persisted targetStateText; a gen-1 ladder
+        // built from the RAW goal can echo an owner-typed secret into its instruction, and
+        // nothing masked the header (the slate labels were masked, the header was not).
+        val secret = "s3cr3t-value-9"
+        val goal = "open the vault, use $secret, and read the welcome page"
+        val page = obs(
+            "http://m0.test/page",
+            N("A vault page heading with some prose.", clickable = false),
+            N("Intro text for the sign in form area.", clickable = false),
+            N("password", editable = true, password = true),
+            N("Continue", clickable = true),
+            N("nickname", editable = true),
+            N("One more readable line so the tree clears the usable floor.", clickable = false),
+        )
+        val source = ScriptedLadderSource(
+            1 to ladder2(
+                Subtask("the credentials are typed", DoneCondition.ElementPresent("password field")),
+                Subtask("an impossible marker", DoneCondition.MarkerText("Never On This Page")),
+            ),
+            // The re-plan's ladder ECHOES the owner's secret — exactly the gen-1 raw-goal
+            // shape the B2 finding proved reachable.
+            2 to Ladder(
+                "Re-planned ladder.",
+                listOf(Subtask("read the page that shows $secret", DoneCondition.MarkerText("Never On This Page"))),
+            ),
+        )
+        val engine = ScriptedEngine(
+            // The first n2 = S1's fill-field (the card supplies the secret); after the
+            // re-plan, the second n2 drives gen2's TARGET-bearing step whose header echoes
+            // the secret; the rest keep the script fed to a terminal.
+            // n5 (a PLAIN editable field) drives gen2's target step: a second password
+            // pick would raise a second credential card the one-shot presenter cannot fill.
+            actionPicks = listOf("n2", "n3", "n3", "n3", "n3") + List(20) { "n5" },
+            noulValues = List(12) { 0.9 },
+            intentHints = mapOf("n2" to navigator.core.decision.Intents.FILL_FIELD),
+            recoveryPicks = List(8) { "give-up" },
+        )
+        val (_, sink) = runLadder(
+            engine,
+            source,
+            observations = listOf(page),
+            gatePresenter = ScriptedGatePresenter(GateResolution.ApproveWithSecret(secret)),
+            goal = goal,
+        )
+        assertTrue(
+            sink.rows.any { it.typedSecret },
+            "the fixture must actually type a card credential (non-vacuousness)",
+        )
+        assertTrue(
+            sink.rows.any { it.targetStateText?.contains(TextSource.REDACTED) == true },
+            "the target view must have carried the echoed header and the mask marker: " +
+                sink.rows.map { it.targetStateText },
+        )
+        sink.rows.forEach { row ->
+            val view = row.targetStateText ?: return@forEach
+            assertTrue(secret !in view, "the raw secret reached a persisted target view: $view")
+        }
+    }
 }

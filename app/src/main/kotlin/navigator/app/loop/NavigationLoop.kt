@@ -2163,11 +2163,19 @@ class NavigationLoop(
              * under the JVM method-size limit; the lines moved wholesale, byte-identical).
              */
             suspend fun runStage2(intentId: String, slate: List<Candidate>): Stage2Outcome {
-                val subtask = subtaskInstruction()
+                // doc 06 §2a (the Stage-2 verifier's finding, 2026-10-13): the view's
+                // SUBTASK/DONE-WHEN header rides the ENGINE batch AND the persisted
+                // `targetStateText` — and a gen-1 ladder built from the raw goal can echo a
+                // sanctioned secret into its instruction/condition. Mask the header exactly
+                // like the slate labels; one fold covers the Target, re-ask and
+                // no-good-target rows alike.
+                val keys = redactionKeys()
+                val subtask = redactedLabel(subtaskInstruction(), keys)
+                val doneWhen = redactedLabel(doneWhenText(), keys)
                 val maskedSlate = slate.map {
-                    it.copy(label = redactedLabel(it.label, redactionKeys()))
+                    it.copy(label = redactedLabel(it.label, keys))
                 }
-                val view = stageViews.targetView(subtask, doneWhenText(), maskedSlate)
+                val view = stageViews.targetView(subtask, doneWhen, maskedSlate)
                 val stage2 = TargetRubric.stage2Questions(
                     maskedSlate.map { it.id to it.label },
                     subtask,
