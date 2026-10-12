@@ -69,7 +69,21 @@
   ],
   "branch": "phase-10c (owner-directed: all 10C work on a branch for easy revert)",
   "verification_plan": {
-    "until_UAT": "emulator-first (owner directive 2026-10-12): use the android-emulator plugin (build/install/run + UI automation) for every on-device check — JVM gates, then the emulator harness suite (GateScenarios via NavigatorGates), then the phone UAT only after 10C is fully implemented.",
-    "owner_UAT": "the 8-goal battery on the S25+ (acceptance bar: zero false completions; >=1 executed tap; >=1 executed type+submit; the redirect goal completes/reconciles; the read goal reports a headline)"
-  }
+    "until_UAT": "emulator-first (owner directive 2026-10-12) + the on-device UAT only after 10C is fully implemented"
+  },
+  "gates_complete": {
+    "10C.1": "urlContains URL-identity shape + condition-honesty gate (writer repair → code-derived identity → loud refusal) + ladder-scoped Path A STRONG + the corpus rewritten (commit e46e6a3, tests 6766f38)",
+    "10C.2": "landing-host reconciliation (bbc.co.uk→bbc.com amends, logged) + stage-1 band on the chosen probability + top-margin (Cascade v1.7.0 constants) + bounded stage-1 re-ask on empty/flat slates; run() kept under the JVM method-size limit via wholesale extractions (runStage2/handshakeReask/dispatchIntent/observeUsable/buildStepState/budgetStep/logNoChangeRow) (commit c2dad2c + tests a95f070)",
+    "10C.3": "observation — editable-by-role (EditText class), unlabeled fields named by placeholder, text-less controls described by role+container, browser-chrome widened to the whole browser id namespace (KD-3 upgrade) (commit b02767b)",
+    "10C.4": "the answerExtracted report-goal shape (whitelist + schema + prompt restructure-v3 + golden v3 + checker STRONG) + the loop’s report-subtask extraction step (code-owned record evidence) (commits e0f4027/2a21c7f)",
+    "10C.5": "evidence — Room v8 (targetScores/targetStateText/assistText + task_terminal + MIGRATION_7_8), the terminal row per product run, the assist on its step row, the live log reset per run; row goldens regenerated (additive assistText); migration tests chained (commit 9acf1df)"
+  },
+  "suite": "1437 tests / 0 failures (./gradlew test) on branch phase-10c",
+  "remaining": [
+    "DOX pass (core/AGENTS.md + app/AGENTS.md: the v1.7.0 laws + the new shapes/seams)",
+    "10C.6 emulator verification (android-emulator plugin): build + install + the harness gate scenarios (NavigatorGates) + one live cascade run",
+    "the owner UAT battery on the S25+ (acceptance bar: zero false completions; >=1 executed tap; >=1 executed type+submit; the redirect goal completes/reconciles; the read goal reports a headline)",
+    "the calibration probe for the band constants (Cascade HIGH_FLOOR/HIGH_MARGIN) — live evidence pending",
+    "shadow-in-product stays DEFERRED to Phase 11 (owner decision)"
+  ]
 }

@@ -1,0 +1,48 @@
+ActionMultiLoopTest | a gate-refused target counts as skipped - skipped does not block draining | apply the sweep to every target channel row | NO-OBS | Sweep
+ActionMultiLoopTest | single-action achieves only after a post-action observation - its refusal has no tracker detail | open the plan details and confirm the account change | NO-OBS | Details
+CardForegroundRestoreTest | a credential card approval restores before the secret is typed | Sign in to the fixture bank demo account. | NO-OBS | Fixture Bank Dummy Login (TEST ONLY)
+ColdStartTest | without the cold-start seams the loop is unchanged | the plain goal | NO-OBS | 
+ColdStartTest | the loop on a same-site browser runs no cold-start intent | the cold-start goal | NO-OBS | 
+ColdStartTest | the loop fires the cold-start VIEW intent before the first OBSERVE and triage | the cold-start goal | NO-OBS | 
+CredentialEntryLoopTest | deny skips the credential action and a later card still supplies the secret | NO-RUN-GOAL | NO-OBS | 
+CredentialEntryLoopTest | a long sanctioned secret truncated by the serializer cap still masks fully | NO-RUN-GOAL | NO-OBS | 
+CredentialEntryLoopTest | typing into a reader-FLAGGED wording-free field fires the H8 credential card and the happy path completes | NO-RUN-GOAL | NO-OBS | 
+CredentialEntryLoopTest | credential typing injects the card secret and never the stub phrase | NO-RUN-GOAL | NO-OBS | 
+CredentialEntryLoopTest | the additive consult proposition masks a sanctioned echo before any engine sees it | NO-RUN-GOAL | NO-OBS | 
+CredentialEntryLoopTest | after a credential run the fixture secrets appear NOWHERE in logs rows or reports | NO-RUN-GOAL | NO-OBS | 
+CredentialEntryLoopTest | timeout skips the credential action like a deny | NO-RUN-GOAL | NO-OBS | 
+CredentialEntryLoopTest | the live Chrome login shape - the flagged wording-free password field gates the pair H4 | NO-RUN-GOAL | NO-OBS | 
+CredentialEntryLoopTest | a page-side echo of the typed credential is masked and the run survives the post-injection build | NO-RUN-GOAL | http://127.0.0.1:8099/echo-long.html | Account (TEST ONLY);Echo (TEST ONLY)
+ExitPolicyTest | path A accepts at the first check above the high floor with a WEAK guard | NO-RUN-GOAL | NO-OBS | 
+LadderExecutionLoopTest | gate 10_2 r1 - the code-triggered check completes a ladder the engine never finishes - FINAL accept is the goal | NO-RUN-GOAL | NO-OBS | 
+LadderExecutionLoopTest | gate 10_2 - site entry plans are pure and deterministic | NO-RUN-GOAL | NO-OBS | 
+LadderExecutionLoopTest | gate 10_2 - the writer budget is SEPARATE from decision spend, integer micro-dollars | NO-RUN-GOAL | NO-OBS | 
+LadderExecutionLoopTest | gate 10_2 - sanctioned secrets never reach the writer - re-plan goal and extraction state are masked | NO-RUN-GOAL | http://m0.test/page | 
+LadderExecutionLoopTest | gate 10_2 - count done-conditions track working memory and advance only at n | NO-RUN-GOAL | http://m0.test/follow | 
+LadderExecutionLoopTest | gate 10_2 r1 - the pointer advances on engine-HIGH AND code-guard - a satisfied guard alone never advances | NO-RUN-GOAL | http://m0.test/page | 
+LadderExecutionLoopTest | gate 10_2 - site entry is outcome-based - the urlHost subtask fires the VIEW intent, logged | NO-RUN-GOAL | NO-OBS | 
+LadderExecutionLoopTest | gate 10_2 r1 - the code-triggered check wraps its consult in the onThinking pair | NO-RUN-GOAL | NO-OBS | 
+NavigationLoopFallbackTest | an escalated step logs the fallback answer as executed with the primary kept as teacher | NO-RUN-GOAL | NO-OBS | 
+NavigationLoopFallbackTest | a primary hard failure inside the loop escalates and still executes | NO-RUN-GOAL | NO-OBS | 
+NavigationLoopListenerTest | steps stream compact facts at the LOG step - ungated marker and the logged confidence | find the answer | NO-OBS | 
+NavigationLoopListenerTest | an echoed card secret never reaches a step line - the label masks at source | fill the flagged fixture form | http://fixture.test/flagged.html | Flagged fields (TEST ONLY);Flagged fields (TEST ONLY)
+NavigationLoopListenerTest | the plan proposal and the terminal state reach the listener | find the answer | NO-OBS | 
+NavigationLoopListenerTest | the default-null listener keeps the run byte-identical | find the answer | NO-OBS | 
+NavigationLoopListenerTest | thinking pairs around every engine consult | find the answer | NO-OBS | 
+NavigationLoopListenerTest | the gate marker names the class, the decision, and per-task trust | unsubscribe from the cooking and trailer channels | http://channel.test/subscriptions | 
+NavigationLoopTest | strict step order - observe, decide, GATE, then EXECUTE | read the apple pie article | http://m0.test/article | 
+NavigationLoopTest | one transient unusable read does not refuse the task | NO-RUN-GOAL | http://m0.test/b | 
+NavigationLoopTest | goal-achieved needs noul HIGH and the guard - uncertain noul is refused, then it passes | NO-RUN-GOAL | http://m0.test/loop | 
+NavigationLoopTest | exactly one log row per decision with the day-one schema fields | read one article | http://m0.test/article | 
+Phase08HLoopTest | the default path renders the degenerate goal-only ladder sections byte-stably | NO-RUN-GOAL | NO-OBS | 
+Phase08HLoopTest | the content excerpt rides the untrusted block of the decide state | NO-RUN-GOAL | NO-OBS | 
+Phase08HLoopTest | the v2 PLAN section is REPLACED - a proposed plan source leaves the degenerate ladder forms | NO-RUN-GOAL | NO-OBS | 
+Phase08HLoopTest | the legacy tracker's working memory no longer rides a state section (v3) - it rides the run report | NO-RUN-GOAL | NO-OBS | 
+Phase08ILoopTest | multi-action - first mutation fires the H9 card, trust carries the rest, drained goal achieved | Unsubscribe from every channel on the subscriptions page. | NO-OBS | 
+Phase10BLoopTest | follow-link - stage-2 over the nav-links slate taps the argmax target | NO-RUN-GOAL | http://m0.test/article | 
+Phase10BLoopTest | handshake - one assist per page-hash, one re-ask, the re-ask is the decision of record | open the demo article | http://m0.test/article | 
+Phase10BLoopTest | fill-field - the stage-2 target's content is writer-phrased, never the raw goal | type the guest name into the form | http://m0.test/saved | 
+Phase10BLoopTest | empty slate - the bounded grace gives the page observe-only steps before the fallback | NO-RUN-GOAL | http://m0.test/article | 
+PlanSourceLoopTest | the deterministic default supplies no plan - the default path is byte-identical | find the answer | NO-OBS | 
+PlanSourceLoopTest | an explicit PlanSource_None behaves exactly like the default | find the answer | NO-OBS | 
+PlanSourceLoopTest | a proposed plan rides every row as provenance - consulted once at triage | find the answer | NO-OBS | 

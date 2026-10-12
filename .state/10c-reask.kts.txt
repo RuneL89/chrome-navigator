@@ -1,0 +1,42 @@
+            /**
+             * The bounded stage-1 re-ask (Phase 10C, vision 04 §2 v1.7.0): the chosen
+             * intent's slate is unusable (empty after the grace, or a flat stage-2
+             * spread). Instead of failing the subtask, the loop asks stage-1 ONCE MORE on
+             * this page-hash with the FACT riding the question's instructions. Returns the
+             * new answer only when it is a DIFFERENT intent and routes HIGH by the v1.7.0
+             * band (chosen probability + margin); null = no re-ask (already spent, the
+             * engine repeats the dead-end intent, or the new answer routes below HIGH) —
+             * the ordinary fallback applies.
+             */
+            suspend fun reaskIntent(o: StepObservation, bannedIntent: String, reason: String): ChoiceResult? {
+                if (noGoodTargetReaskHash == o.screenHash) return null
+                noGoodTargetReaskHash = o.screenHash
+                val note = "NOTE: your chosen intent '$bannedIntent' has no usable target on this " +
+                    "page ($reason). Choose a DIFFERENT intent for this step."
+                line("decide: stage-1 re-ask ($reason) - ONE bounded re-ask on this page-hash")
+                val reQuestion = Intents.QUESTION.copy(
+                    instructions = Intents.QUESTION.instructions + "\n\n" + note,
+                )
+                uiListener?.onThinking(true)
+                val re = engine.choose(buildIntentView(null).text, reQuestion)
+                uiListener?.onThinking(false)
+                line(
+                    "decide: re-ask intent '${re.chosenId}' (p=" +
+                        "${Cascade.chosenProbability(re.probabilities, re.chosenId)}, " +
+                        "margin=${Cascade.topMargin(re.probabilities)})",
+                )
+                if (re.chosenId == bannedIntent) {
+                    line("decide: the re-ask repeated '$bannedIntent' - the ordinary fallback applies")
+                    return null
+                }
+                val route = Cascade.route(
+                    Cascade.chosenProbability(re.probabilities, re.chosenId),
+                    Cascade.topMargin(re.probabilities),
+                )
+                if (route != Cascade.Route.HIGH) {
+                    line("decide: the re-ask routed ${route.name} - the ordinary fallback applies")
+                    return null
+                }
+                return re
+            }
+

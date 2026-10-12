@@ -496,6 +496,17 @@ shapes + the typedSecret and plan loud-incoherence proofs, 5.2 RLCD export vs a
   format 4 + intents-v1), 5.3 agreement math with
   hand-computed KL values, the Phase-8J-Round-2 `ExitCheckRowTest` schema round-trips
   + loud incoherent shapes) must all pass
+* The Phase-10C laws (doc 04 v1.7.0, owner-ratified 2026-10-12):
+  * `DoneCondition` carries `urlContains` (a URL PATH identity — a different page on the SAME
+    host, e.g. `allrecipes.com/recipes/dinner`) and `answerExtracted` (payload-free: the report
+    subtask's answer has been PRODUCED). `DoneConditionChecker.guardStrength` is STRONG for URL
+    identities and for the two CODE-OWNED shapes (`count`, `answerExtracted`), WEAK for the
+    content-reading shapes (`markerText`/`elementPresent`).
+  * `DoneConditionChecker.sameSiteFamily` is the landing-host reconciliation predicate
+    (subdomain/apex aliases + the same-brand ccTLD pair — the observed bbc.co.uk -> bbc.com);
+    `normalizeUrl` is public (the app's honesty gate and the reconciliation use it).
+  * `TargetScoresCodec` encodes/decodes the persisted stage-2 scores (a sorted-key JSON object
+    on the kotlinx-json element types).
 * `./gradlew :core:liveSmoke` — UAT 3.1 only: TWO live provider calls through the
   production client (choice+noul, score); needs the owner key (env `NAVIGATOR_OPENROUTER_KEY`
   or git-ignored `.tools/keys.env`), costs ~$0.00005, never run by a gate

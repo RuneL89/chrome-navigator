@@ -1,0 +1,86 @@
+            /**
+             * The stage-2 scoring of one live slate (vision 02 §3 v1.4.0): the masked
+             * TARGET STATE VIEW, ONE batched score request, the code-side argmax/flat-spread
+             * resolution (ART-5). Extracted from `run` in Phase 10C (the loop body must stay
+             * under the JVM method-size limit; the lines moved wholesale, byte-identical).
+             */
+            suspend fun runStage2(intentId: String, slate: List<Candidate>): Stage2Outcome {
+                val subtask = subtaskInstruction()
+                val maskedSlate = slate.map {
+                    it.copy(label = redactedLabel(it.label, redactionKeys()))
+                }
+                val view = stageViews.targetView(subtask, doneWhenText(), maskedSlate)
+                val stage2 = TargetRubric.stage2Questions(
+                    maskedSlate.map { it.id to it.label },
+                    subtask,
+                )
+                uiListener?.onThinking(true)
+                val results = engine.scoreBatch(view.text, stage2)
+                uiListener?.onThinking(false)
+                val expectedLevels = results
+                    .mapKeys { it.key.removePrefix(TargetRubric.CANDIDATE_NAME_PREFIX) }
+                    .mapValues { it.value.expectedLevel }
+                val resolution = TargetRubric.resolve(expectedLevels)
+                if (resolution.noGoodTarget) {
+                    return Stage2Outcome.NoGoodTarget(resolution.reason ?: "no good target")
+                }
+                val target = slate.first { it.id == resolution.top.candidateId }
+                line(
+                    "decide: stage-2 target \"${redactedLabel(target.label, redactionKeys())}\" " +
+                        "[${target.id}] (${resolution.top.expectedLevel} of ${slate.size} scored)",
+                )
+                return Stage2Outcome.Target(target, expectedLevels, view.text)
+            }
+
+            /**
+             * The uncertainty handshake (vision 04 §2 v1.6.0; extracted in Phase 10C to keep
+             * `run` under the JVM method-size limit — the lines moved wholesale): ONE writer
+             * assist per page-hash (when wired and in budget) + ONE stage-1 re-ask with the
+             * assist riding the view as labeled untrusted context; returns the decision of
+             * record (the original [choice] when the handshake did not re-ask).
+             */
+            suspend fun handshakeReask(o: StepObservation): ChoiceResult {
+                if (assistTriedHash == o.screenHash) {
+                    line("decide: UNCERTAIN - the assist already ran on this page-hash - code fallback")
+                    return choice
+                }
+                if (assistSource == null) {
+                    line("decide: UNCERTAIN - no assist source wired - code fallback")
+                    return choice
+                }
+                if (!writerBudget.hasHardRoom()) {
+                    line("decide: UNCERTAIN - the writer budget's hard cap is reached - code fallback")
+                    return choice
+                }
+                assistTriedHash = o.screenHash
+                val subtask = subtaskInstruction()
+                val doneWhen = doneWhenText()
+                val pageMaterial = buildString {
+                    append("title: ").append(o.title).append('\n')
+                    append("url: ").append(o.url).append('\n')
+                    o.excerpt.take(ASSIST_MATERIAL_MAX_LINES).forEach { append(it).append('\n') }
+                }
+                val maskedMaterial =
+                    redactionKeys().fold(pageMaterial) { acc, key -> acc.replace(key, TextSource.REDACTED) }
+                val assist = runAssist(subtask, doneWhen, maskedMaterial)
+                if (assist == null) {
+                    line("decide: assist skipped (refused output / honesty path) - code fallback")
+                    return choice
+                }
+                line(
+                    "handshake: assist applied (${assist.text.length} chars, " +
+                        "${assist.promptVersion}) - ONE stage-1 re-ask with the " +
+                        "ASSIST (untrusted) block",
+                )
+                uiListener?.onThinking(true)
+                val reasked = engine.choose(buildIntentView(assist.text).text, question)
+                uiListener?.onThinking(false)
+                escalation = readEscalation(question.name)
+                line(
+                    "decide: re-ask intent '${reasked.chosenId}' (p=" +
+                        "${Cascade.chosenProbability(reasked.probabilities, reasked.chosenId)}, " +
+                        "margin=${Cascade.topMargin(reasked.probabilities)})" + escalationSuffix(escalation),
+                )
+                return reasked
+            }
+

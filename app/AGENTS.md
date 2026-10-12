@@ -892,6 +892,32 @@ setup wizard (`setup/`).
 
 ## Work Guidance
 
+## Phase 10C laws (v1.7.0, owner-ratified 2026-10-12)
+
+* **Condition honesty** (`NavigationLoop`'s `honestyGate`): at every subtask entry (memoized per
+  (active ordinal, page-hash)), a WEAK-shaped condition already satisfied where the subtask starts,
+  on a subtask that NAMES a different page (`SiteEntry.resolveFromText`, instruction first), runs
+  ONE bounded writer repair (`Prompts.CONDITION_REPAIR_SYSTEM`, `GenClient.repairCondition`,
+  writer-budget metered) -> else a code-derived `urlContains` -> else a loud `LADDER_REFUSED`.
+  `applyCondition` swaps the condition preserving pointer progress.
+* **Path A requires STRONG on LADDER runs** (`ExitPolicy.onFinishCheck(ladderRun = ...)`); legacy
+  scripted runs keep the v1.2.0 class-predicate law.
+* **Landing reconciliation**: after a code navigation, `reconcileLandingHost` amends a `urlHost`
+  condition to the landing host when `DoneConditionChecker.sameSiteFamily` holds (logged).
+* **Stage-1 band**: `Cascade.route(chosenProbability, topMargin)` — the v1.7.0 constants
+  (LOW_FLOOR/HIGH_FLOOR/HIGH_MARGIN) replace the self-reported-confidence band.
+* **No-good-target re-ask**: an empty (post-grace) or flat slate asks stage-1 ONCE more with the
+  fact (`reaskIntent`), the answer pinned for the next step (`forcedIntentNextStep`).
+* **Report subtasks**: `extractReportAnswer` produces the answer over the masked current state
+  once per report subtask; the code-owned `reportAnswers` record feeds the evidence.
+* **Evidence**: Room v8 — `targetScoresJson`/`targetStateText`/`assistText` columns + the
+  `task_terminal` table (the service writes the terminal row per product run); the live log
+  CLEARS on every `show()` (per-run reset).
+* **Method-size discipline**: the loop body's large blocks live in local helpers
+  (`runStage2`/`handshakeReask`/`dispatchIntent`/`observeUsable`/`buildStepState`/`budgetStep`/
+  `logNoChangeRow`) because `run` sits near the JVM 64KB method limit — add new loop code as a
+  helper, never inline.
+
 ## Verification
 
 * `./gradlew :app:assembleDebug` must produce an APK
