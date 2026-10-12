@@ -1548,26 +1548,97 @@ class NavigationLoop(
                     else -> Outcome.PROGRESSED
                 }
 
-                // -- 6. LOG + the post-step bookkeeping (extracted — `run()`'s method-size
-            //    discipline; the helper above) ---------------------------------------------
-            postStepBookkeeping(
-                obs = obs,
-                state = state,
-                question = question,
-                choice = choice,
-                candidates = candidates,
-                candidate = candidate,
-                kind = kind,
-                disposition = disposition,
-                proceed = proceed,
-                execOk = execOk,
-                gateEvent = gateEvent,
-                escalation = escalation,
-                textSource = textSource,
-                targetScores = targetScores,
-                targetViewText = targetViewText,
-                taskAborted = taskAborted,
-            )?.let { return it }
+                // -- 6. LOG (exactly one row per navigation decision) -------------------------------
+                logRow(
+                    stepIndex, state, question, choice, candidates,
+                    ExecutedAction(
+                        candidateId = if (kind == ActionKind.BACK || kind == ActionKind.FINISH) null else candidate.id,
+                        kind = kind.toLoggedKind(),
+                        disposition = disposition,
+                    ),
+                    gateEvent,
+                    outcome,
+                    escalation = escalation,
+                    // doc 05 §2 `typedSecret`: true when this step typed a credential
+                    // supplied via the gate card — the VALUE is never stored (the row
+                    // carries the flag, the step log renders [credential-redacted]).
+                    typedSecret = proceed && textSource is TextSource.GateSuppliedSecret,
+                    // The cascade's stage-2 evidence (doc 05 §2 v1.6.0): the executed slate +
+                    // the TARGET STATE VIEW the batch rode (the score case's state law).
+                    targetScores = targetScores,
+                    targetStateText = targetViewText,
+                )
+                // Phase 9: the live-log line (compact product facts) fires AT the LOG step.
+                // The acted-on label masks through the SAME sanctioned-secret redaction fold
+                // the execute line uses (doc 05 §2 / doc 06 §2a) — masked at source, so a
+                // post-injection page echo can never reach the overlay through a label.
+                // Phase 10B: the verb is the stage-1 INTENT (the compact line's format law
+                // is untouched — the verb is data).
+                uiListener?.onStep(
+                    LoopUiListener.StepFacts(
+                        stepIndex = stepIndex,
+                        verb = choice.chosenId,
+                        label = redactedLabel(candidate.label, redactionKeys()),
+                        confidence = choice.confidence,
+                        gateMarker = LoopUiListener.gateMarker(gateEvent),
+                    ),
+                )
+                // The history digest quotes the acted-on label — page text that can carry a
+                // sanctioned post-injection echo (the acted-on field's own a11y text IS the
+                // typed secret on live Chrome). It renders [credential-redacted] here
+                // (doc 05 §2); the state builder masks every section the same way. The verb
+                // is the stage-1 intent.
+                history.add(
+                    "step $stepIndex: ${choice.chosenId} \"${redactedLabel(candidate.label, redactionKeys())}\" -> " +
+                        serial(outcome) +
+                        (gateEvent?.let { " (gate ${it.decision.name.lowercase()})" } ?: ""),
+                )
+
+                guards!!.record(
+                    url = post.url,
+                    contentTextNodes = post.contentTextNodes,
+                    textTyped = proceed && execOk && kind == ActionKind.TYPE,
+                    submitExecuted = proceed && execOk && kind == ActionKind.SUBMIT,
+                    actionExecuted = proceed && execOk,
+                )
+                // Task working memory (Phase 08G, vision 04 §1): resolve the acted-on row —
+                // an executed action marks the target PROCESSED; a gate refusal marks it
+                // SKIPPED (the owner's denial is authoritative for that row); a FAILED
+                // dispatch changes nothing (the row stays pending, retryable). A synthetic
+                // or non-row candidate resolves to nothing.
+                val stepTracker = tracker
+                if (stepTracker != null) {
+                    obs.nodes.firstOrNull { it.id == candidate.id }?.let { node ->
+                        when {
+                            !proceed -> stepTracker.markSkipped(node)
+                            execOk -> stepTracker.markProcessed(node)
+                            else -> null
+                        }
+                    }
+                }
+                stuck.record(
+                    StuckDetector.Footprint(
+                        actionKey = "${kind.name}:${candidate.id}",
+                        screenHash = post.screenHash,
+                        textLines = post.lines,
+                        isError = outcome == Outcome.ERROR,
+                    ),
+                )
+                stepIndex += 1
+
+                if (taskAborted) {
+                    return finish(
+                        TerminalState.GUARD_ABORT,
+                        "the same high-stakes action (${gateEvent?.hclass}) was refused twice in this task",
+                        stepIndex,
+                    )
+                }
+                if (assessStuck()) {
+                    // Phase 10 + vision 04 §1 v1.5.0: a LADDER run routes L3 through the
+                    // GUARANTEED owner card; the legacy path keeps the task-level STUCK_KILL.
+                    handleStuckKill("still stuck after hint and strategy switch - L3 auto-kill")
+                        ?.let { return it }
+                }
                 return null
             }
             /**
@@ -3169,109 +3240,26 @@ class NavigationLoop(
                 )
             }
 
-            // Post-step fresh observation (outcome diff, guards, stuck hash).
-            delay(config.settleMs)
-            val post = observer.observe()
-            notePageUrl(post)
-            lastPost = post
-            val outcome = when {
-                !proceed -> Outcome.NO_CHANGE
-                !execOk -> Outcome.ERROR
-                post.lines == obs.lines -> Outcome.NO_CHANGE
-                else -> Outcome.PROGRESSED
-            }
-
-            // -- 6. LOG (exactly one row per navigation decision) -------------------------------
-            logRow(
-                stepIndex, state, question, choice, candidates,
-                ExecutedAction(
-                    candidateId = if (kind == ActionKind.BACK || kind == ActionKind.FINISH) null else candidate.id,
-                    kind = kind.toLoggedKind(),
-                    disposition = disposition,
-                ),
-                gateEvent,
-                outcome,
+            // -- 6. LOG + the post-step bookkeeping (extracted — `run()`'s method-size
+            //    discipline; the postStepBookkeeping helper above) ---------------------------
+            postStepBookkeeping(
+                obs = obs,
+                state = state,
+                question = question,
+                choice = choice,
+                candidates = candidates,
+                candidate = candidate,
+                kind = kind,
+                disposition = disposition,
+                proceed = proceed,
+                execOk = execOk,
+                gateEvent = gateEvent,
                 escalation = escalation,
-                // doc 05 §2 `typedSecret`: true when this step typed a credential
-                // supplied via the gate card — the VALUE is never stored (the row
-                // carries the flag, the step log renders [credential-redacted]).
-                typedSecret = proceed && textSource is TextSource.GateSuppliedSecret,
-                // The cascade's stage-2 evidence (doc 05 §2 v1.6.0): the executed slate +
-                // the TARGET STATE VIEW the batch rode (the score case's state law).
+                textSource = textSource,
                 targetScores = targetScores,
-                targetStateText = targetViewText,
-            )
-            // Phase 9: the live-log line (compact product facts) fires AT the LOG step.
-            // The acted-on label masks through the SAME sanctioned-secret redaction fold
-            // the execute line uses (doc 05 §2 / doc 06 §2a) — masked at source, so a
-            // post-injection page echo can never reach the overlay through a label.
-            // Phase 10B: the verb is the stage-1 INTENT (the compact line's format law
-            // is untouched — the verb is data).
-            uiListener?.onStep(
-                LoopUiListener.StepFacts(
-                    stepIndex = stepIndex,
-                    verb = choice.chosenId,
-                    label = redactedLabel(candidate.label, redactionKeys()),
-                    confidence = choice.confidence,
-                    gateMarker = LoopUiListener.gateMarker(gateEvent),
-                ),
-            )
-            // The history digest quotes the acted-on label — page text that can carry a
-            // sanctioned post-injection echo (the acted-on field's own a11y text IS the
-            // typed secret on live Chrome). It renders [credential-redacted] here
-            // (doc 05 §2); the state builder masks every section the same way. The verb
-            // is the stage-1 intent.
-            history.add(
-                "step $stepIndex: ${choice.chosenId} \"${redactedLabel(candidate.label, redactionKeys())}\" -> " +
-                    serial(outcome) +
-                    (gateEvent?.let { " (gate ${it.decision.name.lowercase()})" } ?: ""),
-            )
-
-            guards!!.record(
-                url = post.url,
-                contentTextNodes = post.contentTextNodes,
-                textTyped = proceed && execOk && kind == ActionKind.TYPE,
-                submitExecuted = proceed && execOk && kind == ActionKind.SUBMIT,
-                actionExecuted = proceed && execOk,
-            )
-            // Task working memory (Phase 08G, vision 04 §1): resolve the acted-on row —
-            // an executed action marks the target PROCESSED; a gate refusal marks it
-            // SKIPPED (the owner's denial is authoritative for that row); a FAILED
-            // dispatch changes nothing (the row stays pending, retryable). A synthetic
-            // or non-row candidate resolves to nothing.
-            val stepTracker = tracker
-            if (stepTracker != null) {
-                obs.nodes.firstOrNull { it.id == candidate.id }?.let { node ->
-                    when {
-                        !proceed -> stepTracker.markSkipped(node)
-                        execOk -> stepTracker.markProcessed(node)
-                        else -> null
-                    }
-                }
-            }
-            stuck.record(
-                StuckDetector.Footprint(
-                    actionKey = "${kind.name}:${candidate.id}",
-                    screenHash = post.screenHash,
-                    textLines = post.lines,
-                    isError = outcome == Outcome.ERROR,
-                ),
-            )
-            stepIndex += 1
-
-            if (taskAborted) {
-                return finish(
-                    TerminalState.GUARD_ABORT,
-                    "the same high-stakes action (${gateEvent?.hclass}) was refused twice in this task",
-                    stepIndex,
-                )
-            }
-            if (assessStuck()) {
-                // Phase 10 + vision 04 §1 v1.5.0: a LADDER run routes L3 through the
-                // GUARANTEED owner card; the legacy path keeps the task-level STUCK_KILL.
-                handleStuckKill("still stuck after hint and strategy switch - L3 auto-kill")
-                    ?.let { return it }
-            }
+                targetViewText = targetViewText,
+                taskAborted = taskAborted,
+            )?.let { return it }
         }
     }
 

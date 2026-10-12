@@ -648,19 +648,19 @@ setup wizard (`setup/`).
     re-keys to the first unfinished subtask instead of resetting to 1. The declared
     rollback rides the rows additively (`LoggedPlan.rolledBack`/`lesson`, doc 05 §2
     v1.8.0). `handleSubtaskFailureOrKill`/`handleStuckKill` stash the failure cause for the
-    re-plan and pass it to the card path. LOOP-STATE DISCIPLINE (measured 2026-10-12, javap on the
-    compiled class): `run()` sits at 64,326 of the JVM's 65,535-byte method cap — ~1.2 KB of
-    headroom, so EVERY addition to its own body or capture list matters. The load-bearing
-    fix in Stage 1 was moving `lastAssistText`/`lastFailureCause` from `run()` LOCALS to
-    CLASS FIELDS: one new captured local (with its Ref plumbing in every nested helper's
-    signature) pushed the method past the cap, while the same state on the instance cost
-    ~nothing. The post-step bookkeeping (post-observation, outcome diff, row + live-log +
-    history, guard/tracker/stuck records, step advance, the abort/stuck-kill terminal) is a
-    named local helper (`postStepBookkeeping`) so the loop's source stays readable — note
-    the honest measurement: at the bytecode level the outlined helper is byte-neutral
-    (64,322 -> 64,326 across the whole change), because the JVM backend re-inlines a
-    single-call-site local function; do not claim otherwise. New loop code: prefer
-    FILE-SCOPE helpers when it needs no loop locals; never add captured locals casually.
+    re-plan and pass it to the card path. LOOP-STATE DISCIPLINE (measured 2026-10-12 with javap on the
+    compiled class): `run()` is now 58,646 of the JVM's 65,535-byte method cap (6,889 bytes
+    of headroom); the baseline before Phase 10D was 64,322 (1,213), which is why Stage 1's
+    first build broke the cap. Two facts, both verified: (a) the LOAD-BEARING fix for the
+    cap break was moving `lastAssistText`/`lastFailureCause` from `run()` LOCALS to CLASS
+    FIELDS — one new captured local (with its Ref plumbing in every nested helper's
+    signature and at every call site) pushed the method past the cap, while the same state
+    on the instance cost ~nothing; (b) the post-step bookkeeping (post-observation, outcome
+    diff, row + live-log + history, guard/tracker/stuck records, step advance, the abort/
+    stuck-kill terminal) now genuinely lives in the local helper `postStepBookkeeping`
+    (5,608 bytes of its own method) and the loop calls it once — that extraction is what
+    bought the 5,676-byte reduction to today's 58,646. New loop code: prefer FILE-SCOPE
+    helpers when it needs no loop locals; never add captured locals casually.
   * `src/main/kotlin/navigator/app/stub/` — `StubEngine` (Phase 6; Phase 10B: the
     cascade scripting): a `DecisionEngine` replaying a `StubScript` deterministically
     ($0 spend); answers select by option id, `labelContains`, `bucketFirst`(+ordinal),

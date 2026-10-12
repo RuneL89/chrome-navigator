@@ -28,14 +28,14 @@
   ],
   "stages": {
     "1": {
-      "state": "COMPLETE — verifier round 1 done (5 findings, 3 blocking), all fixed; awaiting the verifier's round-2 cold re-check",
+      "state": "COMPLETE — verifier rounds 1-2 done (6 findings, all fixed); round 3 (B1 re-check) requested",
       "landed": [
         "core: ReplanContext.kt (the bounded failure-context payload + the CauseClass taxonomy); Rollback + RollbackLimits.MAX_STEPS=1 on Ladder; ReplanRule.kt (the plan-integrity check: frozen verified prefix, one declared step back, growth lawful, loud refusals); ReplanRuleTest (15 law tests)",
         "writer: Prompts.PROMPT_VERSION = restructure-v4 (ONE version, BOTH request variants — restructureUser byte-identical to v3, replanUser = + the <failure> block; the system prompt gains the immutable-prefix / declared-rollback / growth rules + the per-cause hint); golden-restructure-v4.json (retire-and-add; v3 untouched); GenClientTest repointed + 2 new gate-10D_1 tests (the byte-identical informed request + the rollback parse; the gen-1 rollback refusal)",
         "loop: ReplanSupport.kt (file scope: build/classify/mask/request/judge); replan() informed (the masked context rides the writer call; the truthful log line 'writer over the goal + failure context (subtask k/N, class)'); ReplanRule enforced (a rewriting re-plan is REFUSED loudly = no capacity); applyLadder(newLadder, version, reKeyTo) = resume-never-restart; the declared rollback rides the rows additively (LoggedPlan.rolledBack/lesson + ProposedPlan + the golden row-planned.json regenerated additive-only); the failure cause threaded to the card path (the D5 fix); lastAssistText/lastFailureCause as CLASS FIELDS; postStepBookkeeping extracted from run()",
         "tests: LadderExecutionLoopTest gained the gate-10D_1 section (5 tests: the failure context; resume-never-restart with the no-restart pin; the declared rollback in the plan row; the loud refusal; the masking law)"
       ],
-      "method_limit_finding": "measured 2026-10-12: run() baseline 64,322 bytes of the 65,535 JVM cap. Two facts — (a) adding ONE captured LOCAL var to the suspend run() inflated it past the limit (the same state on the instance costs ~nothing); (b) the postStepBookkeeping extraction (the post-observation/outcome/row/history/guards/tracker/stuck/advance/abort block moved to a local helper) freed 2,430 bytes (64,322 -> 61,892). Recorded in app/AGENTS.md as the loop-state discipline.",
+      "method_limit_finding": "measured 2026-10-12 (javap on the compiled class): run() was 64,322/65,535 bytes before Phase 10D (1,213 headroom) and is 58,646 now (6,889). (a) The LOAD-BEARING fix for the cap break was moving lastAssistText/lastFailureCause from run() LOCALS to CLASS FIELDS: one new captured local (plus its Ref plumbing at every nested-helper call site) pushed the method past the cap; the same state on the instance costs ~nothing. (b) The postStepBookkeeping extraction (5,608 bytes of its own method, one call site) is what bought the 5,676-byte reduction. The earlier '2,430 bytes freed' figure came from a transient intermediate state and is WITHDRAWN; the first two attempts at this extraction were not real (a splice wrote the call site into the helper) — caught by the verifier's rounds 1 and 2, fixed in round 3.",
       "gate_10D.1": "PASS — ./gradlew test: 1466 tests / 0 failures (baseline 1442). New: 15 core ReplanRuleTest + 2 GenClientTest + 5 LadderExecutionLoopTest + the additive golden row diff (plan.rolledBack/lesson only).",
       "verifier_round_1": {
         "verdict": "COMPLIANT on items 1/2/6/7/8/11; DIVERGENT on 3/4/5/9/10 — three BLOCKING findings + three non-blocking; the '1466 executions' claim clarified (376 core + 548 app debug + 548 app release; 924 unique tests; the census double-counts the app variants)",
@@ -47,7 +47,8 @@
         "B6": "the honesty gate's (ordinal, page-hash) memo survived a re-plan, suppressing the new condition's entry check. FIXED: applyLadder resets it + a new test pins the gate re-running on a re-planned condition.",
         "note_fix": "the v4 fixture note no longer claims the whole initial request is byte-identical to v3 (only its USER message is; the system prompt is version-bumped).",
         "tests_added": "3 (the ladder-derived masking law; the refused-re-plan metering; the honesty-memo reset) — suite now 1472 executions / 0 failures (924 unique)."
-      }
+      },
+      "verifier_round_2": "B2-B6 FIXED and independently verified; B1 NOT FIXED at round 2 (the splice had again written the call site inside the helper and left the inline block in place — my error, and the docs then overstated the fix). Round-3 fix: the helper body is derived byte-faithfully from the loop's actual block (indentation-adjusted), the loop calls it once, and the honest measurements above are recorded."
     },
     "2": {
       "state": "PENDING — NoGoodTarget carries scores+view; the fallback row persists them (fixes D3); Gate 10D.2"
