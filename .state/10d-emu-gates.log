@@ -1,0 +1,22 @@
+GATE91 RESULT: PASS 7/7 checks
+GATE91 CHECK: goal-input-show-hide PASS - shown=true blurAttempted=true hidden=true
+GATE91 CHECK: probe-foreground PASS - the probe activity launched and owns the active window
+GATE91 CHECK: passthrough-when-hidden PASS - dispatched=true probe touches 0 -> 1 (must grow)
+GATE91 CHECK: live-log-non-interception PASS - visible=true probe touches 1 -> 2 (must grow)
+GATE91 CHECK: live-log-toggle PASS - expand=true collapse-back=true
+GATE91 CHECK: gate-card-blocks-while-counting PASS - shown=true blockingWindow(focusable+fullscreen+touch-modal)=true hidden=true resolution=TIMEOUT
+GATE91 CHECK: completion-card-show-hide PASS - shown=true hidden=true resolution=TIMEOUT (hide = fail-safe TIMEOUT)
+GATE92 RESULT: PASS 3/3 checks
+GATE92 CHECK: blur-path-ran PASS - shown=true hidden=true blurAttempted=true
+GATE92 CHECK: zero-file-delta PASS - before=[TreeSnapshot(files=3, bytes=957855143), TreeSnapshot(files=83, bytes=238301), TreeSnapshot(files=6, bytes=0)] during=[TreeSnapshot(files=3, bytes=957855143), TreeSnapshot(files=83, bytes=238301), TreeSnapshot(files=6, bytes=0)] after=[TreeSnapshot(files=3, bytes=957855143), TreeSnapshot(files=83, bytes=238301), TreeSnapshot(files=6, bytes=0)] (all must equal)
+GATE92 CHECK: zero-network-bytes PASS - tx 0 -> 0, rx 0 -> 0 (both deltas must be 0)
+GATE93 RESULT: PASS 6/6 checks
+GATE93 CHECK: plan-display-held PASS - planSubgoalCount=2 (want 2)
+GATE93 CHECK: approve-tap-resolves-execute PASS - shown=true approveCenter=(297, 1700) tapDispatched=true resolution=APPROVED taskGate=EXECUTE gateEvents=1 (1:1: one tap, one event)
+GATE93 CHECK: approve-card-dismissed PASS - hidden=true
+GATE93 CHECK: real-countdown-expiry PASS - observed expiry=29154ms (law 30000 ±1500) resolution=TIMEOUT
+GATE93 CHECK: timeout-maps-to-skip PASS - taskGate=(SKIP, 1) (timeout = deny semantics)
+GATE93 CHECK: credential-empty-approve-denied PASS - shown=true tapDispatched=true (no secret typed) resolution=DENIED taskGate=SKIP — the doc 06 §2a fail-safe
+GATE94 RESULT: PASS 2/2 checks
+GATE94 CHECK: enough-samples PASS - measured 25/25 rendered events (need >= 20; logShown=true)
+GATE94 CHECK: p95-under-one-second PASS - p95=503ms (law <= 1000ms) samples=[111, 129, 160, 180, 195, 228, 247, 259, 263, 280, 299, 311, 317, 350, 364, 370, 403, 403, 414, 442, 455, 495, 503, 507, 560]

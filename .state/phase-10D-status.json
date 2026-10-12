@@ -28,7 +28,7 @@
   ],
   "stages": {
     "1": {
-      "state": "COMPLETE — verifier rounds 1-2 done (6 findings, all fixed); round 3 (B1 re-check) requested",
+      "state": "CLOSED — implemented, verifier rounds 1-3 (B1 fixed; all findings resolved), emulator verification PASS (gates 18/18, $0 stub GOAL_ACHIEVED, LIVE ladder run: the informed re-plan split-and-resumed twice with verified progress) — report: .state/phase-10D-emulator-verification.md",
       "landed": [
         "core: ReplanContext.kt (the bounded failure-context payload + the CauseClass taxonomy); Rollback + RollbackLimits.MAX_STEPS=1 on Ladder; ReplanRule.kt (the plan-integrity check: frozen verified prefix, one declared step back, growth lawful, loud refusals); ReplanRuleTest (15 law tests)",
         "writer: Prompts.PROMPT_VERSION = restructure-v4 (ONE version, BOTH request variants — restructureUser byte-identical to v3, replanUser = + the <failure> block; the system prompt gains the immutable-prefix / declared-rollback / growth rules + the per-cause hint); golden-restructure-v4.json (retire-and-add; v3 untouched); GenClientTest repointed + 2 new gate-10D_1 tests (the byte-identical informed request + the rollback parse; the gen-1 rollback refusal)",
@@ -48,10 +48,11 @@
         "note_fix": "the v4 fixture note no longer claims the whole initial request is byte-identical to v3 (only its USER message is; the system prompt is version-bumped).",
         "tests_added": "3 (the ladder-derived masking law; the refused-re-plan metering; the honesty-memo reset) — suite now 1472 executions / 0 failures (924 unique)."
       },
-      "verifier_round_2": "B2-B6 FIXED and independently verified; B1 NOT FIXED at round 2 (the splice had again written the call site inside the helper and left the inline block in place — my error, and the docs then overstated the fix). Round-3 fix: the helper body is derived byte-faithfully from the loop's actual block (indentation-adjusted), the loop calls it once, and the honest measurements above are recorded."
+      "verifier_round_2": "B2-B6 FIXED and independently verified; B1 NOT FIXED at round 2 (the splice had again written the call site inside the helper and left the inline block in place — my error, and the docs then overstated the fix). Round-3 fix: the helper body is derived byte-faithfully from the loop's actual block (indentation-adjusted), the loop calls it once, and the honest measurements above are recorded.",
+      "emulator_verification": "PASS (.state/phase-10D-emulator-verification.md): install+launch, GATE91-94 18/18, stub run GOAL_ACHIEVED $0, LIVE ladder run on the Test-1 goal: gen1 (2 subtasks) -> informed re-plan (failure context, cause class) -> gen2 (3 subtasks, resuming at 2, the writer inserted the English-edition waypoint) -> subtask 2 verified (progress!) -> gen3 (4 subtasks, resuming at 3) -> bounded honest STUCK_KILL after the re-plan cap. Writer spend $0.014, decision spend $0.056. Caveat: the emulator run did not reach GOAL_ACHIEVED (cascade stayed UNCERTAIN on the emulator page states); goal completion is the owner UAT question."
     },
     "2": {
-      "state": "PENDING — NoGoodTarget carries scores+view; the fallback row persists them (fixes D3); Gate 10D.2"
+      "state": "IN PROGRESS — NoGoodTarget carries scores+viewText -> the fallback row persists them (the D3 evidence fix); Gate 10D.2"
     },
     "3": {
       "state": "PENDING — placeholder/blank-label probe + the general legibility rule + fixtures (fixes D4); Gate 10D.3"
