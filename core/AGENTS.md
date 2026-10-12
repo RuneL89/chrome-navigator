@@ -109,29 +109,47 @@ without a device.
   pure, deterministic; they NEVER replace the canonical text as the logged/corpus
   record); law: `Project Vision/03` §1, §4
 * `src/main/kotlin/navigator/core/ladder/` — the task-ladder types (Phase 10, vision 04
-  §1 v1.4.0 / vision 03 §4 v2.2.0): `Ladder.kt` — `Ladder {summary, subtasks,
-  taskClass}` + `Subtask {instruction, done}` + `LadderTaskClass` (read/action/multi) +
+  §1 v1.4.0 / vision 03 §4 v2.2.0; Phase 10C added the `urlContains` + `answerExtracted`
+  shapes; PHASE 10D, doc 04 §1 v1.8.0): `Ladder.kt` — `Ladder {summary, subtasks,
+  taskClass, rollback}` + `Subtask {instruction, done}` + `LadderTaskClass` (read/action/multi) +
   the ART-4 construction invariants (single-line display-only summary, non-blank
   instructions, the ≤8-subtask + size caps of `LadderLimits`, and the shape-vs-class
   law: MULTI ⇔ some done-condition is count-shaped — the LLM's class claim is validated
   against the whitelist shapes, mismatch fails in `init`) + `LadderValidator` (the
   gen-boundary matrix: per-condition field checks, count bounds 1..100, condition-text
   caps; loud `LadderValidationException` listing every violation — nothing navigates) +
-  the `DoneCondition` whitelist (ART-4 LAW: `urlHost(host)` / `markerText(text)` /
-  `elementPresent(description)` / `count(target, n)` — the ONLY machine-checkable
+  the `DoneCondition` whitelist (ART-4 LAW: `urlHost(host)` / `urlContains(segment)` /
+  `markerText(text)` / `elementPresent(description)` / `count(target, n)` /
+  `answerExtracted` — the ONLY machine-checkable
   IS-DONE shapes; an opinion-phrased condition cannot even be constructed);
   `DoneConditionChecker.kt` — the code-side IS-DONE checker over CODE-READ evidence
-  (`Evidence{url,title,pageText,candidateLabels,counters}`; urlHost verifies with the
-  scheme/port/www-insensitive host surgery, markerText is a case-insensitive literal
+  (`Evidence{url,title,pageText,candidateLabels,counters,answersProduced}`; urlHost verifies with the
+  scheme/port/www-insensitive host surgery, urlContains a two-sided normalized-URL
+  contain, markerText is a case-insensitive literal
   match over page text, elementPresent matches enumerable candidate labels only
   (both-direction deterministic token-run containment + the ≥0.9 token-overlap bound —
   the STRONG matcher's discipline), count reads the code-owned working memory
   (`counters[target]` else `WORKING_MEMORY_KEY` "processed" — the tracker's processed
-  count) and advances only at n) + `guardStrength` (urlHost = STRONG page identity,
-  other shapes WEAK) + one-line `render`; `SubtaskPointer.kt` — the pointer that
+  count) and advances only at n, answerExtracted reads the loop's code-owned extraction
+  record) + `guardStrength` (urlHost/urlContains/count/answerExtracted = STRONG page
+  identity; markerText/elementPresent WEAK) + one-line `render` + `sameSiteFamily` +
+  public `normalizeUrl`; `SubtaskPointer.kt` — the pointer that
   advances ONLY on a verified IS-DONE (one step at a time, loud past the final subtask —
-  the final subtask's IS-DONE is the task's goal-achieved, never a pointer move); law:
-  `Project Vision/04` §1/§3 v1.4.0, `Project Vision/03` §4 v2.2.0
+  the final subtask's IS-DONE is the task's goal-achieved, never a pointer move);
+  `ReplanRule.kt` (PHASE 10D — the plan-integrity law): `Rollback {steps, lesson}` (+
+  `RollbackLimits.MAX_STEPS = 1` — the ONE declared step back) and
+  `ReplanRule.check(previous, verifiedCount, next): ReplanVerdict` — the next ladder's
+  first `verifiedCount − steps` subtasks must be byte-equal (instruction + rendered
+  condition) to the verified prefix; growth is lawful (the failing subtask may split);
+  dropping the prefix, rewriting a frozen subtask, an over-deep rollback, or a re-plan
+  that ends at the frozen prefix are all `Refused` with an actionable reason (the caller
+  treats a refusal as NO re-plan capacity — never a silent acceptance);
+  `ReplanContext.kt` — the bounded failure-context payload of one informed re-plan (pure
+  data, code-assembled: the failing subtask + its condition, the cause + `CauseClass`,
+  the page host/title/excerpt, the failing slate + the other buckets' affordances, the
+  history tail, the assist text, the verified prefix, the generation) — the app renders
+  it into the writer prompt; law:
+  `Project Vision/04` §1/§3 v1.8.0, `Project Vision/03` §4 v2.2.0
 * `src/main/kotlin/navigator/core/gate/` — the risk gate (ART-1: code owns the gate,
   no model judgment in the gate path): `RiskGate` (deterministic H1–H9 classifier over
   (action, context); ambiguous classification fails to the stricter class — never

@@ -24,9 +24,11 @@ import kotlin.test.assertTrue
 /**
  * Gate 10.1 (isolation): the restructure schema + hardening, $0 — NO live provider call.
  * Pinned here:
- * - the GOLDEN request/response per prompt version (`/gen/golden-restructure-v3.json` —
- *   the prompt text is fixture law; a PROMPT_VERSION/wording change adds v2 and retires
- *   v1, never mutates it);
+ * - the GOLDEN request/response per prompt version (`/gen/golden-restructure-v4.json` —
+ *   the prompt text is fixture law; a PROMPT_VERSION/wording change adds a version and
+ *   retires the old one, never mutates it). Phase 10D: ONE version covers BOTH request
+ *   variants — the initial restructure and the INFORMED re-plan (`replanRequest`, the
+ *   `<failure>` block), and the ladder schema's declared `rollback`;
  * - the validation matrix: valid ladders pass; opinion done-conditions, oversized
  *   ladders, malformed JSON, wrong shapes → loud rejection through the BOUNDED content
  *   retry (exactly ONE fresh attempt), then the clean [GenRefusedException];
@@ -43,7 +45,7 @@ import kotlin.test.assertTrue
 class GenClientTest {
 
     private val fixtureJson: String by lazy {
-        javaClass.getResourceAsStream("/gen/golden-restructure-v3.json")!!
+        javaClass.getResourceAsStream("/gen/golden-restructure-v4.json")!!
             .readBytes().decodeToString()
     }
 
@@ -113,12 +115,113 @@ class GenClientTest {
             sentMessages[1].jsonObject["content"]!!.jsonPrimitive.content,
             "the user message carries the goal verbatim",
         )
-        assertEquals("restructure-v3", result.promptVersion, "the prompt version rides the result")
-        assertEquals("restructure-v3", Prompts.PROMPT_VERSION, "the fixture pins the CURRENT version")
+        assertEquals("restructure-v4", result.promptVersion, "the prompt version rides the result")
+        assertEquals("restructure-v4", Prompts.PROMPT_VERSION, "the fixture pins the CURRENT version")
         assertEquals(LadderTaskClass.READ, result.ladder.taskClass)
         assertEquals(2, result.ladder.subtasks.size)
         assertTrue(result.ladder.subtasks[0].done is DoneCondition.UrlHost)
         assertTrue(result.ladder.subtasks[1].done is DoneCondition.MarkerText)
+        server.shutdown()
+    }
+
+    /** The representative informed-re-plan failure context (the fixture's replanRequest bytes). */
+    private fun goldenFailure() = navigator.core.ladder.ReplanContext(
+        failingOrdinal = 2,
+        failingInstruction = "Open the World War II article on Wikipedia",
+        failingDone = "the address contains 'wikipedia.org/wiki/World_War_II'",
+        cause = "no good target on the form-fields slate (top expected level 1.61 is below the 3.0 floor)",
+        causeClass = navigator.core.ladder.ReplanContext.CauseClass.NO_GOOD_TARGET,
+        pageHost = "wikipedia.org",
+        pageTitle = "Wikipedia",
+        pageExcerptLines = listOf(
+            "Wikipedia The Free Encyclopedia",
+            "English 7,249,000+ articles",
+            "Dansk 316.000+ artikler",
+        ),
+        slateIntent = null,
+        slateBucket = "form-fields",
+        slateLines = listOf("[n32] \"\" tap edit (465,566)"),
+        otherBucketLines = listOf(
+            "nav-links: \"English\", \"Dansk\", \"Deutsch\"",
+            "buttons: \"Search\"",
+        ),
+        historyLines = listOf(
+            "step 0: subtask 1 verified done - now on subtask 2",
+            "step 1: subtask 2 failed - no good target on the form-fields slate",
+        ),
+        assistText = "This is the Wikipedia language portal at wikipedia.org, listing editions by language.",
+        verifiedCount = 1,
+        verifiedPrefixLines = listOf(
+            "Reach the Wikipedia home page at wikipedia.org — done: the URL host is wikipedia.org",
+        ),
+        totalSubtasks = 2,
+        generation = 1,
+    )
+
+    @Test
+    fun `gate 10D_1 - the informed re-plan rides the failure block verbatim and parses the declared rollback`() {
+        val server = MockWebServer()
+        server.start()
+        server.enqueue(MockResponse().setBody(fixtureString("replanResponse")))
+        val client = GenClient(
+            transport = OkHttpTransport(server.url("/api/v1/chat/completions").toString()),
+            config = GenEngineConfigs.generative("test-key-not-a-secret"),
+            retryDelay = {},
+        )
+        val result = runBlocking {
+            client.restructure(
+                "open wikipedia.org and open the world war 2 page",
+                generation = 2,
+                failure = goldenFailure(),
+            )
+        }
+        val sent = Json.parseToJsonElement(server.takeRequest().body.readUtf8()).jsonObject
+        val golden = fixture["replanRequest"]!!.jsonObject
+        assertEquals(
+            golden["messages"]!!.jsonArray[0].jsonObject["content"]!!.jsonPrimitive.content,
+            sent["messages"]!!.jsonArray[0].jsonObject["content"]!!.jsonPrimitive.content,
+            "the informed re-plan shares the pinned system prompt byte-identically",
+        )
+        assertEquals(
+            golden["messages"]!!.jsonArray[1].jsonObject["content"]!!.jsonPrimitive.content,
+            sent["messages"]!!.jsonArray[1].jsonObject["content"]!!.jsonPrimitive.content,
+            "the informed user message (goal + <failure> block) is fixture law — byte-identical",
+        )
+        assertEquals("restructure-v4/gen2", result.ladder.versionTag(result.promptVersion, result.generation))
+        val rollback = result.ladder.rollback
+        assertTrue(rollback != null, "the informed re-plan's declared rollback parses")
+        assertEquals(1, rollback.steps)
+        assertTrue(rollback.lesson.contains("re-aim"), "the lesson rides the ladder")
+        server.shutdown()
+    }
+
+    @Test
+    fun `gate 10D_1 - a rollback declared on generation 1 is schema-refused through the bounded retry`() {
+        val rollbackOnGen1 =
+            """{"summary":"Open it.","subtasks":[{"instruction":"the site is loaded","done":{"urlHost":"en.wikipedia.org"}}],""" +
+                """"taskClass":"read","rollback":{"steps":1,"lesson":"there is no verified step to rewrite"}}"""
+        val transport = CountingTransport { ok(rollbackOnGen1) }
+        assertFailsWith<GenRefusedException> {
+            runBlocking { client(transport).restructure("open the site", generation = 1) }
+        }
+        assertEquals(
+            GenClient.CONTENT_ATTEMPTS,
+            transport.calls,
+            "the illegal rollback rode the bounded content retry before the clean refusal",
+        )
+        // The SAME ladder shape on a re-plan generation is lawful.
+        val server = MockWebServer()
+        server.start()
+        server.enqueue(MockResponse().setBody(ok(rollbackOnGen1).body))
+        val client = GenClient(
+            transport = OkHttpTransport(server.url("/api/v1/chat/completions").toString()),
+            config = GenEngineConfigs.generative("test-key-not-a-secret"),
+            retryDelay = {},
+        )
+        val result = runBlocking {
+            client.restructure("open the site", generation = 2, failure = goldenFailure())
+        }
+        assertEquals(1, result.ladder.rollback?.steps)
         server.shutdown()
     }
 
@@ -191,7 +294,7 @@ class GenClientTest {
         val transport = CountingTransport { ok(if (calls <= 1) opinion else validLadderJson()) }
         val result = runBlocking { client(transport).restructure("goal", generation = 1) }
         assertEquals(2, transport.calls)
-        assertEquals("restructure-v3/gen1", result.ladder.versionTag(result.promptVersion, result.generation))
+        assertEquals("restructure-v4/gen1", result.ladder.versionTag(result.promptVersion, result.generation))
     }
 
     // -- adversarial rows (hostile goal texts) ---------------------------------------------

@@ -24,8 +24,18 @@ interface LadderSource {
      * this task (1 = the initial restructure; 2..3 = bounded re-plans). Null = the clean
      * pre-navigation refusal (invalid output after the bounded retry, or a writer
      * failure); the loop refuses the task before any navigation.
+     *
+     * v1.8.0 (Phase 10D): a RE-PLAN ([generation] ≥ 2) carries the bounded [failure]
+     * context — what failed and why, the page and the controls it offers, the history,
+     * the assist text, and the verified prefix (which the revised plan must keep
+     * byte-identical, except one declared `rollback` step). The initial restructure
+     * passes null and is byte-identical to the legacy call.
      */
-    suspend fun restructure(goal: String, generation: Int): RestructuredLadder?
+    suspend fun restructure(
+        goal: String,
+        generation: Int,
+        failure: navigator.core.ladder.ReplanContext? = null,
+    ): RestructuredLadder?
 
     /**
      * The bounded condition REPAIR (Phase 10C, vision 04 §1 v1.7.0): ONE writer call
@@ -45,7 +55,11 @@ interface LadderSource {
 
     /** The deterministic default: no ladder — the byte-identical legacy path. */
     object None : LadderSource {
-        override suspend fun restructure(goal: String, generation: Int): RestructuredLadder? = null
+        override suspend fun restructure(
+            goal: String,
+            generation: Int,
+            failure: navigator.core.ladder.ReplanContext?,
+        ): RestructuredLadder? = null
 
         override suspend fun repairCondition(
             subtaskInstruction: String,

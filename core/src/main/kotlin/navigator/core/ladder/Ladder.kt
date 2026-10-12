@@ -29,6 +29,14 @@ data class Ladder(
     val subtasks: List<Subtask>,
     /** The claimed task class (budget-profile selector; shape-validated, see class KDoc). */
     val taskClass: LadderTaskClass = LadderTaskClass.READ,
+    /**
+     * The declared rollback of a RE-PLAN generation (doc 04 §1 v1.8.0): the writer's
+     * explicit "the plan was wrong one step back" declaration. Null on an initial
+     * restructure and on a re-plan that keeps the whole verified prefix (the generation
+     * rule — only gen ≥ 2 may declare it — is enforced at the gen boundary,
+     * `LadderSchema`/`GenClient`). [ReplanRule] is the code check that binds it.
+     */
+    val rollback: Rollback? = null,
 ) {
     init {
         require(summary.isNotBlank()) { "Ladder: summary must not be blank" }
@@ -48,7 +56,8 @@ data class Ladder(
                 "(a count-shaped condition exists=$derivedMulti) — the class claim is validated " +
                 "against the whitelist shapes, ART-4/ART-5"
         }
-        val total = summary.length + subtasks.sumOf { it.instruction.length + it.done.rendered().length }
+        val total = summary.length + subtasks.sumOf { it.instruction.length + it.done.rendered().length } +
+            (rollback?.lesson?.length ?: 0)
         require(total <= LadderLimits.MAX_TOTAL_CHARS) {
             "Ladder: total size $total chars exceeds the ${LadderLimits.MAX_TOTAL_CHARS}-char cap (ART-5)"
         }

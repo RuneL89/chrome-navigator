@@ -500,8 +500,11 @@ class Phase10BLoopTest {
             logSink = sink,
             config = NavigationLoop.Config(settleMs = 0),
             ladderSource = object : LadderSource {
-                override suspend fun restructure(goal: String, generation: Int): RestructuredLadder? =
-                    RestructuredLadder(ladder, "test/gen1", 0)
+                override suspend fun restructure(
+                    goal: String,
+                    generation: Int,
+                    failure: navigator.core.ladder.ReplanContext?,
+                ): RestructuredLadder? = RestructuredLadder(ladder, "test/gen1", 0)
 
                 // Phase 10C: no scripted repair — the honesty gate derives or refuses.
                 override suspend fun repairCondition(

@@ -55,8 +55,11 @@ class LandingAndReaskLoopTest {
     }
 
     private class OneLadderSource(private val ladder: Ladder) : LadderSource {
-        override suspend fun restructure(goal: String, generation: Int): RestructuredLadder? =
-            RestructuredLadder(ladder, "test/gen$generation", 0)
+        override suspend fun restructure(
+            goal: String,
+            generation: Int,
+            failure: navigator.core.ladder.ReplanContext?,
+        ): RestructuredLadder? = RestructuredLadder(ladder, "test/gen$generation", 0)
 
         override suspend fun repairCondition(
             subtaskInstruction: String,

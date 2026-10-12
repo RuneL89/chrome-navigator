@@ -27,9 +27,13 @@ class GenLadderSource(
     private val onUsage: (GenUsage) -> Unit = {},
 ) : LadderSource, AnswerExtractor {
 
-    override suspend fun restructure(goal: String, generation: Int): RestructuredLadder? =
+    override suspend fun restructure(
+        goal: String,
+        generation: Int,
+        failure: navigator.core.ladder.ReplanContext?,
+    ): RestructuredLadder? =
         try {
-            val result = client.restructure(goal, generation)
+            val result = client.restructure(goal, generation, failure)
             onUsage(result.usage)
             RestructuredLadder(
                 ladder = result.ladder,

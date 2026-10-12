@@ -620,7 +620,42 @@ setup wizard (`setup/`).
     from offered slates unconditionally. Step-line verbs are the INTENT ids (the
     compactLine format law untouched). `WriterSources.kt` — the `AssistSource`/
     `PhraseSource` seams (GenClient adapters in `gen/`; `stub/StubPhraseSource` is the
-    $0 STUB-mode phrase)
+    $0 STUB-mode phrase).
+    PHASE 10D — the INFORMED RE-PLAN (phase doc `PHASE_10D_informed_replan.md`, doc 04 §1
+    v1.8.0, owner-ratified 2026-10-12; three stages — Stage 1 is this bullet): the bounded
+    failure re-plan is no longer a byte-identical retry. `ReplanSupport.kt` (FILE scope —
+    the `run()` method-size discipline) assembles the bounded `ReplanContext` the writer
+    receives: the failing subtask + its rendered condition, the code's cause + its
+    `CauseClass` (the general taxonomy — no-good-target / empty slate / uncertain-after-
+    handshake / unresolvable route / no-scroll-candidate / stuck-repeats / engine-give-up),
+    the page (host/title/excerpt) and the CONTROLS it actually offers (the bucketed
+    affordance digest, browser chrome filtered), the history tail, the last assist text,
+    the verified prefix verbatim, and the generation; `ReplanSupport.mask` folds
+    `redactionKeys()` over every page-derived field (doc 06 §2a); `ReplanSupport.request`/
+    `judge` own the truthful log lines and the verdict. The writer surface is
+    `Prompts.PROMPT_VERSION = "restructure-v4"` — ONE version covering BOTH request
+    variants (`restructureUser` byte-identical to v3; `replanUser` = that message + the
+    `<failure>` block), with the system prompt gaining the immutable-prefix /
+    declared-rollback / growth rules and the per-cause hint; the golden
+    `app/src/test/resources/gen/golden-restructure-v4.json` records both variants
+    (retire-and-add; v3 stays byte-identical). PLAN INTEGRITY IS CODE (`:core`
+    `ReplanRule.check`): the next ladder's first `verifiedCount − steps` subtasks must be
+    byte-equal (instruction + rendered condition) to the verified prefix — growth is
+    lawful, `Ladder.rollback = {steps = 1, lesson}` is the ONE declared step back (gen ≥ 2
+    only, enforced at the gen boundary), and a violation is REFUSED loudly (counted as no
+    re-plan capacity: the ladder never goes live, the generation does not advance).
+    `applyLadder(newLadder, version, reKeyTo)` = RESUME, NEVER RESTART: the pointer
+    re-keys to the first unfinished subtask instead of resetting to 1. The declared
+    rollback rides the rows additively (`LoggedPlan.rolledBack`/`lesson`, doc 05 §2
+    v1.8.0). `handleSubtaskFailureOrKill`/`handleStuckKill` stash the failure cause for the
+    re-plan and pass it to the card path. LOOP-STATE DISCIPLINE (measured 2026-10-12):
+    `lastAssistText`/`lastFailureCause` are CLASS FIELDS, not `run()` locals — one new
+    CAPTURED local inflated `run()` past the JVM 64KB method limit while the same state on
+    the instance cost nothing; the post-step bookkeeping (post-observation, outcome diff,
+    row + live-log + history, guard/tracker/stuck records, step advance, the abort/
+    stuck-kill terminal) likewise moved into the local helper `postStepBookkeeping` (the
+    extraction freed 2,430 bytes of `run()`'s 64,322). New loop code: file-scope helpers
+    when it needs no loop locals; never add captured locals casually.
   * `src/main/kotlin/navigator/app/stub/` — `StubEngine` (Phase 6; Phase 10B: the
     cascade scripting): a `DecisionEngine` replaying a `StubScript` deterministically
     ($0 spend); answers select by option id, `labelContains`, `bucketFirst`(+ordinal),

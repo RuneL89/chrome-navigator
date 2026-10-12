@@ -91,10 +91,35 @@ object LadderSchema {
             )
         }
         val taskClass = parseTaskClass(root["taskClass"]?.let { it.jsonPrimitive.content })
+        val rollback = parseRollback(root)
         return try {
-            LadderValidator.validate(Ladder(summary, subtasks, taskClass))
+            LadderValidator.validate(Ladder(summary, subtasks, taskClass, rollback))
         } catch (e: LadderValidationException) {
             throw LadderSchemaException(e.message ?: "ladder validation failed")
+        }
+    }
+
+    /**
+     * The optional `rollback` object of a re-plan generation (doc 04 §1 v1.8.0):
+     * `{"rollback": {"steps": 1, "lesson": "<one sentence>"}}`. Shape violations throw
+     * [LadderSchemaException] (the bounded-retry path re-asks); the GENERATION rule
+     * ("only gen ≥ 2 may declare a rollback") is enforced by [GenClient.restructure],
+     * which is the only place that knows the generation.
+     */
+    private fun parseRollback(root: JsonObject): navigator.core.ladder.Rollback? {
+        val element = root["rollback"] ?: return null
+        val obj = try {
+            element.jsonObject
+        } catch (e: Exception) {
+            throw LadderSchemaException("'rollback' must be an object {steps, lesson}")
+        }
+        val steps = (obj["steps"] as? kotlinx.serialization.json.JsonPrimitive)?.content?.toIntOrNull()
+            ?: throw LadderSchemaException("'rollback' is missing the integer field 'steps'")
+        val lesson = requiredString(obj, "lesson", "rollback")
+        return try {
+            navigator.core.ladder.Rollback(steps = steps, lesson = lesson)
+        } catch (e: IllegalArgumentException) {
+            throw LadderSchemaException("'rollback' is invalid: ${e.message}")
         }
     }
 

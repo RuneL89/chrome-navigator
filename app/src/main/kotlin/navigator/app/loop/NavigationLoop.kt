@@ -64,6 +64,8 @@ import navigator.core.ladder.DoneCondition
 import navigator.core.ladder.DoneConditionChecker
 import navigator.core.ladder.Ladder
 import navigator.core.ladder.LadderTaskClass
+import navigator.core.ladder.ReplanRule
+import navigator.core.ladder.ReplanVerdict
 import navigator.core.ladder.SubtaskPointer
 import navigator.core.log.serialName
 import navigator.core.state.StageViews
@@ -203,6 +205,16 @@ class NavigationLoop(
      * router wraps the composition — the laya modes run bare by design.
      */
     private val fallbackReporting: FallbackReporting? = engine as? FallbackReporting
+
+    /**
+     * Phase 10D (doc 04 §1 v1.8.0): the last handshake assist text and the failing
+     * subtask's cause — both read by the informed re-plan's failure block. CLASS FIELDS,
+     * not `run()` locals: the loop's JVM method-size discipline (a captured local costs
+     * its Ref in every nested helper's signature and at every call site; the same state
+     * on the instance costs nothing in `run`).
+     */
+    private var lastAssistText: String? = null
+    private var lastFailureCause: String? = null
 
     data class Config(
         /** Vision 03 §5: fewer meaningful nodes than this = unusable tree. */
@@ -732,7 +744,7 @@ class NavigationLoop(
                 typedSecret = typedSecret,
                 // Plan-proposal provenance (Phase 08G, vision 05 §2 `plan`): the task's
                 // triage-time plan rides every row — null on the default path.
-                plan = plan?.let { LoggedPlan(it.version, it.subgoals) },
+                plan = plan?.let { LoggedPlan(it.version, it.subgoals, it.rolledBack, it.lesson) },
                 // Cascade stage-2 evidence (doc 05 §2 v1.6.0): the executed slate's
                 // expected levels + the TARGET STATE VIEW the batch rode (the score
                 // case's state law). Null on non-target-bearing steps; the ROUTER's
@@ -803,9 +815,13 @@ class NavigationLoop(
          * budget is untouched by re-planning (vision 04 §5 v1.4.0); the first-derived
          * profile stays the task's frame.
          */
-        fun applyLadder(newLadder: Ladder, version: String) {
+        fun applyLadder(newLadder: Ladder, version: String, reKeyTo: Int = 0) {
             ladder = newLadder
             pointer = SubtaskPointer(newLadder)
+            // Phase 10D (doc 04 §1 v1.8.0): RESUME, never restart — a re-plan re-keys the
+            // pointer to the first unfinished subtask (the verified prefix is byte-frozen
+            // by ReplanRule, so re-verifying it would be pure re-work).
+            repeat(reKeyTo) { pointer!!.advance() }
             ladderVersion = version
             triageClass = ladderTriageClass(newLadder.taskClass)
             triageLabel = triageClass!!.serial()
@@ -821,8 +837,14 @@ class NavigationLoop(
             codeCheckStepsSince = 0
             // Ladder provenance rides every row via the EXISTING additive `plan` field
             // (doc 05 §2: the writer-LLM plans carry their PROMPT_VERSION) — no schema
-            // surgery; version = "<prompt-version>/gen<n>".
-            plan = ProposedPlan(version, newLadder.subtasks.map { it.instruction })
+            // surgery; version = "<prompt-version>/gen<n>". Phase 10D adds the declared
+            // rollback (rolledBack + lesson) additively (doc 05 §2 v1.8.0).
+            plan = ProposedPlan(
+                version,
+                newLadder.subtasks.map { it.instruction },
+                rolledBack = newLadder.rollback?.steps ?: 0,
+                lesson = newLadder.rollback?.lesson,
+            )
         }
 
         /** The ACTIVE-SUBTASK state-text line (code-authored, flattened, one line). */
@@ -964,15 +986,30 @@ class NavigationLoop(
         suspend fun replan(): Boolean {
             rePlansUsed += 1
             val generation = ladderGeneration + 1
-            line(
-                "ladder: re-plan $generation (bounded: ${MAX_REPLANS - rePlansUsed} left after " +
-                    "this one) - asking the writer over the goal + failure context",
+            // Phase 10D (doc 04 §1 v1.8.0): the re-plan is INFORMED — the failure context
+            // (what failed and why, the page and the controls it offers, the history, the
+            // assist description, the verified prefix) rides the writer call, masked like
+            // the goal (doc 06 §2a). No active ladder/observation = no informed call: the
+            // re-plan refuses (treated as no capacity) rather than sending a blind prompt.
+            val request = ReplanSupport.request(
+                goal = goal,
+                keys = redactionKeys(),
+                cause = lastFailureCause ?: "subtask failed",
+                obs = lastPost,
+                pointer = pointer,
+                ladder = ladder,
+                history = history,
+                assistText = lastAssistText,
+                generation = ladderGeneration,
+                rePlansLeftAfterThis = MAX_REPLANS - rePlansUsed,
             )
-            // doc 06 §2a: no secret ever enters a writer prompt — the goal text folds
-            // the sanctioned-secret redaction before the writer sees a re-plan.
-            val maskedGoal = redactionKeys().fold(goal) { acc, key -> acc.replace(key, TextSource.REDACTED) }
+            if (request == null) {
+                line(ReplanSupport.noContextLine(generation))
+                return false
+            }
+            request.lines.forEach { line(it) }
             val restructured = try {
-                ladderSource.restructure(maskedGoal, generation)
+                ladderSource.restructure(request.maskedGoal, generation, request.context)
             } catch (t: Throwable) {
                 line("ladder: re-plan failed loudly (${t::class.simpleName}) - treated as no re-plan capacity")
                 null
@@ -981,15 +1018,30 @@ class NavigationLoop(
                 line("ladder: re-plan REFUSED (no valid ladder) - treated as no re-plan capacity")
                 return false
             }
-            writerBudget.record(restructured.costMicroUsd).let { check ->
-                if (check != WriterBudget.Check.OK) softWarnings.add("writer budget ${check.name}")
+            // Phase 10D plan integrity (doc 04 §1 v1.8.0): the verified prefix is frozen
+            // in CODE — a revision that rewrites it without a valid `rollback` declaration
+            // is refused loudly and counts as no re-plan capacity. Never a silent accept.
+            when (val verdict = ReplanSupport.judge(ladder, pointer?.completedCount ?: 0, restructured, rePlansUsed)) {
+                is ReplanSupport.Verdict.Refused -> {
+                    verdict.lines.forEach { line(it) }
+                    history.add("step $stepIndex: ${verdict.historyLine}")
+                    return false
+                }
+
+                is ReplanSupport.Verdict.Accepted -> {
+                    writerBudget.record(restructured.costMicroUsd).let { check ->
+                        if (check != WriterBudget.Check.OK) softWarnings.add("writer budget ${check.name}")
+                    }
+                    ladderGeneration = generation
+                    applyLadder(restructured.ladder, restructured.version, reKeyTo = verdict.reKeyTo)
+                    verdict.lines.forEach { line(it) }
+                    verdict.historyLine?.let { history.add("step $stepIndex: $it") }
+                    lastFailureCause = null
+                    publishLadderSurfaces()
+                    enterSubtask()
+                    return true
+                }
             }
-            ladderGeneration = generation
-            applyLadder(restructured.ladder, restructured.version)
-            line("ladder: re-planned to ${restructured.version} (${restructured.ladder.subtasks.size} subtask(s))")
-            publishLadderSurfaces()
-            enterSubtask()
-            return true
         }
 
         /**
@@ -1064,10 +1116,11 @@ class NavigationLoop(
         suspend fun handleSubtaskFailureOrKill(cause: String): RunResult? {
             val p = pointer ?: return finish(TerminalState.STUCK_KILL, cause, stepIndex)
             consecutiveSubtaskFailures += 1
+            lastFailureCause = cause // Phase 10D: the informed re-plan's cause (doc 04 §1 v1.8.0)
             line("ladder: subtask ${p.activeOrdinal}/${p.total} FAILED ($cause) - consecutive failures: $consecutiveSubtaskFailures")
             history.add("step $stepIndex: subtask ${p.activeOrdinal} failed - $cause")
             if (consecutiveSubtaskFailures >= SUBTASK_FAILURE_CARD_THRESHOLD) {
-                return arbitrateSubtaskFailure(stuckCause = null)
+                return arbitrateSubtaskFailure(stuckCause = cause)
             }
             // Below the card threshold: a bounded re-plan when capacity remains; otherwise
             // the loop continues — the card is the arbiter, never the empty cap.
@@ -1087,6 +1140,7 @@ class NavigationLoop(
         suspend fun handleStuckKill(cause: String): RunResult? {
             val p = pointer ?: return finish(TerminalState.STUCK_KILL, cause, stepIndex)
             consecutiveSubtaskFailures += 1
+            lastFailureCause = cause // Phase 10D: the informed re-plan's cause (doc 04 §1 v1.8.0)
             line(
                 "ladder: subtask ${p.activeOrdinal}/${p.total} STUCK-KILL intercepted - " +
                     "the owner card is guaranteed ($cause) - consecutive failures: " +
@@ -1448,6 +1502,67 @@ class NavigationLoop(
         )
 
         while (true) {
+            /**
+             * The post-step bookkeeping (extracted in Phase 10D — `run()`'s JVM 64 KB
+             * method-size discipline, the Phase-10C precedent): the fresh post-action
+             * observation, the outcome diff, the decision row + live-log line + history
+             * digest, the guard/tracker/stuck records, the step advance, and the
+             * abort / stuck-kill terminal. Returns the task's terminal when it must end,
+             * null when the loop continues. Byte-identical behaviour to the inline block
+             * it replaces (lines moved wholesale, no semantics changed).
+             */
+            suspend fun postStepBookkeeping(
+                obs: StepObservation,
+                state: StateTextBuilder.StateText,
+                question: ChoiceQuestion,
+                choice: ChoiceResult,
+                candidates: CandidateList,
+                candidate: navigator.core.enumerate.Candidate,
+                kind: ActionKind,
+                disposition: ActionDisposition,
+                proceed: Boolean,
+                execOk: Boolean,
+                gateEvent: LoggedGateEvent?,
+                escalation: DecisionRecord?,
+                textSource: TextSource?,
+                targetScores: Map<String, Double>?,
+                targetViewText: String?,
+                taskAborted: Boolean,
+            ): RunResult? {
+                // Post-step fresh observation (outcome diff, guards, stuck hash).
+                delay(config.settleMs)
+                val post = observer.observe()
+                notePageUrl(post)
+                lastPost = post
+                val outcome = when {
+                    !proceed -> Outcome.NO_CHANGE
+                    !execOk -> Outcome.ERROR
+                    post.lines == obs.lines -> Outcome.NO_CHANGE
+                    else -> Outcome.PROGRESSED
+                }
+
+                // -- 6. LOG + the post-step bookkeeping (extracted: `run()`'s method-size
+            //    discipline) -------------------------------------------------------------------
+            postStepBookkeeping(
+                obs = obs,
+                state = state,
+                question = question,
+                choice = choice,
+                candidates = candidates,
+                candidate = candidate,
+                kind = kind,
+                disposition = disposition,
+                proceed = proceed,
+                execOk = execOk,
+                gateEvent = gateEvent,
+                escalation = escalation,
+                textSource = textSource,
+                targetScores = targetScores,
+                targetViewText = targetViewText,
+                taskAborted = taskAborted,
+            )?.let { return it }
+                return null
+            }
             /**
              * The per-step budget gate (vision 04 §5; extracted in Phase 10C — `run`'s size
              * budget): a HARD rail ends the run cleanly, a SOFT rail warns once.
@@ -2036,6 +2151,7 @@ class NavigationLoop(
                         "ASSIST (untrusted) block",
                 )
                 pendingAssistText = assist.text
+                lastAssistText = assist.text // Phase 10D: readable past the row write (the re-plan block)
                 uiListener?.onThinking(true)
                 val reasked = engine.choose(buildIntentView(assist.text).text, question)
                 uiListener?.onThinking(false)

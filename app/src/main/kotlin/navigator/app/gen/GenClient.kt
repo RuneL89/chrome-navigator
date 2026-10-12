@@ -162,15 +162,37 @@ class GenClient(
      * The task-ladder restructure (vision 04 §1 v1.4.0): ONE writer call turning the
      * free-text [goal] into a code-validated task ladder. Invalid output retries ONCE;
      * a second refusal is [GenRefusedException] — nothing navigates.
+     *
+     * v1.8.0 (Phase 10D): when [failure] is present this is an INFORMED re-plan — the
+     * request carries the bounded failure-context block (`Prompts.replanUser`) and must
+     * be generation ≥ 2. A ladder that declares a `rollback` on generation 1 is a schema
+     * error (the bounded retry re-asks); plan integrity beyond the declaration (the frozen
+     * verified prefix) is judged by code in the loop (`ReplanRule`).
      */
-    suspend fun restructure(goal: String, generation: Int = 1): RestructureResult {
+    suspend fun restructure(
+        goal: String,
+        generation: Int = 1,
+        failure: navigator.core.ladder.ReplanContext? = null,
+    ): RestructureResult {
         require(goal.isNotBlank()) { "goal must not be blank" }
-        val body = chatBody(Prompts.RESTRUCTURE_SYSTEM, Prompts.restructureUser(goal, maxSubtasks))
+        require(failure == null || generation >= 2) {
+            "an informed re-plan is generation >= 2 (got generation=$generation)"
+        }
+        val user = failure
+            ?.let { Prompts.replanUser(goal, maxSubtasks, it) }
+            ?: Prompts.restructureUser(goal, maxSubtasks)
+        val body = chatBody(Prompts.RESTRUCTURE_SYSTEM, user)
         var lastError: LadderSchema.LadderSchemaException? = null
         for (attempt in 1..CONTENT_ATTEMPTS) {
             val (content, usage) = post(body, "restructure")
             try {
                 val ladder = LadderSchema.parse(content, maxSubtasks)
+                if (generation == 1 && ladder.rollback != null) {
+                    throw LadderSchema.LadderSchemaException(
+                        "a rollback may only be declared by a RE-PLAN generation (got gen 1) — " +
+                            "there is no verified step to rewrite",
+                    )
+                }
                 onUsage(usage)
                 return RestructureResult(ladder, usage, Prompts.PROMPT_VERSION, generation)
             } catch (e: LadderSchema.LadderSchemaException) {

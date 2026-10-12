@@ -19,6 +19,7 @@ import java.util.LinkedList
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -143,8 +144,16 @@ class LadderExecutionLoopTest {
     ) : LadderSource {
         val asked = mutableListOf<Pair<String, Int>>() // (goal, generation)
 
-        override suspend fun restructure(goal: String, generation: Int): RestructuredLadder? {
+        /** Phase 10D: the informed re-plan's failure context per call (null = initial restructure). */
+        val askedFailures = mutableListOf<navigator.core.ladder.ReplanContext?>()
+
+        override suspend fun restructure(
+            goal: String,
+            generation: Int,
+            failure: navigator.core.ladder.ReplanContext?,
+        ): RestructuredLadder? {
             asked.add(goal to generation)
+            askedFailures.add(failure)
             val ladder = generations.lastOrNull { it.first == generation }?.second ?: return null
             return RestructuredLadder(ladder, ladder.versionTag("test", generation), costMicroUsd)
         }
@@ -915,5 +924,230 @@ class LadderExecutionLoopTest {
         assertTrue("url: http://m0.test/page" in finalState, "the state's lawful content survives")
         // And the answer itself is scrubbed at the report boundary (belt-and-braces pin).
         assertTrue(secret !in (result.answer?.text ?: ""), result.answer?.text ?: "")
+    }
+    // -- Gate 10D.1: the informed re-plan + the plan-integrity law (doc 04 §1 v1.8.0) ------
+
+    /**
+     * The canonical failure recipe (the same script `gate 10_2` uses): four identical taps
+     * trip L1 then L2, the scripted give-up recovery is subtask failure #1, and the bounded
+     * re-plan fires. Generation 2's ladder is supplied by the caller.
+     */
+    private fun failingSource(gen2: Ladder): ScriptedLadderSource = ScriptedLadderSource(
+        1 to ladder2(
+            Subtask("an impossible marker", DoneCondition.MarkerText("Never On This Page")),
+            Subtask("unreached", DoneCondition.UrlHost("m0.test")),
+        ),
+        2 to gen2,
+    )
+
+    private fun failingEngine() = ScriptedEngine(
+        actionPicks = listOf("n2", "n2", "n2", "n2", "finish"),
+        noulValues = listOf(0.9, 0.9),
+        recoveryPicks = listOf("give-up"),
+    )
+
+    @Test
+    fun `gate 10D_1 - the re-plan rides the failure context - what failed, why, the page, the verified prefix`() {
+        val source = failingSource(
+            Ladder("Re-planned ladder.", listOf(Subtask("the page is loaded", DoneCondition.UrlHost("m0.test")))),
+        )
+        val (result, _) = runLadder(failingEngine(), source)
+        assertEquals(TerminalState.GOAL_ACHIEVED, result.terminal, result.stepLog.toString())
+
+        assertNull(source.askedFailures[0], "the INITIAL restructure carries no failure block")
+        assertTrue(source.askedFailures.size >= 2, "the failure drove a re-plan call")
+        val failure = assertNotNull(source.askedFailures[1], "the re-plan carried the failure context")
+        assertEquals(1, failure.failingOrdinal)
+        assertEquals("an impossible marker", failure.failingInstruction)
+        assertTrue(failure.failingDone.contains("Never On This Page"), failure.failingDone)
+        assertEquals(navigator.core.ladder.ReplanContext.CauseClass.ENGINE_GIVE_UP, failure.causeClass)
+        assertTrue(failure.cause.contains("give-up"), failure.cause)
+        assertEquals("m0.test", failure.pageHost, "the page the agent stood on rides the context")
+        assertEquals(0, failure.verifiedCount)
+        assertEquals(2, failure.totalSubtasks)
+        assertEquals(1, failure.generation, "the FAILING generation, not the new one")
+        assertTrue(failure.otherBucketLines.isNotEmpty(), "the affordance digest names what the page offers")
+        assertTrue(
+            source.asked[1].first.contains("open wikipedia.org"),
+            "the masked goal still rides the re-plan, with the failure block beside it",
+        )
+        assertTrue(
+            result.stepLog.any { it.contains("failure context (subtask 1/2, engine_give_up)") },
+            "the live-log line states the informed call truthfully",
+        )
+    }
+
+    @Test
+    fun `gate 10D_1 - a rollback-free re-plan resumes at the first unfinished subtask - never restarts`() {
+        val source = ScriptedLadderSource(
+            1 to Ladder(
+                "Three subtask ladder.",
+                listOf(
+                    Subtask("the article is displayed", DoneCondition.UrlContains("m0.test/page")),
+                    Subtask("an impossible marker", DoneCondition.MarkerText("Never On This Page")),
+                    Subtask("the second page is displayed", DoneCondition.UrlContains("m0.test/second")),
+                ),
+            ),
+            2 to Ladder(
+                "Re-planned ladder.",
+                listOf(
+                    Subtask("the article is displayed", DoneCondition.UrlContains("m0.test/page")),
+                    Subtask("the marker appears", DoneCondition.MarkerText("Never On This Page")),
+                    Subtask("the second page is displayed", DoneCondition.UrlContains("m0.test/second")),
+                ),
+            ),
+        )
+        val engine = ScriptedEngine(
+            // Generous taps: the code-triggered check verifies subtask 1 early, then the
+            // identical taps trip L1/L2 and the scripted give-up drives the failure path.
+            actionPicks = listOf("n2", "n2", "n2", "n2", "n2", "n2"),
+            noulValues = listOf(0.9, 0.9, 0.9, 0.9),
+            recoveryPicks = listOf("give-up", "give-up", "give-up"),
+        )
+        val (result, _) = runLadder(
+            engine, source,
+            observations = listOf(identityPage, identityPage, identityPage, page, page, page, page, page),
+        )
+        val failure = assertNotNull(source.askedFailures.getOrNull(1), "the failure drove a re-plan")
+        assertEquals(1, failure.verifiedCount, "subtask 1 was verified before the failure")
+        assertEquals(1, failure.verifiedPrefixLines.size)
+        assertTrue(
+            failure.verifiedPrefixLines[0].contains("the article is displayed"),
+            failure.verifiedPrefixLines.toString(),
+        )
+        val log = result.stepLog.toString()
+        assertTrue(log.contains("resuming at subtask 2"), "the pointer re-keyed to the first unfinished subtask: $log")
+        assertEquals(
+            1,
+            log.split("subtask 1/3 IS-DONE verified").size - 1,
+            "the verified prefix is never re-earned (no restart): $log",
+        )
+        assertTrue(
+            log.contains("re-planned to test/gen2 (3 subtask(s), resuming at subtask 2)"),
+            "the accepted re-plan resumes at the first unfinished subtask: $log",
+        )
+        assertFalse(
+            log.contains("resuming at subtask 1"),
+            "resume-never-restart (doc 04 §1 v1.8.0): $log",
+        )
+    }
+
+    @Test
+    fun `gate 10D_1 - a declared one-step rollback rewrites the last verified subtask and lands in the plan row`() {
+        val source = ScriptedLadderSource(
+            1 to Ladder(
+                "Two subtask ladder.",
+                listOf(
+                    Subtask("the article is displayed", DoneCondition.UrlContains("m0.test/page")),
+                    Subtask("an impossible marker", DoneCondition.MarkerText("Never On This Page")),
+                ),
+            ),
+            2 to Ladder(
+                "Re-planned ladder.",
+                listOf(
+                    Subtask("the second page is displayed", DoneCondition.UrlContains("m0.test/second")),
+                    Subtask("the marker appears", DoneCondition.MarkerText("Never On This Page")),
+                ),
+                rollback = navigator.core.ladder.Rollback(
+                    steps = 1,
+                    lesson = "the article page was the wrong waypoint",
+                ),
+            ),
+        )
+        val engine = ScriptedEngine(
+            // Generous taps: the code-triggered check verifies subtask 1 early, then the
+            // identical taps trip L1/L2 and the scripted give-up drives the failure path.
+            actionPicks = listOf("n2", "n2", "n2", "n2", "n2", "n2"),
+            noulValues = listOf(0.9, 0.9, 0.9, 0.9),
+            recoveryPicks = listOf("give-up", "give-up", "give-up"),
+        )
+        val (result, sink) = runLadder(
+            engine, source,
+            observations = listOf(identityPage, identityPage, identityPage, page, page, page, page, page),
+        )
+        val log = result.stepLog.toString()
+        assertTrue(log.contains("rolled back 1 step - lesson: the article page was the wrong waypoint"), log)
+        assertTrue(log.contains("resuming at subtask 1"), log)
+        val planRow = assertNotNull(
+            sink.rows.firstOrNull { it.plan?.version == "test/gen2" },
+            "the gen-2 rows carry the plan provenance",
+        )
+        assertEquals(1, planRow.plan?.rolledBack, "the declared rollback is machine-readable")
+        assertEquals("the article page was the wrong waypoint", planRow.plan?.lesson)
+    }
+
+    @Test
+    fun `gate 10D_1 - a re-plan that rewrites a verified subtask without a declaration is REFUSED loudly`() {
+        val source = ScriptedLadderSource(
+            1 to Ladder(
+                "Two subtask ladder.",
+                listOf(
+                    Subtask("the article is displayed", DoneCondition.UrlContains("m0.test/page")),
+                    Subtask("an impossible marker", DoneCondition.MarkerText("Never On This Page")),
+                ),
+            ),
+            2 to Ladder(
+                "Sneaky rewrite.",
+                listOf(
+                    Subtask("something else entirely", DoneCondition.UrlContains("m0.test/second")),
+                    Subtask("the marker appears", DoneCondition.MarkerText("Never On This Page")),
+                ),
+            ),
+        )
+        val engine = ScriptedEngine(
+            // Generous taps: the code-triggered check verifies subtask 1 early, then the
+            // identical taps trip L1/L2 and the scripted give-up drives the failure path.
+            actionPicks = listOf("n2", "n2", "n2", "n2", "n2", "n2"),
+            noulValues = listOf(0.9, 0.9, 0.9, 0.9),
+            recoveryPicks = listOf("give-up", "give-up", "give-up"),
+        )
+        val (result, _) = runLadder(
+            engine, source,
+            observations = listOf(identityPage, identityPage, identityPage, page, page, page, page, page),
+        )
+        val log = result.stepLog.toString()
+        assertTrue(log.contains("ladder: re-plan REFUSED - the re-plan rewrites verified subtask 1"), log)
+        assertEquals(
+            "test/gen1",
+            assertNotNull(result.ladder).version,
+            "the refused ladder never went live - the active generation stays 1",
+        )
+    }
+
+    @Test
+    fun `gate 10D_1 - the failure block masks sanctioned secrets out of every page-derived field`() {
+        val secret = "hunter2-typed-secret"
+        val ctx = navigator.core.ladder.ReplanContext(
+            failingOrdinal = 1,
+            failingInstruction = "sign in",
+            failingDone = "the account page is displayed",
+            cause = "no good target on the form-fields slate",
+            causeClass = navigator.core.ladder.ReplanContext.CauseClass.NO_GOOD_TARGET,
+            pageHost = "m0.test",
+            pageTitle = "Sign in as $secret",
+            pageExcerptLines = listOf("the field holds $secret"),
+            slateIntent = null,
+            slateBucket = "form-fields",
+            slateLines = listOf("[n1] \"$secret\" tap edit (10,20)"),
+            otherBucketLines = listOf("buttons: \"$secret\""),
+            historyLines = listOf("step 1: filled \"$secret\""),
+            assistText = "the page shows $secret",
+            verifiedCount = 0,
+            verifiedPrefixLines = emptyList(),
+            totalSubtasks = 1,
+            generation = 1,
+        )
+        val masked = ReplanSupport.mask(ctx, listOf(secret))
+        listOf(
+            masked.pageTitle,
+            masked.pageExcerptLines.joinToString(),
+            masked.slateLines.joinToString(),
+            masked.otherBucketLines.joinToString(),
+            masked.historyLines.joinToString(),
+            masked.assistText.orEmpty(),
+        ).forEach { assertTrue(secret !in it, "the raw secret survived the mask: $it") }
+        assertTrue(TextSource.REDACTED in masked.pageTitle)
+        assertEquals(ctx.failingInstruction, masked.failingInstruction, "ladder-derived text is not a secret carrier")
+        assertEquals(ctx.cause, masked.cause)
     }
 }

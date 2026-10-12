@@ -41,10 +41,18 @@ interface PlanSource {
 data class ProposedPlan(
     val version: String,
     val subgoals: List<String>,
+    /**
+     * Phase 10D (doc 05 §2 v1.8.0, additive): the re-plan's declared rollback count
+     * (0 = none) and its one-sentence lesson — the machine-readable record of "the plan
+     * went one step back here, and why".
+     */
+    val rolledBack: Int = 0,
+    val lesson: String? = null,
 ) {
     init {
         require(version.isNotBlank()) { "ProposedPlan.version must not be blank" }
         require(subgoals.isNotEmpty()) { "ProposedPlan: a plan without subgoals is incoherent" }
         require(subgoals.all { it.isNotBlank() }) { "ProposedPlan: subgoals must not be blank" }
+        require(rolledBack >= 0) { "ProposedPlan.rolledBack must be >= 0, was $rolledBack" }
     }
 }

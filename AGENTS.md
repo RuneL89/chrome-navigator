@@ -112,8 +112,12 @@ When the user requests a durable behavior change, record it here or in the relev
   cascade STAGE VIEWS (`StageViews.kt`: the ≤120-token INTENT view and the ≤200-token
   TARGET view, browser-chrome excluded, loud overflow)), the
   Phase-10 task-ladder types (`ladder/`: the Ladder + the ART-4 done-condition whitelist
-  (urlHost / markerText / elementPresent / count) + the code-side IS-DONE checker + the
-  SubtaskPointer that advances only on a verified IS-DONE),
+  (urlHost / urlContains / markerText / elementPresent / count / answerExtracted) + the
+  code-side IS-DONE checker + the SubtaskPointer that advances only on a verified IS-DONE;
+  Phase 10D: `ReplanRule` — the plan-integrity law (the verified prefix is code-frozen, one
+  declared `Rollback {steps = 1, lesson}` step back is the only exception, growth lawful,
+  violations refused loudly) + `ReplanContext` — the bounded failure-context payload the
+  informed re-plan carries),
   the laya tokenizer port (BOTH checkpoint families — the 421M ByteLevel BPE and the
   Phase-8C v32b 256k Metaspace BPE), risk gate: H1–H9 classifier (Phase 8E added H9
   persistent-state mutation: broad code net + the additive-only engine check) + per-task trust state
@@ -179,6 +183,16 @@ When the user requests a durable behavior change, record it here or in the relev
   cascade handoff — it fires only on the fixed intent form, mirrors BOTH stages, and
   refuses non-cascade questions LOUDLY), the real TITLE READER (`observe/WindowTitles`
   + `LoopObservation.title`), and the re-authored `goals.json` (cascade intent/score
-  scripts) + stub. See `app/AGENTS.md`
+  scripts) + stub. Phase 10C added honest conditions + reachable targets + report goals
+  (the `urlContains`/`answerExtracted` shapes, the condition-honesty gate, landing-host
+  reconciliation, the stage-1 band on chosen probability + margin, the bounded stage-1
+  re-ask, the observation fixes, the evidence layer incl. `task_terminal`). PHASE 10D (in
+  progress, three stages) adds the INFORMED RE-PLAN: the bounded failure re-plan carries
+  the failure context to the writer (`ReplanSupport` — the bounded payload: failing
+  subtask, cause + class, the page and the controls it offers, history, assist text, the
+  verified prefix), the prompt surface becomes `restructure-v4` (both request variants
+  golden-pinned), plan integrity is CODE (`ReplanRule` — verified prefix frozen, ONE
+  declared `rollback` step with its lesson, growth lawful, resume-never-restart), and
+  `plan.rolledBack`/`plan.lesson` ride the rows additively. See `app/AGENTS.md`
 * `tools/` — Phase-8/8C model-acquisition + reference-vector scripts (uv-driven; build-time
   HF downloads only). See `tools/AGENTS.md`

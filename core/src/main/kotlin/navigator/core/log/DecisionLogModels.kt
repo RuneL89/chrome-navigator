@@ -400,11 +400,19 @@ data class ExitProvenance(
 data class LoggedPlan(
     val version: String,
     val subgoals: List<String>,
+    /**
+     * Phase-10D additive (doc 05 §2 v1.8.0): the declared rollback of a re-plan
+     * generation — `rolledBack` steps back with the writer's one-sentence `lesson`
+     * (absent/null on ordinary plans and on rows from before the amendment).
+     */
+    val rolledBack: Int = 0,
+    val lesson: String? = null,
 ) {
     init {
         require(version.isNotBlank()) { "LoggedPlan.version must not be blank" }
         require(subgoals.isNotEmpty()) { "LoggedPlan: a plan without subgoals is incoherent" }
         require(subgoals.all { it.isNotBlank() }) { "LoggedPlan: subgoals must not be blank" }
+        require(rolledBack >= 0) { "LoggedPlan.rolledBack must be >= 0, was $rolledBack" }
     }
 }
 

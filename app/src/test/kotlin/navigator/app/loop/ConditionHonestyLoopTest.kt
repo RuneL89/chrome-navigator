@@ -65,8 +65,11 @@ class ConditionHonestyLoopTest {
     ) : LadderSource {
         private val pending = repairs.toMutableList()
         val repairCalls = CopyOnWriteArrayList<String>()
-        override suspend fun restructure(goal: String, generation: Int): RestructuredLadder? =
-            RestructuredLadder(ladder, "test/gen$generation", 0)
+        override suspend fun restructure(
+            goal: String,
+            generation: Int,
+            failure: navigator.core.ladder.ReplanContext?,
+        ): RestructuredLadder? = RestructuredLadder(ladder, "test/gen$generation", 0)
 
         override suspend fun repairCondition(
             subtaskInstruction: String,
