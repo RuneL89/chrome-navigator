@@ -2181,7 +2181,13 @@ class NavigationLoop(
                     .mapValues { it.value.expectedLevel }
                 val resolution = TargetRubric.resolve(expectedLevels)
                 if (resolution.noGoodTarget) {
-                    return Stage2Outcome.NoGoodTarget(resolution.reason ?: "no good target")
+                    // Phase 10D: the failing slate's evidence rides the outcome so the
+                    // fallback row can persist it (the 10C store gap).
+                    return Stage2Outcome.NoGoodTarget(
+                        resolution.reason ?: "no good target",
+                        expectedLevels,
+                        view.text,
+                    )
                 }
                 val target = slate.first { it.id == resolution.top.candidateId }
                 line(
@@ -2327,15 +2333,25 @@ class NavigationLoop(
              * legacy task-level kill). Returns the terminal [RunResult] when the task
              * must end, null when the loop continues.
              */
-            suspend fun cascadeFallbackStep(cause: String, withStage2: Boolean): RunResult? {
+            suspend fun cascadeFallbackStep(
+                cause: String,
+                withStage2: Boolean,
+                /** The failing slate's per-candidate expected levels (Phase 10D: the outcome carries them). */
+                stage2Scores: Map<String, Double>? = null,
+                /** The target state view the failing batch rode (Phase 10D). */
+                stage2ViewText: String? = null,
+            ): RunResult? {
                 logRow(
                     stepIndex, state, question, choice, candidates,
                     ExecutedAction(null, LoggedActionKind.FINISH, ActionDisposition.EXECUTED),
                     gateEvent = null,
                     outcome = Outcome.EXITED,
                     escalation = escalation,
-                    targetScores = if (withStage2) targetScores else null,
-                    targetStateText = if (withStage2) targetViewText else null,
+                    // Phase 10D (doc 05 §2 v1.8.0): a no-good-target fallback persists the
+                    // slate it REFUSED (its scores + the view), not the stale prior-step
+                    // locals — that evidence is the whole point of the row.
+                    targetScores = stage2Scores ?: if (withStage2) targetScores else null,
+                    targetStateText = stage2ViewText ?: if (withStage2) targetViewText else null,
                 )
                 history.add("step $stepIndex: cascade fallback - $cause")
                 stepIndex += 1
@@ -2792,6 +2808,10 @@ class NavigationLoop(
                                 "no good target on the ${Cascade.bucketFor(intentId)?.serialName} slate " +
                                     "(${s2.reason})",
                                 withStage2 = true,
+                                // Phase 10D: the FAILING slate's evidence (the outcome carries it)
+                                // rides this row — the 10C store gap closed.
+                                stage2Scores = s2.scores,
+                                stage2ViewText = s2.viewText,
                             )?.let { return it }
                             continue
                         }
@@ -3759,10 +3779,18 @@ sealed interface Stage2Outcome {
         val viewText: String,
     ) : Stage2Outcome
 
-    /** The slate gave no actionable target (the resolution's reason, always present here). */
-    data class NoGoodTarget(val reason: String)
-
- : Stage2Outcome
+    /**
+     * The slate gave no actionable target (the resolution's reason, always present here) —
+     * AND the evidence it judged: the per-candidate expected levels plus the target state
+     * view the batch rode. Phase 10D (doc 05 §2 v1.8.0 evidence law): the observed 10C gap
+     * was that the failing slate — the artifact that matters most for diagnosis — never
+     * reached the store; the fallback row persists these (`targetScores`/`targetStateText`).
+     */
+    data class NoGoodTarget(
+        val reason: String,
+        val scores: Map<String, Double>,
+        val viewText: String,
+    ) : Stage2Outcome
 }
 
 /**

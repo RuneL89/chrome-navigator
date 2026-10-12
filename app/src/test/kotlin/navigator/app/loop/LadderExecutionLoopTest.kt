@@ -1263,4 +1263,41 @@ class LadderExecutionLoopTest {
             "the gate re-ran for the re-planned condition (memo reset by applyLadder): $log",
         )
     }
+    // -- Gate 10D.2: the failing slate reaches the store (doc 05 §2 v1.8.0 evidence law) ----
+
+    @Test
+    fun `gate 10D_2 - the no-good-target fallback row persists the slate it refused`() {
+        // The 10C store gap: a no-good-target fallback wrote a row but with no slate evidence.
+        // The ScriptedEngine gives a nonexistent pick -> every candidate scores level 1 -> a
+        // flat spread AND a below-floor top -> NO-GOOD-TARGET. The row must now carry the
+        // refused slate's expected levels AND the target state view it rode.
+        val source = ScriptedLadderSource(
+            1 to ladder2(
+                Subtask("an impossible marker", DoneCondition.MarkerText("Never On This Page")),
+                Subtask("unreached", DoneCondition.UrlHost("m0.test")),
+            ),
+        )
+        val engine = ScriptedEngine(
+            actionPicks = listOf("nX", "nX", "nX", "nX", "nX", "nX"),
+            noulValues = listOf(0.9, 0.9),
+            recoveryPicks = listOf("give-up", "give-up"),
+        )
+        val (result, sink) = runLadder(engine, source)
+        assertTrue(
+            result.stepLog.any { it.contains("NO-GOOD-TARGET") },
+            "the fixture must actually reach a no-good-target: ${result.stepLog}",
+        )
+        val fallbackRow = assertNotNull(
+            sink.rows.firstOrNull { it.outcome == navigator.core.log.Outcome.EXITED && it.targetScores != null },
+            "the fallback row carries the refused slate's scores",
+        )
+        assertTrue(fallbackRow.targetScores!!.isNotEmpty(), "the scores map is populated")
+        assertTrue(
+            fallbackRow.targetScores!!.keys.any { it.startsWith("n") },
+            "the scores are keyed by candidate id: ${fallbackRow.targetScores}",
+        )
+        val view = assertNotNull(fallbackRow.targetStateText, "the target state view rides the row")
+        assertTrue(view.contains("[n2]"), "the view names the slate's candidates: $view")
+        assertTrue(view.contains("SUBTASK"), "the view is the TARGET STATE VIEW: $view")
+    }
 }

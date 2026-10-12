@@ -52,7 +52,11 @@
       "emulator_verification": "PASS (.state/phase-10D-emulator-verification.md): install+launch, GATE91-94 18/18, stub run GOAL_ACHIEVED $0, LIVE ladder run on the Test-1 goal: gen1 (2 subtasks) -> informed re-plan (failure context, cause class) -> gen2 (3 subtasks, resuming at 2, the writer inserted the English-edition waypoint) -> subtask 2 verified (progress!) -> gen3 (4 subtasks, resuming at 3) -> bounded honest STUCK_KILL after the re-plan cap. Writer spend $0.014, decision spend $0.056. Caveat: the emulator run did not reach GOAL_ACHIEVED (cascade stayed UNCERTAIN on the emulator page states); goal completion is the owner UAT question."
     },
     "2": {
-      "state": "IN PROGRESS — NoGoodTarget carries scores+viewText -> the fallback row persists them (the D3 evidence fix); Gate 10D.2"
+      "state": "CODE COMPLETE — verifier round requested; suite 1474 executions / 0 failures (925 unique)",
+      "landed": [
+        "Stage2Outcome.NoGoodTarget now carries the failing slate (scores + the target state view) and the no-good-target fallback row persists them (cascadeFallbackStep stage2Scores/stage2ViewText) — the 10C store gap (D3) closed",
+        "gate 10D.2 test: the fallback row carries the refused slate scores + the TARGET STATE VIEW (candidate ids + SUBTASK header)"
+      ]
     },
     "3": {
       "state": "PENDING — placeholder/blank-label probe + the general legibility rule + fixtures (fixes D4); Gate 10D.3"
