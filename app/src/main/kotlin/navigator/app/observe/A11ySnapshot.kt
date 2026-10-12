@@ -27,6 +27,10 @@ data class NodeSnapshot(
     val bounds: Bounds = Bounds.ZERO,
     val children: List<NodeSnapshot> = emptyList(),
     val browserChrome: Boolean = false,
+    /** The field's placeholder (v1.7.0, Phase 10C): unlabeled fields still name themselves. */
+    val hint: String = "",
+    /** The nearest labeled ancestor's text (v1.7.0): a text-less control's container relation. */
+    val context: String = "",
 ) {
     /** Meaningful-node filter (vision 03 §2, the PokeClaw-pattern filter). */
     val isMeaningful: Boolean

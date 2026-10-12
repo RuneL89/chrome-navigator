@@ -46,6 +46,18 @@ data class ObservedNode(
     val sourceOrder: Int,
     val isPassword: Boolean = false,
     val browserChrome: Boolean = false,
+    /**
+     * The field's PLACEHOLDER (v1.7.0, Phase 10C): an unlabeled editable control still
+     * names itself (the battery: an unlabeled in-page search box was invisible to the
+     * form-fields slate). Blank when the platform exposes none.
+     */
+    val hint: String = "",
+    /**
+     * The CONTROL'S CONTAINER relation (v1.7.0, Phase 10C): the nearest LABELED ancestor's
+     * text when the node itself carries none — a text-less button is described as
+     * "button inside '<container>'" instead of being dropped for lacking a label.
+     */
+    val context: String = "",
 ) {
     /** Center X — the same `(left + right) / 2` convention the serializer emits. */
     val centerX: Int get() = (left + right) / 2

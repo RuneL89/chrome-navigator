@@ -130,9 +130,25 @@ object CandidateEnumerator {
      * flattened so one candidate is always one state-text line; truncated at 40 chars —
      * the serializer's exact discipline (vision 03 §2).
      */
+    /**
+     * The candidate label (v1.7.0, Phase 10C — doc 03 §2/§3): visible text, else content
+     * description, else the field's PLACEHOLDER (an unlabeled search box still names
+     * itself), else the control's CONTAINER relation ("button inside 'We Care About Your
+     * Privacy'") — an unlabeled control is described by role + container instead of being
+     * dropped for lacking a label.
+     */
     private fun ObservedNode.label(): String {
-        val flattened = text.ifBlank { desc }.replace(CONTROL_CHARS, " ")
+        val flattened = text.ifBlank { desc }.ifBlank { hint }.ifBlank {
+            if (context.isBlank()) "" else "${roleWord()} inside '${context}'"
+        }.replace(CONTROL_CHARS, " ")
         return if (flattened.length <= MAX_LABEL_LENGTH) flattened else flattened.take(MAX_LABEL_LENGTH)
+    }
+
+    /** The role word for a container-relation label (v1.7.0). */
+    private fun ObservedNode.roleWord(): String = when {
+        editable -> "field"
+        clickable && isButtonClass -> "button"
+        else -> "control"
     }
 
     /** Class names marking button controls (Android widget + web roles surface as such). */

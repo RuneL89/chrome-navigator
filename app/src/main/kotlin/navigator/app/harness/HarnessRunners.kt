@@ -58,6 +58,10 @@ class HarnessObserver(private val service: NavigatorAccessibilityService) : Loop
                 sourceOrder = emitted.index,
                 isPassword = snapshot.isPassword,
                 browserChrome = snapshot.browserChrome,
+                // Phase 10C (v1.7.0): an unlabeled field names itself via its placeholder;
+                // a text-less control via its container relation.
+                hint = snapshot.hint,
+                context = snapshot.context,
             )
         }
         return navigator.app.loop.StepObservation(

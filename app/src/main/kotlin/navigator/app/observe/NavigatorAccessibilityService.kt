@@ -61,7 +61,7 @@ class NavigatorAccessibilityService : AccessibilityService() {
     fun observe(): Observation {
         val root = freshChromeRoot()
             ?: return Observation(emptyList(), UrlBarReader.Url.Unavailable, emptyList())
-        val snapshot = toSnapshot(root, depth = 1) ?: NodeSnapshot()
+        val snapshot = toSnapshot(root, depth = 1, browserPackage = root.packageName?.toString()) ?: NodeSnapshot()
         val serialized = TreeSerializer.serialize(snapshot)
         val url = UrlBarReader.read(A11yNodeView(root))
         return Observation(serialized.lines, url, serialized.nodes)
@@ -88,7 +88,7 @@ class NavigatorAccessibilityService : AccessibilityService() {
         val title = readActiveWindowTitle()
         val root = freshChromeRoot()
             ?: return LoopObservation(UrlBarReader.Url.Unavailable, emptyList(), emptyList(), 0, title, activePackage)
-        val snapshot = toSnapshot(root, depth = 1) ?: NodeSnapshot()
+        val snapshot = toSnapshot(root, depth = 1, browserPackage = root.packageName?.toString()) ?: NodeSnapshot()
         val serialized = TreeSerializer.serialize(snapshot)
         val url = UrlBarReader.read(A11yNodeView(root))
         return LoopObservation(url, serialized.lines, serialized.nodes, countPageNodes(snapshot), title, activePackage)
@@ -162,33 +162,59 @@ class NavigatorAccessibilityService : AccessibilityService() {
      * browser-chrome (2026-10-08 pre-UAT2 RC2): the gate excludes it from credential
      * consideration — the marker propagates to the whole subtree.
      */
-    internal fun toSnapshot(node: AccessibilityNodeInfo, depth: Int): NodeSnapshot? {
+    internal fun toSnapshot(
+        node: AccessibilityNodeInfo,
+        depth: Int,
+        containerLabel: String? = null,
+        browserPackage: String? = null,
+    ): NodeSnapshot? {
         if (!node.refresh()) return null
         val rect = Rect()
         node.getBoundsInScreen(rect)
         val visible = node.isVisibleToUser
+        val ownText = node.text?.toString().orEmpty()
+        val ownDesc = node.contentDescription?.toString().orEmpty()
+        // The nearest LABELED ancestor for unlabeled controls (v1.7.0, Phase 10C).
+        val ownLabel = ownText.takeIf { it.isNotBlank() } ?: ownDesc.takeIf { it.isNotBlank() }
+        val childContext = ownLabel ?: containerLabel
         val children = buildList {
             for (i in 0 until node.childCount) {
                 node.getChild(i)?.let { child ->
-                    toSnapshot(child, depth + 1)?.let { add(it) }
+                    toSnapshot(child, depth + 1, childContext, browserPackage)?.let { add(it) }
                 }
             }
         }
+        // Browser chrome = ANY Chrome-owned UI (v1.7.0, Phase 10C — the KD-3 upgrade): the
+        // whole `<browserPackage>:id/` namespace (toolbar, tab strip, menus) plus the
+        // URL-bar ids; web-content nodes carry no browser view-id.
+        val chromeById = browserPackage != null &&
+            node.viewIdResourceName?.startsWith("$browserPackage:id/") == true
         return NodeSnapshot(
-            text = node.text?.toString().orEmpty(),
-            desc = node.contentDescription?.toString().orEmpty(),
+            text = ownText,
+            desc = ownDesc,
             className = node.className?.toString().orEmpty(),
             clickable = node.isClickable,
-            editable = node.isEditable,
+            editable = node.isEditable || isEditableClass(node.className?.toString()),
             scrollable = node.isScrollable,
             isPassword = node.isPassword,
             visible = visible,
             bounds = Bounds(rect.left, rect.top, rect.right, rect.bottom),
             children = children,
-            browserChrome = node.viewIdResourceName in UrlBarReader.URL_BAR_VIEW_IDS ||
+            browserChrome = chromeById ||
+                node.viewIdResourceName in UrlBarReader.URL_BAR_VIEW_IDS ||
                 children.any { it.browserChrome },
+            hint = node.hintText?.toString().orEmpty(),
+            context = containerLabel.orEmpty(),
         )
     }
+
+    /**
+     * Editable-by-ROLE (v1.7.0, Phase 10C — doc 03 §2): the platform's `isEditable` OR the
+     * EditText class (Chrome's webview bridge exposes some HTML inputs — the observed
+     * unlabeled search boxes — as plain `android.widget.EditText` with `isEditable=false`).
+     */
+    private fun isEditableClass(className: String?): Boolean =
+        className?.equals("android.widget.EditText", ignoreCase = true) == true
 
     /** Adapts a live node onto the URL-bar strategy's fakeable node view. */
     private class A11yNodeView(private val node: AccessibilityNodeInfo) : UrlBarReader.NodeView {

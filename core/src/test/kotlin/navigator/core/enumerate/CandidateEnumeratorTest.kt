@@ -271,4 +271,55 @@ class CandidateEnumeratorTest {
             )
         }
     }
+
+    @Test
+    fun `an unlabeled field names itself via its placeholder, a text-less control via its container (Phase 10C)`() {
+        val nodes = listOf(
+            ObservedNode(
+                id = "n0",
+                text = "",
+                desc = "",
+                clickable = false,
+                editable = true,
+                scrollable = false,
+                left = 0,
+                top = 0,
+                right = 100,
+                bottom = 40,
+                className = "android.widget.EditText",
+                sourceOrder = 0,
+                hint = "Search Wikipedia",
+            ),
+            ObservedNode(
+                id = "n1",
+                text = "",
+                desc = "",
+                clickable = true,
+                editable = false,
+                scrollable = false,
+                left = 0,
+                top = 100,
+                right = 100,
+                bottom = 140,
+                className = "android.widget.Button",
+                sourceOrder = 1,
+                context = "Privacy dialog",
+            ),
+        )
+        val list = CandidateEnumerator.enumerate(nodes)
+        val flat = list.flat.associateBy { it.id }
+        assertEquals(
+            "Search Wikipedia",
+            flat.getValue("n0").label,
+            "the placeholder names an unlabeled field (the observed search-box gap)",
+        )
+        assertEquals(Bucket.FORM_FIELDS, flat.getValue("n0").bucket)
+        assertEquals(
+            "button inside 'Privacy dialog'",
+            flat.getValue("n1").label,
+            "a text-less control is described by role + container (within the 40-char cap)",
+        )
+        assertEquals(Bucket.BUTTONS, flat.getValue("n1").bucket)
+    }
+
 }
