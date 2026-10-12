@@ -52,11 +52,12 @@
       "emulator_verification": "PASS (.state/phase-10D-emulator-verification.md): install+launch, GATE91-94 18/18, stub run GOAL_ACHIEVED $0, LIVE ladder run on the Test-1 goal: gen1 (2 subtasks) -> informed re-plan (failure context, cause class) -> gen2 (3 subtasks, resuming at 2, the writer inserted the English-edition waypoint) -> subtask 2 verified (progress!) -> gen3 (4 subtasks, resuming at 3) -> bounded honest STUCK_KILL after the re-plan cap. Writer spend $0.014, decision spend $0.056. Caveat: the emulator run did not reach GOAL_ACHIEVED (cascade stayed UNCERTAIN on the emulator page states); goal completion is the owner UAT question."
     },
     "2": {
-      "state": "CODE COMPLETE + verifier round-1 finding fixed (the target-view header mask); suite 1476 executions / 0 failures (926 unique); the emulator evidence run next",
+      "state": "CLOSED — implemented + the verifier finding fixed (header mask) + the emulator evidence run PASS",
       "landed": [
-        "Stage2Outcome.NoGoodTarget carries the failing slate (scores + view) and the fallback row persists it (the 10C store gap closed) + gate 10D.2 test",
-        "VERIFIER FINDING (blocking, pre-existing): the target view SUBTASK/DONE-WHEN header rode the engine batch AND the persisted targetStateText unmasked (a gen-1 ladder can echo an owner-typed secret into its instruction). FIXED: runStage2 folds redactionKeys over subtask+doneWhen before the view/questions; a new gate 10D_2b test pins it (the marker present, the raw secret never in any persisted view)"
-      ]
+        "Stage2Outcome.NoGoodTarget carries the failing slate (scores + view); the fallback row persists them (the 10C store gap closed); gate 10D.2 test",
+        "The target-view header mask fix + gate 10D_2b test (the verifier round-1 blocking finding)"
+      ],
+      "emulator_evidence": "PASS (run 10d-wikipedia-4, task-1791845583133): the no-good-target fallback rows (steps 4 and 6, gen3) now carry the refused slate — targetScores 1 candidate {n37: 2.69} / {n37: 2.62} plus the exact target view the judge saw (\"SUBTASK: The search results for World War II on the English Wikipedia are showing. | DONE WHEN: the address contains /w/index.php?search= | [n37] \"field inside Wikipedia\" tap edit\"); before Stage 2 these rows were null. The same run re-confirmed the Stage-1 pathway (two informed re-plans: gen2/gen3, resuming at the failing subtask). Evidence: .state/10d-emu-live-run2.log, .state/10d-emu-db2/."
     },
     "3": {
       "state": "PENDING — placeholder/blank-label probe + the general legibility rule + fixtures (fixes D4); Gate 10D.3"
