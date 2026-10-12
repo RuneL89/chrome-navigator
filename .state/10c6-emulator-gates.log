@@ -1,0 +1,23 @@
+--------- beginning of main
+10-12 11:11:14.705  2004  2028 I NavigatorGates: GATE91 RESULT: FAIL 5/7 checks - first failure: passthrough-when-hidden: dispatched=true probe touches 0 -> 0 (must grow)
+10-12 11:11:14.705  2004  2028 I NavigatorGates: GATE91 CHECK: goal-input-show-hide PASS - shown=true blurAttempted=true hidden=true
+10-12 11:11:14.705  2004  2028 I NavigatorGates: GATE91 CHECK: probe-foreground PASS - the probe activity launched and owns the active window
+10-12 11:11:14.705  2004  2028 I NavigatorGates: GATE91 CHECK: passthrough-when-hidden FAIL - dispatched=true probe touches 0 -> 0 (must grow)
+10-12 11:11:14.705  2004  2028 I NavigatorGates: GATE91 CHECK: live-log-non-interception FAIL - visible=true probe touches 0 -> 0 (must grow)
+10-12 11:11:14.705  2004  2028 I NavigatorGates: GATE91 CHECK: live-log-toggle PASS - expand=true collapse-back=true
+10-12 11:11:14.705  2004  2028 I NavigatorGates: GATE91 CHECK: gate-card-blocks-while-counting PASS - shown=true focusable=true center touches 0 -> 0 (must NOT grow) hidden=true resolution=TIMEOUT
+10-12 11:11:14.705  2004  2028 I NavigatorGates: GATE91 CHECK: completion-card-show-hide PASS - shown=true hidden=true resolution=TIMEOUT (hide = fail-safe TIMEOUT)
+10-12 11:11:15.919  2004  2029 I NavigatorGates: GATE92 RESULT: PASS 3/3 checks
+10-12 11:11:15.920  2004  2029 I NavigatorGates: GATE92 CHECK: blur-path-ran PASS - shown=true hidden=true blurAttempted=true
+10-12 11:11:15.920  2004  2029 I NavigatorGates: GATE92 CHECK: zero-file-delta PASS - before=[TreeSnapshot(files=3, bytes=957855143), TreeSnapshot(files=83, bytes=238301), TreeSnapshot(files=6, bytes=0)] during=[TreeSnapshot(files=3, bytes=957855143), TreeSnapshot(files=83, bytes=238301), TreeSnapshot(files=6, bytes=0)] after=[TreeSnapshot(files=3, bytes=957855143), TreeSnapshot(files=83, bytes=238301), TreeSnapshot(files=6, bytes=0)] (all must equal)
+10-12 11:11:15.920  2004  2029 I NavigatorGates: GATE92 CHECK: zero-network-bytes PASS - tx 0 -> 0, rx 0 -> 0 (both deltas must be 0)
+10-12 11:11:24.525  2004  2029 I NavigatorGates: GATE93 RESULT: FAIL 5/6 checks - first failure: real-countdown-expiry: observed expiry=5058ms (law 30000 ±1500) resolution=TIMEOUT
+10-12 11:11:24.525  2004  2029 I NavigatorGates: GATE93 CHECK: plan-display-held PASS - planSubgoalCount=2 (want 2)
+10-12 11:11:24.525  2004  2029 I NavigatorGates: GATE93 CHECK: approve-tap-resolves-execute PASS - shown=true approveCenter=(297, 1700) tapDispatched=true resolution=APPROVED taskGate=EXECUTE gateEvents=1 (1:1: one tap, one event)
+10-12 11:11:24.525  2004  2029 I NavigatorGates: GATE93 CHECK: approve-card-dismissed PASS - hidden=true
+10-12 11:11:24.526  2004  2029 I NavigatorGates: GATE93 CHECK: real-countdown-expiry FAIL - observed expiry=5058ms (law 30000 ±1500) resolution=TIMEOUT
+10-12 11:11:24.526  2004  2029 I NavigatorGates: GATE93 CHECK: timeout-maps-to-skip PASS - taskGate=(SKIP, 1) (timeout = deny semantics)
+10-12 11:11:24.526  2004  2029 I NavigatorGates: GATE93 CHECK: credential-empty-approve-denied PASS - shown=true tapDispatched=true (no secret typed) resolution=DENIED taskGate=SKIP — the doc 06 §2a fail-safe
+10-12 11:11:25.367  2004  2028 I NavigatorGates: GATE94 RESULT: PASS 2/2 checks
+10-12 11:11:25.368  2004  2028 I NavigatorGates: GATE94 CHECK: enough-samples PASS - measured 25/25 rendered events (need >= 20; logShown=true)
+10-12 11:11:25.368  2004  2028 I NavigatorGates: GATE94 CHECK: p95-under-one-second PASS - p95=534ms (law <= 1000ms) samples=[106, 143, 158, 174, 204, 207, 219, 224, 234, 259, 265, 270, 276, 286, 316, 327, 338, 379, 431, 434, 481, 485, 534, 534, 590]
