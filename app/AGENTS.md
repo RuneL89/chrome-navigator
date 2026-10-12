@@ -648,14 +648,19 @@ setup wizard (`setup/`).
     re-keys to the first unfinished subtask instead of resetting to 1. The declared
     rollback rides the rows additively (`LoggedPlan.rolledBack`/`lesson`, doc 05 §2
     v1.8.0). `handleSubtaskFailureOrKill`/`handleStuckKill` stash the failure cause for the
-    re-plan and pass it to the card path. LOOP-STATE DISCIPLINE (measured 2026-10-12):
-    `lastAssistText`/`lastFailureCause` are CLASS FIELDS, not `run()` locals — one new
-    CAPTURED local inflated `run()` past the JVM 64KB method limit while the same state on
-    the instance cost nothing; the post-step bookkeeping (post-observation, outcome diff,
-    row + live-log + history, guard/tracker/stuck records, step advance, the abort/
-    stuck-kill terminal) likewise moved into the local helper `postStepBookkeeping` (the
-    extraction freed 2,430 bytes of `run()`'s 64,322). New loop code: file-scope helpers
-    when it needs no loop locals; never add captured locals casually.
+    re-plan and pass it to the card path. LOOP-STATE DISCIPLINE (measured 2026-10-12, javap on the
+    compiled class): `run()` sits at 64,326 of the JVM's 65,535-byte method cap — ~1.2 KB of
+    headroom, so EVERY addition to its own body or capture list matters. The load-bearing
+    fix in Stage 1 was moving `lastAssistText`/`lastFailureCause` from `run()` LOCALS to
+    CLASS FIELDS: one new captured local (with its Ref plumbing in every nested helper's
+    signature) pushed the method past the cap, while the same state on the instance cost
+    ~nothing. The post-step bookkeeping (post-observation, outcome diff, row + live-log +
+    history, guard/tracker/stuck records, step advance, the abort/stuck-kill terminal) is a
+    named local helper (`postStepBookkeeping`) so the loop's source stays readable — note
+    the honest measurement: at the bytecode level the outlined helper is byte-neutral
+    (64,322 -> 64,326 across the whole change), because the JVM backend re-inlines a
+    single-call-site local function; do not claim otherwise. New loop code: prefer
+    FILE-SCOPE helpers when it needs no loop locals; never add captured locals casually.
   * `src/main/kotlin/navigator/app/stub/` — `StubEngine` (Phase 6; Phase 10B: the
     cascade scripting): a `DecisionEngine` replaying a `StubScript` deterministically
     ($0 spend); answers select by option id, `labelContains`, `bucketFirst`(+ordinal),

@@ -116,21 +116,29 @@ internal object ReplanSupport {
     }
 
     /**
-     * Folds [keys] (the sanctioned secrets) out of every page-derived field — the same
-     * discipline the masked goal gets (doc 06 §2a). Ladder-derived text (instructions,
-     * conditions, the cause) is already secret-free: it was built from the masked goal and
-     * code-authored facts only.
+     * Folds [keys] (the sanctioned secrets) out of EVERY free-text field of the failure
+     * block — including the ladder-derived ones — the same discipline the masked goal gets
+     * (doc 06 §2a). The ladder-derived fields are masked TOO: a gen-1 ladder is built from
+     * the RAW goal, so a secret the owner typed into the goal can be echoed into an
+     * instruction or a condition, and a typed secret can surface in the page URL or text
+     * the subtask mentions (the verifier's round-1 finding B2, 2026-10-12). Nothing about
+     * the failure block is exempt.
      */
     fun mask(ctx: ReplanContext, keys: List<String>): ReplanContext {
         if (keys.isEmpty()) return ctx
         fun fold(s: String): String = keys.fold(s) { acc, key -> acc.replace(key, TextSource.REDACTED) }
         return ctx.copy(
+            failingInstruction = fold(ctx.failingInstruction),
+            failingDone = fold(ctx.failingDone),
+            cause = fold(ctx.cause),
+            pageHost = fold(ctx.pageHost),
             pageTitle = fold(ctx.pageTitle),
             pageExcerptLines = ctx.pageExcerptLines.map(::fold),
             slateLines = ctx.slateLines.map(::fold),
             otherBucketLines = ctx.otherBucketLines.map(::fold),
             historyLines = ctx.historyLines.map(::fold),
             assistText = ctx.assistText?.let(::fold),
+            verifiedPrefixLines = ctx.verifiedPrefixLines.map(::fold),
         )
     }
 
@@ -216,7 +224,14 @@ internal object ReplanSupport {
             return Verdict.Refused(listOf(line), "step - $line")
         }
         val rolledBack = (verdict as ReplanVerdict.Accepted).rolledBack
-        val reKeyTo = (verified - rolledBack).coerceAtLeast(0)
+        // The re-key can never pass the final subtask (SubtaskPointer.advance is loud):
+        // clamp defensively — the rule above already guarantees it for a real previous
+        // ladder, and the no-previous-ladder branch must not trust a stale verified count.
+        val reKeyTo = if (previous == null) {
+            0
+        } else {
+            (verified - rolledBack).coerceIn(0, restructured.ladder.subtasks.lastIndex)
+        }
         val lines = mutableListOf(
             "ladder: re-planned to ${restructured.version} " +
                 "(${restructured.ladder.subtasks.size} subtask(s), resuming at subtask ${reKeyTo + 1})",

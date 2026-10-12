@@ -1147,7 +1147,120 @@ class LadderExecutionLoopTest {
             masked.assistText.orEmpty(),
         ).forEach { assertTrue(secret !in it, "the raw secret survived the mask: $it") }
         assertTrue(TextSource.REDACTED in masked.pageTitle)
-        assertEquals(ctx.failingInstruction, masked.failingInstruction, "ladder-derived text is not a secret carrier")
         assertEquals(ctx.cause, masked.cause)
+    }
+
+    @Test
+    fun `gate 10D_1 - the mask covers every failure-block field - ladder text may echo the goal's secret`() {
+        // The verifier's round-1 finding B2: a gen-1 ladder is built from the RAW goal, so
+        // an instruction/condition can echo a secret the owner typed into it - the block
+        // must mask the ladder-derived fields too, not only the page-derived ones.
+        val secret = "Hunter2-Secret-Value"
+        val ctx = navigator.core.ladder.ReplanContext(
+            failingOrdinal = 1,
+            failingInstruction = "sign in with $secret",
+            failingDone = "the page contains '$secret'",
+            cause = "no good target on the form-fields slate",
+            causeClass = navigator.core.ladder.ReplanContext.CauseClass.NO_GOOD_TARGET,
+            pageHost = "$secret.example.org",
+            pageTitle = "Sign in",
+            pageExcerptLines = emptyList(),
+            slateIntent = null,
+            slateBucket = "form-fields",
+            slateLines = emptyList(),
+            otherBucketLines = emptyList(),
+            historyLines = emptyList(),
+            assistText = null,
+            verifiedCount = 1,
+            verifiedPrefixLines = listOf("open the vault with $secret - done: the URL host is $secret.example.org"),
+            totalSubtasks = 2,
+            generation = 1,
+        )
+        val masked = ReplanSupport.mask(ctx, listOf(secret))
+        listOf(
+            masked.failingInstruction,
+            masked.failingDone,
+            masked.cause,
+            masked.pageHost,
+            masked.verifiedPrefixLines.joinToString(),
+        ).forEach { assertTrue(secret !in it, "the raw secret survived the mask: $it") }
+        assertTrue(TextSource.REDACTED in masked.failingInstruction)
+        assertTrue(TextSource.REDACTED in masked.verifiedPrefixLines.joinToString())
+    }
+
+    @Test
+    fun `gate 10D_1 - a REFUSED re-plan still meters the writer spend it incurred (ART-5)`() {
+        val source = ScriptedLadderSource(
+            1 to Ladder(
+                "Two subtask ladder.",
+                listOf(
+                    Subtask("the article is displayed", DoneCondition.UrlContains("m0.test/page")),
+                    Subtask("an impossible marker", DoneCondition.MarkerText("Never On This Page")),
+                ),
+            ),
+            2 to Ladder(
+                "Sneaky rewrite.",
+                listOf(
+                    Subtask("something else entirely", DoneCondition.UrlContains("m0.test/second")),
+                    Subtask("the marker appears", DoneCondition.MarkerText("Never On This Page")),
+                ),
+            ),
+            costMicroUsd = 5_000,
+        )
+        val engine = ScriptedEngine(
+            actionPicks = listOf("n2", "n2", "n2", "n2", "n2", "n2"),
+            noulValues = listOf(0.9, 0.9, 0.9, 0.9),
+            recoveryPicks = listOf("give-up", "give-up", "give-up"),
+        )
+        val (result, _) = runLadder(
+            engine, source,
+            observations = listOf(identityPage, identityPage, identityPage, page, page, page, page, page),
+        )
+        assertTrue(result.stepLog.toString().contains("ladder: re-plan REFUSED"), "the rewrite was refused")
+        assertTrue(
+            result.writerSpendMicroUsd >= 10_000,
+            "BOTH writer calls are metered (the refused re-plan spent real money): ${result.writerSpendMicroUsd}",
+        )
+    }
+
+    @Test
+    fun `gate 10D_1 - the honesty gate re-evaluates a re-planned condition on the same ordinal and page`() {
+        // The verifier's round-1 finding B6: the gate's memo is keyed (ordinal, page-hash)
+        // and a re-plan can land on the same pair with a NEW condition - the memo must not
+        // suppress the check (applyLadder resets it).
+        val source = ScriptedLadderSource(
+            1 to Ladder(
+                "Two subtask ladder.",
+                listOf(
+                    Subtask("open the article", DoneCondition.UrlContains("m0.test/other")),
+                    Subtask("unreached", DoneCondition.UrlHost("m0.test")),
+                ),
+            ),
+            2 to Ladder(
+                "Re-planned ladder.",
+                listOf(
+                    // WEAK + already satisfied on the page the agent stands on, but the
+                    // subtask names a DIFFERENT page: the honesty gate must fire.
+                    Subtask(
+                        "open m0.test/second and read the marker",
+                        DoneCondition.MarkerText("World War II"),
+                    ),
+                ),
+            ),
+        )
+        val engine = ScriptedEngine(
+            actionPicks = listOf("n2", "n2", "n2", "n2", "n2", "n2"),
+            noulValues = listOf(0.9, 0.9, 0.9, 0.9),
+            recoveryPicks = listOf("give-up", "give-up", "give-up"),
+        )
+        val (result, _) = runLadder(
+            engine, source,
+            observations = listOf(page, page, page, page, page, page, page, page),
+        )
+        val log = result.stepLog.toString()
+        assertTrue(
+            log.contains("honesty: subtask 1/1 condition") && log.contains("is already satisfied here"),
+            "the gate re-ran for the re-planned condition (memo reset by applyLadder): $log",
+        )
     }
 }

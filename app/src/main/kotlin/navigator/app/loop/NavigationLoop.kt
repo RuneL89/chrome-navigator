@@ -835,6 +835,10 @@ class NavigationLoop(
             codeCheckHash = null
             codeCheckCountOnHash = 0
             codeCheckStepsSince = 0
+            // A re-plan's subtasks are NEW conditions: the honesty gate's memo must not
+            // suppress their entry check (verifier round-1 finding B6 — the memo is keyed
+            // (ordinal, page-hash) and a re-key can land on the same pair).
+            honestyChecked = null
             // Ladder provenance rides every row via the EXISTING additive `plan` field
             // (doc 05 §2: the writer-LLM plans carry their PROMPT_VERSION) — no schema
             // surgery; version = "<prompt-version>/gen<n>". Phase 10D adds the declared
@@ -1018,6 +1022,12 @@ class NavigationLoop(
                 line("ladder: re-plan REFUSED (no valid ladder) - treated as no re-plan capacity")
                 return false
             }
+            // ART-5: the writer call HAPPENED and cost money — meter it whatever the plan
+            // verdict is (a refused re-plan must never spend unmetered; verifier round-1
+            // finding B3).
+            writerBudget.record(restructured.costMicroUsd).let { check ->
+                if (check != WriterBudget.Check.OK) softWarnings.add("writer budget ${check.name}")
+            }
             // Phase 10D plan integrity (doc 04 §1 v1.8.0): the verified prefix is frozen
             // in CODE — a revision that rewrites it without a valid `rollback` declaration
             // is refused loudly and counts as no re-plan capacity. Never a silent accept.
@@ -1029,9 +1039,6 @@ class NavigationLoop(
                 }
 
                 is ReplanSupport.Verdict.Accepted -> {
-                    writerBudget.record(restructured.costMicroUsd).let { check ->
-                        if (check != WriterBudget.Check.OK) softWarnings.add("writer budget ${check.name}")
-                    }
                     ladderGeneration = generation
                     applyLadder(restructured.ladder, restructured.version, reKeyTo = verdict.reKeyTo)
                     verdict.lines.forEach { line(it) }
@@ -1541,8 +1548,8 @@ class NavigationLoop(
                     else -> Outcome.PROGRESSED
                 }
 
-                // -- 6. LOG + the post-step bookkeeping (extracted: `run()`'s method-size
-            //    discipline) -------------------------------------------------------------------
+                // -- 6. LOG + the post-step bookkeeping (extracted — `run()`'s method-size
+            //    discipline; the helper above) ---------------------------------------------
             postStepBookkeeping(
                 obs = obs,
                 state = state,
@@ -1857,6 +1864,9 @@ class NavigationLoop(
             }
             val state = buildStepState(obs, candidates)
             hints.clear() // the L1 hint rode this step's HISTORY block
+            // Phase 10D: an assist describes THE page of the step it ran in — a stale one
+            // must never ride a later page's failure block (verifier round-1 finding B5).
+            lastAssistText = null
 
             // -- CONDITION HONESTY (Phase 10C, vision 04 §1 v1.7.0) ------------------------
             // A WEAK-shaped done-condition already satisfied where its subtask starts is the
