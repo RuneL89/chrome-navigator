@@ -214,4 +214,61 @@ class LandingAndReaskLoopTest {
             "the ordinary fallback followed (the subtask failure line): " + result.stepLog,
         )
     }
+
+    /** The fake extractor: counts calls, returns a canned answer. */
+    private class FakeExtractor : AnswerExtractor {
+        var calls = 0
+            private set
+
+        override suspend fun extract(goal: String, finalState: String): ExtractedAnswer {
+            calls += 1
+            return ExtractedAnswer("The headline is X.", "extract-v1", 2_000L, 100, 50)
+        }
+    }
+
+    @Test
+    fun `a report subtask completes only after the extraction runs - the code-owned record is the evidence`() {
+        // The test-4 shape, now with a completion shape that EXISTS: "report the headline"
+        // is `answerExtracted`, satisfied by the loop's extraction record (guard STRONG).
+        val ladder = Ladder(
+            "Report the headline.",
+            listOf(Subtask("report the top news headline", DoneCondition.AnswerExtracted)),
+        )
+        val extractor = FakeExtractor()
+        val sink = CollectingLogSink()
+        val engine = ScriptedEngine2(mutableListOf())
+        val loop = NavigationLoop(
+            engine = engine,
+            observer = FakeObserver(listOf(page("http://m0.test/news", "Headline here", "Prose"))),
+            executor = FakeExecutor(Journal()),
+            gatePresenter = AutoDenyGatePresenter,
+            logSink = sink,
+            config = NavigationLoop.Config(settleMs = 0),
+            ladderSource = OneLadderSource(ladder),
+            escalationCardPresenter = StopEscalationPresenter,
+            answerExtractor = extractor,
+        )
+        val result = runBlocking {
+            loop.run("report the top headline", "report", EngineIdentity("stub", "scripted-harness-v1"))
+        }
+
+        assertEquals(TerminalState.GOAL_ACHIEVED, result.terminal, result.stepLog.toString())
+        assertEquals(
+            2,
+            extractor.calls,
+            "the report subtask's own extraction + the goal-exit re-phrasing (the existing law)",
+        )
+        assertTrue(
+            result.stepLog.any { it.contains("report: the answer for subtask 1/1 was produced") },
+            "the production is logged: " + result.stepLog,
+        )
+        assertEquals("The headline is X.", assertNotNull(result.answer).text)
+        assertEquals(
+            "STRONG",
+            assertNotNull(result.exit).guardLevel,
+            "the answerExtracted condition's evidence is code-owned (STRONG), never page content",
+        )
+        assertEquals(2_000L, result.writerSpendMicroUsd, "the extraction meters into the writer budget")
+    }
+
 }

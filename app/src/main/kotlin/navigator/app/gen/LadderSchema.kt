@@ -140,6 +140,8 @@ object LadderSchema {
                 DoneCondition.ElementPresent(desc)
             }
 
+            exactlyOne("answerExtracted") -> DoneCondition.AnswerExtracted
+
             exactlyOne("count") -> {
                 val count = obj["count"] as? JsonObject
                     ?: throw LadderSchemaException(
@@ -155,7 +157,7 @@ object LadderSchema {
 
             else -> throw LadderSchemaException(
                 "done-condition (subtask $index) carries none of the whitelisted keys " +
-                    "{urlHost, urlContains, markerText, elementPresent, count} (got $keys) — an " +
+                    "{urlHost, urlContains, markerText, elementPresent, count, answerExtracted} (got $keys) — an " +
                     "opinion-phrased done-condition is schema-REJECTED (ART-4); only " +
                     "machine-checkable conditions may ride a ladder",
             )

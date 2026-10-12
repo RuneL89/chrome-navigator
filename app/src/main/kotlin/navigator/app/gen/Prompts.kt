@@ -25,7 +25,7 @@ object Prompts {
      * The restructure prompt version. Bump on any wording change below; the version is
      * logged with every row and recorded per ladder generation (`…/gen<n>`).
      */
-    const val PROMPT_VERSION = "restructure-v2"
+    const val PROMPT_VERSION = "restructure-v3"
 
     /** The answer-extraction prompt version (doc 06 §4: "report data, not actions"). */
     const val EXTRACTION_PROMPT_VERSION = "extract-v1"
@@ -82,6 +82,7 @@ object Prompts {
             {"markerText": "<a literal that appears on the page>"}
             {"elementPresent": "<a description of a control on the page>"}
             {"count": {"target": "<what is being counted>", "n": <positive integer>}}
+            {"answerExtracted": true}
           No other shape exists. "the page looks right" or any judgment call is an error.
         - Condition honesty: a done-condition must be FALSE where its subtask STARTS and
           must become true on the page the subtask's own outcome produces. For "open" or
@@ -91,6 +92,9 @@ object Prompts {
           NEVER choose a condition the page you are already on could satisfy: not a link
           whose label merely mentions the target, not a word that already appears on the
           starting page, not a host you are already on for a subtask that opens a new page.
+        - For a subtask whose outcome is TELLING the user something found on the pages
+          ("report the headline"), use {"answerExtracted": true} — the answer's production
+          is verified by code.
         - taskClass: "multi" only when some done-condition is a "count"; otherwise
           "read" for a read/lookup goal, "action" for a single consequential operation.
     """.trimIndent()

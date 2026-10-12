@@ -33,6 +33,11 @@ object DoneConditionChecker {
         val candidateLabels: List<String> = emptyList(),
         /** Working memory: named counters ([CountReached] reads its target, else [WORKING_MEMORY_KEY]). */
         val counters: Map<String, Int> = emptyMap(),
+        /**
+         * The code-owned extraction record (v1.7.0, Phase 10C): answers PRODUCED for the
+         * active report subtask ([AnswerExtracted] reads this — never page content).
+         */
+        val answersProduced: Int = 0,
     )
 
     /** Whether [condition] is satisfied by [evidence] — deterministic, side-effect-free. */
@@ -61,6 +66,8 @@ object DoneConditionChecker {
         is DoneCondition.ElementPresent ->
             evidence.candidateLabels.any { matchesDescription(it, condition.description) }
 
+        is DoneCondition.AnswerExtracted -> evidence.answersProduced >= 1
+
         is DoneCondition.CountReached -> {
             val count = evidence.counters[condition.target]
                 ?: evidence.counters[WORKING_MEMORY_KEY]
@@ -72,9 +79,9 @@ object DoneConditionChecker {
     /**
      * The guard level a satisfied condition earns (the exit law's code-evidence half,
      * vision 04 §3 v1.7.0): STRONG for the evidence that is NOT a page-content proxy —
-     * `urlHost`/`urlContains` are PAGE IDENTITY (URL identity), and `count` reads the
-     * CODE-OWNED working memory (the target tracker's processed count — deterministic
-     * code state, never a page mention). WEAK for the content-reading shapes
+     * `urlHost`/`urlContains` are PAGE IDENTITY (URL identity), and `count` /
+     * `answerExtracted` read CODE-OWNED state (the target tracker's processed count; the
+     * loop's extraction record — deterministic code state, never a page mention). WEAK for the content-reading shapes
      * (`markerText`/`elementPresent`): the on-device battery showed these silently
      * accepting conditions already true where the subtask started. An unsatisfied
      * condition is NONE (the caller maps it; the checker only speaks for satisfied ones).
@@ -83,6 +90,7 @@ object DoneConditionChecker {
         is DoneCondition.UrlHost -> GuardStrength.STRONG
         is DoneCondition.UrlContains -> GuardStrength.STRONG
         is DoneCondition.CountReached -> GuardStrength.STRONG
+        is DoneCondition.AnswerExtracted -> GuardStrength.STRONG
         else -> GuardStrength.WEAK
     }
 
@@ -95,6 +103,7 @@ object DoneConditionChecker {
         is DoneCondition.MarkerText -> "the page contains '${condition.text}'"
         is DoneCondition.ElementPresent -> "an element matching '${condition.description}' is present"
         is DoneCondition.CountReached -> "${condition.target} >= ${condition.n}"
+        is DoneCondition.AnswerExtracted -> "the answer has been produced"
     }
 
     /**

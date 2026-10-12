@@ -128,6 +128,18 @@ sealed interface DoneCondition {
     @Serializable
     @SerialName("count")
     data class CountReached(val target: String, val n: Int) : DoneCondition
+
+    /**
+     * REPORT-GOAL completion (v1.7.0, Phase 10C, doc 04 §1): the answer to a "tell me X"
+     * subtask has been PRODUCED (the extraction ran over the page the subtask's outcome
+     * served). Payload-free — the evidence is the loop's code-owned extraction record, never
+     * page content (the observed test-4 defect: "identified and reported to the user" was
+     * mapped onto an unverifiable prose condition and the run spun). Guard strength STRONG
+     * (code-owned, never a page-content proxy).
+     */
+    @Serializable
+    @SerialName("answerExtracted")
+    data object AnswerExtracted : DoneCondition
 }
 
 /** Private render used by the total-size cap (the public render lives on the checker). */
@@ -137,6 +149,7 @@ private fun DoneCondition.rendered(): String = when (this) {
     is DoneCondition.MarkerText -> text
     is DoneCondition.ElementPresent -> description
     is DoneCondition.CountReached -> "$target$n"
+    is DoneCondition.AnswerExtracted -> "answerExtracted"
 }
 
 /** The ladder size caps (ART-5 — numbers in code; tunable by amendment, never by the model). */
@@ -211,6 +224,11 @@ object LadderValidator {
                         violations.add("subtask ${index + 1}: elementPresent description is blank")
                     }
 
+                is DoneCondition.AnswerExtracted -> {
+                    // Payload-free: nothing to validate here (the class matrix allows it on
+                    // READ/ACTION ladders; MULTI requires a count somewhere).
+                }
+
                 is DoneCondition.CountReached -> {
                     if (done.target.isBlank()) violations.add("subtask ${index + 1}: count target is blank")
                     if (done.n !in LadderLimits.MIN_COUNT_N..LadderLimits.MAX_COUNT_N) {
@@ -224,6 +242,7 @@ object LadderValidator {
             // Per-field cap on the condition's free-text payload (guards the total-size
             // cap; the total cap in Ladder.init is the binding one — this names the field).
             val conditionText = when (val done = subtask.done) {
+                is DoneCondition.AnswerExtracted -> ""
                 is DoneCondition.UrlHost -> done.host
                 is DoneCondition.UrlContains -> done.segment
                 is DoneCondition.MarkerText -> done.text

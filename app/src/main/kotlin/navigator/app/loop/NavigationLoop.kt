@@ -366,6 +366,9 @@ class NavigationLoop(
         // pinned for the step that follows (the re-ask consumes a step, like a check).
         var noGoodTargetReaskHash: Int? = null
         var forcedIntentNextStep: String? = null
+        // Phase 10C (doc 04 §1 v1.7.0): the code-owned extraction record the
+        // `answerExtracted` done-condition reads — one answer per report subtask ordinal.
+        val reportAnswers = mutableMapOf<Int, ExtractedAnswer>()
         var codeCheckHash: Int? = null
         // Phase 10C (vision 04 §1 v1.7.0): the condition-honesty gate's memo — at most ONE
         // evaluation per (active subtask ordinal, page-hash); a page change or a pointer
@@ -867,6 +870,7 @@ class NavigationLoop(
                 pageText = o.lines + o.excerpt,
                 candidateLabels = candidates.flat.map { it.label },
                 counters = mapOf(DoneConditionChecker.WORKING_MEMORY_KEY to (tracker?.processedCount() ?: 0)),
+                answersProduced = reportAnswers.size,
             )
 
         /**
@@ -1437,6 +1441,32 @@ class NavigationLoop(
 
         while (true) {
             /**
+             * The per-step budget gate (vision 04 §5; extracted in Phase 10C — `run`'s size
+             * budget): a HARD rail ends the run cleanly, a SOFT rail warns once.
+             */
+            fun budgetStep(): RunResult? {
+                when (val check = budget.check(stepIndex)) {
+                    is TaskBudget.Check.Hard -> {
+                        line("budget: HARD STOP - ${check.dimension.label}: ${check.detail}")
+                        return finish(
+                            TerminalState.BUDGET_EXHAUSTED,
+                            "${check.dimension.label}: ${check.detail}",
+                            stepIndex,
+                        )
+                    }
+                    is TaskBudget.Check.Soft -> {
+                        check.warnings.forEach { dimension ->
+                            line("budget: SOFT warning - ${dimension.label} at its soft limit; continuing")
+                            softWarnings.add(dimension.label)
+                        }
+                    }
+                    TaskBudget.Check.Ok -> {}
+                }
+                return null
+            }
+
+
+            /**
              * Replaces the ACTIVE subtask's done-condition, preserving pointer progress
              * (Phase 10C): a fresh ladder + a fresh pointer advanced to the same verified
              * position (the pointer's advance law is preserved — completed subtasks stay
@@ -1579,23 +1609,7 @@ class NavigationLoop(
             }
 
             // -- budget (hard = clean stop; soft = warn once) ---------------------------
-            when (val check = budget.check(stepIndex)) {
-                is TaskBudget.Check.Hard -> {
-                    line("budget: HARD STOP - ${check.dimension.label}: ${check.detail}")
-                    return finish(
-                        TerminalState.BUDGET_EXHAUSTED,
-                        "${check.dimension.label}: ${check.detail}",
-                        stepIndex,
-                    )
-                }
-                is TaskBudget.Check.Soft -> {
-                    check.warnings.forEach { dimension ->
-                        line("budget: SOFT warning - ${dimension.label} at its soft limit; continuing")
-                        softWarnings.add(dimension.label)
-                    }
-                }
-                TaskBudget.Check.Ok -> {}
-            }
+            budgetStep()?.let { return it }
 
             /**
              * OBSERVE with the unusable-retry law (doc 03 §5; extracted in Phase 10C to keep
@@ -1636,6 +1650,53 @@ class NavigationLoop(
                     secrets = redactionKeys(),
                 )
 
+            /**
+             * The report-subtask extraction (Phase 10C, doc 04 §1 v1.7.0): when the ACTIVE
+             * subtask's done-condition is [DoneCondition.AnswerExtracted] and no answer has
+             * been produced for it yet, ONE writer call phrases the answer over the
+             * code-MASKED current state (doc 06 §2a) and the code-owned record flips so the
+             * condition verifies (guard STRONG — never page content). A refused extraction
+             * leaves the condition unsatisfied (the ordinary failure machinery applies).
+             */
+            suspend fun extractReportAnswer(st: StateTextBuilder.StateText) {
+                val p = pointer ?: return
+                if (p.active.done !is DoneCondition.AnswerExtracted) return
+                if (reportAnswers.containsKey(p.index)) return
+                val extractor = answerExtractor ?: run {
+                    line("report: no extractor wired - the answer subtask cannot verify")
+                    return
+                }
+                val maskedState = redactionKeys().fold(st.text) { acc, key ->
+                    acc.replace(key, TextSource.REDACTED)
+                }
+                val maskedGoal = redactionKeys().fold(goal) { acc, key ->
+                    acc.replace(key, TextSource.REDACTED)
+                }
+                try {
+                    val extracted = extractor.extract(maskedGoal, maskedState)
+                    if (extracted == null) {
+                        line("report: the extraction refused - the answer subtask stays unverified")
+                        return
+                    }
+                    writerBudget.record(extracted.costMicroUsd).let { check ->
+                        if (check != WriterBudget.Check.OK) {
+                            softWarnings.add("writer budget ${check.name}")
+                        }
+                    }
+                    reportAnswers[p.index] = extracted
+                    if (extractedAnswer == null) extractedAnswer = extracted
+                    line(
+                        "report: the answer for subtask ${p.activeOrdinal}/${p.total} was produced " +
+                            "(${extracted.promptVersion}, ${extracted.costMicroUsd} micro-USD)",
+                    )
+                } catch (t: Throwable) {
+                    line(
+                        "report: the extraction failed loudly (${t::class.simpleName}) - " +
+                            "the answer subtask stays unverified",
+                    )
+                }
+            }
+
             // -- 1. OBSERVE (fresh; unusable tree -> graceful refusal, doc 03 §5) -------
             val obsOrNull = observeUsable()
             if (obsOrNull == null) {
@@ -1675,6 +1736,11 @@ class NavigationLoop(
             // URL identities already true are LEGITIMATE (immediate verify+advance) and
             // never enter this gate.
             honestyGate(obs, candidates)?.let { return it }
+
+            // -- REPORT-SUBTASK extraction (Phase 10C, doc 04 §1 v1.7.0) -------------------
+            // The `answerExtracted` condition's evidence is the code-owned extraction
+            // record: produce it once per report subtask before the checks judge.
+            extractReportAnswer(state)
 
             // -- CODE-TRIGGERED IS-DONE check (vision 04 §3 v1.5.0) ------------------------
             // The IS-DONE evaluation is NOT gated on the engine volunteering `finish`
@@ -2299,6 +2365,63 @@ class NavigationLoop(
                 return null
             }
 
+            /**
+             * The code-path intent dispatch (vision 04 §2; extracted in Phase 10C for the
+             * `run` method-size budget — the branches moved wholesale): verify-done,
+             * open-site, go-back and scroll own their code paths and end the step; the
+             * target-bearing intents fall through to the gate + execution below.
+             */
+            suspend fun dispatchIntent(intentId: String, cands: CandidateList): IntentDispatch =
+                when (intentId) {
+                    Intents.VERIFY_DONE ->
+                        verifyDoneStep()?.let { IntentDispatch.Terminal(it) } ?: IntentDispatch.Consumed
+
+                    Intents.OPEN_SITE ->
+                        openSiteStep()?.let { IntentDispatch.Terminal(it) } ?: IntentDispatch.Consumed
+
+                    Intents.GO_BACK ->
+                        ungatedGestureStep(
+                            verb = Intents.GO_BACK,
+                            actionKey = "go-back",
+                            loggedKind = LoggedActionKind.BACK,
+                            loggedCandidateId = null,
+                            execute = { executor.back() },
+                        )?.let { IntentDispatch.Terminal(it) } ?: IntentDispatch.Consumed
+
+                    Intents.SCROLL -> {
+                        // The scroll BOUNCE (gate-105): the flat world offered both
+                        // scroll-down and scroll-up candidates; the cascade's single
+                        // scroll intent must not hammer one direction forever — a
+                        // repeated scroll at a page end changes nothing and feeds the
+                        // stuck detector toward a kill. Pick a direction DIFFERENT from
+                        // the previous scroll candidate when both are enumerated
+                        // (deterministic; falls back to the down-first pick).
+                        val scrollSlate = cands.bucketed[Bucket.SCROLL].orEmpty()
+                        val scrollCandidate = scrollSlate
+                            .firstOrNull { it.id != lastScrollCandidateId }
+                            ?: scrollSlate.firstOrNull { it.id.startsWith(SCROLL_DOWN_PREFIX) }
+                            ?: scrollSlate.firstOrNull()
+                        if (scrollCandidate == null) {
+                            line("decide: scroll with no scroll candidate - no-good-target fallback")
+                            cascadeFallbackStep("the scroll intent found no scroll candidate", withStage2 = false)
+                                ?.let { return IntentDispatch.Terminal(it) }
+                            return IntentDispatch.Consumed
+                        }
+                        val down = scrollCandidate.id.startsWith(CandidateEnumerator.SCROLL_DOWN_ID)
+                        lastScrollCandidateId = scrollCandidate.id
+                        ungatedGestureStep(
+                            verb = Intents.SCROLL,
+                            actionKey = "scroll:${scrollCandidate.id}",
+                            loggedKind = LoggedActionKind.SCROLL,
+                            loggedCandidateId = scrollCandidate.id,
+                            execute = { executor.scroll(scrollCandidate.cx, scrollCandidate.cy, down) },
+                        )?.let { return IntentDispatch.Terminal(it) }
+                        IntentDispatch.Consumed
+                    }
+
+                    else -> IntentDispatch.FallThrough
+                }
+
             if (recoveryArmed) {
                 recoveryArmed = false
                 question = RECOVERY_QUESTION
@@ -2473,61 +2596,10 @@ class NavigationLoop(
                 // path never calls the writer at all: the card's secret is the payload),
                 // and a phrase refusal FAILS THE STEP to recovery, never raw-goal typing.
 
-                when (intentId) {
-                    // -- verify-done: the completion check (the finish CHOICE is retired) --
-                    Intents.VERIFY_DONE -> {
-                        verifyDoneStep()?.let { return it }
-                        continue
-                    }
-
-                    // -- open-site: the code VIEW intent (no model target) ------------------
-                    Intents.OPEN_SITE -> {
-                        openSiteStep()?.let { return it }
-                        continue
-                    }
-
-                    // -- go-back / scroll: bare gestures (never gated, vision 06 §1) --------
-                    Intents.GO_BACK -> {
-                        ungatedGestureStep(
-                            verb = Intents.GO_BACK,
-                            actionKey = "go-back",
-                            loggedKind = LoggedActionKind.BACK,
-                            loggedCandidateId = null,
-                            execute = { executor.back() },
-                        )?.let { return it }
-                        continue
-                    }
-
-                    Intents.SCROLL -> {
-                        // The scroll BOUNCE (gate-105): the flat world offered both
-                        // scroll-down and scroll-up candidates; the cascade's single
-                        // scroll intent must not hammer one direction forever — a
-                        // repeated scroll at a page end changes nothing and feeds the
-                        // stuck detector toward a kill. Pick a direction DIFFERENT from
-                        // the previous scroll candidate when both are enumerated
-                        // (deterministic; falls back to the down-first pick).
-                        val scrollSlate = candidates.bucketed[Bucket.SCROLL].orEmpty()
-                        val scrollCandidate = scrollSlate
-                            .firstOrNull { it.id != lastScrollCandidateId }
-                            ?: scrollSlate.firstOrNull { it.id.startsWith(SCROLL_DOWN_PREFIX) }
-                            ?: scrollSlate.firstOrNull()
-                        if (scrollCandidate == null) {
-                            line("decide: scroll with no scroll candidate - no-good-target fallback")
-                            cascadeFallbackStep("the scroll intent found no scroll candidate", withStage2 = false)
-                                ?.let { return it }
-                            continue
-                        }
-                        val down = scrollCandidate.id.startsWith(CandidateEnumerator.SCROLL_DOWN_ID)
-                        lastScrollCandidateId = scrollCandidate.id
-                        ungatedGestureStep(
-                            verb = Intents.SCROLL,
-                            actionKey = "scroll:${scrollCandidate.id}",
-                            loggedKind = LoggedActionKind.SCROLL,
-                            loggedCandidateId = scrollCandidate.id,
-                            execute = { executor.scroll(scrollCandidate.cx, scrollCandidate.cy, down) },
-                        )?.let { return it }
-                        continue
-                    }
+                when (val dispatch = dispatchIntent(intentId, candidates)) {
+                    is IntentDispatch.Terminal -> return dispatch.result
+                    IntentDispatch.Consumed -> continue
+                    IntentDispatch.FallThrough -> {}
                 }
             }
 
@@ -3538,5 +3610,17 @@ sealed interface Stage2Outcome {
     ) : Stage2Outcome
 
     /** The slate gave no actionable target (the resolution's reason, always present here). */
-    data class NoGoodTarget(val reason: String) : Stage2Outcome
+    data class NoGoodTarget(val reason: String)
+
+ : Stage2Outcome
+}
+
+/**
+ * One intent-dispatch outcome (Phase 10C extraction: the loop's `run` body stays under the
+ * JVM method-size limit). [FallThrough] = a target-bearing intent continues into the gate.
+ */
+sealed interface IntentDispatch {
+    data class Terminal(val result: RunResult) : IntentDispatch
+    data object Consumed : IntentDispatch
+    data object FallThrough : IntentDispatch
 }

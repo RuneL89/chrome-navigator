@@ -121,6 +121,7 @@ object AnchoredNoul {
         is DoneCondition.MarkerText -> "The text '${anchor(done.text)}' appears on the page."
         is DoneCondition.ElementPresent -> "A control matching '${anchor(done.description)}' is present on the page."
         is DoneCondition.CountReached -> "${done.n} of the counted '${anchor(done.target)}' are complete."
+        is DoneCondition.AnswerExtracted -> "The answer for this subtask has been reported."
     }
 
     /** Anchors a span for a proposition (quoted, control-flattened, bounded). */

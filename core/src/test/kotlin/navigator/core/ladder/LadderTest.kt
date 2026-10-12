@@ -343,4 +343,31 @@ class LadderTest {
         assertFalse(DoneConditionChecker.sameSiteFamily("", "example.com"), "blank never matches")
     }
 
+
+    @Test
+    fun `answerExtracted - payload-free, satisfied by the code-owned record, guard STRONG`() {
+        val ladder = Ladder(
+            "Report the headline.",
+            listOf(Subtask("report the top headline", DoneCondition.AnswerExtracted)),
+        )
+        assertEquals(ladder, LadderValidator.validate(ladder))
+        assertFalse(
+            DoneConditionChecker.satisfied(DoneCondition.AnswerExtracted, DoneConditionChecker.Evidence()),
+            "no produced answer yet",
+        )
+        assertTrue(
+            DoneConditionChecker.satisfied(
+                DoneCondition.AnswerExtracted,
+                DoneConditionChecker.Evidence(answersProduced = 1),
+            ),
+            "the code-owned record satisfies it",
+        )
+        assertEquals(
+            DoneConditionChecker.GuardStrength.STRONG,
+            DoneConditionChecker.guardStrength(DoneCondition.AnswerExtracted),
+            "code-owned evidence, never a page-content proxy",
+        )
+        assertEquals("the answer has been produced", DoneConditionChecker.render(DoneCondition.AnswerExtracted))
+    }
+
 }
