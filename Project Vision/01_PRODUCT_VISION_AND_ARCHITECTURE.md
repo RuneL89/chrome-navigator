@@ -1,7 +1,7 @@
 # Chrome Navigator (working title) — Product Vision and Architecture
 
 **Document ID:** `NAVIGATOR-VISION-001`
-**Version:** 1.5.0 *(amended 2026-10-10: the decision cascade — every step's navigation decision becomes a two-stage typed cascade (stage-1 fixed-intent choice + stage-2 batched score-per-candidate) with a bounded LLM uncertainty assist and writer-phrased typed text; owner-ratified after the Phase-10 UAT root-cause analysis showed the flat per-step option list left the engine hedging on hollow criteria)*
+**Version:** 1.6.0 *(amended 2026-10-12 (Phase 10D): the failure-driven re-plan is INFORMED — on a subtask failure the writer re-aims the remaining subtasks from the failure context (what failed and why, the page the agent was standing on and the controls that page actually offers, the recent history, any assist description); verified subtasks are immutable except ONE declared step back carrying its lesson; owner-ratified with the Phase-10D plan. Amended 2026-10-10: the decision cascade — every step's navigation decision becomes a two-stage typed cascade (stage-1 fixed-intent choice + stage-2 batched score-per-candidate) with a bounded LLM uncertainty assist and writer-phrased typed text; owner-ratified after the Phase-10 UAT root-cause analysis showed the flat per-step option list left the engine hedging on hollow criteria)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-03, 2026-10-06)
 **Date:** 2026-10-03
 
@@ -89,6 +89,11 @@ GOAL RESTRUCTURE (writer LLM, ONE call; code validates) — free-text goal → t
                ordered subtasks (instruction + machine-checkable IS-DONE condition);
                task class + writer budget derived from the validated ladder
                (owner-ratified 2026-10-09 — doc 04 §1; outcome-based, task-independent)
+               └─ RE-PLAN on subtask failure (bounded, v1.6.0 — doc 04 §1): the SAME
+                  writer re-aims the REMAINING subtasks from the failure context —
+                  what failed and why, the page the agent stands on and the controls
+                  that page offers; verified subtasks are immutable except ONE
+                  declared step back with its lesson (the `rollback` object)
    ▼
 NAVIGATION LOOP (per step, over the ACTIVE subtask):
    1. OBSERVE        (code) AccessibilityService reads Chrome a11y tree + URL bar + page title + content excerpt
@@ -126,7 +131,7 @@ RESULT SCREEN: answer + replayable decision log + local/cloud counter + agreemen
 | Recovery-strategy choice | DecisionEngine (`choice` over recovery set) | Model chooses within code-defined options |
 | Text phrasing (what to type — ordinary text only; NEVER secrets, doc 06 §2a) | Cloud LLM (generative) | Locked decision #4 |
 | Plan proposal (subgoal drafts for complex goals — context only) | Cloud LLM (generative, versioned); engines decide every step | Owner decision 2026-10-06: LLM proposes, engines execute |
-| **Goal restructuring (v1.4.0, 2026-10-09 — supersedes the plan-proposal row above)**: free-text goal → validated task ladder (ordered subtasks, each with a machine-checkable IS-DONE condition); outcome-based, task-independent; the ACTIVE subtask rides the state, Jev still decides every step, code verifies every IS-DONE (ART-2/ART-4) | Cloud LLM (generative, versioned) + code schema/done-condition validation | Owner interview 2026-10-09 (12 ratified decisions); cold-start and triage subsumed |
+| **Goal restructuring (v1.4.0, 2026-10-09 — supersedes the plan-proposal row above)**: free-text goal → validated task ladder (ordered subtasks, each with a machine-checkable IS-DONE condition); outcome-based, task-independent; the ACTIVE subtask rides the state, Jev still decides every step, code verifies every IS-DONE (ART-2/ART-4). **v1.6.0 (2026-10-12): the bounded failure re-plan is INFORMED** — the writer receives the failure context and may split or re-aim the REMAINING subtasks, never rewrite the verified ones beyond ONE declared `rollback` step with its lesson | Cloud LLM (generative, versioned) + code schema/done-condition validation | Owner interview 2026-10-09 (12 ratified decisions); cold-start and triage subsumed; Phase-10D re-plan law 2026-10-12 |
 | Page compression (oversized trees) | Cloud LLM (generative) | Perception assist only |
 | Final answer extraction | Cloud LLM (generative) | Reads result page, phrases answer |
 | Rescue coach | Cloud LLM (generative, level-3 stuck only) | Last resort |

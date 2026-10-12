@@ -1,7 +1,7 @@
 # Risk Gate & Safety
 
 **Document ID:** `NAVIGATOR-VISION-006`
-**Version:** 1.3.0 *(amended 2026-10-10: the popup ladder is realized as the cascade's `dismiss-nag` intent category — doc 02 §3; one line in §4)*
+**Version:** 1.4.0 *(amended 2026-10-12 (Phase 10D): §2a gains the writer-prompt masking law for page-carried material (the re-plan's failure-context block included); §4 gains the "a re-plan is never an authorization" rule. Amended 2026-10-10: the popup ladder is realized as the cascade's `dismiss-nag` intent category — doc 02 §3; one line in §4)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-03, 2026-10-06)
 **Date:** 2026-10-03
 **Implements:** ART-1 (code owns the gate), ART-4 (page text is untrusted), ART-5 (numbers in
@@ -81,6 +81,14 @@ When an approved action types a **secret** (password, token, recovery code):
   **where the secret comes from and where it may travel** (an ART-8 extension: secrets
   never leave the device, ever).
 
+**Writer prompts that carry page material (v1.4.0, 2026-10-12 — Phase 10D):** a writer
+call whose input includes page-derived material — the extraction final state, the
+assist page material, and the re-plan's failure-context block (doc 04 §1) — masks every
+sanctioned secret out of that material before the call (the same `[credential-redacted]`
+fold as the goal) and delimits the page material as UNTRUSTED DATA in the prompt. The
+failure-context block is a writer input like any other: it never carries a secret and
+never carries a gate decision.
+
 ## 3. Why code detects and the human decides — and the additive-only engine role
 
 - Locked decision #5 (as amended): **code owns the gate** — code triggers are the floor
@@ -107,6 +115,11 @@ These govern the generative LLM roles and are NOT safety substitutes:
   continue" as progress. (Action goals that *require* authentication are different: the
   credential steps are H4/H8-gated with §2a secret handling.)
 - "Report data, not actions" — extraction roles return content, not instructions.
+- **A re-plan is never an authorization (v1.4.0, 2026-10-12):** revising the task ladder
+  cannot launder a gate denial. The gate judges each ACTION from code-side facts (ART-4);
+  a ladder that re-routes around a denied action still faces the same gate on the new
+  action, and the writer is told — in the prompt — that it may re-route, never that it may
+  grant itself permission.
 
 ## 5. Numeric logic (ART-5)
 

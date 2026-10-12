@@ -1,7 +1,7 @@
 # Navigation Loop
 
 **Document ID:** `NAVIGATOR-VISION-004`
-**Version:** 1.7.0 *(amended 2026-10-11: goal-condition honesty — ladder-build validation rejects any IS-DONE condition already true where its subtask starts; the whitelist gains the `answerExtracted` report shape; every code navigation records its landing host and urlHost conditions reconcile to it; stage-1 banding routes on the chosen option's probability + a top-vs-second margin; a stage-2 no-good-target triggers a bounded stage-1 re-ask instead of a subtask failure; Path A requires a STRONG guard. Owner-ratified Phase-10C scope after the 9-run on-device battery. Amended 2026-10-10: the decision cascade — §2's DECIDE step becomes the two-stage cascade (stage-1 intent, stage-2 score-per-candidate target) with the bounded uncertainty handshake; typed text is writer-phrased on fill-field; §3's finish CHOICE retires in favor of the verify-done intent while Path B's sustained streak re-keys to the active done-condition and gains a bounded held-hash re-check. Owner-ratified after the Phase-10 UAT root-cause analysis (flat hollow-criteria lists → hedged engines → dead tasks).)*
+**Version:** 1.8.0 *(amended 2026-10-12 (Phase 10D): the bounded failure re-plan is INFORMED — §1's failure-path law gains the failure-context payload, the immutable verified prefix, the ONE declared rollback step with its lesson, and the growth rule; owner-ratified with the Phase-10D plan. Amended 2026-10-11: goal-condition honesty — ladder-build validation rejects any IS-DONE condition already true where its subtask starts; the whitelist gains the `answerExtracted` report shape; every code navigation records its landing host and urlHost conditions reconcile to it; stage-1 banding routes on the chosen option's probability + a top-vs-second margin; a stage-2 no-good-target triggers a bounded stage-1 re-ask instead of a subtask failure; Path A requires a STRONG guard. Owner-ratified Phase-10C scope after the 9-run on-device battery. Amended 2026-10-10: the decision cascade — §2's DECIDE step becomes the two-stage cascade (stage-1 intent, stage-2 score-per-candidate target) with the bounded uncertainty handshake; typed text is writer-phrased on fill-field; §3's finish CHOICE retires in favor of the verify-done intent while Path B's sustained streak re-keys to the active done-condition and gains a bounded held-hash re-check. Owner-ratified after the Phase-10 UAT root-cause analysis (flat hollow-criteria lists → hedged engines → dead tasks).)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-06, 2026-10-07, 2026-10-09)
 **Date:** 2026-10-03
 **Implements:** ART-4 (no self-report completion), ART-5 (numbers in code), ART-9 (bounded
@@ -45,6 +45,41 @@ after **3 consecutive subtask failures** the loop raises an owner card ("Retry /
 Re-plan / Stop") instead of dying silently. Gate denials keep §2 step-4 semantics
 (double-deny aborts). Writer calls are capped by a **separate per-task writer budget**
 beside the decision-spend budget (§5; ART-5/ART-9).
+
+**Informed re-plan law (v1.8.0, 2026-10-12 — owner-ratified with the Phase-10D plan):**
+the re-plan is the SAME writer role as the initial restructure, and it is INFORMED: it
+receives a bounded failure-context block — the failing subtask and its rendered
+IS-DONE condition, what failed and why (the code's own failure reason), the page the
+agent is standing on (host, title, bounded excerpt) and the CONTROLS that page actually
+offers (the action buckets: links, buttons, fields, scroll, back), the recent step
+history, any assist description, and how many subtasks are already verified. The block
+is masked exactly like the goal (doc 06 §2a) and its page material is untrusted data
+(ART-4). The plan rules:
+
+- **Immutable verified prefix:** a re-plan may refine only the subtasks that are not yet
+  verified; the writer receives the verified prefix as fixed context and CODE refuses
+  (loudly, counted as no re-plan capacity) any ladder whose first
+  `verifiedCount − steps` subtasks are not byte-equal (instruction + rendered condition)
+  to the ones already verified.
+- **One declared step back:** the single exception is the `rollback` object
+  (`{steps, lesson}`, `steps = 1`): when a verified subtask was technically satisfied but
+  led down a wrong path, the writer may rewrite the most recently verified subtask — and
+  only that one — stating the lesson in one sentence. A ladder that diverges from the
+  prefix without a valid declaration is refused loudly. A rollback never bypasses the
+  condition-honesty law (§1 condition gate: a rewritten condition already true where the
+  subtask starts still repairs or refuses) and never authorizes an action a gate denied.
+- **Growth is lawful:** the failing subtask may be split into several smaller
+  intermediate subtasks with their own IS-DONE conditions (whitelist-bounded,
+  ≤ `MAX_SUBTASKS` total) — the recovery lever for long goals: re-route through a
+  waypoint the current page can actually serve.
+- **Resume, never restart:** the accepted ladder is re-keyed to the first unfinished
+  subtask; the pointer never resets to the first subtask, and completed subtasks are
+  never silently re-run or un-verified.
+
+The cheap in-page recovery stays FIRST: a failing subtask gets the bounded cascade
+recovery (handshake assist → at most one stage-1 re-ask), and only when that is
+exhausted does the informed re-plan fire — at the same cap as before (2 re-plans; the
+owner card's "Re-plan" draws the same informed call).
 **Card guarantee (v1.5.0, 2026-10-10 — owner-ratified after UAT 10.1-a):** on a ladder
 run the card is not optional: a stuck L3 auto-kill (or any task-ending internal kill)
 routes through the SAME owner card — Retry resets the streak, Re-plan draws the bounded

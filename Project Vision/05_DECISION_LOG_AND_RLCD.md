@@ -3,7 +3,7 @@
 # Decision Log & RLCD Corpus
 
 **Document ID:** `NAVIGATOR-VISION-005`
-**Version:** 1.7.0 *(amended 2026-10-11 (Phase 10C): §2 row additions `landingHost`, `assistText` and the per-task `terminalReason` row; `targetScores`/`targetStateText` MUST be persisted by the app store (the observed drop-gap); the live log resets per run. Amended 2026-10-10: cascade rows — additive `targetScores` + `targetAgreement`; the choose case's questions become the intent form and a `score` case kind joins the export; the manifest gains the choose-question-schema version and the accumulation counter restarts on it)*
+**Version:** 1.8.0 *(amended 2026-10-12 (Phase 10D): the `plan` row field gains the additive `rolledBack` + `lesson` (the declared re-plan rollback, machine-readable). Amended 2026-10-11 (Phase 10C): §2 row additions `landingHost`, `assistText` and the per-task `terminalReason` row; `targetScores`/`targetStateText` MUST be persisted by the app store (the observed drop-gap); the live log resets per run. Amended 2026-10-10: cascade rows — additive `targetScores` + `targetAgreement`; the choose case's questions become the intent form and a `score` case kind joins the export; the manifest gains the choose-question-schema version and the accumulation counter restarts on it)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-04, 2026-10-06)
 **Date:** 2026-10-03
 **Implements:** ART-3 (everything logs), ART-8 (privacy boundary)
@@ -24,7 +24,7 @@ It exists from v1 day one in its final shape — retrofitting is explicitly reje
 | `timestamp` | wall clock |
 | `stateText`, `stateFormatVersion` | the canonical state text (v2: ≤960 tokens) + its version (ART-7) |
 | `triageClass` | lookup / research-multi-step / form-fill / action / action-multi |
-| `plan` | `null`, or `{version, subgoals: [..]}` — plan-proposal provenance for replay/RLCD (doc 04 §1; writer-LLM plans carry their PROMPT_VERSION) |
+| `plan` | `null`, or `{version, subgoals: [..]}` — plan-proposal provenance for replay/RLCD (doc 04 §1; writer-LLM plans carry their PROMPT_VERSION). **Additive (v1.8.0, 2026-10-12):** a re-plan row may also carry `rolledBack` (the declared step-back count, 0/absent = none) and `lesson` (the writer's one-sentence rollback lesson) — the failure history rides the state text; these two fields make the declared rollback machine-readable from the store |
 | `questionPrimary` / `questionShadow` | the exact question payloads (flat vs bucketed form) |
 | `teacher` | `{engine: config-id, model: pinned-id}` — the primary that answered |
 | `teacherAnswer` | chosen option + **full probability distribution** + confidence |

@@ -1,0 +1,56 @@
+{
+  "phase": "10D",
+  "title": "Informed re-plan — the plan learns from failure (three stages)",
+  "spec": "Implementation Plan/PHASE_10D_informed_replan.md v1.0.0 (owner-approved plan 2026-10-12 via ExitPlanMode; three stages, one verifier+emulator loop each)",
+  "branch": "phase-10d (off phase-10c)",
+  "owner_decisions_2026-10-12": [
+    "verified subtasks immutable by default; EXACTLY ONE declared step back allowed (the last verified subtask may be rewritten when the path itself was wrong)",
+    "a rollback must be declared with its lesson (the ladder JSON `rollback` object {steps, lesson}); missing/blank while the prefix diverges = refused loudly",
+    "growth allowed: the failing subtask may split into smaller intermediate subtasks (still <= 8)",
+    "cheap in-page recovery first (handshake assist -> one bounded stage-1 re-ask -> fallback), then the informed re-plan at the SAME cap (2 re-plans, card at 3 consecutive failures)",
+    "all three workstreams (informed re-plan / evidence fix / field legibility) in SEPARATE stages; the owner UAT only after all three",
+    "GENERALITY LAW: no site-specific logic anywhere — Wikipedia/BBC/Google/allrecipes are instances, not targets",
+    "process: orchestrator implements (glm-5.3-flash implementer over budget) -> canon-verifier cold -> fix -> re-verify -> orchestrator emulator app-verification (@Android-Dev) -> fix -> re-verify; stages run autonomously; UAT handover only at the end"
+  ],
+  "defects": {
+    "D1": "uninformed re-plan — byte-identical gen prompts (NavigationLoop.kt:975 + GenClient.kt:166-168; log line :967-970 claimed a failure context it never sent)",
+    "D2": "applyLadder resets the pointer to subtask 1 (NavigationLoop.kt:806-817) — verified progress silently discarded and re-earned",
+    "D3": "no-good-target slate + scores never persisted (Stage2Outcome.NoGoodTarget carries only a reason)",
+    "D4": "all-empty editable controls enumerate with a BLANK label (Test 1 [n32] \"\" tap edit) — the search-box wall",
+    "D5": "the failure cause is dropped on the card path (NavigationLoop.kt:1070 stuckCause = null)"
+  },
+  "vision_amendments_ratified_2026-10-12": [
+    "01 v1.6.0 §3 (diagram + component table: informed re-plan + one-step rollback)",
+    "04 v1.8.0 §1 (the Informed re-plan law: failure-context payload, immutable verified prefix, the rollback object, growth, resume-never-restart, cheap-recovery-first, honesty/gate non-bypass)",
+    "05 v1.8.0 §2 (additive plan.rolledBack + plan.lesson)",
+    "06 v1.4.0 §2a/§4 (page-carried writer material masked + untrusted; a re-plan is never an authorization)",
+    "07 v1.5.0 §2/§3 (informed-re-plan, plan-integrity, placeholder-label families; the restructure/re-plan prompt joins the Tier A gate rule)"
+  ],
+  "stages": {
+    "1": {
+      "state": "IN PROGRESS — spec layer landed (vision amendments + phase doc + master-index row)",
+      "workstreams": [
+        "W1.1 ReplanContext (core) + the in-loop failure-site builder + threading (fixes D5)",
+        "W1.2 PROMPT_VERSION restructure-v4 + the <failure> block + the prompt rules + golden v4 (both request variants)",
+        "W1.3 the rollback object (schema) + ReplanRule.check (core) + applyLadder re-key (fixes D2)",
+        "W1.4 truthful re-plan log lines + history line + LoggedPlan additive rolledBack/lesson",
+        "W1.5 tests (core + loop + prompt) — Gate 10D.1"
+      ]
+    },
+    "2": { "state": "PENDING — NoGoodTarget carries scores+view; the fallback row persists them (fixes D3); Gate 10D.2" },
+    "3": { "state": "PENDING — placeholder/blank-label probe + the general legibility rule + fixtures (fixes D4); Gate 10D.3" }
+  },
+  "gates": {
+    "10D.1": "Stage 1 JVM (law tests + golden v4 + full suite green, no regressions; run() under the 64KB method limit)",
+    "10D.2": "Stage 2 JVM (the failing slate round-trips the store; the analyser prints it)",
+    "10D.3": "Stage 3 JVM + the emulator probe (placeholder-only input named)",
+    "10D.4": "combined on-device: fresh APK -> S25+ -> the owner battery (Test 1 + BBC News + google search + BBC headline + allrecipes DINNER) with the 10C acceptance bar PLUS 'on any failure a DIFFERENT gen-2 ladder with the verified prefix preserved (rollback + lesson when declared)'"
+  },
+  "parked": [
+    "the cascade 'try another intent' fallback (expected subsumed by the informed re-plan)",
+    "the escalation-card copy showing the failure cause (UI change -> design interview)",
+    "Phase 11 (shadow-in-product, result screen)",
+    "the 'hotel in Tallinn' enablers: ladders > 8 subtasks, cross-page working memory, the booking-class risk pathway"
+  ],
+  "suite_baseline": "1442 executions / 0 failures (phase-10c UAT-ready)"
+}
