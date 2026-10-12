@@ -358,6 +358,14 @@ class NavigationLoop(
         // most [ExitPolicyConfig.heldHashRecheckMax] per hash — the loop owns the
         // counters, [ExitPolicy.heldHashRecheckDue] is the pure decision.
         var lastCodeCheck: Pair<Int, Int>? = null
+        // Phase 10C (vision 04 §1 v1.7.0): a CODE navigation was launched and its landing
+        // URL has not been reconciled yet — the next observation's URL is the landing page.
+        var pendingLandingReconcile = false
+        // Phase 10C (vision 04 §2 v1.7.0): the bounded stage-1 re-ask — at most ONE per
+        // page-hash when the chosen intent's slate is unusable; the re-ask's answer is
+        // pinned for the step that follows (the re-ask consumes a step, like a check).
+        var noGoodTargetReaskHash: Int? = null
+        var forcedIntentNextStep: String? = null
         var codeCheckHash: Int? = null
         // Phase 10C (vision 04 §1 v1.7.0): the condition-honesty gate's memo — at most ONE
         // evaluation per (active subtask ordinal, page-hash); a page change or a pointer
@@ -930,6 +938,7 @@ class NavigationLoop(
                     "subtask ${p.activeOrdinal}/${p.total}",
             )
             launcher.launch(entryPlan.url)
+            pendingLandingReconcile = true
             delay(config.restoreSettleMs)
             waitForBrowserReadiness()
         }
@@ -1456,6 +1465,33 @@ class NavigationLoop(
             }
 
             /**
+             * The landing-host reconciliation (Phase 10C, vision 04 §1 v1.7.0): after a
+             * CODE navigation, a `urlHost` condition whose host the site redirected away
+             * from is amended to the host actually reached when the two are ONE SITE FAMILY
+             * (`DoneConditionChecker.sameSiteFamily` — the observed bbc.co.uk -> bbc.com).
+             * A genuinely different landing host leaves the condition standing.
+             */
+            fun reconcileLandingHost(landedUrl: String?) {
+                val p = pointer ?: return
+                val done = p.active.done
+                if (done !is DoneCondition.UrlHost) return
+                val landedHost = DoneConditionChecker.normalizeUrl(landedUrl)?.substringBefore('/') ?: return
+                if (done.host == landedHost) return
+                if (!DoneConditionChecker.sameSiteFamily(done.host, landedHost)) {
+                    line(
+                        "site-entry: landed on '$landedHost' - not the same site family as the " +
+                            "condition's host '${done.host}' (no amendment - the condition stands)",
+                    )
+                    return
+                }
+                line(
+                    "site-entry: landed on '$landedHost' (one site family with the condition's " +
+                        "'${done.host}') - the urlHost condition reconciles to the landing host",
+                )
+                applyCondition(p, DoneCondition.UrlHost(landedHost), "landing-host reconciliation")
+            }
+
+            /**
              * The condition-honesty gate (Phase 10C, vision 04 §1 v1.7.0 — owner-ratified
              * after the 2026-10-11 on-device battery). Fires at most once per (active
              * ordinal, page-hash) when the ACTIVE subtask's condition is WEAK-shaped and
@@ -1561,20 +1597,57 @@ class NavigationLoop(
                 TaskBudget.Check.Ok -> {}
             }
 
-            // -- 1. OBSERVE (fresh; unusable tree -> graceful refusal, doc 03 §5) -------
-            var obs = observer.observe()
-            notePageUrl(obs)
-            var unusableReads = 1
-            while (!usable(obs) && unusableReads < config.refuseAfterUnusableReads) {
-                unusableReads += 1
-                line("observe: unusable tree (${obs.lines.size} lines, pageNodes=${obs.pageNodeCount}) - fresh re-read")
-                delay(config.unusableRetryDelayMs)
-                obs = observer.observe()
-                notePageUrl(obs)
+            /**
+             * OBSERVE with the unusable-retry law (doc 03 §5; extracted in Phase 10C to keep
+             * `run` under the JVM method-size limit): fresh reads until usable or the bound;
+             * null = the tree is still unusable (the caller refuses gracefully).
+             */
+            suspend fun observeUsable(): StepObservation? {
+                var o = observer.observe()
+                notePageUrl(o)
+                var unusableReads = 1
+                while (!usable(o) && unusableReads < config.refuseAfterUnusableReads) {
+                    unusableReads += 1
+                    line(
+                        "observe: unusable tree (${o.lines.size} lines, " +
+                            "pageNodes=${o.pageNodeCount}) - fresh re-read",
+                    )
+                    delay(config.unusableRetryDelayMs)
+                    o = observer.observe()
+                    notePageUrl(o)
+                }
+                return if (usable(o)) o else null
             }
-            if (!usable(obs)) {
+
+            /**
+             * The step's canonical state text (extracted in Phase 10C: `run`'s size budget);
+             * the lines moved wholesale (the sections + masking law are unchanged).
+             */
+            fun buildStepState(o: StepObservation, cands: CandidateList): StateTextBuilder.StateText =
+                stateTextBuilder.build(
+                    goal = goalText,
+                    url = o.url,
+                    title = o.title,
+                    history = history + hints,
+                    candidates = cands,
+                    excerpt = o.excerpt,
+                    activeSubtask = activeSubtaskLine()?.let { listOf(it) },
+                    ladderProgress = ladderProgressLines(),
+                    secrets = redactionKeys(),
+                )
+
+            // -- 1. OBSERVE (fresh; unusable tree -> graceful refusal, doc 03 §5) -------
+            val obsOrNull = observeUsable()
+            if (obsOrNull == null) {
                 line("observe: tree still unusable - graceful refusal (vision 03 §5)")
                 return finish(TerminalState.REFUSED, REFUSAL_MESSAGE, stepIndex)
+            }
+            var obs = obsOrNull
+
+            // -- the landing-host reconciliation (Phase 10C, vision 04 §1 v1.7.0) --------
+            if (pendingLandingReconcile) {
+                pendingLandingReconcile = false
+                reconcileLandingHost(obs.url)
             }
 
             // -- 2. ENUMERATE (deterministic buckets, doc 03 §3) -------------------------
@@ -1592,28 +1665,7 @@ class NavigationLoop(
             if (exitPolicy.finishExcluded(obs.screenHash)) {
                 line("exit: the done-claim window is armed this decision (anti-oscillation)")
             }
-            val state = stateTextBuilder.build(
-                goal = goalText,
-                url = obs.url,
-                title = obs.title,
-                history = history + hints,
-                candidates = candidates,
-                // Phase 08H (vision 03 §1/§4): the bounded non-candidate prose excerpt
-                // rides the untrusted block — the read-goal substrate.
-                excerpt = obs.excerpt,
-                // Phase 10 v3 (vision 03 §4 v2.2.0): ACTIVE SUBTASK + LADDER PROGRESS
-                // from the validated ladder, re-authored by code (flattened, bounded);
-                // null = the degenerate goal-only forms (byte-stable, the non-ladder
-                // paths).
-                activeSubtask = activeSubtaskLine()?.let { listOf(it) },
-                ladderProgress = ladderProgressLines(),
-                // doc 06 §2a via vision 03 §4: a sanctioned secret MASKS to
-                // [credential-redacted] in EVERY state section (a post-injection page
-                // echo is the lawful render — and so is a collision, e.g. the typed
-                // value inside the page URL's own text); the keys include
-                // serializer-cap prefixes of long secrets.
-                secrets = redactionKeys(),
-            )
+            val state = buildStepState(obs, candidates)
             hints.clear() // the L1 hint rode this step's HISTORY block
 
             // -- CONDITION HONESTY (Phase 10C, vision 04 §1 v1.7.0) ------------------------
@@ -1825,6 +1877,168 @@ class NavigationLoop(
                 }
                 return null
             }
+
+
+
+            /**
+             * The stage-2 scoring of one live slate (vision 02 §3 v1.4.0): the masked
+             * TARGET STATE VIEW, ONE batched score request, the code-side argmax/flat-spread
+             * resolution (ART-5). Extracted from `run` in Phase 10C (the loop body must stay
+             * under the JVM method-size limit; the lines moved wholesale, byte-identical).
+             */
+            suspend fun runStage2(intentId: String, slate: List<Candidate>): Stage2Outcome {
+                val subtask = subtaskInstruction()
+                val maskedSlate = slate.map {
+                    it.copy(label = redactedLabel(it.label, redactionKeys()))
+                }
+                val view = stageViews.targetView(subtask, doneWhenText(), maskedSlate)
+                val stage2 = TargetRubric.stage2Questions(
+                    maskedSlate.map { it.id to it.label },
+                    subtask,
+                )
+                uiListener?.onThinking(true)
+                val results = engine.scoreBatch(view.text, stage2)
+                uiListener?.onThinking(false)
+                val expectedLevels = results
+                    .mapKeys { it.key.removePrefix(TargetRubric.CANDIDATE_NAME_PREFIX) }
+                    .mapValues { it.value.expectedLevel }
+                val resolution = TargetRubric.resolve(expectedLevels)
+                if (resolution.noGoodTarget) {
+                    return Stage2Outcome.NoGoodTarget(resolution.reason ?: "no good target")
+                }
+                val target = slate.first { it.id == resolution.top.candidateId }
+                line(
+                    "decide: stage-2 target \"${redactedLabel(target.label, redactionKeys())}\" " +
+                        "[${target.id}] (${resolution.top.expectedLevel} of ${slate.size} scored)",
+                )
+                return Stage2Outcome.Target(target, expectedLevels, view.text)
+            }
+
+            /**
+             * The uncertainty handshake (vision 04 §2 v1.6.0; extracted in Phase 10C to keep
+             * `run` under the JVM method-size limit — the lines moved wholesale): ONE writer
+             * assist per page-hash (when wired and in budget) + ONE stage-1 re-ask with the
+             * assist riding the view as labeled untrusted context; returns the decision of
+             * record (the original [choice] when the handshake did not re-ask).
+             */
+            suspend fun handshakeReask(o: StepObservation): ChoiceResult {
+                if (assistTriedHash == o.screenHash) {
+                    line("decide: UNCERTAIN - the assist already ran on this page-hash - code fallback")
+                    return choice
+                }
+                if (assistSource == null) {
+                    line("decide: UNCERTAIN - no assist source wired - code fallback")
+                    return choice
+                }
+                if (!writerBudget.hasHardRoom()) {
+                    line("decide: UNCERTAIN - the writer budget's hard cap is reached - code fallback")
+                    return choice
+                }
+                assistTriedHash = o.screenHash
+                val subtask = subtaskInstruction()
+                val doneWhen = doneWhenText()
+                val pageMaterial = buildString {
+                    append("title: ").append(o.title).append('\n')
+                    append("url: ").append(o.url).append('\n')
+                    o.excerpt.take(ASSIST_MATERIAL_MAX_LINES).forEach { append(it).append('\n') }
+                }
+                val maskedMaterial =
+                    redactionKeys().fold(pageMaterial) { acc, key -> acc.replace(key, TextSource.REDACTED) }
+                val assist = runAssist(subtask, doneWhen, maskedMaterial)
+                if (assist == null) {
+                    line("decide: assist skipped (refused output / honesty path) - code fallback")
+                    return choice
+                }
+                line(
+                    "handshake: assist applied (${assist.text.length} chars, " +
+                        "${assist.promptVersion}) - ONE stage-1 re-ask with the " +
+                        "ASSIST (untrusted) block",
+                )
+                uiListener?.onThinking(true)
+                val reasked = engine.choose(buildIntentView(assist.text).text, question)
+                uiListener?.onThinking(false)
+                escalation = readEscalation(question.name)
+                line(
+                    "decide: re-ask intent '${reasked.chosenId}' (p=" +
+                        "${Cascade.chosenProbability(reasked.probabilities, reasked.chosenId)}, " +
+                        "margin=${Cascade.topMargin(reasked.probabilities)})" + escalationSuffix(escalation),
+                )
+                return reasked
+            }
+
+
+            /**
+             * Phase 10C: one consumed step's NO-CHANGE row (nothing executed — the
+             * empty-slate grace, and the stage-1 re-ask's no-op step). One row per decision
+             * (doc 05 §2); [scores]/[viewText] carry the stage-2 evidence when the failing
+             * step had it.
+             */
+            suspend fun logNoChangeRow(
+                st: StateTextBuilder.StateText,
+                q: ChoiceQuestion,
+                ch: ChoiceResult,
+                cands: CandidateList,
+                scores: Map<String, Double>? = null,
+                viewText: String? = null,
+            ) {
+                logRow(
+                    stepIndex, st, q, ch, cands,
+                    ExecutedAction(null, LoggedActionKind.FINISH, ActionDisposition.REFUSED_BY_GUARD),
+                    gateEvent = null,
+                    outcome = Outcome.NO_CHANGE,
+                    escalation = escalation,
+                    targetScores = scores,
+                    targetStateText = viewText,
+                )
+            }
+
+            /**
+             * The bounded stage-1 re-ask (Phase 10C, vision 04 §2 v1.7.0): the chosen
+             * intent's slate is unusable (empty after the grace, or a flat stage-2 spread).
+             * Instead of failing the subtask, the loop asks stage-1 ONCE MORE on this
+             * page-hash with the FACT riding the question's instructions. Returns the new
+             * answer only when it is a DIFFERENT intent and routes HIGH by the v1.7.0 band
+             * (chosen probability + margin); null = no re-ask (already spent, the engine
+             * repeats the dead-end intent, or the new answer routes below HIGH) — the
+             * ordinary fallback applies.
+             */
+            suspend fun reaskIntent(
+                o: StepObservation,
+                bannedIntent: String,
+                reason: String,
+                baseQuestion: ChoiceQuestion,
+            ): ChoiceResult? {
+                if (noGoodTargetReaskHash == o.screenHash) return null
+                noGoodTargetReaskHash = o.screenHash
+                val note = "NOTE: your chosen intent '$bannedIntent' has no usable target on this " +
+                    "page ($reason). Choose a DIFFERENT intent for this step."
+                line("decide: stage-1 re-ask ($reason) - ONE bounded re-ask on this page-hash")
+                val reQuestion = baseQuestion.copy(
+                    instructions = baseQuestion.instructions + "\n\n" + note,
+                )
+                uiListener?.onThinking(true)
+                val re = engine.choose(buildIntentView(null).text, reQuestion)
+                uiListener?.onThinking(false)
+                line(
+                    "decide: re-ask intent '${re.chosenId}' (p=" +
+                        "${Cascade.chosenProbability(re.probabilities, re.chosenId)}, " +
+                        "margin=${Cascade.topMargin(re.probabilities)})",
+                )
+                if (re.chosenId == bannedIntent) {
+                    line("decide: the re-ask repeated '$bannedIntent' - the ordinary fallback applies")
+                    return null
+                }
+                val route = Cascade.route(
+                    chosenProbability = Cascade.chosenProbability(re.probabilities, re.chosenId),
+                    topMargin = Cascade.topMargin(re.probabilities),
+                )
+                if (route != Cascade.Route.HIGH) {
+                    line("decide: the re-ask routed ${route.name} - the ordinary fallback applies")
+                    return null
+                }
+                return re
+            }
+
 
             /**
              * The give-up-shaped CODE FALLBACK (the recovery/stuck machinery): the
@@ -2039,6 +2253,7 @@ class NavigationLoop(
                 }
                 line("open-site: VIEW intent for ${entryPlan.url} (${entryPlan.source}) - code opens the URL directly")
                 launcher.launch(entryPlan.url)
+                pendingLandingReconcile = true
                 delay(config.restoreSettleMs)
                 waitForBrowserReadiness()
                 delay(config.settleMs)
@@ -2094,55 +2309,37 @@ class NavigationLoop(
                 line("decide: recovery set -> '${choice.chosenId}'" + escalationSuffix(escalation))
             } else {
                 question = Intents.QUESTION
-                uiListener?.onThinking(true)
-                choice = engine.choose(buildIntentView(null).text, question)
-                uiListener?.onThinking(false)
-                escalation = readEscalation(question.name)
-                line("decide: intent '${choice.chosenId}' (p=${choice.confidence})" + escalationSuffix(escalation))
+                val pinned = forcedIntentNextStep
+                if (pinned != null) {
+                    // The pinned re-ask answer (Phase 10C): the engine already answered this
+                    // page's stage-1 question on the previous step — execute its choice now.
+                    forcedIntentNextStep = null
+                    choice = ChoiceResult(pinned, mapOf(pinned to 1.0), 1.0)
+                    escalation = null
+                    line("decide: intent '$pinned' (the stage-1 re-ask's answer, pinned for this step)")
+                } else {
+                    uiListener?.onThinking(true)
+                    choice = engine.choose(buildIntentView(null).text, question)
+                    uiListener?.onThinking(false)
+                    escalation = readEscalation(question.name)
+                }
+                    line(
+                        "decide: intent '${choice.chosenId}' (p=" +
+                            "${Cascade.chosenProbability(choice.probabilities, choice.chosenId)}, " +
+                            "margin=${Cascade.topMargin(choice.probabilities)})" + escalationSuffix(escalation),
+                    )
 
                 // -- the uncertainty handshake (vision 04 §2 v1.6.0) ---------------------
-                var routed = Cascade.route(choice.confidence)
+                var routed = Cascade.route(
+                    chosenProbability = Cascade.chosenProbability(choice.probabilities, choice.chosenId),
+                    topMargin = Cascade.topMargin(choice.probabilities),
+                )
                 if (routed == Cascade.Route.UNCERTAIN) {
-                    val freshForHash = assistTriedHash != obs.screenHash
-                    when {
-                        !freshForHash ->
-                            line("decide: UNCERTAIN - the assist already ran on this page-hash - code fallback")
-                        assistSource == null ->
-                            line("decide: UNCERTAIN - no assist source wired - code fallback")
-                        !writerBudget.hasHardRoom() ->
-                            line("decide: UNCERTAIN - the writer budget's hard cap is reached - code fallback")
-                        else -> {
-                            assistTriedHash = obs.screenHash
-                            val subtask = subtaskInstruction()
-                            val doneWhen = doneWhenText()
-                            val pageMaterial = buildString {
-                                append("title: ").append(obs.title).append('\n')
-                                append("url: ").append(obs.url).append('\n')
-                                obs.excerpt.take(ASSIST_MATERIAL_MAX_LINES).forEach { append(it).append('\n') }
-                            }
-                            val maskedMaterial =
-                                redactionKeys().fold(pageMaterial) { acc, key -> acc.replace(key, TextSource.REDACTED) }
-                            val assist = runAssist(subtask, doneWhen, maskedMaterial)
-                            if (assist == null) {
-                                line("decide: assist skipped (refused output / honesty path) - code fallback")
-                            } else {
-                                line(
-                                    "handshake: assist applied (${assist.text.length} chars, " +
-                                        "${assist.promptVersion}) - ONE stage-1 re-ask with the " +
-                                        "ASSIST (untrusted) block",
-                                )
-                                uiListener?.onThinking(true)
-                                choice = engine.choose(buildIntentView(assist.text).text, question)
-                                uiListener?.onThinking(false)
-                                escalation = readEscalation(question.name)
-                                line(
-                                    "decide: re-ask intent '${choice.chosenId}' (p=${choice.confidence})" +
-                                        escalationSuffix(escalation),
-                                )
-                                routed = Cascade.route(choice.confidence)
-                            }
-                        }
-                    }
+                    choice = handshakeReask(obs)
+                    routed = Cascade.route(
+                        chosenProbability = Cascade.chosenProbability(choice.probabilities, choice.chosenId),
+                        topMargin = Cascade.topMargin(choice.probabilities),
+                    )
                 }
 
                 // -- LOW: the wrong-page recovery signal (vision 04 §2 v1.6.0) ------------
@@ -2215,6 +2412,19 @@ class NavigationLoop(
                                 "${Cascade.bucketFor(intentId)?.serialName} bucket is empty after " +
                                 "the browser-chrome exclusion) - no-good-target, never a tap",
                         )
+                        // Phase 10C (vision 04 §2 v1.7.0): ONE bounded stage-1 re-ask with
+                        // the fact, instead of failing the subtask on an unusable slate.
+                        val reaskedEmpty = reaskIntent(
+                            obs, intentId,
+                            "the '${Cascade.bucketFor(intentId)?.serialName}' slate is empty",
+                            question,
+                        )
+                        if (reaskedEmpty != null) {
+                            forcedIntentNextStep = reaskedEmpty.chosenId
+                            logNoChangeRow(state, question, choice, candidates)
+                            stepIndex += 1
+                            continue
+                        }
                         cascadeFallbackStep(
                             "the '${Cascade.bucketFor(intentId)?.serialName}' slate was empty for '$intentId'",
                             withStage2 = false,
@@ -2222,49 +2432,40 @@ class NavigationLoop(
                         continue
                     }
                     consecutiveEmptySlates = 0 // a live slate: the page is serving candidates again
-                    val subtask = subtaskInstruction()
-                    // The slate's labels are page text that can carry a sanctioned
-                    // post-injection echo (doc 05 §2 / doc 06 §2a): the TARGET STATE VIEW
-                    // (the row's targetStateText — the score case's state) and the
-                    // stage-2 question instructions render the MASKED labels — the value
-                    // is never stored, never sent to any engine raw.
-                    val maskedSlate = slate.map {
-                        it.copy(label = redactedLabel(it.label, redactionKeys()))
+                    when (val s2 = runStage2(intentId, slate)) {
+                        is Stage2Outcome.NoGoodTarget -> {
+                            line(
+                                "decide: stage-2 NO-GOOD-TARGET (${s2.reason}) - " +
+                                    "handshake/fallback, never a tap",
+                            )
+                            // Phase 10C (vision 04 §2 v1.7.0): ONE bounded stage-1 re-ask
+                            // with the fact, instead of failing the subtask.
+                            val reaskedFlat = reaskIntent(
+                                obs, intentId,
+                                "no good target on the ${Cascade.bucketFor(intentId)?.serialName} slate " +
+                                    "(${s2.reason})",
+                                question,
+                            )
+                            if (reaskedFlat != null) {
+                                forcedIntentNextStep = reaskedFlat.chosenId
+                                logNoChangeRow(state, question, choice, candidates, targetScores, targetViewText)
+                                stepIndex += 1
+                                continue
+                            }
+                            cascadeFallbackStep(
+                                "no good target on the ${Cascade.bucketFor(intentId)?.serialName} slate " +
+                                    "(${s2.reason})",
+                                withStage2 = true,
+                            )?.let { return it }
+                            continue
+                        }
+
+                        is Stage2Outcome.Target -> {
+                            cascadeTarget = s2.candidate
+                            targetScores = s2.scores
+                            targetViewText = s2.viewText
+                        }
                     }
-                    val view = stageViews.targetView(subtask, doneWhenText(), maskedSlate)
-                    val stage2 = TargetRubric.stage2Questions(
-                        maskedSlate.map { it.id to it.label },
-                        subtask,
-                    )
-                    uiListener?.onThinking(true)
-                    val results = engine.scoreBatch(view.text, stage2)
-                    uiListener?.onThinking(false)
-                    // The wire keys are the questions' cand-<id> names; the resolver and
-                    // the row's targetScores live on the bare candidate ids (the export
-                    // re-derives the question names itself).
-                    val expectedLevels = results
-                        .mapKeys { it.key.removePrefix(TargetRubric.CANDIDATE_NAME_PREFIX) }
-                        .mapValues { it.value.expectedLevel }
-                    val resolution = TargetRubric.resolve(expectedLevels)
-                    targetScores = expectedLevels
-                    targetViewText = view.text
-                    if (resolution.noGoodTarget) {
-                        line(
-                            "decide: stage-2 NO-GOOD-TARGET (${resolution.reason}) - " +
-                                "handshake/fallback, never a tap",
-                        )
-                        cascadeFallbackStep(
-                            "no good target on the ${Cascade.bucketFor(intentId)?.serialName} slate " +
-                                "(${resolution.reason})",
-                            withStage2 = true,
-                        )?.let { return it }
-                        continue
-                    }
-                    cascadeTarget = slate.first { it.id == resolution.top.candidateId }
-                    line(
-                        "decide: stage-2 target \"${redactedLabel(cascadeTarget!!.label, redactionKeys())}\" " +
-                            "[${cascadeTarget!!.id}] (${resolution.top.expectedLevel} of ${slate.size} scored)",
-                    )
                 }
 
                 // fill-field: the content is WRITER-PHRASED (locked decision #4). The
@@ -3323,3 +3524,19 @@ data class RunResult(
      */
     val writerSpendMicroUsd: Long = 0,
 )
+
+/**
+ * The stage-2 outcome of one live slate (Phase 10C extraction: the loop's `run` body stays
+ * under the JVM method-size limit — top-level so it is a real type, not a local one).
+ */
+sealed interface Stage2Outcome {
+    /** A usable argmax target: the candidate, the per-candidate expected levels, the served view. */
+    data class Target(
+        val candidate: Candidate,
+        val scores: Map<String, Double>,
+        val viewText: String,
+    ) : Stage2Outcome
+
+    /** The slate gave no actionable target (the resolution's reason, always present here). */
+    data class NoGoodTarget(val reason: String) : Stage2Outcome
+}

@@ -155,6 +155,26 @@ object DoneConditionChecker {
         host.trim().lowercase().removePrefix("www.").trimEnd('.')
 
     /**
+     * Whether two hosts belong to ONE SITE FAMILY (Phase 10C, doc 04 §1 v1.7.0): the
+     * landing-host reconciliation amends a `urlHost` condition to the host a code
+     * navigation actually reached when the difference is a benign alias — the same host,
+     * a subdomain/apex pair (wikipedia.org / en.wikipedia.org), or a same-brand
+     * ccTLD/apex pair (the observed bbc.co.uk → bbc.com redirect). A genuinely different
+     * site (example.com vs other.com) never reconciles.
+     */
+    fun sameSiteFamily(conditionHost: String, landedHost: String): Boolean {
+        val x = normalizeUrl(conditionHost)?.substringBefore('/') ?: return false
+        val y = normalizeUrl(landedHost)?.substringBefore('/') ?: return false
+        if (x.isEmpty() || y.isEmpty()) return false
+        if (x == y) return true
+        if (x.endsWith(".$y") || y.endsWith(".$x")) return true
+        // ccTLD/apex family: the same brand label with different TLD suffixes (bbc.com /
+        // bbc.co.uk) — never for two hosts sharing a suffix (news.example.com / news.other.com).
+        return x.substringBefore('.') == y.substringBefore('.') &&
+            x.substringAfterLast('.') != y.substringAfterLast('.')
+    }
+
+    /**
      * The URL-identity normalization shared by BOTH sides of a [DoneCondition.UrlContains]
      * match (v1.7.0, Phase 10C): scheme, userinfo, port and a leading `www.` stripped,
      * trailing slashes trimmed, lowercased — the PATH survives, because the path is the

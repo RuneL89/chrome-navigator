@@ -14,12 +14,13 @@ import navigator.core.enumerate.CandidateList
  * page-host derivation the INTENT STATE VIEW's PAGE line needs. Pure, deterministic,
  * JVM-pinnable (Gate 10B.2); every bound is code ([Bands], ART-5).
  *
- * Routing law (vision 04 §2):
- * - HIGH (confidence > 0.70) → execute the intent;
- * - UNCERTAIN ([0.30, 0.70]) → the uncertainty handshake (ONE assist per page-hash →
- *   ONE stage-1 re-ask → code fallback);
- * - LOW (< 0.30) → the wrong-page recovery signal (an immediate go-back-leaning
- *   handling per the existing recovery law).
+ * Routing law (vision 04 §2 v1.7.0):
+ * - HIGH (chosen probability >= [HIGH_FLOOR] AND top-vs-second margin >= [HIGH_MARGIN])
+ *   → execute the intent;
+ * - UNCERTAIN (chosen >= [LOW_FLOOR] but not HIGH) → the uncertainty handshake (ONE
+ *   assist per page-hash → ONE stage-1 re-ask → code fallback);
+ * - LOW (chosen < [LOW_FLOOR]) → the wrong-page recovery signal (an immediate
+ *   go-back-leaning handling per the existing recovery law).
  *
  * The intent→bucket mapping is the taxonomy's stage-2 slate grouping (vision 03 §3
  * v2.3.0): follow-link → nav-links; activate-control / dismiss-nag / submit → buttons;
@@ -29,14 +30,40 @@ import navigator.core.enumerate.CandidateList
  */
 object Cascade {
 
-    /** The confidence-band route of one stage-1 intent answer (vision 04 §2 v1.6.0). */
+    /** The stage-1 route of one intent answer (vision 04 §2 v1.7.0, Phase 10C). */
     enum class Route { HIGH, UNCERTAIN, LOW }
 
-    /** Bands semantics, named: strictly-greater HIGH, the uncertain band, strictly-below LOW. */
-    fun route(confidence: Double): Route = when (band(confidence)) {
-        Band.HIGH -> Route.HIGH
-        Band.UNCERTAIN -> Route.UNCERTAIN
-        Band.LOW -> Route.LOW
+    /**
+     * The stage-1 route (vision 04 §2 v1.7.0, Phase 10C — owner-ratified after the
+     * 2026-10-11 battery): computed from the CHOSEN option's PROBABILITY plus a
+     * top-vs-second margin, never the model's optional self-reported confidence (the
+     * observed trap: chosen p 0.62–0.70 with confidence 0.38–0.66 routed UNCERTAIN on a
+     * clear lead, so the correct intent never executed). A 9-way choice spreads its mass;
+     * a decisive LEAD is the HIGH signal. Constants are ART-5 (calibrated live).
+     */
+    fun route(chosenProbability: Double, topMargin: Double): Route = when {
+        chosenProbability < LOW_FLOOR -> Route.LOW
+        chosenProbability < HIGH_FLOOR || topMargin < HIGH_MARGIN -> Route.UNCERTAIN
+        else -> Route.HIGH
+    }
+
+    /** The chosen probability below which the wrong-page signal fires (v1.7.0). */
+    const val LOW_FLOOR = 0.30
+
+    /** The chosen probability at or above which an intent may route HIGH (v1.7.0). */
+    const val HIGH_FLOOR = 0.55
+
+    /** The top-vs-second margin an intent needs to route HIGH (v1.7.0). */
+    const val HIGH_MARGIN = 0.15
+
+    /** The chosen option's probability over a choice distribution. */
+    fun chosenProbability(probabilities: Map<String, Double>, chosenId: String): Double =
+        probabilities[chosenId] ?: 0.0
+
+    /** The top-vs-second margin of a choice distribution (0 when fewer than two entries). */
+    fun topMargin(probabilities: Map<String, Double>): Double {
+        val sorted = probabilities.values.sortedDescending()
+        return if (sorted.size < 2) sorted.firstOrNull() ?: 0.0 else sorted[0] - sorted[1]
     }
 
     /**

@@ -30,14 +30,34 @@ class CascadeTest {
     )
 
     @Test
-    fun `band routing - HIGH executes, UNCERTAIN handshakes, LOW is the wrong-page signal`() {
-        assertEquals(Cascade.Route.HIGH, Cascade.route(0.95))
-        assertEquals(Cascade.Route.HIGH, Cascade.route(0.71))
-        assertEquals(Cascade.Route.UNCERTAIN, Cascade.route(0.70), "0.70 itself is UNCERTAIN (Bands semantics)")
-        assertEquals(Cascade.Route.UNCERTAIN, Cascade.route(0.50))
-        assertEquals(Cascade.Route.UNCERTAIN, Cascade.route(0.30))
-        assertEquals(Cascade.Route.LOW, Cascade.route(0.29))
-        assertEquals(Cascade.Route.LOW, Cascade.route(0.05))
+    fun `band routing - the chosen probability plus a top-vs-second margin (Phase 10C)`() {
+        // HIGH: chosen >= HIGH_FLOOR (0.55) AND the lead over the runner-up >= HIGH_MARGIN (0.15)
+        assertEquals(Cascade.Route.HIGH, Cascade.route(0.95, topMargin = 0.80))
+        assertEquals(Cascade.Route.HIGH, Cascade.route(0.71, topMargin = 0.60))
+        assertEquals(
+            Cascade.Route.UNCERTAIN,
+            Cascade.route(0.70, topMargin = 0.10),
+            "a thin lead is UNCERTAIN even at a high chosen probability",
+        )
+        assertEquals(
+            Cascade.Route.HIGH,
+            Cascade.route(0.62, topMargin = 0.51),
+            "the battery's shape: chosen 0.62 with a decisive lead routes HIGH (confidence did not)",
+        )
+        assertEquals(Cascade.Route.UNCERTAIN, Cascade.route(0.54, topMargin = 0.40), "below the 0.55 floor")
+        assertEquals(Cascade.Route.UNCERTAIN, Cascade.route(0.30, topMargin = 0.20))
+        assertEquals(Cascade.Route.LOW, Cascade.route(0.29, topMargin = 0.20))
+        assertEquals(Cascade.Route.LOW, Cascade.route(0.05, topMargin = 0.01))
+    }
+
+    @Test
+    fun `the chosen probability and the top-vs-second margin read one distribution`() {
+        val probabilities = mapOf("follow-link" to 0.62, "open-site" to 0.11, "scroll" to 0.05)
+        assertEquals(0.62, Cascade.chosenProbability(probabilities, "follow-link"))
+        assertEquals(0.0, Cascade.chosenProbability(probabilities, "verify-done"))
+        assertEquals(0.51, Cascade.topMargin(probabilities))
+        assertEquals(0.9, Cascade.topMargin(mapOf("a" to 0.9)), "a single-entry distribution's margin is its value")
+        assertEquals(0.0, Cascade.topMargin(emptyMap()))
     }
 
     @Test
