@@ -248,7 +248,7 @@
       "intent": "follow-link",
       "chosenNodeId": "n40",
       "gateClass": null,
-      "stateTokenCount": 947,
+      "stateTokenCount": 942,
       "bucketSizes": {
         "nav-links": 20,
         "form-fields": 2,
@@ -263,7 +263,7 @@
         "nav-links"
       ],
       "stateCompressedBy": "code",
-      "droppedCandidateCount": 3,
+      "droppedCandidateCount": 4,
       "excerptLineCount": 21,
       "droppedExcerptLines": 0,
       "stage2SlateSize": 20,
@@ -275,7 +275,7 @@
       "intent": "verify-done",
       "chosenNodeId": "finish",
       "gateClass": null,
-      "stateTokenCount": 944,
+      "stateTokenCount": 934,
       "bucketSizes": {
         "nav-links": 20,
         "form-fields": 2,
@@ -290,7 +290,7 @@
         "nav-links"
       ],
       "stateCompressedBy": "code",
-      "droppedCandidateCount": 15,
+      "droppedCandidateCount": 16,
       "excerptLineCount": 19,
       "droppedExcerptLines": 0,
       "stage2SlateSize": 0,
@@ -302,7 +302,7 @@
       "intent": "follow-link",
       "chosenNodeId": "n16",
       "gateClass": null,
-      "stateTokenCount": 927,
+      "stateTokenCount": 941,
       "bucketSizes": {
         "nav-links": 14,
         "form-fields": 1,
@@ -327,7 +327,7 @@
       "intent": "scroll",
       "chosenNodeId": "scroll-down@n4",
       "gateClass": null,
-      "stateTokenCount": 955,
+      "stateTokenCount": 952,
       "bucketSizes": {
         "nav-links": 16,
         "form-fields": 1,
@@ -339,8 +339,8 @@
       "flatSize": 31,
       "flatTruncated": false,
       "truncatedBuckets": [],
-      "stateCompressedBy": null,
-      "droppedCandidateCount": 0,
+      "stateCompressedBy": "code",
+      "droppedCandidateCount": 1,
       "excerptLineCount": 24,
       "droppedExcerptLines": 0,
       "stage2SlateSize": 0,
@@ -352,7 +352,7 @@
       "intent": "verify-done",
       "chosenNodeId": "finish",
       "gateClass": null,
-      "stateTokenCount": 878,
+      "stateTokenCount": 882,
       "bucketSizes": {
         "nav-links": 13,
         "form-fields": 1,
@@ -377,7 +377,7 @@
       "intent": "activate-control",
       "chosenNodeId": "n38",
       "gateClass": null,
-      "stateTokenCount": 952,
+      "stateTokenCount": 956,
       "bucketSizes": {
         "nav-links": 14,
         "form-fields": 1,
@@ -433,12 +433,12 @@
     "content-recipe-article-01.json": 436,
     "content-subscriptions-list-01.json": 354,
     "content-subscriptions-toggle-01.json": 312,
-    "real-google-results-01.json": 947,
-    "real-google-results-02.json": 944,
-    "real-news-01.json": 927,
-    "real-news-02.json": 955,
-    "real-recipe-01.json": 878,
-    "real-recipe-02.json": 952,
+    "real-google-results-01.json": 942,
+    "real-google-results-02.json": 934,
+    "real-news-01.json": 941,
+    "real-news-02.json": 952,
+    "real-recipe-01.json": 882,
+    "real-recipe-02.json": 956,
     "synthetic-search-01.json": 294
   },
   "bucketStats": {
@@ -472,5 +472,5 @@
   "selfCheckAllCaught": true,
   "stateFormatVersion": 4,
   "intentsVersion": "intents-v1",
-  "timestamp": "2026-10-10T11:13:27.8691771Z"
+  "timestamp": "2026-10-12T23:29:15.8472615Z"
 }

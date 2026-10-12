@@ -60,7 +60,14 @@
       "emulator_evidence": "PASS (run 10d-wikipedia-4, task-1791845583133): the no-good-target fallback rows (steps 4 and 6, gen3) now carry the refused slate — targetScores 1 candidate {n37: 2.69} / {n37: 2.62} plus the exact target view the judge saw (\"SUBTASK: The search results for World War II on the English Wikipedia are showing. | DONE WHEN: the address contains /w/index.php?search= | [n37] \"field inside Wikipedia\" tap edit\"); before Stage 2 these rows were null. The same run re-confirmed the Stage-1 pathway (two informed re-plans: gen2/gen3, resuming at the failing subtask). Evidence: .state/10d-emu-live-run2.log, .state/10d-emu-db2/."
     },
     "3": {
-      "state": "PENDING — placeholder/blank-label probe + the general legibility rule + fixtures (fixes D4); Gate 10D.3"
+      "state": "CODE COMPLETE + emulator-verified (the doubled label collapsed on-device); verifier round requested; suite 1478 executions / 0 failures (928 unique)",
+      "landed": [
+        "the general field-legibility rule (doc 03 v2.5.0): the candidate label chain is NEVER blank — text -> description -> placeholder -> role+container -> the ROLE WORD alone; an exactly doubled platform label collapses to one phrase (the Chromium label+placeholder echo). Two enumerator law tests.",
+        "the probe infrastructure (additive): A11yNode gains hint/context/childText; CaptureMode records them — a captured dump now answers WHERE (or whether) a field name exists in the tree. Probe findings: the placeholder IS exposed via hintText on the Android WebView (doubled) with childText empty; live Chrome (the phone, UAT 10C) exposed text/desc/hint/context ALL blank for the same class of control.",
+        "the Tier-A eval report regenerated (the drift detector fired): the diff is label-only (3 outcome fields across 6/16 fixtures: stateTokenCount, droppedCandidateCount, one stateCompressedBy None->code); selfCheckAllCaught and rotationStable stayed TRUE; bucketStats/rotationMatrix/intentsVersion/stateFormatVersion unchanged."
+      ],
+      "emulator_evidence": "PASS: the fixture form page on the emulator enumerates the guestbook field as [n8] \"Your full name\" (was \"Your full name Your full name\" before the collapse); the stub form-fill run still completes.",
+      "residual_finding_for_owner": "The floor vs vague labels: the emulator live run showed a container-named search field (\"field inside Wikipedia\") scoring 2.69 < the 3.0 floor, and the phone Chrome case was blank-before / will now be \"field\". A never-blank label makes the field JUDGEABLE but may still not clear the floor — unblocking search-driven goals on Chrome may need a rubric-side decision (name a lone editable field explicitly in the per-intent question, or a single-candidate fill-field floor rule). RECOMMENDED as the owner's call at the UAT handover."
     }
   },
   "gates": {

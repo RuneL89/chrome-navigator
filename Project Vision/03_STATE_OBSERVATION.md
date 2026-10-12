@@ -1,7 +1,7 @@
 # State Observation
 
 **Document ID:** `NAVIGATOR-VISION-003`
-**Version:** 2.4.0 *(amended 2026-10-11 (Phase 10C): §2/§3 — editable fields are detected by ROLE (editable/searchbox) regardless of accessible label, with the placeholder/container supplying the description when unlabeled; text-less controls (icon buttons, consent-wall buttons) are described by role + container relation; browser-chrome exclusion widens to ALL Chrome UI. Amended 2026-10-10: cascade state views v4 — the INTENT STATE VIEW and TARGET STATE VIEW join the dual-view law as per-stage derivations feeding the doc-02 §3 cascade; the taxonomy's role becomes stage-2 slate grouping with browser-chrome excluded from target slates; STATE_FORMAT_VERSION = 4; owner-ratified)*
+**Version:** 2.5.0 *(amended 2026-10-13 (Phase 10D Stage 3): §2/§3 — the candidate label is NEVER blank: the chain is text → description → placeholder → role + container → the role word alone; an exactly doubled platform label ("X X") collapses to one phrase. The measured case: live Chrome enumerated a search input as `""`, unjudgeable by the stage-2 rubric. Amended 2026-10-11 (Phase 10C): §2/§3 — editable fields are detected by ROLE (editable/searchbox) regardless of accessible label, with the placeholder/container supplying the description when unlabeled; text-less controls (icon buttons, consent-wall buttons) are described by role + container relation; browser-chrome exclusion widens to ALL Chrome UI. Amended 2026-10-10: cascade state views v4 — the INTENT STATE VIEW and TARGET STATE VIEW join the dual-view law as per-stage derivations feeding the doc-02 §3 cascade; the taxonomy's role becomes stage-2 slate grouping with browser-chrome excluded from target slates; STATE_FORMAT_VERSION = 4; owner-ratified)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-06, 2026-10-09)
 **Date:** 2026-10-03
 **Implements:** ART-4 (page text is untrusted), ART-6 (deterministic candidate order),
@@ -79,6 +79,14 @@ Rules:
   accessible label are still enumerated and described by role + container relation
   (e.g. "button inside the dialog 'We Care About Your Privacy'") so a slate can select
   them — an unlabeled control is never dropped for lacking a label.
+  **Never blank (v2.5.0, 2026-10-13):** the label chain is text → description →
+  placeholder → role + container → **the ROLE WORD ALONE** ("field" / "button" /
+  "control"). The measured case: live Chrome exposed a search input with blank
+  text/description/placeholder AND no labeled ancestor, which enumerated as `""` — a label
+  the stage-2 rubric cannot judge (the run then died on "no good target"). A blank label is
+  now unrepresentable. A label the platform repeats verbatim ("X X" — Chromium's
+  label+placeholder echo) is collapsed to one phrase (a display normalizer; no other
+  string is touched).
   The `finish` bucket is retired from offered slates (doc 02 §3) and remains in the
   taxonomy for schema compatibility only.
 - The taxonomy is also the shadow's training vocabulary: it changes only via eval-harness-

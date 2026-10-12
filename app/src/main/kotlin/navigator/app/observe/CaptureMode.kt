@@ -58,6 +58,14 @@ object CaptureMode {
                     isPassword = snap.isPassword,
                     bounds = snap.bounds.asFixtureString,
                     className = snap.className,
+                    // Phase 10D Stage 3 probe (additive): the label sources, so a captured
+                    // dump answers WHERE (or whether) a field's name exists in the tree.
+                    hint = snap.hint,
+                    context = snap.context,
+                    childText = snap.children
+                        .joinToString(" ") { it.text.ifBlank { it.desc } }
+                        .trim()
+                        .take(CHILD_TEXT_PROBE_CAP),
                 )
             },
         )
@@ -97,4 +105,7 @@ object CaptureMode {
     } catch (_: kotlinx.serialization.SerializationException) {
         null
     }
+
+    /** The probe's child-text cap (Stage 3 diagnostic only — never a production label). */
+    private const val CHILD_TEXT_PROBE_CAP = 160
 }

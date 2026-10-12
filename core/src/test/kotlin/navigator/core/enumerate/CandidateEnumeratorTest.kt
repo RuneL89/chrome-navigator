@@ -322,4 +322,73 @@ class CandidateEnumeratorTest {
         assertEquals(Bucket.BUTTONS, flat.getValue("n1").bucket)
     }
 
+    @Test
+    fun `a field the tree says nothing about is named by its ROLE - never blank (Phase 10D stage 3)`() {
+        // The measured Chrome case (UAT 10C Test 1): a live search input whose a11y node
+        // carried blank text, blank description, blank placeholder AND no labeled ancestor
+        // enumerated as `[n32] "" tap edit` - a label the stage-2 rubric cannot judge (the
+        // run then died on "no good target"). The ratified rule is never-dropped,
+        // never-blank: the role word is the last resort.
+        val nodes = listOf(
+            ObservedNode(
+                id = "n0",
+                text = "",
+                desc = "",
+                clickable = true,
+                editable = true,
+                scrollable = false,
+                left = 0,
+                top = 0,
+                right = 100,
+                bottom = 40,
+                className = "android.widget.EditText",
+                sourceOrder = 0,
+            ),
+            ObservedNode(
+                id = "n1",
+                text = "",
+                desc = "",
+                clickable = true,
+                editable = false,
+                scrollable = false,
+                left = 0,
+                top = 100,
+                right = 100,
+                bottom = 140,
+                className = "android.view.View",
+                sourceOrder = 1,
+            ),
+        )
+        val flat = CandidateEnumerator.enumerate(nodes).flat.associateBy { it.id }
+        assertEquals("field", flat.getValue("n0").label, "an all-blank editable node names itself by role")
+        assertEquals("control", flat.getValue("n1").label, "an all-blank non-button control too")
+    }
+
+    @Test
+    fun `an exactly doubled placeholder collapses to one phrase (Phase 10D stage 3)`() {
+        // The measured Chromium tree quirk: an input's placeholder arrives doubled
+        // ("Your full name Your full name") when the label and the placeholder echo.
+        fun field(hint: String) = ObservedNode(
+            id = "n0",
+            text = "",
+            desc = "",
+            clickable = true,
+            editable = true,
+            scrollable = false,
+            left = 0,
+            top = 0,
+            right = 100,
+            bottom = 40,
+            className = "android.widget.EditText",
+            sourceOrder = 0,
+            hint = hint,
+        )
+        val flat = CandidateEnumerator.enumerate(listOf(field("Your full name Your full name"))).flat
+        assertEquals("Your full name", flat.first().label, "the exact two-half repeat collapses")
+        val untouched = CandidateEnumerator.enumerate(listOf(field("Search Wikipedia"))).flat
+        assertEquals("Search Wikipedia", untouched.first().label, "a normal placeholder is untouched")
+        val notExact = CandidateEnumerator.enumerate(listOf(field("Name Name of user"))).flat
+        assertEquals("Name Name of user", notExact.first().label, "only an EXACT two-half repeat collapses")
+    }
+
 }

@@ -32,6 +32,16 @@ data class A11yNode(
     val bounds: String,
     val className: String,
     val isPassword: Boolean = false,
+    /**
+     * Phase 10D Stage 3 probe (additive, defaults keep every committed fixture decodable):
+     * the field's placeholder as the platform exposed it, the nearest labeled ancestor's
+     * text, and the concatenated immediate-children text. These are the LABEL SOURCES the
+     * enumerator can consult — recording them lets a probe answer WHERE a field's name
+     * comes from (or that none exists) without guessing.
+     */
+    val hint: String = "",
+    val context: String = "",
+    val childText: String = "",
 ) {
     init {
         require(id.isNotBlank()) { "A11yNode.id must not be blank" }

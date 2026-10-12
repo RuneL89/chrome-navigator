@@ -1,6 +1,6 @@
 # Tier A evaluation report — :core replay harness
 
-- timestamp: 2026-10-10T11:13:27.8691771Z
+- timestamp: 2026-10-12T23:29:15.8472615Z
 - state format version: 4
 - intent vocabulary: intents-v1
 - fixtures: 16
@@ -20,12 +20,12 @@
 | content-recipe-article-01.json | follow-link | n7 | none | 436 | 5 | 106 | - | - |
 | content-subscriptions-list-01.json | activate-control | n3 | H9_PERSISTENT_MUTATION | 354 | 3 | 91 | - | - |
 | content-subscriptions-toggle-01.json | activate-control | n4 | H9_PERSISTENT_MUTATION | 312 | 4 | 77 | - | - |
-| real-google-results-01.json | follow-link | n40 | none | 947 | 20 | 62 | code | nav-links |
-| real-google-results-02.json | verify-done | finish | none | 944 | 0 | 64 | code | nav-links |
-| real-news-01.json | follow-link | n16 | none | 927 | 14 | 53 | - | - |
-| real-news-02.json | scroll | scroll-down@n4 | none | 955 | 0 | 50 | - | - |
-| real-recipe-01.json | verify-done | finish | none | 878 | 0 | 73 | - | - |
-| real-recipe-02.json | activate-control | n38 | none | 952 | 14 | 65 | - | - |
+| real-google-results-01.json | follow-link | n40 | none | 942 | 20 | 62 | code | nav-links |
+| real-google-results-02.json | verify-done | finish | none | 934 | 0 | 64 | code | nav-links |
+| real-news-01.json | follow-link | n16 | none | 941 | 14 | 53 | - | - |
+| real-news-02.json | scroll | scroll-down@n4 | none | 952 | 0 | 50 | code | - |
+| real-recipe-01.json | verify-done | finish | none | 882 | 0 | 73 | - | - |
+| real-recipe-02.json | activate-control | n38 | none | 956 | 14 | 65 | - | - |
 | synthetic-search-01.json | follow-link | result-1 | none | 294 | 4 | 33 | - | - |
 
 ## Rotation matrix (Gate 7.3)

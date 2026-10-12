@@ -131,17 +131,35 @@ object CandidateEnumerator {
      * the serializer's exact discipline (vision 03 §2).
      */
     /**
-     * The candidate label (v1.7.0, Phase 10C — doc 03 §2/§3): visible text, else content
-     * description, else the field's PLACEHOLDER (an unlabeled search box still names
-     * itself), else the control's CONTAINER relation ("button inside 'We Care About Your
-     * Privacy'") — an unlabeled control is described by role + container instead of being
-     * dropped for lacking a label.
+     * The candidate label (v1.7.0, Phase 10C — doc 03 §2/§3; v2.5.0, Phase 10D Stage 3):
+     * visible text, else content description, else the field's PLACEHOLDER (an unlabeled
+     * search box still names itself), else the control's CONTAINER relation ("button inside
+     * 'We Care About Your Privacy'"), else — when the tree carries NOTHING (the measured
+     * Chrome case: a live search input with blank text/description/placeholder AND no
+     * labeled ancestor) — the ROLE WORD ALONE. The label is NEVER blank: the ratified rule
+     * is "never dropped, never blank", because a blank label is unjudgeable by the stage-2
+     * rubric (the observed battery failure) while "field" at least tells the judge what the
+     * control IS. A placeholder the platform repeats verbatim ("X X" — Chromium's
+     * label+placeholder echo) is collapsed to one phrase, a display-law normalizer.
      */
     private fun ObservedNode.label(): String {
         val flattened = text.ifBlank { desc }.ifBlank { hint }.ifBlank {
-            if (context.isBlank()) "" else "${roleWord()} inside '${context}'"
-        }.replace(CONTROL_CHARS, " ")
+            if (context.isBlank()) roleWord() else "${roleWord()} inside '${context}'"
+        }.replace(CONTROL_CHARS, " ").let(::collapseExactRepeat)
         return if (flattened.length <= MAX_LABEL_LENGTH) flattened else flattened.take(MAX_LABEL_LENGTH)
+    }
+
+    /**
+     * Collapses an exactly doubled label ("Your full name Your full name" -> "Your full
+     * name") — the label+placeholder echo some Chromium trees produce. Word-based so the
+     * separator never matters: the words must split into two identical halves. Only an
+     * EXACT repetition collapses; every other string passes through untouched.
+     */
+    private fun collapseExactRepeat(label: String): String {
+        val words = label.trim().split(' ').filter { it.isNotEmpty() }
+        if (words.size < 2 || words.size % 2 != 0) return label
+        val half = words.size / 2
+        return if (words.take(half) == words.takeLast(half)) words.take(half).joinToString(" ") else label
     }
 
     /** The role word for a container-relation label (v1.7.0). */
