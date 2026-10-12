@@ -328,4 +328,19 @@ class LadderTest {
         )
     }
 
+
+    @Test
+    fun `same site family - apex, subdomain and same-brand ccTLD reconcile, strangers never do`() {
+        assertTrue(DoneConditionChecker.sameSiteFamily("bbc.co.uk", "bbc.com"), "the observed bbc redirect")
+        assertTrue(DoneConditionChecker.sameSiteFamily("wikipedia.org", "en.wikipedia.org"), "subdomain alias")
+        assertTrue(DoneConditionChecker.sameSiteFamily("www.example.com", "example.com"), "www alias")
+        assertTrue(DoneConditionChecker.sameSiteFamily("example.com", "example.com"), "identity")
+        assertFalse(DoneConditionChecker.sameSiteFamily("example.com", "other.com"), "strangers never reconcile")
+        assertFalse(
+            DoneConditionChecker.sameSiteFamily("news.example.com", "news.other.com"),
+            "same leading label but a shared suffix is NOT a family (the ccTLD rule needs differing suffixes)",
+        )
+        assertFalse(DoneConditionChecker.sameSiteFamily("", "example.com"), "blank never matches")
+    }
+
 }
