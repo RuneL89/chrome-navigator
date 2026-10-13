@@ -106,6 +106,12 @@ untouched — the engine must still confirm; the loop just refuses to spin.
 
 ## 6. Evidence inventory
 
+> CLEARED 2026-10-13 at the owner's request (housekeeping, commit `cd122a2`): every logcat
+> capture, screenshot, DB pull and UI dump under `.state/` was deleted from the working
+> tree (~399 MB). The durable records — this file, the run reports (`*-report.json`), the
+> verification reports and `.state/eval/` — remain; the file names below are what the
+> evidence WAS, and every conclusion above stands on the run reports and the records.
+
 - `.state/uat10d-emu-t{1..5}.log` — the harness logcat per test; `.state/uat10d-t{,3a,3b}-report.json`
   — the seven run reports; `.state/uat10d-t{1..5}-screen.png` + `.state/uat10d-t5-now{,2}.png` —
   end-of-run screenshots (harness front) + the live consent-wall screens; `.state/uat10d-db-live.db*`

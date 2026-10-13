@@ -1,5 +1,9 @@
 # Phase 10D — Stage 1 emulator app-verification (android-emulator, 2026-10-13 ~00:20–00:35)
 
+> CLEARED 2026-10-13 at the owner's request (housekeeping, commit `cd122a2`): the
+> screenshots, logcat captures and DB pulls this record cites (`.state/10d-emu-*`) were
+> deleted from the working tree. The record itself and every conclusion stand.
+
 Build under test: `phase-10d` @ `50511fc` (the verifier's B1-fixed commit). APK 572,853,044 B, installed
 with `adb -s emulator-5554 install -r` → Success.
 
