@@ -1,0 +1,95 @@
+{
+    "goalId": "uat10d-r2-t3",
+    "family": "custom",
+    "goal": "open google.com and search for mushroom recipes",
+    "taskId": "task-1791878177596",
+    "engine": "live",
+    "autoDeny": true,
+    "triage": "action",
+    "triageClass": "action",
+    "budgetProfile": "action",
+    "terminal": "GOAL_ACHIEVED",
+    "terminalDetail": "exit path HIGH: noul pTrue=0.98 with the STRONG guard after 1 finish check(s)",
+    "expectedTerminal": "GOAL_ACHIEVED",
+    "terminalMatchesExpected": true,
+    "steps": 5,
+    "rowsLogged": 3,
+    "metaDecisions": 2,
+    "logGaps": 0,
+    "gateEvents": 0,
+    "spendMicroUsd": 20862,
+    "elapsedMs": 49816,
+    "softWarnings": [],
+    "partialResult": "WebView Browser Tester 124.0.6367.219",
+    "startedAt": 1791878177595,
+    "finishedAt": 1791878227472,
+    "stepLog": [
+        "[t+2987ms] ladder: restructure-v4/gen1 - 2 subtask(s), class action, writer spend 2582 micro-USD",
+        "[t+2987ms] ladder: target entity \"google.com\" (code-extracted)",
+        "[t+2987ms] guard state: action: post-action state observed=false (needs one executed action); entity=\"google.com\"",
+        "[t+2988ms] site-entry: VIEW intent for https://google.com (GOAL_DOMAIN) - subtask 1/2",
+        "[t+7748ms] restore: browser ready after 2733ms (window=org.chromium.webview_shell)",
+        "[t+9355ms] exit: code-triggered IS-DONE check on subtask 1/2 (guard STRONG satisfied - the engine must still confirm, ART-4)",
+        "[t+10391ms] decide: code-triggered IS-DONE check -> verification: noul=0.98 (HIGH), guard=STRONG, guard state: action: post-action state observed=false (needs one executed action); entity=\"google.com\", proposition=v3",
+        "[t+10403ms] ladder: subtask 1/2 IS-DONE verified (exit path HIGH, guard STRONG, noul=0.98) - pointer advanced to 2/2",
+        "[t+10404ms] site-entry: VIEW intent for https://google.com/search (DONE_CONDITION_DOMAIN) - subtask 2/2",
+        "[t+15534ms] restore: browser ready after 3106ms (window=org.chromium.webview_shell)",
+        "[t+17827ms] decide: intent 'fill-field' (p=0.64, margin=0.43000000000000005)",
+        "[t+18148ms] decide: stage-2 target \"Google-haku Kysy Googlelta Hae Googlesta\" [n17] (3.48 of 1 scored)",
+        "[t+21462ms] fill-field: phrased (phrase-v1, 16 chars)",
+        "[t+21636ms] execute: type \"Google-haku Kysy Googlelta Hae Googlesta\" at (466,903) -> dispatched",
+        "[t+24825ms] decide: intent 'fill-field' (p=0.9, margin=0.8400000000000001)",
+        "[t+25190ms] decide: stage-2 target \"mushroom recipes\" [n8] (4.54 of 1 scored)",
+        "[t+26804ms] fill-field: phrased (phrase-v1, 16 chars)",
+        "[t+26890ms] execute: type \"mushroom recipes\" at (540,414) -> dispatched",
+        "[t+28705ms] decide: intent 'submit' (p=0.97, margin=0.95)",
+        "[t+28744ms] submit: the platform submit affordance fired (IME action on \"mushroom recipes\") - no submit control on the page",
+        "[t+29739ms] observe: unusable tree (5 lines, pageNodes=0) - fresh re-read",
+        "[t+46440ms] exit: code-triggered IS-DONE check on subtask 2/2 (guard STRONG satisfied - the engine must still confirm, ART-4)",
+        "[t+46736ms] decide: code-triggered IS-DONE check -> verification: noul=0.98 (HIGH), guard=STRONG, guard state: action: post-action state observed=true (needs one executed action); entity=\"google.com\", proposition=v3",
+        "[t+49815ms] extract: answer phrased (extract-v1, 739+203 tokens, 1403 micro-USD) - rides the run report",
+        "[t+49816ms] terminal: GOAL_ACHIEVED - exit path HIGH: noul pTrue=0.98 with the STRONG guard after 1 finish check(s)"
+    ],
+    "exit": {
+        "path": "HIGH",
+        "guardLevel": "STRONG",
+        "noul": 0.98,
+        "finishChecks": 1,
+        "completionCardShown": false
+    },
+    "plan": {
+        "version": "restructure-v4/gen1",
+        "subgoals": [
+            "The browser is on google.com",
+            "Google search results for mushroom recipes are displayed"
+        ]
+    },
+    "ladder": {
+        "version": "restructure-v4/gen1",
+        "generation": 1,
+        "summary": "Open google.com and run a search for mushroom recipes.",
+        "taskClass": "action",
+        "subtasks": [
+            {
+                "instruction": "The browser is on google.com",
+                "done": "the URL host is google.com",
+                "completed": true,
+                "active": false
+            },
+            {
+                "instruction": "Google search results for mushroom recipes are displayed",
+                "done": "the address contains 'google.com/search'",
+                "completed": true,
+                "active": false
+            }
+        ]
+    },
+    "answer": {
+        "text": "The browser reached a Google search results page for \"mushroom recipes\" (URL: google.com/search?q=mushroom+recipes). The page state does not include the visible results, so I can't describe specific recipes.",
+        "promptVersion": "extract-v1",
+        "inputTokens": 739,
+        "outputTokens": 203,
+        "costMicroUsd": 1403
+    },
+    "writerSpendMicroUsd": 5307
+}

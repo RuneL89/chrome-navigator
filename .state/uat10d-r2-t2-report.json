@@ -1,0 +1,84 @@
+{
+    "goalId": "uat10d-r2-t2",
+    "family": "custom",
+    "goal": "open bbc.com and open the News section",
+    "taskId": "task-1791878060097",
+    "engine": "live",
+    "autoDeny": true,
+    "triage": "lookup",
+    "triageClass": "lookup",
+    "budgetProfile": "standard",
+    "terminal": "GOAL_ACHIEVED",
+    "terminalDetail": "exit path HIGH: noul pTrue=0.98 with the STRONG guard after 1 finish check(s)",
+    "expectedTerminal": "GOAL_ACHIEVED",
+    "terminalMatchesExpected": true,
+    "steps": 2,
+    "rowsLogged": 0,
+    "metaDecisions": 2,
+    "logGaps": 0,
+    "gateEvents": 0,
+    "spendMicroUsd": 5922,
+    "elapsedMs": 60051,
+    "softWarnings": [],
+    "partialResult": "WebView Browser Tester 124.0.6367.219 BBC News - Breaking news, video and the latest top stories from the U.S. and around the world British Broadcasting Corporation News Gen Oleksandr Syrskyi walks in a trench in front of other soldiers.",
+    "startedAt": 1791878060097,
+    "finishedAt": 1791878120192,
+    "stepLog": [
+        "[t+3595ms] ladder: restructure-v4/gen1 - 2 subtask(s), class read, writer spend 2728 micro-USD",
+        "[t+3595ms] ladder: target entity \"bbc.com\" (code-extracted)",
+        "[t+3596ms] guard state: lookup: contentful pages read=0 (needs one beyond the first page); entity=\"bbc.com\"",
+        "[t+3599ms] site-entry: VIEW intent for https://bbc.com (GOAL_DOMAIN) - subtask 1/2",
+        "[t+17243ms] restore: browser ready after 11605ms (window=org.chromium.webview_shell)",
+        "[t+34579ms] exit: code-triggered IS-DONE check on subtask 1/2 (guard STRONG satisfied - the engine must still confirm, ART-4)",
+        "[t+35076ms] decide: code-triggered IS-DONE check -> verification: noul=0.96 (HIGH), guard=STRONG, guard state: lookup: contentful pages read=1 (needs one beyond the first page); entity=\"bbc.com\", proposition=v3",
+        "[t+35090ms] ladder: subtask 1/2 IS-DONE verified (exit path HIGH, guard STRONG, noul=0.96) - pointer advanced to 2/2",
+        "[t+35090ms] site-entry: VIEW intent for https://bbc.com/news (DONE_CONDITION_DOMAIN) - subtask 2/2",
+        "[t+47552ms] restore: browser ready after 10452ms (window=org.chromium.webview_shell)",
+        "[t+57007ms] exit: code-triggered IS-DONE check on subtask 2/2 (guard STRONG satisfied - the engine must still confirm, ART-4)",
+        "[t+57353ms] decide: code-triggered IS-DONE check -> verification: noul=0.98 (HIGH), guard=STRONG, guard state: lookup: contentful pages read=2 (needs one beyond the first page); entity=\"bbc.com\", proposition=v3",
+        "[t+60051ms] extract: answer phrased (extract-v1, 483+178 tokens, 1098 micro-USD) - rides the run report",
+        "[t+60051ms] terminal: GOAL_ACHIEVED - exit path HIGH: noul pTrue=0.98 with the STRONG guard after 1 finish check(s)"
+    ],
+    "exit": {
+        "path": "HIGH",
+        "guardLevel": "STRONG",
+        "noul": 0.98,
+        "finishChecks": 1,
+        "completionCardShown": false
+    },
+    "plan": {
+        "version": "restructure-v4/gen1",
+        "subgoals": [
+            "The BBC website (bbc.com) is open.",
+            "The News section of bbc.com is open."
+        ]
+    },
+    "ladder": {
+        "version": "restructure-v4/gen1",
+        "generation": 1,
+        "summary": "Open bbc.com and navigate to its News section.",
+        "taskClass": "read",
+        "subtasks": [
+            {
+                "instruction": "The BBC website (bbc.com) is open.",
+                "done": "the URL host is bbc.com",
+                "completed": true,
+                "active": false
+            },
+            {
+                "instruction": "The News section of bbc.com is open.",
+                "done": "the address contains 'bbc.com/news'",
+                "completed": true,
+                "active": false
+            }
+        ]
+    },
+    "answer": {
+        "text": "The browser is now on the BBC News section at https://www.bbc.com/news. The page shows top headlines, including \"Russia's offensive ability is broken, Kyiv's former top general tells BBC\" and \"Breaking Bad actor RJ Mitte dies aged 34.\"",
+        "promptVersion": "extract-v1",
+        "inputTokens": 483,
+        "outputTokens": 178,
+        "costMicroUsd": 1098
+    },
+    "writerSpendMicroUsd": 3826
+}
