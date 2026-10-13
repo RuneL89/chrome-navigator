@@ -60,7 +60,7 @@
       "emulator_evidence": "PASS (run 10d-wikipedia-4, task-1791845583133): the no-good-target fallback rows (steps 4 and 6, gen3) now carry the refused slate — targetScores 1 candidate {n37: 2.69} / {n37: 2.62} plus the exact target view the judge saw (\"SUBTASK: The search results for World War II on the English Wikipedia are showing. | DONE WHEN: the address contains /w/index.php?search= | [n37] \"field inside Wikipedia\" tap edit\"); before Stage 2 these rows were null. The same run re-confirmed the Stage-1 pathway (two informed re-plans: gen2/gen3, resuming at the failing subtask). Evidence: .state/10d-emu-live-run2.log, .state/10d-emu-db2/."
     },
     "3": {
-      "state": "CODE COMPLETE + emulator-verified (the doubled label collapsed on-device); verifier round requested; suite 1478 executions / 0 failures (928 unique)",
+      "state": "CLOSED — the verifier confirms: the never-blank rule complete, the collapse acceptable/documented, the additive DTO round-trips, the Tier-A regeneration label-only with self-checks/rotation true, the line-ending blocker fixed (.gitattributes) and the fixture-mapping gap closed; the rubric-floor residual stays owner-flagged.",
       "landed": [
         "the general field-legibility rule (doc 03 v2.5.0): the candidate label chain is NEVER blank — text -> description -> placeholder -> role+container -> the ROLE WORD alone; an exactly doubled platform label collapses to one phrase (the Chromium label+placeholder echo). Two enumerator law tests.",
         "the probe infrastructure (additive): A11yNode gains hint/context/childText; CaptureMode records them — a captured dump now answers WHERE (or whether) a field name exists in the tree. Probe findings: the placeholder IS exposed via hintText on the Android WebView (doubled) with childText empty; live Chrome (the phone, UAT 10C) exposed text/desc/hint/context ALL blank for the same class of control.",
@@ -82,5 +82,12 @@
     "Phase 11 (shadow-in-product, result screen)",
     "the 'hotel in Tallinn' enablers: ladders > 8 subtasks, cross-page working memory, the booking-class risk pathway"
   ],
-  "suite_baseline": "1472 executions / 0 failures (924 unique: 376 core + 548 app) — phase-10d Stage 1 + verifier round-1 fixes green; phase-10c was 1442 executions pre-change by the same census"
+  "suite_baseline": "1472 executions / 0 failures (924 unique: 376 core + 548 app) — phase-10d Stage 1 + verifier round-1 fixes green; phase-10c was 1442 executions pre-change by the same census",
+  "state": "ALL THREE STAGES COMPLETE — verifier clean on every stage (rounds 1-3 for Stage 1, two rounds each for Stages 2-3), emulator-verified, suite 1478 executions / 0 failures (928 unique). Ready for the owner UAT battery.",
+  "final": {
+    "branch": "phase-10d (master untouched)",
+    "suite": "1478 executions / 0 failures (928 unique: 378 core + 550 app)",
+    "apk": "assembled after the last commit",
+    "verifier": "canon-verifier cold rounds: Stage 1 R1-R3 (3 blocking + 3 non-blocking findings, all fixed), Stage 2 R1 (1 blocking pre-existing secret-leak finding, fixed) + R2 (fix verified; Stage 2 may close), Stage 3 R1 (1 blocking line-ending blocker + notes, fixed) + R2 (Stage 3 may close)"
+  }
 }
