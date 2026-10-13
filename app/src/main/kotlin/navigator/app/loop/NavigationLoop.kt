@@ -349,8 +349,11 @@ class NavigationLoop(
         var lastObserved: StepObservation? = null
         // The field this loop last TYPED into successfully (post-UAT repair 2, doc 04 §2
         // v1.8.2): the `submit` intent's control-less IME affordance fires only on a field
-        // the loop itself filled — never on an arbitrary focused control.
+        // the loop itself filled — never on an arbitrary focused control. The URL pins the
+        // anchor to the page it was filled on (node ids are per-observation; a stale id
+        // must never alias a different node after a navigation).
         var lastTypedFieldId: String? = null
+        var lastTypedFieldUrl: String? = null
         // The last-known page URL (2026-10-08 S25+ defect-follower): the per-step
         // URL-bar read is intermittently empty on some devices, so the card-restore
         // chain falls back to the most recent observation that DID carry a usable
@@ -1632,6 +1635,7 @@ class NavigationLoop(
                     // The control-less submit's anchor (doc 04 §2 v1.8.2): the field this
                     // loop filled — the only field the IME affordance may fire on.
                     lastTypedFieldId = candidate.id
+                    lastTypedFieldUrl = obs.url
                 }
                 // Task working memory (Phase 08G, vision 04 §1): resolve the acted-on row —
                 // an executed action marks the target PROCESSED; a gate refusal marks it
@@ -2107,6 +2111,20 @@ class NavigationLoop(
             // The writer-phrased typed text of a fill-field step (locked decision #4).
             var phraseText: String? = null
 
+            /**
+             * The field this loop filled, when it is still on THIS page (doc 03 §4 v2.6.0 /
+             * doc 04 §2 v1.8.2): the anchor the TYPED FIELD line and the control-less IME
+             * submit both use. Same-host only — node ids are per-observation, so a
+             * navigation invalidates the anchor rather than letting a stale id alias a
+             * different node.
+             */
+            fun typedFieldHere(): Candidate? {
+                val id = lastTypedFieldId ?: return null
+                val url = lastTypedFieldUrl ?: return null
+                if (Cascade.hostOf(url) != Cascade.hostOf(obs.url)) return null
+                return candidates.flat.firstOrNull { it.id == id && "edit" in it.kinds }
+            }
+
             /** The INTENT STATE VIEW of this step (optional assist block on a re-ask). */
             fun buildIntentView(assistText: String?): StageViews.StageView =
                 stageViews.intentView(
@@ -2118,10 +2136,8 @@ class NavigationLoop(
                     assistText = assistText,
                     // The field this loop filled, when it is still on the page (doc 03 §4
                     // v2.6.0): a filled-but-unsubmitted field is the next move's key fact.
-                    typedField = lastTypedFieldId?.let { id ->
-                        candidates.flat.firstOrNull { it.id == id && "edit" in it.kinds }
-                            ?.let { redactedLabel(it.label, redactionKeys()) }
-                    },
+                    typedField = typedFieldHere()
+                        ?.let { redactedLabel(it.label, redactionKeys()) },
                 )
 
             /**
@@ -2669,9 +2685,7 @@ class NavigationLoop(
              * no-good-target machinery.
              */
             suspend fun imeSubmitStep(reason: String): Boolean {
-                val fieldId = lastTypedFieldId ?: return false
-                val field = candidates.flat.firstOrNull { it.id == fieldId && "edit" in it.kinds }
-                    ?: return false
+                val field = typedFieldHere() ?: return false
                 val gateClass = RiskGate.classify(
                     GateAction(field, ActionKind.SUBMIT, null),
                     PageContext(obs.url, FieldDescriptor.fromNodes(obs.nodes)),
