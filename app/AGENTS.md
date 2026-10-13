@@ -665,9 +665,10 @@ setup wizard (`setup/`).
     v1.8.0). `handleSubtaskFailureOrKill`/`handleStuckKill` stash the failure cause for the
     re-plan and pass it to the card path. LOOP-STATE DISCIPLINE (measured 2026-10-12 with javap on the
     compiled class): `run()` was 58,646 of the JVM's 65,535-byte method cap after Phase 10D
-    (6,889 bytes of headroom); the 2026-10-13 post-UAT repair round added two statements
-    inside `run()` (the `lastObserved` assignment + the withheld `noteDecision`) and the
-    measured value is now 59,377 (6,158 bytes of headroom — verifier-confirmed);
+    (6,889 bytes of headroom); the 2026-10-13 post-UAT repair rounds added the
+    `lastObserved` assignment, the withheld `noteDecision`, the typed-field/submit wiring
+    and the landing-coherence log, and the measured value is now ~63 KB (re-measure with
+    javap after any further `run()` edit — the headroom is thin);
     the baseline before Phase 10D was 64,322 (1,213), which is why Stage 1's
     first build broke the cap. Two facts, both verified: (a) the LOAD-BEARING fix for the
     cap break was moving `lastAssistText`/`lastFailureCause` from `run()` LOCALS to CLASS

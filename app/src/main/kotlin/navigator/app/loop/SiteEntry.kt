@@ -38,21 +38,22 @@ object SiteEntry {
      * The plan for opening [subtaskInstruction] under [goal], or null when this is NOT a
      * site-entry subtask or no URL resolves. Deterministic: same inputs, same plan.
      *
-     * POST-UAT REPAIR 2 (doc 04 §1 v1.8.2, 2026-10-13): a `urlContains` identity whose
-     * segment NAMES a page is the writer's arrival expressed as a substring (the 10C
-     * honesty gate derives such identities itself) — it site-enters exactly like a
-     * `urlHost` arrival. The live battery showed the engine choosing `open-site`
-     * decisively (p 0.59–0.82) on such subtasks while the derivation refused, failing
-     * steps whose destination the ladder itself named.
+     * **The destination bound (doc 04 §1 v1.8.2, post-UAT repair 2):** a `urlContains`
+     * identity whose segment names a page (a full URL, a host[+path], or an
+     * origin-relative path resolved against the current origin) site-enters exactly like
+     * a `urlHost` arrival — the condition IS the subtask's stated outcome ("the address
+     * contains X" holds exactly on the page whose address contains X). The destination's
+     * host must be one site family with the GOAL's named host or with the CURRENT page's
+     * host: a condition may only send the run where the run's own goal or its own current
+     * site already is, never to an unrelated address. The engine chose `open-site`
+     * decisively (p 0.59–0.82) on such subtasks while the urlHost-only derivation refused,
+     * failing steps whose destination the ladder itself named.
      *
-     * **The naming guard (same amendment, the zero-false-completions bar):** the
-     * destination must be named by the HUMAN-READABLE plan text ([goal] or
-     * [subtaskInstruction]) — never by the machine condition alone. A condition is a
-     * proxy: "the address contains 'google.com/search'" is the writer's shorthand for
-     * "the results are showing", and CODE-NAVIGATING to the bare endpoint would satisfy
-     * the letter of the condition without the user-visible outcome (no query, no
-     * results) — a false completion. A destination the plan text itself names ("Open the
-     * BBC News section page at bbc.com/news") is the arrival the writer meant.
+     * The false-completion backstop is the completion guard's LANDING COHERENCE (a
+     * path-bearing arrival whose landed title shares nothing with the requested slug
+     * refuses — the battery's allrecipes 404) plus ART-4's anchored noul. An evaluation
+     * of the arrival happens through the ordinary IS-DONE check; a proxy condition whose
+     * URL was invented and 404s can no longer complete the subtask.
      */
     fun plan(
         goal: String,
@@ -101,9 +102,7 @@ object SiteEntry {
             val origin = ORIGIN.find(currentUrl.trim())?.value ?: return null
             val currentHost = hostOf(currentUrl) ?: return null
             val goalHost = resolveFromText(goal, "")?.url?.let(::hostOf) ?: return null
-            if (!navigator.core.ladder.DoneConditionChecker.sameSiteFamily(goalHost, currentHost)) {
-                return null
-            }
+            if (!sameHostFamily(goalHost, currentHost)) return null
             return Resolved("$origin$segment", "DONE_CONDITION_PATH")
         }
         if (segment.startsWith("http://") || segment.startsWith("https://")) {
@@ -122,12 +121,36 @@ object SiteEntry {
 
     /** The destination host is one site family with the goal's named host or the current page's. */
     private fun inGoalOrCurrentFamily(host: String, goal: String, currentUrl: String): Boolean {
-        val checker = navigator.core.ladder.DoneConditionChecker
         val goalHost = resolveFromText(goal, "")?.url?.let(::hostOf)
         val currentHost = hostOf(currentUrl)
-        return (goalHost != null && checker.sameSiteFamily(goalHost, host)) ||
-            (currentHost != null && checker.sameSiteFamily(currentHost, host))
+        return (goalHost != null && sameHostFamily(goalHost, host)) ||
+            (currentHost != null && sameHostFamily(currentHost, host))
     }
+
+    /**
+     * The STRICT host family for the navigation bound (verifier round-2 finding): the same
+     * host, or one a subdomain of the other. Deliberately NOT the reconciliation's broader
+     * ccTLD-brand heuristic ([navigator.core.ladder.DoneConditionChecker.sameSiteFamily]
+     * treats `mail.google.com` and `mail.yahoo.net` as one family — fine as a
+     * reconciliation aid between a condition and a landing, unsafe as a navigation gate).
+     */
+    private fun sameHostFamily(a: String, b: String): Boolean {
+        val x = a.trim().lowercase().removePrefix("www.").trimEnd('.')
+        val y = b.trim().lowercase().removePrefix("www.").trimEnd('.')
+        if (x.isEmpty() || y.isEmpty()) return false
+        return x == y || x.endsWith(".$y") || y.endsWith(".$x")
+    }
+
+    /**
+     * Landing coherence (post-UAT repair 2, doc 04 §1 v1.8.2): a code navigation to a
+     * PATH-bearing URL must land where the path says — the completion guard refuses a
+     * landed TITLE that shares no token with the requested path's last slug (a site's
+     * "Not Found" page keeps the requested URL while its title belongs to the error
+     * page). The law lives in [navigator.core.ladder.DoneConditionChecker]; this
+     * delegates so the loop can log the fact at the landing.
+     */
+    fun landingCoheres(requestedUrl: String, landedTitle: String): Boolean =
+        navigator.core.ladder.DoneConditionChecker.coheresWithPathSlug(requestedUrl, landedTitle)
 
     /** The normalized host of a page URL, or null. */
     private fun hostOf(url: String): String? =

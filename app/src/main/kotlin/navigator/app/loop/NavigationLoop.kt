@@ -2637,6 +2637,16 @@ class NavigationLoop(
                 val post = observer.observe()
                 notePageUrl(post)
                 lastPost = post
+                // Landing coherence (post-UAT repair 2, doc 04 §1 v1.8.2): a path-bearing
+                // arrival whose landed title shares nothing with the requested path is a
+                // Not-Found-shaped landing (the battery's allrecipes 404) — the condition's
+                // guard will refuse it; this line names the fact for the evidence trail.
+                if (!SiteEntry.landingCoheres(entryPlan.url, post.title)) {
+                    line(
+                        "open-site: the landed page's title is not coherent with the requested " +
+                            "path (${entryPlan.url}) - the arrival's condition cannot verify here",
+                    )
+                }
                 val outcome = when {
                     post.lines == obs.lines -> Outcome.NO_CHANGE
                     else -> Outcome.PROGRESSED
@@ -2691,10 +2701,9 @@ class NavigationLoop(
              */
             suspend fun imeSubmitStep(reason: String): Boolean {
                 val field = typedFieldHere() ?: return false
-                val gateClass = RiskGate.classify(
-                    GateAction(field, ActionKind.SUBMIT, null),
-                    PageContext(obs.url, FieldDescriptor.fromNodes(obs.nodes)),
-                )
+                val pageContext = PageContext(obs.url, FieldDescriptor.fromNodes(obs.nodes))
+                val gateAction = GateAction(field, ActionKind.SUBMIT, null)
+                val gateClass = RiskGate.classify(gateAction, pageContext)
                 if (gateClass != null) {
                     line(
                         "submit: the IME submit classifies ${gateClass.name.lowercase()} - " +
@@ -2702,10 +2711,25 @@ class NavigationLoop(
                     )
                     return false
                 }
+                // The additive-only H9 consult (vision 06 §3, verifier round-2 finding):
+                // the ordinary path puts a SUSPICIOUS mutation net through the engine check;
+                // the IME path must not be the quiet way around it — a suspicious surface
+                // falls back so the ordinary gated path governs.
+                if (RiskGate.mutationNet(gateAction, pageContext) == RiskGate.MutationNet.SUSPICIOUS) {
+                    line(
+                        "submit: the IME submit's surface is mutation-suspicious - " +
+                            "the additive engine gate governs; falling back",
+                    )
+                    return false
+                }
                 if (!executor.submit()) {
                     line("submit: no focused editable field for the platform IME action - falling back")
                     return false
                 }
+                // The text has been sent: the anchor retires with it (the TYPED FIELD line
+                // must never keep claiming "not yet submitted" — verifier round-2 finding).
+                lastTypedFieldId = null
+                lastTypedFieldUrl = null
                 line(
                     "submit: the platform submit affordance fired (IME action on " +
                         "\"${redactedLabel(field.label, redactionKeys())}\") - $reason",

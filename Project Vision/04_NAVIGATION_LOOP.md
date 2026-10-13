@@ -45,6 +45,15 @@ followed ≥ 5"). The owner interview pins three absolutes:
   condition that is a mere proxy ("the address contains 'google.com/search'" standing
   for "the results are showing") is the residual this bound does not catch — revisit
   with battery evidence.
+  **Landing coherence (same amendment, after the battery caught the residual live):** a
+  `urlContains` segment carrying a PATH names a specific page, so the completion guard
+  requires the landed page's TITLE to share at least one token with that path's LAST
+  slug — a site's "Not Found" page keeps the requested URL (the substring reads TRUE)
+  while its title belongs to the error page. The battery's allrecipes run reported
+  GOAL_ACHIEVED on exactly such a 404 (the writer's invented '/recipes/dinner', the
+  engine hedging 0.65–0.73); with the coherence check the same landing refuses and the
+  run ends honestly. A blank title is no evidence (coheres); a bare-host segment has no
+  path to check.
 - **Managed context (ART-2 intact):** the ladder re-scopes the objective — the ACTIVE
   subtask's instruction rides the state text (doc 03 §4) and Jev still decides every
   single step; the loop advances the subtask pointer only on a VERIFIED IS-DONE. The

@@ -14,6 +14,7 @@ import navigator.core.ladder.Subtask
 import navigator.core.log.EngineIdentity
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -475,6 +476,62 @@ class LandingAndReaskLoopTest {
         assertTrue(
             result.stepLog.any { it.contains("the platform submit affordance fired") },
             "the firing is loud: " + result.stepLog,
+        )
+    }
+
+    @Test
+    fun `the IME submit never fires on a gate-classified form - the card path governs`() = runBlocking {
+        // Verifier round-2 recommended coverage: a SUBMIT on an auth-flavored surface must
+        // not slip through the control-less IME path, and the TYPED FIELD line must never
+        // echo a secret (the live-Chrome shape: the field's a11y text IS the typed value).
+        val secret = "fixture-secret-DO-NOT-USE"
+        val loginPage = obs(
+            "http://m0.test/login",
+            N("Fixture Bank Dummy Login (TEST ONLY)"),
+            N("TEST FIXTURE. No real credentials are accepted here."),
+            N("Email or username", editable = true),
+            N(secret, editable = true, password = true),
+            N("If you were signed in you would see the result page."),
+            pageNodes = 8,
+            title = "Fixture Bank Dummy Login (TEST ONLY)",
+        )
+        var intentState = ""
+        val fixture = LoopFixture(
+            phraseSource = navigator.app.stub.StubPhraseSource,
+            script = scriptOf(
+                choose("triage", "form-fill"),
+                *intentStep("fill-field", target = secret),
+                *intentStep("submit"),
+            ),
+            observations = listOf(loginPage),
+            presenter = GatePresenter { GateResolution.ApproveWithSecret(secret) },
+            config = NavigationLoop.Config(settleMs = 0, budget = NavigationLoop.BudgetLimits(stepsHard = 2)),
+            engineDecorator = { inner ->
+                object : DecisionEngine by inner {
+                    override suspend fun choose(state: String, question: ChoiceQuestion): ChoiceResult {
+                        if (question.name == "intent") intentState = state
+                        return inner.choose(state, question)
+                    }
+                }
+            },
+        )
+        fixture.loop.run("sign in to the fixture bank", "ime-gate", EngineIdentity("stub", "scripted-harness-v1"), fixture.clock)
+        assertFalse(
+            fixture.executor.calls.contains("submit"),
+            "the IME affordance never fired on the classified form: ${fixture.executor.calls}",
+        )
+        assertTrue(
+            fixture.sink.rows.any { it.executedAction.kind == navigator.core.log.LoggedActionKind.TYPE },
+            "the credential typing executed through the card: ${fixture.sink.rows.map { it.executedAction }}",
+        )
+        assertTrue(
+            intentState.contains("TYPED FIELD:"),
+            "the typed-field line rides the intent view: $intentState",
+        )
+        assertFalse(intentState.contains(secret), "the secret never rides the intent view: $intentState")
+        assertTrue(
+            intentState.contains("[credential-redacted]"),
+            "the label renders redacted: $intentState",
         )
     }
 

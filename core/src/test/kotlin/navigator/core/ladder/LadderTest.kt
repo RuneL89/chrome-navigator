@@ -328,6 +328,60 @@ class LadderTest {
         )
     }
 
+    @Test
+    fun `urlContains refuses a Not-Found-shaped landing - the slug must cohere with the title`() {
+        // Post-UAT repair 2 (doc 04 §1 v1.8.2): the battery's allrecipes run 404'd on the
+        // writer's invented '/recipes/dinner'; the URL kept the segment so the condition
+        // read TRUE, the engine hedged 0.65–0.73, and the task reported GOAL_ACHIEVED on
+        // "Page Not Found". The guard now requires the landed page's title to share a
+        // token with the segment's last path slug.
+        val c = DoneCondition.UrlContains("allrecipes.com/recipes/dinner")
+        assertFalse(
+            DoneConditionChecker.satisfied(
+                c,
+                evidence(url = "https://www.allrecipes.com/recipes/dinner", title = "Page Not Found"),
+            ),
+            "a 404 keeps the URL but its title is not the page the condition names",
+        )
+        assertFalse(
+            DoneConditionChecker.satisfied(
+                DoneCondition.UrlContains("allrecipes.com/recipe/"),
+                evidence(url = "https://www.allrecipes.com/recipe/", title = "Page Not Found"),
+            ),
+            "a bare trailing-slash path refuses on an error-shaped landing too",
+        )
+        assertTrue(
+            DoneConditionChecker.satisfied(
+                c,
+                evidence(url = "https://www.allrecipes.com/recipes/dinner", title = "Dinner Recipes"),
+            ),
+            "the real Dinner page's title carries the slug",
+        )
+        assertTrue(
+            DoneConditionChecker.satisfied(
+                DoneCondition.UrlContains("en.wikipedia.org/wiki/World_War_II"),
+                evidence(
+                    url = "https://en.wikipedia.org/wiki/World_War_II",
+                    title = "World War II - Wikipedia",
+                ),
+            ),
+            "the article's title carries the slug tokens",
+        )
+        assertTrue(
+            DoneConditionChecker.satisfied(
+                DoneCondition.UrlContains("bbc.com/news"),
+                evidence(url = "https://www.bbc.com/news", title = "BBC News"),
+            ),
+        )
+        assertTrue(
+            DoneConditionChecker.satisfied(
+                c,
+                evidence(url = "https://www.allrecipes.com/recipes/dinner", title = ""),
+            ),
+            "a blank title is no evidence - the conservative rule coheres",
+        )
+    }
+
 
     @Test
     fun `same site family - apex, subdomain and same-brand ccTLD reconcile, strangers never do`() {

@@ -53,7 +53,15 @@ object DoneConditionChecker {
             // slash stripped, lowercased), then the URL must CONTAIN the segment as data.
             val current = normalizeUrl(evidence.url) ?: return false
             val segment = normalizeUrl(condition.segment) ?: return false
-            segment.isNotEmpty() && current.contains(segment)
+            segment.isNotEmpty() && current.contains(segment) &&
+                // Post-UAT repair 2 (doc 04 §1 v1.8.2): the landing coherence — being ON the
+                // page the segment names requires the page's own identity to agree. A site's
+                // "Not Found" page keeps the requested URL (so the substring reads TRUE)
+                // while its title belongs to the error page: the battery's allrecipes run
+                // reported GOAL_ACHIEVED on a 404 through exactly that gap. A non-blank title
+                // sharing no token with the segment's LAST path slug refuses; a blank title
+                // is no evidence (coheres — conservative-on-no-information).
+                coheresWithPathSlug(condition.segment, evidence.title)
         }
 
         is DoneCondition.MarkerText -> {
@@ -162,6 +170,25 @@ object DoneConditionChecker {
 
     private fun normalizeHost(host: String): String =
         host.trim().lowercase().removePrefix("www.").trimEnd('.')
+
+    /**
+     * The landing coherence (post-UAT repair 2, doc 04 §1 v1.8.2): a `urlContains`
+     * segment that carries a PATH names a specific page; the landed page's TITLE must
+     * share at least one token with that path's LAST slug. No path (a bare host segment)
+     * has nothing to verify; a blank title is no evidence and coheres; a non-blank title
+     * with zero overlap refuses (the site's "Not Found" page shape). Pure, deterministic.
+     */
+    fun coheresWithPathSlug(segment: String, landedTitle: String): Boolean {
+        val path = segment.substringAfter('/', "").substringBefore('?').substringBefore('#')
+        val slug = path.split('/').lastOrNull { it.isNotBlank() } ?: return true
+        if (landedTitle.isBlank()) return true
+        val slugTokens = NON_SLUG_SPLIT.split(slug.lowercase()).filter { it.isNotEmpty() }
+        if (slugTokens.isEmpty()) return true
+        val titleTokens = NON_SLUG_SPLIT.split(landedTitle.lowercase()).toSet()
+        return slugTokens.any { it in titleTokens }
+    }
+
+    private val NON_SLUG_SPLIT = Regex("[^a-z0-9]+")
 
     /**
      * Whether two hosts belong to ONE SITE FAMILY (Phase 10C, doc 04 §1 v1.7.0): the
