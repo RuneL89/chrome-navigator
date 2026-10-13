@@ -97,5 +97,11 @@ fun A11yNode.toObservedNode(sourceOrder: Int): ObservedNode {
         className = className,
         sourceOrder = sourceOrder,
         isPassword = isPassword,
+        // Phase 10D Stage 3 (the verifier's note): the fixture-recorded LABEL SOURCES ride
+        // the mapping too, so a captured dump's placeholder/container actually reaches the
+        // enumerator in replay (the probe→replay loop is closed). Committed fixtures
+        // predate the fields (all blank), so every existing replay is byte-identical.
+        hint = hint,
+        context = context,
     )
 }

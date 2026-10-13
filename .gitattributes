@@ -1,0 +1,7 @@
+# Line-ending law: the Tier-A eval artifacts are BYTE-COMPARED by the committed-artifacts
+# drift detector (`ReplayDeterminismTest`). On a checkout with `core.autocrlf=true` the
+# default CRLF smudge made the working file differ from the LF the harness writes, so
+# `./gradlew test` failed on line endings alone (the verifier's Stage-3 finding). Force LF
+# for these artifacts so the detector compares content, not the platform's checkout style.
+.state/eval/*.json text eol=lf
+.state/eval/*.md text eol=lf
