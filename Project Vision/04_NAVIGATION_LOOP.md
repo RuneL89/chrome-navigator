@@ -32,15 +32,19 @@ followed ≥ 5"). The owner interview pins three absolutes:
   resolved, URL-bar entry otherwise. No hardcoded navigation logic.
   **v1.8.2 (2026-10-13, post-UAT repair 2):** the code navigation accepts BOTH arrival
   identities — a `urlHost` condition (as in v1.4.0) and a `urlContains` identity whose
-  segment the goal/subtask TEXT names (`"Open the BBC News section page at bbc.com/news"`
-  → VIEW intent for that URL). **The naming guard:** the destination must be named by
-  the human-readable plan text, never by the machine condition alone — a condition is a
-  proxy ("the address contains 'google.com/search'" stands for "the results are
-  showing"), and navigating to a bare condition-named endpoint would satisfy the letter
-  without the user-visible outcome: a false completion, the one thing the acceptance bar
-  forbids. The live battery showed the engine choosing `open-site` decisively (p
-  0.59–0.82) on text-named arrivals while the derivation refused (urlHost-only) and
-  every step died on "no URL resolved".
+  segment names a page (a full URL, a host[+path], or an origin-relative path resolved
+  against the current origin). The condition is the ladder's stated outcome for the
+  subtask ("the address contains X" holds exactly on the page whose address contains X),
+  and the live battery showed the engine choosing `open-site` decisively (p 0.59–0.82)
+  on such subtasks while the urlHost-only derivation refused and every step died on "no
+  URL resolved". **The destination bound:** the segment's host must be one site family
+  with the GOAL's named host or with the CURRENT page's host — a condition may only send
+  the run where the run's own goal or its own current site already is, never to an
+  unrelated address. The false-completion backstop stays ART-4's anchored noul (proven
+  discriminating live: LOW 0.11–0.20 on the battery's false completion claims); a
+  condition that is a mere proxy ("the address contains 'google.com/search'" standing
+  for "the results are showing") is the residual this bound does not catch — revisit
+  with battery evidence.
 - **Managed context (ART-2 intact):** the ladder re-scopes the objective — the ACTIVE
   subtask's instruction rides the state text (doc 03 §4) and Jev still decides every
   single step; the loop advances the subtask pointer only on a VERIFIED IS-DONE. The

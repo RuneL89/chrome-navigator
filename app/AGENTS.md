@@ -557,10 +557,10 @@ setup wizard (`setup/`).
     OUTCOME-BASED site-entry chooser — a urlHost subtask's mechanism: VIEW intent when
     a URL resolves from the goal/instruction/done-condition host (explicit URL >
     bare domain > the validated host); POST-UAT REPAIR 2 (doc 04 §1 v1.8.2): a
-    `urlContains` identity whose segment the goal/subtask TEXT names site-enters too,
-    with the naming guard — never a condition-only destination (a proxy condition
-    navigated to verbatim is the false-completion class), origin-relative paths resolve
-    against the current origin only within the goal's site family; logged with its
+    `urlContains` identity whose segment names a page (full URL / host[+path] /
+    origin-relative path against the current origin) site-enters too, bounded to the
+    GOAL's or the CURRENT page's site family — never an unrelated destination; the
+    anchored noul stays the false-completion backstop; logged with its
     derivation source; no
     hardcoding, ART-2 intact — the engine still navigates when nothing resolves),
     `EscalationCard.kt` (the owner escalation card payload + presenter seam —

@@ -479,26 +479,31 @@ class LandingAndReaskLoopTest {
     }
 
     @Test
-    fun `a condition-only urlContains never site-enters - the false-completion guard`() {
-        // "the address contains 'google.com/search'" is the writer's proxy for "results are
-        // showing". Navigating to the bare endpoint would satisfy the letter without the
-        // query — a false completion. The plan text must name the destination.
-        assertNull(
-            navigator.app.loop.SiteEntry.plan(
-                "open google.com and search for mushroom recipes",
-                "Show the search results page for mushroom recipes",
-                DoneCondition.UrlContains("google.com/search"),
-                "https://www.google.com/",
+    fun `a condition-named destination is bounded to the goal or current site family`() {
+        // doc 04 §1 v1.8.2: a `urlContains` segment that names a page site-enters, bounded
+        // to the goal's or the current page's site family — a condition may only send the
+        // run where its own goal or its own current site already is.
+        assertEquals(
+            navigator.app.loop.SiteEntry.Plan(
+                navigator.app.loop.SiteEntry.Mechanism.VIEW_INTENT,
+                "https://bbc.com/news",
+                "DONE_CONDITION_DOMAIN",
             ),
-            "a condition-only URL never site-enters",
+            navigator.app.loop.SiteEntry.plan(
+                "open bbc.com and open the News section",
+                "Open the BBC News section page at bbc.com/news",
+                DoneCondition.UrlContains("bbc.com/news"),
+            ),
+            "the goal names bbc.com - the same-family destination navigates",
         )
         assertNull(
             navigator.app.loop.SiteEntry.plan(
-                "open the shop",
-                "read the news section",
-                DoneCondition.UrlContains("bbc.com/news"),
+                "open wikipedia.org and open the world war 2 page",
+                "Open the article",
+                DoneCondition.UrlContains("evil.example/x"),
+                "https://www.wikipedia.org/",
             ),
-            "the naming guard: the human plan must name the destination",
+            "a destination outside the goal and current families never navigates",
         )
         assertNull(
             navigator.app.loop.SiteEntry.plan(
@@ -507,6 +512,30 @@ class LandingAndReaskLoopTest {
                 DoneCondition.UrlContains("2 hrs ago"),
             ),
             "a phrase is never a URL",
+        )
+        // The origin-relative path: the current site's own page identity, family-bounded.
+        assertEquals(
+            navigator.app.loop.SiteEntry.Plan(
+                navigator.app.loop.SiteEntry.Mechanism.VIEW_INTENT,
+                "https://www.wikipedia.org/wiki/World_War_II",
+                "DONE_CONDITION_PATH",
+            ),
+            navigator.app.loop.SiteEntry.plan(
+                "open wikipedia.org and open the world war 2 page",
+                "Open the World War II article",
+                DoneCondition.UrlContains("/wiki/World_War_II"),
+                "https://www.wikipedia.org/",
+            ),
+            "the origin-relative arrival resolves against the current origin",
+        )
+        assertNull(
+            navigator.app.loop.SiteEntry.plan(
+                "open wikipedia.org and open the world war 2 page",
+                "Open the World War II article",
+                DoneCondition.UrlContains("/wiki/World_War_II"),
+                "https://unrelated.example/",
+            ),
+            "an unrelated current host never origin-resolves",
         )
     }
 

@@ -75,35 +75,28 @@ object SiteEntry {
             }
         }
         is navigator.core.ladder.DoneCondition.UrlContains ->
-            urlFromIdentity(goal, subtaskInstruction, doneCondition.segment, currentUrl)?.let {
+            urlFromIdentity(goal, doneCondition.segment, currentUrl)?.let {
                 Plan(Mechanism.VIEW_INTENT, it.url, it.source)
             }
         else -> null
     }
 
     /**
-     * The URL a `urlContains` identity names, when the human plan text names it too
-     * (v1.8.2): a full http(s) URL, or a bare host[/path] the derivation can scheme —
-     * the segment must literally appear in the goal or the instruction text (the naming
-     * guard). An origin-relative path ("/wiki/X") additionally resolves against the
-     * CURRENT page's origin, lawful only when that host is one site family with the
-     * goal's named host. Null otherwise — a phrase like "2 hrs ago" is never a URL, and
-     * a condition-only destination never site-enters. Pure.
+     * The URL a `urlContains` identity names, when it is lawful to navigate there
+     * (doc 04 §1 v1.8.2): a full http(s) URL, a bare host[+path], or an origin-relative
+     * path resolved against the current origin. **The destination bound:** the segment's
+     * host must be one site family with the GOAL's named host or with the CURRENT page's
+     * host — a condition may only send the run where the run's own goal or its own
+     * current site already is, never to an unrelated address (the identity is the
+     * ladder's stated outcome for the subtask: the page whose address contains the
+     * segment is exactly where that outcome holds; ART-4's anchored noul remains the
+     * false-completion backstop, proven discriminating live — it returned LOW 0.11–0.20
+     * on the battery's false allrecipes claims). Null otherwise — a phrase like
+     * "2 hrs ago" is never a URL. Pure.
      */
-    fun urlFromIdentity(
-        goal: String,
-        subtaskInstruction: String,
-        rawSegment: String,
-        currentUrl: String,
-    ): Resolved? {
+    fun urlFromIdentity(goal: String, rawSegment: String, currentUrl: String): Resolved? {
         val segment = rawSegment.trim().trim('"', '\'', '`')
         if (segment.isEmpty() || segment.any { it.isWhitespace() }) return null
-        // The naming guard: the destination must be named by the plan's own words.
-        val searchSpace = "$goal \n $subtaskInstruction"
-        if (!searchSpace.contains(segment)) return null
-        if (segment.startsWith("http://") || segment.startsWith("https://")) {
-            return Resolved(segment, "DONE_CONDITION_URL")
-        }
         if (segment.startsWith("/")) {
             val origin = ORIGIN.find(currentUrl.trim())?.value ?: return null
             val currentHost = hostOf(currentUrl) ?: return null
@@ -113,12 +106,27 @@ object SiteEntry {
             }
             return Resolved("$origin$segment", "DONE_CONDITION_PATH")
         }
+        if (segment.startsWith("http://") || segment.startsWith("https://")) {
+            val host = hostOf(segment) ?: return null
+            if (!inGoalOrCurrentFamily(host, goal, currentUrl)) return null
+            return Resolved(segment, "DONE_CONDITION_URL")
+        }
         val hostPart = segment.substringBefore('/').substringBefore('?').substringBefore('#')
         val lastLabel = hostPart.substringAfterLast('.', "")
         if (HOST_SHAPE.matches(hostPart) && lastLabel.length >= 2 && lastLabel.all { it.isLetter() }) {
+            if (!inGoalOrCurrentFamily(hostPart, goal, currentUrl)) return null
             return Resolved("https://$segment", "DONE_CONDITION_DOMAIN")
         }
         return null
+    }
+
+    /** The destination host is one site family with the goal's named host or the current page's. */
+    private fun inGoalOrCurrentFamily(host: String, goal: String, currentUrl: String): Boolean {
+        val checker = navigator.core.ladder.DoneConditionChecker
+        val goalHost = resolveFromText(goal, "")?.url?.let(::hostOf)
+        val currentHost = hostOf(currentUrl)
+        return (goalHost != null && checker.sameSiteFamily(goalHost, host)) ||
+            (currentHost != null && checker.sameSiteFamily(currentHost, host))
     }
 
     /** The normalized host of a page URL, or null. */
