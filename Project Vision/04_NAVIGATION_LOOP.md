@@ -1,8 +1,8 @@
 # Navigation Loop
 
 **Document ID:** `NAVIGATOR-VISION-004`
-**Version:** 1.8.0 *(amended 2026-10-12 (Phase 10D): the bounded failure re-plan is INFORMED — §1's failure-path law gains the failure-context payload, the immutable verified prefix, the ONE declared rollback step with its lesson, and the growth rule; owner-ratified with the Phase-10D plan. Amended 2026-10-11: goal-condition honesty — ladder-build validation rejects any IS-DONE condition already true where its subtask starts; the whitelist gains the `answerExtracted` report shape; every code navigation records its landing host and urlHost conditions reconcile to it; stage-1 banding routes on the chosen option's probability + a top-vs-second margin; a stage-2 no-good-target triggers a bounded stage-1 re-ask instead of a subtask failure; Path A requires a STRONG guard. Owner-ratified Phase-10C scope after the 9-run on-device battery. Amended 2026-10-10: the decision cascade — §2's DECIDE step becomes the two-stage cascade (stage-1 intent, stage-2 score-per-candidate target) with the bounded uncertainty handshake; typed text is writer-phrased on fill-field; §3's finish CHOICE retires in favor of the verify-done intent while Path B's sustained streak re-keys to the active done-condition and gains a bounded held-hash re-check. Owner-ratified after the Phase-10 UAT root-cause analysis (flat hollow-criteria lists → hedged engines → dead tasks).)*
-**Status:** Ratified (2026-10-03; amendments 2026-10-06, 2026-10-07, 2026-10-09)
+**Version:** 1.8.1 *(amended 2026-10-13 (post-UAT repair, owner-ordered): §3's anti-oscillation meter counts EVERY decision consumed inside the window — a withheld done claim included — so a page-static engine cannot keep the window armed forever (the emulator battery's 60-step livelock); §6's answer extraction is exactly ONE call per run over the freshest observation the loop holds (a report subtask's answer is authoritative; a zero-action completion never answers over a blank state). Both were implementation/law gaps surfaced by the 2026-10-13 live-key emulator battery, not new law. Amended 2026-10-12 (Phase 10D): the bounded failure re-plan is INFORMED — §1's failure-path law gains the failure-context payload, the immutable verified prefix, the ONE declared rollback step with its lesson, and the growth rule; owner-ratified with the Phase-10D plan. Amended 2026-10-11: goal-condition honesty — ladder-build validation rejects any IS-DONE condition already true where its subtask starts; the whitelist gains the `answerExtracted` report shape; every code navigation records its landing host and urlHost conditions reconcile to it; stage-1 banding routes on the chosen option's probability + a top-vs-second margin; a stage-2 no-good-target triggers a bounded stage-1 re-ask instead of a subtask failure; Path A requires a STRONG guard. Owner-ratified Phase-10C scope after the 9-run on-device battery. Amended 2026-10-10: the decision cascade — §2's DECIDE step becomes the two-stage cascade (stage-1 intent, stage-2 score-per-candidate target) with the bounded uncertainty handshake; typed text is writer-phrased on fill-field; §3's finish CHOICE retires in favor of the verify-done intent while Path B's sustained streak re-keys to the active done-condition and gains a bounded held-hash re-check. Owner-ratified after the Phase-10 UAT root-cause analysis (flat hollow-criteria lists → hedged engines → dead tasks).)*
+**Status:** Ratified (2026-10-03; amendments 2026-10-06, 2026-10-07, 2026-10-09, 2026-10-10, 2026-10-11, 2026-10-12, 2026-10-13)
 **Date:** 2026-10-03
 **Implements:** ART-4 (no self-report completion), ART-5 (numbers in code), ART-9 (bounded
 tasks), ART-2 (one decision gateway)
@@ -233,6 +233,13 @@ unless the page hash changes; consecutive refused finishes feed StuckDetector as
 (L1 hint carries the exit-conflict note). This kills the finish↔tap cycling observed in
 the 2026-10-06 Test-1 specimen ($0.25 burned after 8 refused finishes on the open target
 page).
+**Meter scope (v1.8.1, 2026-10-13):** every decision consumed inside the window counts
+against the M-meter — INCLUDING a withheld done claim itself, since the withholding IS the
+window doing its work. M withheld claims therefore close the window and return the next
+claim to the judge; a judged refusal re-arms it and feeds the StuckDetector as above. A
+window a page-static engine can keep armed forever is a livelock (2026-10-13 emulator
+battery, the allrecipes run: ~50 withheld claims burned the whole step budget without one
+action being tried) and is structurally impossible under this meter.
 
 **Thresholds (0.70 / 0.55 / K=3 / M=2) are code config** (ART-5), tunable by amendment and
 gated by the exit-calibration eval family (doc 07 §3a).
@@ -271,7 +278,14 @@ multi-target ladder → Multi; initial values, tunable by amendment):
 ## 6. Result presentation
 
 The result screen shows: the extracted answer (generative LLM reads the final page — one
-call), the **replayable decision log** (every step: state digest, candidates, both
+call; **v1.8.1, 2026-10-13:** exactly ONE extraction per run — a report subtask's produced
+answer is authoritative and the goal-exit call is skipped; otherwise the one call reads
+the FRESHEST page observation the loop holds — the post-action observation when an action
+ran, else the completing step's own observation, so a run that executed no action still
+answers over the page its steps saw, never over a blank state (2026-10-13 battery, Test 4:
+a zero-action completion sent "title: \nurl: \n" and the writer answered "the state is
+blank", overwriting the good answer)), the **replayable decision log** (every step: state
+digest, candidates, both
 engines' choices + confidences, executed action, outcome, gate events, plan/progress),
 the **counter** ("local decisions: N · cloud: M" — post-graduation "100% on-device
 decisions"), and the **Laya agreement metric** (doc 05 §3).

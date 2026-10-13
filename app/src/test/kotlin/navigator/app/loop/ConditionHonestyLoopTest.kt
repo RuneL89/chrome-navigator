@@ -33,7 +33,10 @@ class ConditionHonestyLoopTest {
 
     /**
      * The minimal scripted engine for this file: `intent` -> the queued pick (default
-     * verify-done — harmless refusals), `triage` -> lookup, `judge` -> the queued noul.
+     * verify-done — harmless refusals), `triage` -> lookup, `judge` -> the queued noul,
+     * `recovery` -> give-up (the honest end once the stuck machinery escalates — the
+     * 2026-10-13 meter fix lets repeated refused claims reach it; before, they spun
+     * withheld forever).
      */
     private class HonestyEngine(
         private val noulValues: MutableList<Double>,
@@ -42,6 +45,7 @@ class ConditionHonestyLoopTest {
         override suspend fun choose(state: String, question: ChoiceQuestion): ChoiceResult {
             val pick = when (question.name) {
                 "triage" -> "lookup"
+                "recovery" -> "give-up"
                 else -> if (intentPicks.isEmpty()) "verify-done" else intentPicks.removeAt(0)
             }
             return ChoiceResult(pick, mapOf(pick to 0.95), 0.95)

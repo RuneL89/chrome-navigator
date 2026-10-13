@@ -25,16 +25,24 @@ import kotlin.test.assertTrue
  */
 class LandingAndReaskLoopTest {
 
-    /** The scripted engine: intent answers in order (default verify-done), noul in order (default 0.9). */
+    /**
+     * The scripted engine: intent answers in order (default verify-done), noul in order
+     * (default 0.9). A recovery question (the stuck L2 set) is answered give-up by default
+     * — the honest end of a run whose engine insists on done claims the code refuses
+     * (before the 2026-10-13 meter fix these fixtures spun on withheld claims instead and
+     * never reached the recovery machinery).
+     */
     private class ScriptedEngine2(
         private val intentPicks: MutableList<String>,
         private val noulValues: MutableList<Double> = mutableListOf(),
+        private val recoveryPicks: MutableList<String> = mutableListOf(),
     ) : DecisionEngine {
         val asked = CopyOnWriteList()
         override suspend fun choose(state: String, question: ChoiceQuestion): ChoiceResult {
             asked.add(question.name)
             val pick = when (question.name) {
                 "triage" -> "lookup"
+                "recovery" -> if (recoveryPicks.isEmpty()) "give-up" else recoveryPicks.removeAt(0)
                 else -> if (intentPicks.isEmpty()) "verify-done" else intentPicks.removeAt(0)
             }
             return ChoiceResult(pick, mapOf(pick to 0.95), 0.95)
@@ -257,13 +265,18 @@ class LandingAndReaskLoopTest {
 
         assertEquals(TerminalState.GOAL_ACHIEVED, result.terminal, result.stepLog.toString())
         assertEquals(
-            2,
+            1,
             extractor.calls,
-            "the report subtask's own extraction + the goal-exit re-phrasing (the existing law)",
+            "ONE extraction per run (vision 04 §6): the report subtask's answer stands — the " +
+                "goal-exit call is skipped, never re-phrasing (and never overwriting) it",
         )
         assertTrue(
             result.stepLog.any { it.contains("report: the answer for subtask 1/1 was produced") },
             "the production is logged: " + result.stepLog,
+        )
+        assertTrue(
+            result.stepLog.any { it.contains("extract: skipped - the report subtask already produced the answer") },
+            "the skip is loud: " + result.stepLog,
         )
         assertEquals("The headline is X.", assertNotNull(result.answer).text)
         assertEquals(
@@ -272,10 +285,73 @@ class LandingAndReaskLoopTest {
             "the answerExtracted condition's evidence is code-owned (STRONG), never page content",
         )
         assertEquals(
-            4_000L,
+            2_000L,
             result.writerSpendMicroUsd,
-            "both extraction calls meter into the writer budget (2 x 2_000 micro-USD)",
+            "the single extraction meters into the writer budget (1 x 2_000 micro-USD)",
         )
+    }
+
+    /** Captures the final-state strings the loop hands the extractor (the input pin). */
+    private class StateCapturingExtractor : AnswerExtractor {
+        val states = mutableListOf<String>()
+
+        override suspend fun extract(goal: String, finalState: String): ExtractedAnswer {
+            states.add(finalState)
+            return ExtractedAnswer("The headline is X.", "extract-v1", 2_000L, 100, 50)
+        }
+    }
+
+    @Test
+    fun `a zero-action achieved run answers over the step's own observation - never a blank state`() {
+        // The 2026-10-13 emulator battery's Test-4 shape: a URL identity already true on
+        // the observed page verifies via the code-triggered check with ZERO executed
+        // actions, so no post-step observation ever exists. The terminal extraction must
+        // read the page the step saw — before the fix it sent "title: \nurl: \n" and the
+        // writer answered "the browser state I received is blank", overwriting the good
+        // answer produced at the report subtask.
+        val ladder = Ladder(
+            "Read the BBC headline.",
+            listOf(Subtask("the bbc homepage is open", DoneCondition.UrlHost("bbc.com"))),
+        )
+        val extractor = StateCapturingExtractor()
+        val sink = CollectingLogSink()
+        val bbcPage = obs(
+            "https://www.bbc.com/news",
+            N("BBC News", clickable = false),
+            N("Headlines", clickable = false),
+            N("A second body paragraph carrying more prose.", clickable = false),
+            N("Open the fixture link", clickable = true),
+            N("One more readable line so the tree clears the usable floor.", clickable = false),
+            title = "BBC News - Home",
+        )
+        val loop = NavigationLoop(
+            engine = ScriptedEngine2(mutableListOf()),
+            observer = FakeObserver(listOf(bbcPage)),
+            executor = FakeExecutor(Journal()),
+            gatePresenter = AutoDenyGatePresenter,
+            logSink = sink,
+            config = NavigationLoop.Config(settleMs = 0),
+            ladderSource = OneLadderSource(ladder),
+            escalationCardPresenter = StopEscalationPresenter,
+            answerExtractor = extractor,
+        )
+        val result = runBlocking {
+            loop.run(
+                "open bbc.com and tell me the top news headline",
+                "zero-action",
+                EngineIdentity("stub", "scripted-harness-v1"),
+            )
+        }
+
+        assertEquals(TerminalState.GOAL_ACHIEVED, result.terminal, result.stepLog.toString())
+        assertEquals(1, extractor.states.size, "one extraction: ${result.stepLog}")
+        val state = extractor.states.single()
+        assertTrue(
+            state.contains("url: https://www.bbc.com/news"),
+            "the step's OWN observation is the final state (lastObserved), not a blank one: $state",
+        )
+        assertTrue(state.contains("title: BBC News - Home"), "the title rides too: $state")
+        assertEquals("The headline is X.", assertNotNull(result.answer).text)
     }
 
 

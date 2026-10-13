@@ -115,6 +115,49 @@ class ExitFlowLoopTest {
     }
 
     @Test
+    fun `each withheld done claim meters the M-window - the claim reaches the judge again`() = runBlocking {
+        // The 2026-10-13 emulator battery's live livelock (the allrecipes run): the engine
+        // insists on verify-done on a STATIC page, every repeat is withheld, and because a
+        // withheld claim never metered the M=2 window the loop spun ~50 steps to the hard
+        // step cap. The law's meter counts "the next M DECISIONS" — a withheld claim IS
+        // one — so after M claims the window closes and the next claim is JUDGED
+        // (refused, ART-4), feeding the stuck machinery as consecutive refusals.
+        val fixture = LoopFixture(
+            script = scriptOf(
+                choose("triage", "lookup"),
+                *intentStep("follow-link", target = "Tarte Tatin Caramelised fruit tart"),
+                intent("verify-done"), // step 2: judged -> refused (window armed, M=2)
+                noul(0.60),
+                intent("verify-done"), // step 3: WITHHELD (metered: M=1)
+                intent("verify-done"), // step 4: WITHHELD (metered: M=0)
+                intent("verify-done"), // step 5: JUDGED again -> refused
+                noul(0.60),
+            ),
+            observations = listOf(seedPage()),
+            presenter = ScriptedGatePresenter(),
+            config = NavigationLoop.Config(settleMs = 0, budget = NavigationLoop.BudgetLimits(stepsHard = 5)),
+        )
+        val result = fixture.run()
+        assertEquals(
+            2,
+            fixture.engineCalls.count { it.startsWith("judge") },
+            "the second claim reaches the judge after M withheld claims " +
+                "(pre-fix: 1 judge, the window never closed): ${result.stepLog}",
+        )
+        assertEquals(2, fixture.sink.exitChecks.size, "each judged check writes its ExitCheckRow")
+        assertEquals(
+            2,
+            result.stepLog.count { it.contains("verify-done withheld") },
+            "exactly M withheld claims close the window: ${result.stepLog}",
+        )
+        assertEquals(
+            2,
+            result.stepLog.count { it.contains("verify-done REFUSED") },
+            "the metered window returns the claim to the judge: ${result.stepLog}",
+        )
+    }
+
+    @Test
     fun `path A accepts on the first check - no window is ever involved`() = runBlocking {
         val fixture = LoopFixture(
             script = seriesScript(listOf(0.99)),

@@ -571,7 +571,12 @@ setup wizard (`setup/`).
     `AnchoredNoul.subtaskQuestion`); the pointer advances ONLY on accept (mid-ladder
     accepts log the row + advance + fresh ExitPolicy + site entry + overlay publish;
     the FINAL subtask's accept = GOAL_ACHIEVED + the answer extraction through the
-    masked final state); UAT 10.1-a revision R1 (doc 04 §1/§3 v1.5.0, owner-ratified):
+    masked final state — POST-UAT REPAIR 2026-10-13, doc 04 §6 v1.8.1: exactly ONE
+    extraction per run; a report subtask's produced answer is authoritative (the
+    goal-exit call is skipped loudly) and the one call reads the FRESHEST observation
+    the loop holds — `lastPost ?: lastObserved` (set at every OBSERVE), so a
+    zero-executed-action run answers over the page its steps saw, never over a blank
+    `"title: \nurl: \n"` state — the battery's Test-4 false completion); UAT 10.1-a revision R1 (doc 04 §1/§3 v1.5.0, owner-ratified):
     the CODE-TRIGGERED IS-DONE check — the IS-DONE evaluation is no longer gated on the
     engine volunteering `finish`: when the ACTIVE subtask's code done-condition is
     satisfied (the guard alone) the loop runs the SAME anchored check through the
@@ -615,7 +620,12 @@ setup wizard (`setup/`).
     `targetStateText` — the score case's state law); the router owns `targetAgreement`.
     The `finish` CHOICE is retired: the `verify-done` intent routes into the SHARED
     `verifyFinishCheck` and the anti-oscillation window WITHHOLDS a second claim
-    without a judge consult; the R1 code-triggered checks wire
+    without a judge consult (POST-UAT REPAIR 2026-10-13, doc 04 §3 v1.8.1: each
+    withheld claim METERS the M-decision window — previously it did not, so a
+    page-static engine kept the window armed forever and burned the 60-step budget
+    without one action being tried (battery Test 5); metered, the window closes after
+    M claims and the claim reaches the judge, whose refusal re-arms the window and
+    feeds StuckDetector as the law already prescribed); the R1 code-triggered checks wire
     `heldHashRecheckDue` (re-fires every 3rd step, ≤3 per hash); `finish` is stripped
     from offered slates unconditionally. Step-line verbs are the INTENT ids (the
     compactLine format law untouched). `WriterSources.kt` — the `AssistSource`/

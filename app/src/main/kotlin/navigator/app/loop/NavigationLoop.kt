@@ -340,6 +340,13 @@ class NavigationLoop(
         /** The completion card's resolution when it was shown (once per task). */
         var completionCardResolution: String? = null
         var lastPost: StepObservation? = null
+        // The step's OWN observation (set at every OBSERVE). `lastPost` exists only after
+        // an executed action, so a run whose steps were all code-triggered checks (the
+        // 2026-10-13 emulator battery: a read goal completing with zero executed actions)
+        // had NO page state where "the current page" is needed — the terminal answer
+        // extraction then described a blank state and overwrote a good answer.
+        // `lastObserved` is the always-present fallback for the current page state.
+        var lastObserved: StepObservation? = null
         // The last-known page URL (2026-10-08 S25+ defect-follower): the per-step
         // URL-bar read is intermittently empty on some devices, so the card-restore
         // chain falls back to the most recent observation that DID carry a usable
@@ -542,7 +549,7 @@ class NavigationLoop(
         }
 
         fun partialResult(): String =
-            lastPost?.nodes
+            (lastPost ?: lastObserved)?.nodes
                 ?.filter { !it.clickable && !it.editable && it.text.isNotBlank() }
                 ?.take(PARTIAL_RESULT_MAX_LINES)
                 ?.joinToString(" ") { it.text }
@@ -999,7 +1006,7 @@ class NavigationLoop(
                 goal = goal,
                 keys = redactionKeys(),
                 cause = lastFailureCause ?: "subtask failed",
-                obs = lastPost,
+                obs = lastPost ?: lastObserved,
                 pointer = pointer,
                 ladder = ladder,
                 history = history,
@@ -1339,13 +1346,29 @@ class NavigationLoop(
          */
         suspend fun runAnswerExtraction() {
             val extractor = answerExtractor ?: return
+            // ONE call per run (vision 04 §6): a report subtask's extraction already
+            // answered the goal — the post-exit call would only re-read the same page
+            // (and the 2026-10-13 battery showed it OVERWRITING the good answer with one
+            // derived from a null post-step observation). The produced answer stands.
+            if (extractedAnswer != null) {
+                line("extract: skipped - the report subtask already produced the answer (one extraction per run)")
+                return
+            }
             // doc 06 §2a: the final page state folds the sanctioned-secret redaction
-            // BEFORE the writer sees it.
+            // BEFORE the writer sees it. The state is the freshest page observation: the
+            // post-step one when an action ran, else the step's OWN observation
+            // (`lastObserved`) — never `lastPost` alone (a zero-action run would send a
+            // blank state; 2026-10-13 battery, task-1791869652790).
+            val finalObs = lastPost ?: lastObserved
+            if (finalObs == null) {
+                line("extract: skipped - no page observation to read (the answer, if any, stands)")
+                return
+            }
             val finalState = buildString {
-                append("title: ${lastPost?.title.orEmpty()}\n")
-                append("url: ${lastPost?.url.orEmpty()}\n")
-                lastPost?.excerpt?.take(EXTRACTION_STATE_MAX_LINES)
-                    ?.forEach { append(it).append('\n') }
+                append("title: ${finalObs.title}\n")
+                append("url: ${finalObs.url}\n")
+                finalObs.excerpt.take(EXTRACTION_STATE_MAX_LINES)
+                    .forEach { append(it).append('\n') }
             }
             val maskedState = redactionKeys().fold(finalState) { acc, key ->
                 acc.replace(key, TextSource.REDACTED)
@@ -1911,6 +1934,7 @@ class NavigationLoop(
                 return finish(TerminalState.REFUSED, REFUSAL_MESSAGE, stepIndex)
             }
             var obs = obsOrNull
+            lastObserved = obs
 
             // -- the landing-host reconciliation (Phase 10C, vision 04 §1 v1.7.0) --------
             if (pendingLandingReconcile) {
@@ -2392,6 +2416,15 @@ class NavigationLoop(
                         outcome = Outcome.NO_CHANGE,
                         escalation = escalation,
                     )
+                    // The withheld claim IS one of the "next M decisions" the window
+                    // spans (doc 04 §3): meter it, or a page-static engine insisting on
+                    // verify-done withholds forever and the loop spins to the step
+                    // budget without ever reaching the judge (2026-10-13 battery, the
+                    // allrecipes run: ~50 withheld steps, 60-step cap). Metered, the
+                    // window closes after M claims; the next claim reaches the judge,
+                    // is refused (ART-4), and feeds the stuck machinery as the law
+                    // already prescribes for consecutive refused finishes.
+                    exitPolicy.noteDecision(obs.screenHash)
                     stepIndex += 1
                     return null
                 }

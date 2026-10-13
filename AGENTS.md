@@ -186,8 +186,11 @@ When the user requests a durable behavior change, record it here or in the relev
   scripts) + stub. Phase 10C added honest conditions + reachable targets + report goals
   (the `urlContains`/`answerExtracted` shapes, the condition-honesty gate, landing-host
   reconciliation, the stage-1 band on chosen probability + margin, the bounded stage-1
-  re-ask, the observation fixes, the evidence layer incl. `task_terminal`). PHASE 10D (in
-  progress, three stages) adds the INFORMED RE-PLAN: the bounded failure re-plan carries
+  re-ask, the observation fixes, the evidence layer incl. `task_terminal`). PHASE 10D
+  (stages complete; post-UAT repair round 2026-10-13 — doc 04 §3/§6 v1.8.1: the withheld
+  done claim meters the anti-oscillation window, and the answer extraction is exactly ONE
+  call over the freshest observation, fixing the live battery's livelock + blank-state
+  false completion) adds the INFORMED RE-PLAN: the bounded failure re-plan carries
   the failure context to the writer (`ReplanSupport` — the bounded payload: failing
   subtask, cause + class, the page and the controls it offers, history, assist text, the
   verified prefix), the prompt surface becomes `restructure-v4` (both request variants
