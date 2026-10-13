@@ -109,19 +109,29 @@ object AnchoredNoul {
         done: DoneCondition,
         pageTitle: String,
         pageUrl: String,
+        reportedAnswer: String? = null,
     ): NoulQuestion = NoulQuestion(
         name = NavigationLoop.GOAL_ACHIEVED_QUESTION,
-        proposition = "${atomicProposition(done)}\n${identityLine(pageTitle, pageUrl)}",
+        proposition = "${atomicProposition(done, reportedAnswer)}\n${identityLine(pageTitle, pageUrl)}",
     )
 
     /** The v3 atomic one-sentence proposition for one done-condition shape (fixture law). */
-    fun atomicProposition(done: DoneCondition): String = when (done) {
+    fun atomicProposition(done: DoneCondition, reportedAnswer: String? = null): String = when (done) {
         is DoneCondition.UrlHost -> "The page's address is on the host '${anchor(done.host)}'."
         is DoneCondition.UrlContains -> "The page's address contains '${anchor(done.segment)}'."
         is DoneCondition.MarkerText -> "The text '${anchor(done.text)}' appears on the page."
         is DoneCondition.ElementPresent -> "A control matching '${anchor(done.description)}' is present on the page."
         is DoneCondition.CountReached -> "${done.n} of the counted '${anchor(done.target)}' are complete."
-        is DoneCondition.AnswerExtracted -> "The answer for this subtask has been reported."
+        is DoneCondition.AnswerExtracted -> reportedAnswer?.takeIf { it.isNotBlank() }?.let { answer ->
+            // Post-UAT repair 2 (doc 04 §1 v1.8.2): the report subtask's proposition carries
+            // the ANSWER ITSELF — the engine judges the deliverable against the page, a
+            // groundable judgment. The old meta sentence ("The answer for this subtask has
+            // been reported.") asked the engine about a run-internal record it cannot see:
+            // the battery's Test 4 hedged 0.44–0.69 on three such checks while the
+            // code-owned answer existed, and the read goal failed on an ungroundable
+            // question. The code side still owns "the extraction ran" (the STRONG guard).
+            "The reported answer \"${anchor(answer)}\" answers this subtask correctly."
+        } ?: "The answer for this subtask has been reported."
     }
 
     /** Anchors a span for a proposition (quoted, control-flattened, bounded). */

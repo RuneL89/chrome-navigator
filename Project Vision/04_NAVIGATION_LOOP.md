@@ -122,6 +122,14 @@ Report subtasks ("tell me X") gain the whitelist's **`answerExtracted`** shape: 
 subtask completes when its source condition holds AND the extraction ran (metered into the
 writer budget; the answer surfaces in the live log and the task's result row). Extraction
 is therefore a completable ladder leg, not only a post-exit action.
+**v1.8.2 addendum (2026-10-13, post-UAT repair 2):** the report subtask's IS-DONE
+proposition carries the PRODUCED ANSWER itself ("The reported answer '…' answers this
+subtask correctly." + the page identity), so the engine's confirmation judges the
+deliverable against the page — a groundable judgment; the code side still owns "the
+extraction ran" (the STRONG guard). The prior meta sentence ("The answer for this subtask
+has been reported.") asked the engine about a run-internal record it cannot see: the live
+battery's Test 4 hedged 0.44–0.69 across three such checks while the code-owned answer
+existed, and the read goal failed on the ungroundable question.
 
 **Landing-host reconciliation (v1.7.0):** every code navigation (site entry / `open-site`)
 records the URL actually reached. A urlHost condition whose host does not match the landing

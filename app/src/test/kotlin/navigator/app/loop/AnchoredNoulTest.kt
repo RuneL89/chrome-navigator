@@ -49,6 +49,32 @@ class AnchoredNoulTest {
     }
 
     @Test
+    fun `the report proposition carries the produced answer - a groundable judgment (post-UAT repair 2)`() {
+        // The battery's Test 4 (round 2): the meta sentence asked the engine about a
+        // run-internal record it cannot see; it hedged 0.44–0.69 on three checks while the
+        // code-owned answer existed, and the read goal failed. With the answer in the
+        // proposition the engine judges the DELIVERABLE against the page.
+        assertEquals(
+            "The reported answer \"The top headline is 'Russia's offensive ability is broken'.\" " +
+                "answers this subtask correctly.",
+            AnchoredNoul.atomicProposition(
+                DoneCondition.AnswerExtracted,
+                "The top headline is 'Russia's offensive ability is broken'.",
+            ),
+        )
+        assertEquals(
+            "The answer for this subtask has been reported.",
+            AnchoredNoul.atomicProposition(DoneCondition.AnswerExtracted, null),
+            "no produced answer yet: the neutral sentence stands",
+        )
+        assertEquals(
+            "The answer for this subtask has been reported.",
+            AnchoredNoul.atomicProposition(DoneCondition.AnswerExtracted, "   "),
+            "a blank answer is no answer",
+        )
+    }
+
+    @Test
     fun `the subtask question is ONE atomic sentence plus the PAGE IDENTITY line`() {
         val question = AnchoredNoul.subtaskQuestion(
             done = DoneCondition.UrlHost("en.wikipedia.org"),

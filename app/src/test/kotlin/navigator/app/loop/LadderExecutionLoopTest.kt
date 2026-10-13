@@ -803,13 +803,22 @@ class LadderExecutionLoopTest {
         val (result, _) = runLadder(engine, source, launcher = launcher, observations = listOf(identityPage))
         assertEquals(TerminalState.GOAL_ACHIEVED, result.terminal)
         assertEquals(
-            listOf("https://wikipedia.org"),
+            // The urlHost arrival resolves the goal's own site; the urlContains identity
+            // (post-UAT repair 2, doc 04 §1 v1.8.2) is a page on the CURRENT site — the
+            // same-family bound — so it navigates too.
+            listOf("https://wikipedia.org", "https://m0.test/world-war-2"),
             launched,
             "the goal text names wikipedia.org - the VIEW intent resolves THAT url (deterministic)",
         )
         assertTrue(
             result.stepLog.any { it.contains("site-entry: VIEW intent for https://wikipedia.org") },
             "the site entry is logged with its derivation source - log: " + result.stepLog,
+        )
+        assertTrue(
+            result.stepLog.any {
+                it.contains("site-entry: VIEW intent for https://m0.test/world-war-2 (DONE_CONDITION_DOMAIN)")
+            },
+            "the urlContains identity arrival is logged with its derivation source: " + result.stepLog,
         )
         assertTrue(result.ladder != null && result.ladder.subtasks.all { it.completed })
     }

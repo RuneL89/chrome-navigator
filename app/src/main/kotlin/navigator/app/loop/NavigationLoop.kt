@@ -945,6 +945,11 @@ class NavigationLoop(
                 done = p.active.done,
                 pageTitle = o.title,
                 pageUrl = o.url,
+                // The report subtask's judgment carries the produced answer (masked — doc 06
+                // §2a) so the engine judges the DELIVERABLE, never a run-internal record it
+                // cannot see (post-UAT repair 2, doc 04 §1 v1.8.2).
+                reportedAnswer = reportAnswers[p.index]?.text
+                    ?.let { redactedLabel(it, redactionKeys()) },
             )
 
         /**
