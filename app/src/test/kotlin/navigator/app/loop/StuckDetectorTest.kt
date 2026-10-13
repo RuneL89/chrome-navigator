@@ -109,6 +109,47 @@ class StuckDetectorTest {
     }
 
     @Test
+    fun `a refused done claim is never progress - page noise cannot reset the escalation`() {
+        // The 2026-10-13 battery's allrecipes run: a rotating ad changed the page hash
+        // between every refusal, the escalation counter reset each cycle, and the loop
+        // stalled at L1 for ~50 steps until the spend cap (L2 arrived at t+502s).
+        // Post-UAT repair 2 (doc 04 §4 v1.8.2): refusal footprints are not progress.
+        val detector = StuckDetector()
+        repeat(3) {
+            detector.record(footprint(action = "VERIFY_DONE"), countsAsProgress = false)
+            detector.recordRefusedFinish("NONE")
+        }
+        assertEquals(1, assertNotNull(detector.assess()).level)
+        // The page's peripheral content moves (a different hash) — still no progress.
+        detector.record(
+            footprint(action = "VERIFY_DONE", hash = 2, lines = listOf("ad rotated")),
+            countsAsProgress = false,
+        )
+        detector.recordRefusedFinish("NONE")
+        detector.record(
+            footprint(action = "VERIFY_DONE", hash = 3, lines = listOf("ad rotated twice")),
+            countsAsProgress = false,
+        )
+        detector.recordRefusedFinish("NONE")
+        assertEquals(
+            2,
+            assertNotNull(detector.assess()).level,
+            "the escalation advances despite the changing hash",
+        )
+    }
+
+    @Test
+    fun `a real action that moves the screen still resets the escalation`() {
+        val detector = StuckDetector()
+        repeat(3) { detector.record(footprint(action = "VERIFY_DONE"), countsAsProgress = false) }
+        assertEquals(1, assertNotNull(detector.assess()).level)
+        // A tap executed and the screen moved: progress, fresh budget.
+        detector.record(footprint(action = "TAP:n9", hash = 2, lines = listOf("moved")))
+        assertNull(detector.assess())
+        assertEquals(0, detector.lastLevel)
+    }
+
+    @Test
     fun `the window is the last eight steps`() {
         val detector = StuckDetector()
         // 8 stale steps, then a fresh one: the stale steps fall out of the window

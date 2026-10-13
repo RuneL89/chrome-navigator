@@ -27,6 +27,16 @@ interface ActionExecutor {
     fun back(): Boolean
 
     /**
+     * Fires the platform's form-submission affordance (doc 04 §2 v1.8.2, post-UAT repair 2):
+     * the IME action (the keyboard's Search/Go/Done key) dispatched on the FOCUSED editable
+     * node of the active window. This is the `submit` intent's control-less execution — a
+     * mobile search page's submit affordance IS the keyboard key, and there is no control
+     * to tap. Never called on a gate-classified submission (the loop checks first).
+     * Returns false when no editable field is focused.
+     */
+    fun submit(): Boolean
+
+    /**
      * Text entry (vision 03 §1): tap to focus the editable node at (x, y), then
      * ACTION_SET_TEXT; if the field rejects SET_TEXT, clipboard + ACTION_PASTE fallback.
      * Returns false when neither path succeeded. Simple-fake variant: no cause reporting.
@@ -118,6 +128,15 @@ class GestureExecutor(private val service: AccessibilityService) : ActionExecuto
     }
 
     override fun back(): Boolean = service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
+
+    override fun submit(): Boolean {
+        val focused = service.findFocus(android.view.accessibility.AccessibilityNodeInfo.FOCUS_INPUT)
+            ?: return false
+        if (!focused.isEditable) return false
+        return focused.performAction(
+            android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction.ACTION_IME_ENTER.id,
+        )
+    }
 
     override fun enterText(x: Int, y: Int, text: String): Boolean = enterText(x, y, text) { }
 

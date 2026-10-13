@@ -1,7 +1,7 @@
 # State Observation
 
 **Document ID:** `NAVIGATOR-VISION-003`
-**Version:** 2.5.0 *(amended 2026-10-13 (Phase 10D Stage 3): §2/§3 — the candidate label is NEVER blank: the chain is text → description → placeholder → role + container → the role word alone; an exactly doubled platform label ("X X") collapses to one phrase. The measured case: live Chrome enumerated a search input as `""`, unjudgeable by the stage-2 rubric. Amended 2026-10-11 (Phase 10C): §2/§3 — editable fields are detected by ROLE (editable/searchbox) regardless of accessible label, with the placeholder/container supplying the description when unlabeled; text-less controls (icon buttons, consent-wall buttons) are described by role + container relation; browser-chrome exclusion widens to ALL Chrome UI. Amended 2026-10-10: cascade state views v4 — the INTENT STATE VIEW and TARGET STATE VIEW join the dual-view law as per-stage derivations feeding the doc-02 §3 cascade; the taxonomy's role becomes stage-2 slate grouping with browser-chrome excluded from target slates; STATE_FORMAT_VERSION = 4; owner-ratified)*
+**Version:** 2.6.0 *(amended 2026-10-13 (post-UAT repair 2): §4 — the INTENT STATE VIEW gains the conditional TYPED FIELD line (a filled-but-unsubmitted field the loop itself typed into) — the 2026-10-13 live battery's Google run re-typed the same query four times for want of that fact. Amended 2026-10-13 (Phase 10D Stage 3): §2/§3 — the candidate label is NEVER blank: the chain is text → description → placeholder → role + container → the role word alone; an exactly doubled platform label ("X X") collapses to one phrase. The measured case: live Chrome enumerated a search input as `""`, unjudgeable by the stage-2 rubric. Amended 2026-10-11 (Phase 10C): §2/§3 — editable fields are detected by ROLE (editable/searchbox) regardless of accessible label, with the placeholder/container supplying the description when unlabeled; text-less controls (icon buttons, consent-wall buttons) are described by role + container relation; browser-chrome exclusion widens to ALL Chrome UI. Amended 2026-10-10: cascade state views v4 — the INTENT STATE VIEW and TARGET STATE VIEW join the dual-view law as per-stage derivations feeding the doc-02 §3 cascade; the taxonomy's role becomes stage-2 slate grouping with browser-chrome excluded from target slates; STATE_FORMAT_VERSION = 4; owner-ratified)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-06, 2026-10-09)
 **Date:** 2026-10-03
 **Implements:** ART-4 (page text is untrusted), ART-6 (deterministic candidate order),
@@ -154,6 +154,13 @@ Laws:
   budget-checked (loud on overflow — silent truncation stays unlawful), versioned as
   `STAGE_VIEW_VERSION`, and NEVER replace the canonical text as the logged/corpus
   record of the step.
+  **v2.6.0 (2026-10-13, post-UAT repair 2):** the INTENT STATE VIEW gains ONE
+  conditional code-authored line between the PAGE line and the excerpt —
+  `TYPED FIELD: "<label>" holds text this run typed (not yet submitted)` — present
+  exactly while a field the loop itself filled is still on the page. A filled-but-
+  unsubmitted field is the next move's key fact (the live battery's Google run re-typed
+  the same query four times because nothing said the text was already in and the form
+  had never been sent).
 - Oversized trees are compressed **deterministically in code first** (drop lowest-rank
   candidates; shrink the content excerpt by its own deterministic ranking — head-anchored)
   until the canonical ≤960 budget fits (the laya view likewise within its own ≤319). If

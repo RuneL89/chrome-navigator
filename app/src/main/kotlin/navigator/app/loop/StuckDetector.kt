@@ -63,10 +63,26 @@ class StuckDetector(private val windowSize: Int = WINDOW) {
     /** Records one step. A step that changed the screen resets the escalation counter —
      *  and the exit-conflict streak (progress re-opens the finish question). */
     fun record(footprint: Footprint) {
+        record(footprint, countsAsProgress = true)
+    }
+
+    /**
+     * Records one step with an explicit progress flag (doc 04 §4 v1.8.2, post-UAT repair
+     * 2): the escalation reset requires PROGRESS — an executed action whose step also
+     * moved the screen. A REFUSED done claim is not progress, however the page's
+     * peripheral content moves around it: the 2026-10-13 battery's allrecipes run sat on
+     * a page with a rotating ad, every refusal-vs-refusal hash comparison saw "the screen
+     * moved", the escalation counter reset each cycle, and the loop stalled at L1 for ~50
+     * steps until the spend cap (L2 arrived at t+502s). An engine that keeps claiming a
+     * refused done-claim no longer gets an endless fresh escalation budget from page
+     * noise.
+     */
+    fun record(footprint: Footprint, countsAsProgress: Boolean) {
         val previous = window.lastOrNull()
-        val screenMoved = previous != null && previous.screenHash != footprint.screenHash
+        val screenMoved = countsAsProgress &&
+            previous != null && previous.screenHash != footprint.screenHash
         if (screenMoved) {
-            stuckCount = 0 // progress: the screen moved — fresh escalation budget
+            stuckCount = 0 // progress: an executed action moved the screen — fresh escalation budget
             exitConflictStreak = 0
             lastExitConflictEvidence = null
         }

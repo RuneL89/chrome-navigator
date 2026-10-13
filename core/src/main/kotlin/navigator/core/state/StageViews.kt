@@ -22,9 +22,15 @@ import navigator.core.laya.Tokenizer
  * SUBTASK: <the active subtask's instruction>
  * DONE WHEN: <the rendered done-condition — the goal text on non-ladder runs>
  * PAGE: <host> — <title>
+ * TYPED FIELD: "<label>" holds text this run typed (not yet submitted)   [only when one exists]
  * <up to MAX_INTENT_EXCERPT_LINES excerpt head lines>
  * ASSIST (untrusted): <the handshake assist text — only when a re-ask is in flight>
  * ```
+ * The TYPED FIELD line is code-owned state (post-UAT repair 2, doc 03 §4 v2.6.0): the
+ * loop named the field it filled, and a filled-but-unsubmitted field is exactly the fact
+ * a next-move judgment needs — the 2026-10-13 battery's Google run re-typed the same
+ * query four times because nothing told the engine the text was already in and the form
+ * had never been sent.
  * TARGET STATE VIEW (≤ [TARGET_VIEW_TOKEN_BUDGET] tokens):
  * ```
  * SUBTASK: <the active subtask's instruction>
@@ -67,14 +73,19 @@ class StageViews(private val tokenizer: Tokenizer = Tokenizer.loadDefault()) {
         title: String,
         excerpt: List<String> = emptyList(),
         assistText: String? = null,
+        typedField: String? = null,
     ): StageView {
         require(subtask.isNotBlank()) { "intent view: the subtask line must not be blank" }
         require(doneWhen.isNotBlank()) { "intent view: the done-when line must not be blank" }
-        val head = listOf(
-            "SUBTASK: ${flatten(subtask)}",
-            "DONE WHEN: ${flatten(doneWhen)}",
-            "PAGE: ${flatten(host)} — ${flatten(title)}",
-        )
+        val typedFieldLine = typedField?.takeIf { it.isNotBlank() }?.let {
+            "TYPED FIELD: \"${flatten(it)}\" holds text this run typed (not yet submitted)"
+        }
+        val head = buildList {
+            add("SUBTASK: ${flatten(subtask)}")
+            add("DONE WHEN: ${flatten(doneWhen)}")
+            add("PAGE: ${flatten(host)} — ${flatten(title)}")
+            typedFieldLine?.let { add(it) }
+        }
         val headLines = excerpt.map(::flatten).filter { it.isNotEmpty() }.take(MAX_INTENT_EXCERPT_LINES)
         var shownLines = headLines
         var assistLine = assistText?.let { "ASSIST (untrusted): ${flatten(it)}" }

@@ -15,6 +15,7 @@ import navigator.core.log.EngineIdentity
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -380,6 +381,132 @@ class LandingAndReaskLoopTest {
         assertTrue(
             sink.rows.any { it.landingHost == "bbc.com" },
             "the decision row carries the landing host: " + sink.rows.map { it.landingHost },
+        )
+    }
+
+    @Test
+    fun `a urlContains arrival the plan text names fires the site entry (post-UAT repair 2)`() {
+        // The 2026-10-13 battery's Test-2 shape: the engine chose open-site decisively on
+        // "Open the BBC News section page at bbc.com/news" while the derivation refused
+        // (it accepted urlHost conditions only) and every step died on "no URL resolved".
+        // v1.8.2: a urlContains identity whose segment the PLAN TEXT names site-enters.
+        val ladder = Ladder(
+            "Open the BBC News section.",
+            listOf(
+                Subtask("Open the BBC homepage at bbc.com", DoneCondition.UrlHost("bbc.com")),
+                Subtask(
+                    "Open the BBC News section page at bbc.com/news",
+                    DoneCondition.UrlContains("bbc.com/news"),
+                ),
+            ),
+        )
+        val launched = mutableListOf<String>()
+        val (result, _, _) = run(
+            ladder = ladder,
+            observations = listOf(
+                page("https://www.bbc.com/", "BBC Home", "Headlines"),
+                page("https://www.bbc.com/news", "BBC News", "World headlines"),
+            ),
+            goal = "open bbc.com and open the News section",
+            intentPicks = emptyList(),
+            launcher = BrowserLauncher { launched.add(it) },
+        )
+        assertEquals(
+            listOf("https://bbc.com", "https://bbc.com/news"),
+            launched,
+            "both arrivals code-navigate - the second is the urlContains the plan text names",
+        )
+        assertTrue(
+            result.stepLog.any {
+                it.contains("site-entry: VIEW intent for https://bbc.com/news (DONE_CONDITION_DOMAIN)")
+            },
+            "the derivation source is logged: " + result.stepLog,
+        )
+        assertEquals(TerminalState.GOAL_ACHIEVED, result.terminal, result.stepLog.toString())
+    }
+
+    @Test
+    fun `the submit intent fires the platform IME affordance when no submit control exists`() = runBlocking {
+        // The battery's Google run: the query was typed, the page showed NO submit control
+        // (a mobile search page's submit affordance is the keyboard's Search key), and the
+        // typing repeated until the stuck kill. Post-UAT repair 2 (doc 04 §2 v1.8.2):
+        // `submit` fires the platform IME action on the field this loop filled.
+        val searchPage = obs(
+            "http://m0.test/search",
+            N("Search the catalogue", clickable = true, editable = true),
+            N("A paragraph of page prose for the tree floor.", clickable = false),
+            N("Browse the index", clickable = true),
+            N("Another readable line so the tree clears the usable floor.", clickable = false),
+            N("A third body line carrying enough prose for the observation floor.", clickable = false),
+            N("One more readable line so the tree clears the usable floor.", clickable = false),
+            pageNodes = 6,
+        )
+        val fixture = LoopFixture(
+            phraseSource = navigator.app.stub.StubPhraseSource,
+            script = scriptOf(
+                choose("triage", "lookup"),
+                *intentStep("fill-field", target = "Search the catalogue"),
+                *intentStep("submit"),
+            ),
+            observations = listOf(searchPage),
+            presenter = ScriptedGatePresenter(),
+            config = NavigationLoop.Config(settleMs = 0, budget = NavigationLoop.BudgetLimits(stepsHard = 2)),
+        )
+        val result = fixture.loop.run(
+            "search the catalogue for the query",
+            "repair-2",
+            EngineIdentity("stub", "scripted-harness-v1"),
+            fixture.clock,
+        )
+        assertTrue(
+            fixture.executor.calls.contains("submit"),
+            "the platform IME submit fired: ${fixture.executor.calls} | steps: ${result.stepLog}",
+        )
+        val submitRow = assertNotNull(
+            fixture.sink.rows.firstOrNull {
+                it.executedAction.kind == navigator.core.log.LoggedActionKind.SUBMIT
+            },
+            "the submit row exists: ${fixture.sink.rows.map { it.executedAction }}",
+        )
+        assertEquals(
+            navigator.core.log.ActionDisposition.EXECUTED,
+            submitRow.executedAction.disposition,
+        )
+        assertTrue(
+            result.stepLog.any { it.contains("the platform submit affordance fired") },
+            "the firing is loud: " + result.stepLog,
+        )
+    }
+
+    @Test
+    fun `a condition-only urlContains never site-enters - the false-completion guard`() {
+        // "the address contains 'google.com/search'" is the writer's proxy for "results are
+        // showing". Navigating to the bare endpoint would satisfy the letter without the
+        // query — a false completion. The plan text must name the destination.
+        assertNull(
+            navigator.app.loop.SiteEntry.plan(
+                "open google.com and search for mushroom recipes",
+                "Show the search results page for mushroom recipes",
+                DoneCondition.UrlContains("google.com/search"),
+                "https://www.google.com/",
+            ),
+            "a condition-only URL never site-enters",
+        )
+        assertNull(
+            navigator.app.loop.SiteEntry.plan(
+                "open the shop",
+                "read the news section",
+                DoneCondition.UrlContains("bbc.com/news"),
+            ),
+            "the naming guard: the human plan must name the destination",
+        )
+        assertNull(
+            navigator.app.loop.SiteEntry.plan(
+                "read the page",
+                "watch the replay, 2 hrs ago",
+                DoneCondition.UrlContains("2 hrs ago"),
+            ),
+            "a phrase is never a URL",
         )
     }
 

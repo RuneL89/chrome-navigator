@@ -70,6 +70,38 @@ class StageViewsTest {
     }
 
     @Test
+    fun `the typed-field line rides only when the loop filled a field (post-UAT repair 2)`() {
+        // doc 03 §4 v2.6.0: a filled-but-unsubmitted field is the next move's key fact —
+        // the battery's Google run re-typed the same query four times because nothing
+        // said the text was already in and the form had never been sent.
+        val typed = views.intentView(
+            subtask = "show the search results for mushroom recipes",
+            doneWhen = "the address contains 'example.test/search'",
+            host = "example.test",
+            title = "Search",
+            excerpt = listOf("Trending now."),
+            typedField = "mushroom recipes",
+        )
+        val lines = typed.text.split("\n")
+        assertEquals(
+            "TYPED FIELD: \"mushroom recipes\" holds text this run typed (not yet submitted)",
+            lines[3],
+            "the line rides directly under PAGE: $lines",
+        )
+        assertTrue(lines.last().startsWith("Trending now."), "the excerpt follows: $lines")
+        val none = views.intentView(
+            subtask = "show the search results for mushroom recipes",
+            doneWhen = "the address contains 'example.test/search'",
+            host = "example.test",
+            title = "Search",
+        )
+        assertTrue(
+            none.text.split("\n").none { it.startsWith("TYPED FIELD:") },
+            "no typed field, no line: ${none.text}",
+        )
+    }
+
+    @Test
     fun `the intent view fits its 120-token budget with the real tokenizer`() {
         val view = views.intentView(
             subtask = "a reasonably ordinary subtask instruction",

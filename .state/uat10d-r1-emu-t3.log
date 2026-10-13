@@ -1,0 +1,74 @@
+--------- beginning of main
+10-13 09:54:44.239  7150  7150 D NavigatorHarness: custom goal: id=uat10d-r1-t3 family=custom start=https://www.google.com expected=GOAL_ACHIEVED goal="open google.com and search for mushroom recipes"
+10-13 09:54:44.239  7150  7150 D NavigatorHarness: headless run: goal=null engine=live autoDeny=true shadow=false shadowEveryNth=1 delay=0ms fresh=false keyExtra=true
+10-13 09:54:44.298  7150  7188 D NavigatorHarness: warm-up: cold-starting the browser with the observation service bound
+10-13 09:54:46.348  7150  7188 D NavigatorHarness: browser: firing VIEW intent for http://127.0.0.1:8099/home.html
+10-13 09:55:00.733  7150  7188 D NavigatorHarness: navigate: retrying the browser cold start for http://127.0.0.1:8099/home.html (attempt 2)
+10-13 09:55:02.747  7150  7188 D NavigatorHarness: browser: firing VIEW intent for http://127.0.0.1:8099/home.html
+10-13 09:55:12.500  7150  7188 D NavigatorHarness: navigate: retrying the browser cold start for http://127.0.0.1:8099/home.html (attempt 3)
+10-13 09:55:14.522  7150  7188 D NavigatorHarness: browser: firing VIEW intent for http://127.0.0.1:8099/home.html (force-recreate)
+10-13 09:55:18.835  7150  7188 D NavigatorHarness: navigate: browser reached http://127.0.0.1:8099/home.html on attempt 3
+10-13 09:55:19.102  7150  7188 D NavigatorHarness: warm-up: web a11y primed (content visible, candidates present)
+10-13 09:55:19.104  7150  7188 D NavigatorHarness: === goal uat10d-r1-t3 (custom): "open google.com and search for mushroom recipes"
+10-13 09:55:19.123  7150  7188 D NavigatorHarness: browser: firing VIEW intent for https://www.google.com
+10-13 09:55:24.647  7150  7188 D NavigatorHarness: engine: LIVE (jev-primary, typesafe/jev-1.13-20260917); auto-deny=true; key source: intent_extra
+10-13 09:55:31.917  7150  7188 D NavigatorHarness: writer: 1298+430 tokens, 2758 micro-USD
+10-13 09:55:31.920  7150  7188 D NavigatorHarness: browser: firing VIEW intent for https://google.com
+10-13 09:56:19.687  7150  7187 D NavigatorHarness: [t+5428ms] ladder: restructure-v4/gen1 - 2 subtask(s), class read, writer spend 2758 micro-USD
+10-13 09:56:19.687  7150  7187 D NavigatorHarness: [t+5428ms] ladder: target entity "google.com" (code-extracted)
+10-13 09:56:19.688  7150  7187 D NavigatorHarness: [t+5428ms] guard state: lookup: contentful pages read=0 (needs one beyond the first page); entity="google.com"
+10-13 09:56:19.688  7150  7187 D NavigatorHarness: [t+5429ms] site-entry: VIEW intent for https://google.com (GOAL_DOMAIN) - subtask 1/2
+10-13 09:56:19.688  7150  7187 D NavigatorHarness: [t+9289ms] restore: browser ready after 1839ms (window=org.chromium.webview_shell)
+10-13 09:56:19.688  7150  7187 D NavigatorHarness: [t+11896ms] exit: code-triggered IS-DONE check on subtask 1/2 (guard STRONG satisfied - the engine must still confirm, ART-4)
+10-13 09:56:19.688  7150  7187 D NavigatorHarness: [t+12331ms] decide: code-triggered IS-DONE check -> verification: noul=0.97 (HIGH), guard=STRONG, guard state: lookup: contentful pages read=1 (needs one beyond the first page); entity="google.com", proposition=v3
+10-13 09:56:19.689  7150  7187 D NavigatorHarness: [t+12334ms] ladder: subtask 1/2 IS-DONE verified (exit path HIGH, guard STRONG, noul=0.97) - pointer advanced to 2/2
+10-13 09:56:19.689  7150  7187 D NavigatorHarness: [t+12334ms] ladder: subtask 2/2 - no site entry (engine navigates)
+10-13 09:56:19.689  7150  7187 D NavigatorHarness: [t+13391ms] decide: intent 'fill-field' (p=0.91, margin=0.86)
+10-13 09:56:19.689  7150  7187 D NavigatorHarness: [t+13733ms] decide: stage-2 target "Google-haku Kysy Googlelta Hae Googlesta" [n17] (3.1 of 1 scored)
+10-13 09:56:19.689  7150  7187 D NavigatorHarness: [t+15336ms] fill-field: phrased (phrase-v1, 16 chars)
+10-13 09:56:19.690  7150  7187 D NavigatorHarness: [t+15443ms] execute: type "Google-haku Kysy Googlelta Hae Googlesta" at (466,903) -> dispatched
+10-13 09:56:19.690  7150  7187 D NavigatorHarness: [t+18993ms] decide: intent 'fill-field' (p=0.98, margin=0.96)
+10-13 09:56:19.690  7150  7187 D NavigatorHarness: [t+19355ms] decide: stage-2 target "mushroom recipes" [n8] (4.57 of 1 scored)
+10-13 09:56:19.691  7150  7187 D NavigatorHarness: [t+20538ms] fill-field: phrased (phrase-v1, 16 chars)
+10-13 09:56:19.691  7150  7187 D NavigatorHarness: [t+20641ms] execute: type "mushroom recipes" at (540,414) -> dispatched
+10-13 09:56:19.692  7150  7187 D NavigatorHarness: [t+22370ms] decide: intent 'fill-field' (p=0.98, margin=0.96)
+10-13 09:56:19.692  7150  7187 D NavigatorHarness: [t+22713ms] decide: stage-2 target "mushroom recipes" [n8] (4.56 of 1 scored)
+10-13 09:56:19.692  7150  7187 D NavigatorHarness: [t+23965ms] fill-field: phrased (phrase-v1, 16 chars)
+10-13 09:56:19.692  7150  7187 D NavigatorHarness: [t+24034ms] execute: type "mushroom recipes" at (540,414) -> dispatched
+10-13 09:56:19.692  7150  7187 D NavigatorHarness: [t+25714ms] decide: intent 'fill-field' (p=0.98, margin=0.96)
+10-13 09:56:19.693  7150  7187 D NavigatorHarness: [t+26041ms] decide: stage-2 target "mushroom recipes" [n8] (4.58 of 1 scored)
+10-13 09:56:19.693  7150  7187 D NavigatorHarness: [t+27351ms] fill-field: phrased (phrase-v1, 16 chars)
+10-13 09:56:19.693  7150  7187 D NavigatorHarness: [t+27412ms] execute: type "mushroom recipes" at (540,414) -> dispatched
+10-13 09:56:19.693  7150  7187 D NavigatorHarness: [t+28380ms] stuck: L1 hint injected ([same-action-3x, screen-hash-unchanged-3x, zero-text-diff-3x])
+10-13 09:56:19.694  7150  7187 D NavigatorHarness: [t+28967ms] decide: intent 'fill-field' (p=0.99, margin=0.98)
+10-13 09:56:19.694  7150  7187 D NavigatorHarness: [t+29269ms] decide: stage-2 target "mushroom recipes" [n8] (4.54 of 1 scored)
+10-13 09:56:19.695  7150  7187 D NavigatorHarness: [t+31093ms] fill-field: phrased (phrase-v1, 16 chars)
+10-13 09:56:19.695  7150  7187 D NavigatorHarness: [t+31163ms] execute: type "mushroom recipes" at (540,414) -> dispatched
+10-13 09:56:19.695  7150  7187 D NavigatorHarness: [t+32111ms] stuck: L2 - next decide comes from the recovery set ([same-action-3x, screen-hash-unchanged-3x, zero-text-diff-3x, high-repetition])
+10-13 09:56:19.695  7150  7187 D NavigatorHarness: [t+32822ms] decide: recovery set -> 'back'
+10-13 09:56:19.695  7150  7187 D NavigatorHarness: [t+35248ms] decide: intent 'fill-field' (p=0.93, margin=0.9)
+10-13 09:56:19.695  7150  7187 D NavigatorHarness: [t+35593ms] decide: stage-2 target "Google-haku Kysy Googlelta Hae Googlesta" [n17] (3.12 of 1 scored)
+10-13 09:56:19.696  7150  7187 D NavigatorHarness: [t+37291ms] fill-field: phrased (phrase-v1, 16 chars)
+10-13 09:56:19.696  7150  7187 D NavigatorHarness: [t+37415ms] execute: type "Google-haku Kysy Googlelta Hae Googlesta" at (466,903) -> dispatched
+10-13 09:56:19.696  7150  7187 D NavigatorHarness: [t+39477ms] decide: intent 'fill-field' (p=0.98, margin=0.96)
+10-13 09:56:19.696  7150  7187 D NavigatorHarness: [t+39769ms] decide: stage-2 target "mushroom recipes" [n8] (4.55 of 1 scored)
+10-13 09:56:19.696  7150  7187 D NavigatorHarness: [t+40960ms] fill-field: phrased (phrase-v1, 16 chars)
+10-13 09:56:19.697  7150  7187 D NavigatorHarness: [t+41013ms] execute: type "mushroom recipes" at (540,414) -> dispatched
+10-13 09:56:19.697  7150  7187 D NavigatorHarness: [t+42793ms] decide: intent 'fill-field' (p=0.98, margin=0.96)
+10-13 09:56:19.697  7150  7187 D NavigatorHarness: [t+43219ms] decide: stage-2 target "mushroom recipes" [n8] (4.6 of 1 scored)
+10-13 09:56:19.697  7150  7187 D NavigatorHarness: [t+44401ms] fill-field: phrased (phrase-v1, 16 chars)
+10-13 09:56:19.698  7150  7187 D NavigatorHarness: [t+44469ms] execute: type "mushroom recipes" at (540,414) -> dispatched
+10-13 09:56:19.698  7150  7187 D NavigatorHarness: [t+45537ms] stuck: L1 hint injected ([screen-hash-unchanged-3x, zero-text-diff-3x, high-repetition])
+10-13 09:56:19.698  7150  7187 D NavigatorHarness: [t+47742ms] decide: intent 'fill-field' (p=0.98, margin=0.96)
+10-13 09:56:19.699  7150  7187 D NavigatorHarness: [t+48077ms] decide: stage-2 target "mushroom recipes" [n8] (4.59 of 1 scored)
+10-13 09:56:19.699  7150  7187 D NavigatorHarness: [t+50418ms] fill-field: phrased (phrase-v1, 16 chars)
+10-13 09:56:19.699  7150  7187 D NavigatorHarness: [t+50485ms] execute: type "mushroom recipes" at (540,414) -> dispatched
+10-13 09:56:19.699  7150  7187 D NavigatorHarness: [t+51473ms] stuck: L2 - next decide comes from the recovery set ([same-action-3x, screen-hash-unchanged-3x, zero-text-diff-3x, high-repetition])
+10-13 09:56:19.699  7150  7187 D NavigatorHarness: [t+52189ms] decide: recovery set -> 'back'
+10-13 09:56:19.700  7150  7187 D NavigatorHarness: [t+53196ms] ladder: subtask 2/2 STUCK-KILL intercepted - the owner card is guaranteed (still stuck after the recovery action - L3 auto-kill) - consecutive failures: 1
+10-13 09:56:19.700  7150  7187 D NavigatorHarness: [t+53196ms] terminal: STUCK_KILL - still stuck after the recovery action - L3 auto-kill - the owner said stop (escalation card)
+10-13 09:56:19.757  7150  7187 D NavigatorHarness: plan: vrestructure-v4/gen1 (2 subgoals, provenance only)
+10-13 09:56:19.759  7150  7187 D NavigatorHarness: ladder: vrestructure-v4/gen1 gen1 (1/2 done, class read)
+10-13 09:56:19.773  7150  7187 D NavigatorHarness: report: /storage/emulated/0/Android/data/navigator.app/files/run-reports/run-uat10d-r1-t3-task-1791874526491.json
+10-13 09:56:19.799  7150  7187 D NavigatorHarness: === uat10d-r1-t3: STUCK_KILL (expected GOAL_ACHIEVED, gaps=0, attempts=1)
+10-13 09:56:19.877  7150  7187 D NavigatorHarness: suite report (1 runs, allPassed=false): /storage/emulated/0/Android/data/navigator.app/files/run-reports/suite-report.json

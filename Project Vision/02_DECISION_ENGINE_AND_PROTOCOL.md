@@ -1,7 +1,7 @@
 # Decision Engine & Protocol
 
 **Document ID:** `NAVIGATOR-VISION-002`
-**Version:** 1.4.0 *(amended 2026-10-11 (Phase 10C): §2 gains the stage-1 intent-banding rule (route on the chosen option's probability + a top-vs-second margin, not the self-reported confidence); §3's stage-2 rubric is framed per intent and a no-good-target now triggers a bounded stage-1 re-ask; the browser-chrome exclusion covers ALL Chrome UI (URL field, toolbar, tab strip, menus), not only the URL field. Amended 2026-10-11: §2 wire rule — the noul question rides the wire `instructions` field; the Phase-3 `proposition` field is retired after live proof that the model ignores it (the exit-hedging root cause). Amended 2026-10-10: the decision cascade — §3 gains the stage-1 fixed-intent vocabulary + stage-2 batched score-per-candidate law and per-question instructions (reversing the Phase-3 shared-instructions decision, owner-ratified after the UAT root-cause analysis); §4 the shadow mirrors both cascade stages)*
+**Version:** 1.4.1 *(amended 2026-10-13 (post-UAT repair 2): §3's stage-2 target note — `submit` needs a target only while the page offers a submit-shaped control; with none, the intent executes control-less via the platform IME action on the field this run filled (doc 04 §2 v1.8.2). Amended 2026-10-11 (Phase 10C): §2 gains the stage-1 intent-banding rule (route on the chosen option's probability + a top-vs-second margin, not the self-reported confidence); §3's stage-2 rubric is framed per intent and a no-good-target now triggers a bounded stage-1 re-ask; the browser-chrome exclusion covers ALL Chrome UI (URL field, toolbar, tab strip, menus), not only the URL field. Amended 2026-10-11: §2 wire rule — the noul question rides the wire `instructions` field; the Phase-3 `proposition` field is retired after live proof that the model ignores it (the exit-hedging root cause). Amended 2026-10-10: the decision cascade — §3 gains the stage-1 fixed-intent vocabulary + stage-2 batched score-per-candidate law and per-question instructions (reversing the Phase-3 shared-instructions decision, owner-ratified after the UAT root-cause analysis); §4 the shadow mirrors both cascade stages)*
 **Status:** Ratified (2026-10-03; amendment ratified 2026-10-04)
 **Date:** 2026-10-03
 **Implements:** ART-2 (one decision gateway), ART-11 (offline endgame)
@@ -84,7 +84,10 @@ typed questions:
   learnable prior (the Phase-10 UAT proved per-page dynamic lists with hollow criteria
   produce hedged, low-confidence answers).
 - **Stage 2 — target (only when the intent needs one: follow-link, activate-control,
-  fill-field, dismiss-nag).** ONE wire request carrying N `score` questions (one per
+  fill-field, dismiss-nag, submit — the last only while the page OFFERS a submit-shaped
+  control; when none exists the `submit` intent executes control-less through the
+  platform IME action on the field this run filled, doc 04 §2 v1.8.2, no stage-2 call at
+  all).** ONE wire request carrying N `score` questions (one per
   candidate of the intent's bucket slate; **ALL Chrome UI excluded as browser chrome
   (v1.4.0) — the URL field, toolbar, tab strip and menus** (widened from the URL-field-only
   rule after a mis-tap on Chrome's "New tab" destroyed an observed task); URL needs are the

@@ -347,6 +347,10 @@ class NavigationLoop(
         // extraction then described a blank state and overwrote a good answer.
         // `lastObserved` is the always-present fallback for the current page state.
         var lastObserved: StepObservation? = null
+        // The field this loop last TYPED into successfully (post-UAT repair 2, doc 04 §2
+        // v1.8.2): the `submit` intent's control-less IME affordance fires only on a field
+        // the loop itself filled — never on an arbitrary focused control.
+        var lastTypedFieldId: String? = null
         // The last-known page URL (2026-10-08 S25+ defect-follower): the per-step
         // URL-bar read is intermittently empty on some devices, so the card-restore
         // chain falls back to the most recent observation that DID carry a usable
@@ -964,7 +968,7 @@ class NavigationLoop(
          */
         suspend fun enterSubtask() {
             val p = pointer ?: return
-            val entryPlan = SiteEntry.plan(goalText, p.active.instruction, p.active.done)
+            val entryPlan = SiteEntry.plan(goalText, p.active.instruction, p.active.done, lastObserved?.url.orEmpty())
             if (entryPlan == null) {
                 line("ladder: subtask ${p.activeOrdinal}/${p.total} - no site entry (engine navigates)")
                 return
@@ -1624,6 +1628,11 @@ class NavigationLoop(
                     submitExecuted = proceed && execOk && kind == ActionKind.SUBMIT,
                     actionExecuted = proceed && execOk,
                 )
+                if (proceed && execOk && kind == ActionKind.TYPE) {
+                    // The control-less submit's anchor (doc 04 §2 v1.8.2): the field this
+                    // loop filled — the only field the IME affordance may fire on.
+                    lastTypedFieldId = candidate.id
+                }
                 // Task working memory (Phase 08G, vision 04 §1): resolve the acted-on row —
                 // an executed action marks the target PROCESSED; a gate refusal marks it
                 // SKIPPED (the owner's denial is authoritative for that row); a FAILED
@@ -2107,6 +2116,12 @@ class NavigationLoop(
                     title = obs.title,
                     excerpt = obs.excerpt,
                     assistText = assistText,
+                    // The field this loop filled, when it is still on the page (doc 03 §4
+                    // v2.6.0): a filled-but-unsubmitted field is the next move's key fact.
+                    typedField = lastTypedFieldId?.let { id ->
+                        candidates.flat.firstOrNull { it.id == id && "edit" in it.kinds }
+                            ?.let { redactedLabel(it.label, redactionKeys()) }
+                    },
                 )
 
             /**
@@ -2515,6 +2530,11 @@ class NavigationLoop(
                                 textLines = obs.lines,
                                 isError = false,
                             ),
+                            // A refused done claim is NOT progress (doc 04 §4 v1.8.2): page
+                            // noise (a rotating ad) must never hand the escalation a fresh
+                            // budget — the battery's allrecipes run stalled at L1 for ~50
+                            // steps exactly that way.
+                            countsAsProgress = false,
                         )
                         // Sixth stuck signal: the exit conflict (guard level rides the hint).
                         stuck.recordRefusedFinish(verdict.guardLevel.name)
@@ -2574,7 +2594,7 @@ class NavigationLoop(
             suspend fun openSiteStep(): RunResult? {
                 val activePointer = pointer
                 val entryPlan = if (activePointer != null && ladder != null) {
-                    SiteEntry.plan(goalText, activePointer.active.instruction, activePointer.active.done)
+                    SiteEntry.plan(goalText, activePointer.active.instruction, activePointer.active.done, obs.url)
                 } else {
                     null
                 }
@@ -2633,6 +2653,83 @@ class NavigationLoop(
                     return handleStuckKill("still stuck after the site entry - L3 auto-kill")
                 }
                 return null
+            }
+
+            /**
+             * The control-less `submit` execution (post-UAT repair 2, doc 04 §2 v1.8.2): the
+             * IME action on the field THIS LOOP filled — the keyboard's Search/Go key, which
+             * IS a mobile search page's submit affordance (the battery's Google run typed
+             * the query and then had nothing to fire: no submit control exists in the tree,
+             * so the step looped to the stuck kill). Fires ONLY on a field this loop typed
+             * into, and NEVER on a gate-classified submission (doc 06 §1: the IME path never
+             * bypasses the gate — a classified form falls back to the ordinary path where
+             * the card governs). Consumes its step and returns true; false when the
+             * affordance could not fire (no typed field on this page, the field gone, a
+             * gate class, or nothing editable focused) — the caller then runs the ordinary
+             * no-good-target machinery.
+             */
+            suspend fun imeSubmitStep(reason: String): Boolean {
+                val fieldId = lastTypedFieldId ?: return false
+                val field = candidates.flat.firstOrNull { it.id == fieldId && "edit" in it.kinds }
+                    ?: return false
+                val gateClass = RiskGate.classify(
+                    GateAction(field, ActionKind.SUBMIT, null),
+                    PageContext(obs.url, FieldDescriptor.fromNodes(obs.nodes)),
+                )
+                if (gateClass != null) {
+                    line(
+                        "submit: the IME submit classifies ${gateClass.name.lowercase()} - " +
+                            "the IME path never bypasses the gate; falling back",
+                    )
+                    return false
+                }
+                if (!executor.submit()) {
+                    line("submit: no focused editable field for the platform IME action - falling back")
+                    return false
+                }
+                line(
+                    "submit: the platform submit affordance fired (IME action on " +
+                        "\"${redactedLabel(field.label, redactionKeys())}\") - $reason",
+                )
+                history.add("step $stepIndex: submit via the platform IME action - $reason")
+                guards!!.record(
+                    url = obs.url,
+                    contentTextNodes = obs.contentTextNodes,
+                    textTyped = false,
+                    submitExecuted = true,
+                    actionExecuted = true,
+                )
+                delay(config.settleMs)
+                val post = observer.observe()
+                notePageUrl(post)
+                lastPost = post
+                val outcome = if (post.lines == obs.lines) Outcome.NO_CHANGE else Outcome.PROGRESSED
+                logRow(
+                    stepIndex, state, question, choice, candidates,
+                    ExecutedAction(field.id, LoggedActionKind.SUBMIT, ActionDisposition.EXECUTED),
+                    gateEvent = null,
+                    outcome = outcome,
+                    escalation = escalation,
+                )
+                uiListener?.onStep(
+                    LoopUiListener.StepFacts(
+                        stepIndex = stepIndex,
+                        verb = choice.chosenId,
+                        label = redactedLabel(field.label, redactionKeys()),
+                        confidence = choice.confidence,
+                        gateMarker = LoopUiListener.gateMarker(null),
+                    ),
+                )
+                stuck.record(
+                    StuckDetector.Footprint(
+                        actionKey = "SUBMIT:${field.id}",
+                        screenHash = post.screenHash,
+                        textLines = post.lines,
+                        isError = outcome == Outcome.ERROR,
+                    ),
+                )
+                stepIndex += 1
+                return true
             }
 
             /**
@@ -2766,6 +2863,19 @@ class NavigationLoop(
                 // -- HIGH: execute the intent --------------------------------------------
                 val intentId = choice.chosenId
                 if (intentId != Intents.VERIFY_DONE) exitPolicy.noteDecision(obs.screenHash)
+
+                // The `submit` intent's control-less execution (post-UAT repair 2, doc 04 §2
+                // v1.8.2): when the page shows NO submit-shaped control at all, the platform
+                // IME action on the field the loop filled IS the submit affordance — fire it
+                // before the stage-2 machinery (whose slate could never settle a target).
+                // A page that DOES offer a submit-shaped control keeps the ordinary path
+                // (stage-2 target → gate → tap) untouched.
+                if (intentId == Intents.SUBMIT &&
+                    Cascade.slate(candidates, intentId)
+                        .none { SUBMIT_TRAP.containsMatchIn("${it.label} ${it.id}".lowercase()) }
+                ) {
+                    if (imeSubmitStep("no submit control on the page")) continue
+                }
 
                 // Stage-2 for the target-bearing intents (ONE batched score request over
                 // the bucket slate; browser-chrome excluded; code argmax; a flat spread

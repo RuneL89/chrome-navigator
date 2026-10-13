@@ -1,0 +1,92 @@
+{
+    "goalId": "uat10d-r1-t2",
+    "family": "custom",
+    "goal": "open bbc.com and open the News section",
+    "taskId": "task-1791874304041",
+    "engine": "live",
+    "autoDeny": true,
+    "triage": "action",
+    "triageClass": "action",
+    "budgetProfile": "standard",
+    "terminal": "STUCK_KILL",
+    "terminalDetail": "open-site could not resolve a URL to open - the owner said stop (escalation card)",
+    "expectedTerminal": "GOAL_ACHIEVED",
+    "terminalMatchesExpected": false,
+    "steps": 7,
+    "rowsLogged": 6,
+    "metaDecisions": 1,
+    "logGaps": 0,
+    "gateEvents": 0,
+    "spendMicroUsd": 34722,
+    "elapsedMs": 100030,
+    "softWarnings": [],
+    "partialResult": "WebView Browser Tester 124.0.6367.219 BBC Home - Breaking News, World News, US News, Sports, Business, Innovation, Climate, Culture, Travel, Video & Audio British Broadcasting Corporation A serviceman of the 141st Separate Mechanized Brigade of the Ukrainian Armed Forces walks on a street near the f",
+    "startedAt": 1791874304041,
+    "finishedAt": 1791874404142,
+    "stepLog": [
+        "[t+4145ms] ladder: restructure-v4/gen1 - 2 subtask(s), class read, writer spend 2704 micro-USD",
+        "[t+4145ms] ladder: target entity \"bbc.com\" (code-extracted)",
+        "[t+4145ms] guard state: lookup: contentful pages read=0 (needs one beyond the first page); entity=\"bbc.com\"",
+        "[t+4146ms] site-entry: VIEW intent for https://bbc.com (GOAL_DOMAIN) - subtask 1/2",
+        "[t+23580ms] restore: browser ready after 17425ms (window=org.chromium.webview_shell)",
+        "[t+39968ms] exit: code-triggered IS-DONE check on subtask 1/2 (guard STRONG satisfied - the engine must still confirm, ART-4)",
+        "[t+40968ms] decide: code-triggered IS-DONE check -> verification: noul=0.96 (HIGH), guard=STRONG, guard state: lookup: contentful pages read=1 (needs one beyond the first page); entity=\"bbc.com\", proposition=v3",
+        "[t+40971ms] ladder: subtask 1/2 IS-DONE verified (exit path HIGH, guard STRONG, noul=0.96) - pointer advanced to 2/2",
+        "[t+40971ms] ladder: subtask 2/2 - no site entry (engine navigates)",
+        "[t+50022ms] decide: intent 'follow-link' (p=0.59, margin=0.24)",
+        "[t+52035ms] decide: stage-2 NO-GOOD-TARGET (top expected level 2.64 is below the 3.0 floor) - handshake/fallback, never a tap",
+        "[t+52035ms] decide: stage-1 re-ask (no good target on the nav-links slate (top expected level 2.64 is below the 3.0 floor)) - ONE bounded re-ask on this page-hash",
+        "[t+52458ms] decide: re-ask intent 'open-site' (p=0.67, margin=0.5)",
+        "[t+60678ms] decide: intent 'open-site' (the stage-1 re-ask's answer, pinned for this step)",
+        "[t+60678ms] decide: intent 'open-site' (p=1.0, margin=1.0)",
+        "[t+60678ms] open-site: no URL resolved (subtask done-condition) or no launcher wired - no-good-target fallback, nothing typed or tapped",
+        "[t+60686ms] ladder: subtask 2/2 FAILED (open-site could not resolve a URL to open) - consecutive failures: 1",
+        "[t+60689ms] ladder: re-plan 2 (bounded: 1 left after this one) - writer over the goal + failure context (subtask 2/2, unresolvable_route)",
+        "[t+66181ms] ladder: re-planned to restructure-v4/gen2 (2 subtask(s), resuming at subtask 2)",
+        "[t+66181ms] ladder: subtask 2/2 - no site entry (engine navigates)",
+        "[t+73752ms] decide: intent 'open-site' (p=0.8, margin=0.64)",
+        "[t+73752ms] open-site: no URL resolved (subtask done-condition) or no launcher wired - no-good-target fallback, nothing typed or tapped",
+        "[t+73763ms] ladder: subtask 2/2 FAILED (open-site could not resolve a URL to open) - consecutive failures: 1",
+        "[t+73766ms] ladder: re-plan 3 (bounded: 0 left after this one) - writer over the goal + failure context (subtask 2/2, unresolvable_route)",
+        "[t+77796ms] ladder: re-planned to restructure-v4/gen3 (2 subtask(s), resuming at subtask 2)",
+        "[t+77796ms] ladder: subtask 2/2 - no site entry (engine navigates)",
+        "[t+85120ms] decide: intent 'open-site' (p=0.59, margin=0.19999999999999996)",
+        "[t+85121ms] open-site: no URL resolved (subtask done-condition) or no launcher wired - no-good-target fallback, nothing typed or tapped",
+        "[t+85142ms] ladder: subtask 2/2 FAILED (open-site could not resolve a URL to open) - consecutive failures: 1",
+        "[t+92279ms] decide: intent 'open-site' (p=0.66, margin=0.34)",
+        "[t+92279ms] open-site: no URL resolved (subtask done-condition) or no launcher wired - no-good-target fallback, nothing typed or tapped",
+        "[t+92288ms] ladder: subtask 2/2 FAILED (open-site could not resolve a URL to open) - consecutive failures: 2",
+        "[t+100018ms] decide: intent 'open-site' (p=0.66, margin=0.35000000000000003)",
+        "[t+100019ms] open-site: no URL resolved (subtask done-condition) or no launcher wired - no-good-target fallback, nothing typed or tapped",
+        "[t+100030ms] ladder: subtask 2/2 FAILED (open-site could not resolve a URL to open) - consecutive failures: 3",
+        "[t+100030ms] terminal: STUCK_KILL - open-site could not resolve a URL to open - the owner said stop (escalation card)"
+    ],
+    "plan": {
+        "version": "restructure-v4/gen3",
+        "subgoals": [
+            "Open the BBC homepage at bbc.com",
+            "Open the BBC News section page at bbc.com/news"
+        ]
+    },
+    "ladder": {
+        "version": "restructure-v4/gen3",
+        "generation": 3,
+        "summary": "Open bbc.com and navigate to the BBC News section page.",
+        "taskClass": "action",
+        "subtasks": [
+            {
+                "instruction": "Open the BBC homepage at bbc.com",
+                "done": "the URL host is bbc.com",
+                "completed": true,
+                "active": false
+            },
+            {
+                "instruction": "Open the BBC News section page at bbc.com/news",
+                "done": "the address contains 'bbc.com/news'",
+                "completed": false,
+                "active": true
+            }
+        ]
+    },
+    "writerSpendMicroUsd": 12618
+}

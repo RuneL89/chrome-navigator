@@ -1,0 +1,84 @@
+{
+    "goalId": "uat10d-r1-t4",
+    "family": "custom",
+    "goal": "open bbc.com and tell me the top news headline",
+    "taskId": "task-1791874728809",
+    "engine": "live",
+    "autoDeny": true,
+    "triage": "lookup",
+    "triageClass": "lookup",
+    "budgetProfile": "standard",
+    "terminal": "GOAL_ACHIEVED",
+    "terminalDetail": "exit path HIGH: noul pTrue=0.71 with the STRONG guard after 1 finish check(s)",
+    "expectedTerminal": "GOAL_ACHIEVED",
+    "terminalMatchesExpected": true,
+    "steps": 2,
+    "rowsLogged": 0,
+    "metaDecisions": 2,
+    "logGaps": 0,
+    "gateEvents": 0,
+    "spendMicroUsd": 5628,
+    "elapsedMs": 25792,
+    "softWarnings": [],
+    "partialResult": "WebView Browser Tester 124.0.6367.219 BBC Home - Breaking News, World News, US News, Sports, Business, Innovation, Climate, Culture, Travel, Video & Audio British Broadcasting Corporation image unavailable A serviceman of the 141st Separate Mechanized Brigade of the Ukrainian Armed Forces walks on a",
+    "startedAt": 1791874728808,
+    "finishedAt": 1791874754654,
+    "stepLog": [
+        "[t+2546ms] ladder: restructure-v4/gen1 - 2 subtask(s), class read, writer spend 2227 micro-USD",
+        "[t+2546ms] ladder: target entity \"bbc.com\" (code-extracted)",
+        "[t+2547ms] guard state: lookup: contentful pages read=0 (needs one beyond the first page); entity=\"bbc.com\"",
+        "[t+2547ms] site-entry: VIEW intent for https://bbc.com (GOAL_DOMAIN) - subtask 1/2",
+        "[t+8463ms] restore: browser ready after 3894ms (window=org.chromium.webview_shell)",
+        "[t+9546ms] exit: code-triggered IS-DONE check on subtask 1/2 (guard STRONG satisfied - the engine must still confirm, ART-4)",
+        "[t+10334ms] decide: code-triggered IS-DONE check -> verification: noul=0.95 (HIGH), guard=STRONG, guard state: lookup: contentful pages read=1 (needs one beyond the first page); entity=\"bbc.com\", proposition=v3",
+        "[t+10338ms] ladder: subtask 1/2 IS-DONE verified (exit path HIGH, guard STRONG, noul=0.95) - pointer advanced to 2/2",
+        "[t+10338ms] ladder: subtask 2/2 - no site entry (engine navigates)",
+        "[t+25480ms] report: the answer for subtask 2/2 was produced (extract-v1, 1532 micro-USD)",
+        "[t+25480ms] exit: code-triggered IS-DONE check on subtask 2/2 (guard STRONG satisfied - the engine must still confirm, ART-4)",
+        "[t+25779ms] decide: code-triggered IS-DONE check -> verification: noul=0.71 (HIGH), guard=STRONG, guard state: lookup: contentful pages read=1 (needs one beyond the first page); entity=\"bbc.com\", proposition=v3",
+        "[t+25787ms] extract: skipped - the report subtask already produced the answer (one extraction per run)",
+        "[t+25792ms] terminal: GOAL_ACHIEVED - exit path HIGH: noul pTrue=0.71 with the STRONG guard after 1 finish check(s)"
+    ],
+    "exit": {
+        "path": "HIGH",
+        "guardLevel": "STRONG",
+        "noul": 0.71,
+        "finishChecks": 1,
+        "completionCardShown": false
+    },
+    "plan": {
+        "version": "restructure-v4/gen1",
+        "subgoals": [
+            "Open the BBC homepage at bbc.com",
+            "Report the top news headline shown on the BBC homepage"
+        ]
+    },
+    "ladder": {
+        "version": "restructure-v4/gen1",
+        "generation": 1,
+        "summary": "Open bbc.com and report the top news headline.",
+        "taskClass": "read",
+        "subtasks": [
+            {
+                "instruction": "Open the BBC homepage at bbc.com",
+                "done": "the URL host is bbc.com",
+                "completed": true,
+                "active": false
+            },
+            {
+                "instruction": "Report the top news headline shown on the BBC homepage",
+                "done": "the answer has been produced",
+                "completed": true,
+                "active": false
+            }
+        ]
+    },
+    "answer": {
+        "text": "The top headline on the BBC homepage is \"Russia's offensive ability is broken, Kyiv's former top general tells BBC,\" with the subheading \"In his first interview since being forced from his post, Gen Syrskyi speaks about Ukraine's future in the war.\"",
+        "promptVersion": "extract-v1",
+        "inputTokens": 1000,
+        "outputTokens": 183,
+        "costMicroUsd": 1532
+    },
+    "writerSpendMicroUsd": 3759
+}

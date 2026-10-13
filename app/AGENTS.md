@@ -556,7 +556,12 @@ setup wizard (`setup/`).
     blocks further writer calls, navigation untouched), `SiteEntry.kt` (the
     OUTCOME-BASED site-entry chooser — a urlHost subtask's mechanism: VIEW intent when
     a URL resolves from the goal/instruction/done-condition host (explicit URL >
-    bare domain > the validated host), logged with its derivation source; no
+    bare domain > the validated host); POST-UAT REPAIR 2 (doc 04 §1 v1.8.2): a
+    `urlContains` identity whose segment the goal/subtask TEXT names site-enters too,
+    with the naming guard — never a condition-only destination (a proxy condition
+    navigated to verbatim is the false-completion class), origin-relative paths resolve
+    against the current origin only within the goal's site family; logged with its
+    derivation source; no
     hardcoding, ART-2 intact — the engine still navigates when nothing resolves),
     `EscalationCard.kt` (the owner escalation card payload + presenter seam —
     "Retry / Re-plan / Stop"; the default `StopEscalationPresenter` is the fail-safe
@@ -659,8 +664,11 @@ setup wizard (`setup/`).
     rollback rides the rows additively (`LoggedPlan.rolledBack`/`lesson`, doc 05 §2
     v1.8.0). `handleSubtaskFailureOrKill`/`handleStuckKill` stash the failure cause for the
     re-plan and pass it to the card path. LOOP-STATE DISCIPLINE (measured 2026-10-12 with javap on the
-    compiled class): `run()` is now 58,646 of the JVM's 65,535-byte method cap (6,889 bytes
-    of headroom); the baseline before Phase 10D was 64,322 (1,213), which is why Stage 1's
+    compiled class): `run()` was 58,646 of the JVM's 65,535-byte method cap after Phase 10D
+    (6,889 bytes of headroom); the 2026-10-13 post-UAT repair round added two statements
+    inside `run()` (the `lastObserved` assignment + the withheld `noteDecision`) and the
+    measured value is now 59,377 (6,158 bytes of headroom — verifier-confirmed);
+    the baseline before Phase 10D was 64,322 (1,213), which is why Stage 1's
     first build broke the cap. Two facts, both verified: (a) the LOAD-BEARING fix for the
     cap break was moving `lastAssistText`/`lastFailureCause` from `run()` LOCALS to CLASS
     FIELDS — one new captured local (with its Ref plumbing in every nested helper's

@@ -36,21 +36,100 @@ object SiteEntry {
 
     /**
      * The plan for opening [subtaskInstruction] under [goal], or null when this is NOT a
-     * site-entry subtask (the done-condition must be `urlHost`) or no URL resolves.
-     * Deterministic: same inputs, same plan.
+     * site-entry subtask or no URL resolves. Deterministic: same inputs, same plan.
+     *
+     * POST-UAT REPAIR 2 (doc 04 §1 v1.8.2, 2026-10-13): a `urlContains` identity whose
+     * segment NAMES a page is the writer's arrival expressed as a substring (the 10C
+     * honesty gate derives such identities itself) — it site-enters exactly like a
+     * `urlHost` arrival. The live battery showed the engine choosing `open-site`
+     * decisively (p 0.59–0.82) on such subtasks while the derivation refused, failing
+     * steps whose destination the ladder itself named.
+     *
+     * **The naming guard (same amendment, the zero-false-completions bar):** the
+     * destination must be named by the HUMAN-READABLE plan text ([goal] or
+     * [subtaskInstruction]) — never by the machine condition alone. A condition is a
+     * proxy: "the address contains 'google.com/search'" is the writer's shorthand for
+     * "the results are showing", and CODE-NAVIGATING to the bare endpoint would satisfy
+     * the letter of the condition without the user-visible outcome (no query, no
+     * results) — a false completion. A destination the plan text itself names ("Open the
+     * BBC News section page at bbc.com/news") is the arrival the writer meant.
      */
-    fun plan(goal: String, subtaskInstruction: String, doneCondition: navigator.core.ladder.DoneCondition): Plan? {
-        if (doneCondition !is navigator.core.ladder.DoneCondition.UrlHost) return null
-        resolveFromText(goal, subtaskInstruction)?.let {
-            return Plan(Mechanism.VIEW_INTENT, it.url, it.source)
+    fun plan(
+        goal: String,
+        subtaskInstruction: String,
+        doneCondition: navigator.core.ladder.DoneCondition,
+        currentUrl: String = "",
+    ): Plan? = when (doneCondition) {
+        is navigator.core.ladder.DoneCondition.UrlHost -> {
+            resolveFromText(goal, subtaskInstruction)?.let {
+                Plan(Mechanism.VIEW_INTENT, it.url, it.source)
+            } ?: run {
+                // The done-condition's own host: the writer validated it as a bare host, so
+                // it is the lawful resolution of last resort (still goal text, still no
+                // hardcoding).
+                if (doneCondition.host.isNotBlank() && doneCondition.host.contains('.')) {
+                    Plan(Mechanism.VIEW_INTENT, "https://${doneCondition.host}", "DONE_CONDITION_HOST")
+                } else {
+                    null
+                }
+            }
         }
-        // The done-condition's own host: the writer validated it as a bare host, so it
-        // is the lawful resolution of last resort (still goal text, still no hardcoding).
-        if (doneCondition.host.isNotBlank() && doneCondition.host.contains('.')) {
-            return Plan(Mechanism.VIEW_INTENT, "https://${doneCondition.host}", "DONE_CONDITION_HOST")
+        is navigator.core.ladder.DoneCondition.UrlContains ->
+            urlFromIdentity(goal, subtaskInstruction, doneCondition.segment, currentUrl)?.let {
+                Plan(Mechanism.VIEW_INTENT, it.url, it.source)
+            }
+        else -> null
+    }
+
+    /**
+     * The URL a `urlContains` identity names, when the human plan text names it too
+     * (v1.8.2): a full http(s) URL, or a bare host[/path] the derivation can scheme —
+     * the segment must literally appear in the goal or the instruction text (the naming
+     * guard). An origin-relative path ("/wiki/X") additionally resolves against the
+     * CURRENT page's origin, lawful only when that host is one site family with the
+     * goal's named host. Null otherwise — a phrase like "2 hrs ago" is never a URL, and
+     * a condition-only destination never site-enters. Pure.
+     */
+    fun urlFromIdentity(
+        goal: String,
+        subtaskInstruction: String,
+        rawSegment: String,
+        currentUrl: String,
+    ): Resolved? {
+        val segment = rawSegment.trim().trim('"', '\'', '`')
+        if (segment.isEmpty() || segment.any { it.isWhitespace() }) return null
+        // The naming guard: the destination must be named by the plan's own words.
+        val searchSpace = "$goal \n $subtaskInstruction"
+        if (!searchSpace.contains(segment)) return null
+        if (segment.startsWith("http://") || segment.startsWith("https://")) {
+            return Resolved(segment, "DONE_CONDITION_URL")
+        }
+        if (segment.startsWith("/")) {
+            val origin = ORIGIN.find(currentUrl.trim())?.value ?: return null
+            val currentHost = hostOf(currentUrl) ?: return null
+            val goalHost = resolveFromText(goal, "")?.url?.let(::hostOf) ?: return null
+            if (!navigator.core.ladder.DoneConditionChecker.sameSiteFamily(goalHost, currentHost)) {
+                return null
+            }
+            return Resolved("$origin$segment", "DONE_CONDITION_PATH")
+        }
+        val hostPart = segment.substringBefore('/').substringBefore('?').substringBefore('#')
+        val lastLabel = hostPart.substringAfterLast('.', "")
+        if (HOST_SHAPE.matches(hostPart) && lastLabel.length >= 2 && lastLabel.all { it.isLetter() }) {
+            return Resolved("https://$segment", "DONE_CONDITION_DOMAIN")
         }
         return null
     }
+
+    /** The normalized host of a page URL, or null. */
+    private fun hostOf(url: String): String? =
+        navigator.core.ladder.DoneConditionChecker.normalizeUrl(url)?.substringBefore('/')
+
+    /** A hostname shape: labels of alphanumerics/hyphens joined by dots (no spaces). */
+    private val HOST_SHAPE = Regex(
+        "[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+",
+    )
+    private val ORIGIN = Regex("^https?://[^/\\s]+")
 
     /**
      * The URL the search space (goal + subtask instruction) RESOLVES TO, shape-independent

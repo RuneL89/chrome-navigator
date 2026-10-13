@@ -1,7 +1,7 @@
 # Navigation Loop
 
 **Document ID:** `NAVIGATOR-VISION-004`
-**Version:** 1.8.1 *(amended 2026-10-13 (post-UAT repair, owner-ordered): §3's anti-oscillation meter counts EVERY decision consumed inside the window — a withheld done claim included — so a page-static engine cannot keep the window armed forever (the emulator battery's 60-step livelock); §6's answer extraction is exactly ONE call per run over the freshest observation the loop holds (a report subtask's answer is authoritative; a zero-action completion never answers over a blank state). Both were implementation/law gaps surfaced by the 2026-10-13 live-key emulator battery, not new law. Amended 2026-10-12 (Phase 10D): the bounded failure re-plan is INFORMED — §1's failure-path law gains the failure-context payload, the immutable verified prefix, the ONE declared rollback step with its lesson, and the growth rule; owner-ratified with the Phase-10D plan. Amended 2026-10-11: goal-condition honesty — ladder-build validation rejects any IS-DONE condition already true where its subtask starts; the whitelist gains the `answerExtracted` report shape; every code navigation records its landing host and urlHost conditions reconcile to it; stage-1 banding routes on the chosen option's probability + a top-vs-second margin; a stage-2 no-good-target triggers a bounded stage-1 re-ask instead of a subtask failure; Path A requires a STRONG guard. Owner-ratified Phase-10C scope after the 9-run on-device battery. Amended 2026-10-10: the decision cascade — §2's DECIDE step becomes the two-stage cascade (stage-1 intent, stage-2 score-per-candidate target) with the bounded uncertainty handshake; typed text is writer-phrased on fill-field; §3's finish CHOICE retires in favor of the verify-done intent while Path B's sustained streak re-keys to the active done-condition and gains a bounded held-hash re-check. Owner-ratified after the Phase-10 UAT root-cause analysis (flat hollow-criteria lists → hedged engines → dead tasks).)*
+**Version:** 1.8.2 *(amended 2026-10-13 (post-UAT repair 2, owner-ordered loop): §1 — the outcome-based site entry accepts a text-named `urlContains` arrival, with the naming guard (never a condition-only destination — the false-completion class); §2 — `submit` executes as the platform IME action on a loop-filled field when the page offers no submit-shaped control (the mobile-search submit affordance), never bypassing the gate. Both surfaced by the live-key emulator battery: the engine chose `open-site` decisively on text-named arrivals the derivation refused, and typed queries had nothing to fire. Amended 2026-10-13 (post-UAT repair, owner-ordered): §3's anti-oscillation meter counts EVERY decision consumed inside the window — a withheld done claim included — so a page-static engine cannot keep the window armed forever (the emulator battery's 60-step livelock); §6's answer extraction is exactly ONE call per run over the freshest observation the loop holds (a report subtask's answer is authoritative; a zero-action completion never answers over a blank state). Both were implementation/law gaps surfaced by the 2026-10-13 live-key emulator battery, not new law. Amended 2026-10-12 (Phase 10D): the bounded failure re-plan is INFORMED — §1's failure-path law gains the failure-context payload, the immutable verified prefix, the ONE declared rollback step with its lesson, and the growth rule; owner-ratified with the Phase-10D plan. Amended 2026-10-11: goal-condition honesty — ladder-build validation rejects any IS-DONE condition already true where its subtask starts; the whitelist gains the `answerExtracted` report shape; every code navigation records its landing host and urlHost conditions reconcile to it; stage-1 banding routes on the chosen option's probability + a top-vs-second margin; a stage-2 no-good-target triggers a bounded stage-1 re-ask instead of a subtask failure; Path A requires a STRONG guard. Owner-ratified Phase-10C scope after the 9-run on-device battery. Amended 2026-10-10: the decision cascade — §2's DECIDE step becomes the two-stage cascade (stage-1 intent, stage-2 score-per-candidate target) with the bounded uncertainty handshake; typed text is writer-phrased on fill-field; §3's finish CHOICE retires in favor of the verify-done intent while Path B's sustained streak re-keys to the active done-condition and gains a bounded held-hash re-check. Owner-ratified after the Phase-10 UAT root-cause analysis (flat hollow-criteria lists → hedged engines → dead tasks).)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-06, 2026-10-07, 2026-10-09, 2026-10-10, 2026-10-11, 2026-10-12, 2026-10-13)
 **Date:** 2026-10-03
 **Implements:** ART-4 (no self-report completion), ART-5 (numbers in code), ART-9 (bounded
@@ -30,6 +30,17 @@ followed ≥ 5"). The owner interview pins three absolutes:
 - **Outcome-based subtasks:** a subtask states the OUTCOME ("wikipedia.org loaded"),
   never the mechanics; CODE chooses the mechanism — a VIEW intent when a URL is
   resolved, URL-bar entry otherwise. No hardcoded navigation logic.
+  **v1.8.2 (2026-10-13, post-UAT repair 2):** the code navigation accepts BOTH arrival
+  identities — a `urlHost` condition (as in v1.4.0) and a `urlContains` identity whose
+  segment the goal/subtask TEXT names (`"Open the BBC News section page at bbc.com/news"`
+  → VIEW intent for that URL). **The naming guard:** the destination must be named by
+  the human-readable plan text, never by the machine condition alone — a condition is a
+  proxy ("the address contains 'google.com/search'" stands for "the results are
+  showing"), and navigating to a bare condition-named endpoint would satisfy the letter
+  without the user-visible outcome: a false completion, the one thing the acceptance bar
+  forbids. The live battery showed the engine choosing `open-site` decisively (p
+  0.59–0.82) on text-named arrivals while the derivation refused (urlHost-only) and
+  every step died on "no URL resolved".
 - **Managed context (ART-2 intact):** the ladder re-scopes the objective — the ACTIVE
   subtask's instruction rides the state text (doc 03 §4) and Jev still decides every
   single step; the loop advances the subtask pointer only on a VERIFIED IS-DONE. The
@@ -154,7 +165,14 @@ against count-shaped done-conditions, and survives scrolls and navigation; the g
    target's coordinates; `fill-field` → focus-first text entry with the content PHRASED
    BY THE WRITER (`phrase-v1`, locked decision #4 — never the raw goal text; a phrase
    failure routes to recovery, it never falls back to goal-text typing); `submit` →
-   tap (the SUBMIT_TRAP gate semantics apply); `go-back`/`scroll` → gesture; secrets
+   tap when the page offers a submit-shaped control (the SUBMIT_TRAP gate semantics
+   apply), **or — v1.8.2 (2026-10-13, post-UAT repair 2), when NO submit-shaped control
+   exists — the platform IME action on the field THIS RUN filled** (the keyboard's
+   Search/Go key: a mobile search page's submit affordance IS the keyboard, and the
+   battery's Google run typed the query then had nothing to fire, looping to the stuck
+   kill). The IME path fires only on a loop-filled field and NEVER on a gate-classified
+   submission (doc 06 §1: it never bypasses the gate — a classified form falls back to
+   the ordinary path where the card governs); `go-back`/`scroll` → gesture; secrets
    always from the gate card, injected directly (redacted everywhere — doc 05 §2).
 6. **LOG** (code) — the DecisionLog row (doc 05), including guard outcomes, execution
    result, both engines' answers, and plan/progress provenance.
@@ -255,6 +273,13 @@ screen hash unchanged 3× · zero text diff 3× · high repetition · repeated e
 · give-up`); **L3** one rescue-coach call (generative LLM), then kill with partial
 results. For `action-multi` tasks, the tracker's progress lines ride the L1 hint so the
 engine re-orients to pending targets.
+**Progress definition (v1.8.2, 2026-10-13, post-UAT repair 2):** the escalation reset
+requires PROGRESS — an executed action whose step also moved the screen. A refused done
+claim is never progress, however the page's peripheral content moves around it: the
+live battery's allrecipes run sat on a page with a rotating ad, each refusal-vs-refusal
+hash comparison read "the screen moved", the escalation counter reset every cycle, and
+the loop stalled at L1 for ~50 steps until the spend cap (L2 arrived at t+502 s). The
+same holds for a withheld done claim (it records no footprint at all).
 
 ## 5. TaskBudget (code) — per-class profiles
 

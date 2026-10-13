@@ -99,9 +99,11 @@ without a device.
   derivation is layout-agnostic, so the v3 sections derive unchanged);
   the token counter is injectable (`deriveWith`) — the cross-language parity seam vs
   `tools/laya_reference.py --state-view-parity`; and `StageViews.kt` (Phase 10B, vision
-  03 §4 v2.3.0 — the cascade's per-stage views, `STAGE_VIEW_VERSION = 1`: the INTENT
+  03 §4 v2.6.0 — the cascade's per-stage views, `STAGE_VIEW_VERSION = 1`: the INTENT
   STATE VIEW ≤120 tokens (SUBTASK / DONE WHEN — the goal text on non-ladder runs / PAGE
-  host — title / ≤3 excerpt head lines / optional `ASSIST (untrusted):` block when a
+  host — title / **the conditional `TYPED FIELD: "…" holds text this run typed (not yet
+  submitted)` line — post-UAT repair 2, present exactly while a loop-filled field is still
+  on the page** / ≤3 excerpt head lines / optional `ASSIST (untrusted):` block when a
   handshake re-ask is in flight) and the TARGET STATE VIEW ≤200 tokens (subtask lines +
   ONE bucket's candidate lines, browser-chrome EXCLUDED at the builder boundary too);
   real laya tokenizer budgets, LOUD on overflow (assist first, then excerpt head lines /

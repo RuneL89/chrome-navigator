@@ -84,6 +84,12 @@ class FakeExecutor(private val journal: Journal) : ActionExecutor {
 
     override fun back(): Boolean = record("back")
 
+    /** Whether a submit affordance exists (a focused editable field): tests arm it. */
+    var submitAvailable = true
+
+    override fun submit(): Boolean =
+        if (submitAvailable) record("submit") else { calls.add("submit-unavailable"); false }
+
     override fun enterText(x: Int, y: Int, text: String): Boolean = record("text($x,$y,\"$text\")")
 
     override fun enterText(x: Int, y: Int, text: String, cause: (TextEntryFailure) -> Unit): Boolean {
