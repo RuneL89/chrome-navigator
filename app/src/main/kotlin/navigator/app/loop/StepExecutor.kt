@@ -59,7 +59,11 @@ interface ActionExecutor {
 
 /**
  * Why a text-injection failed (2026-10-08 pre-UAT2 RC1 vocabulary). The loop renders
- * the terminal cause on the execute step line (`-> FAILED (WRONG_WINDOW)`).
+ * the terminal cause on the execute step line (`-> FAILED (WRONG_WINDOW)`). The loop's
+ * mechanism rotation (doc 04 §1 v1.8.4) reads the MECHANISM causes — the ones that name
+ * a failed typing leg ([SET_TEXT_REJECTED], [CLIPBOARD_UNAVAILABLE], [PASTE_FAILED],
+ * [TEXT_NOT_LANDED]) — into its per-candidate ladder; the pre-mechanism causes
+ * ([WRONG_WINDOW], [NO_FIELD_AT_POINT], [REFRESH_FAILED]) consume no leg.
  */
 enum class TextEntryFailure {
     /** The active window's package never became an allowlisted browser (bounded wait). */
@@ -71,7 +75,12 @@ enum class TextEntryFailure {
     /** The editable node at the point went stale (refresh failed) before the write. */
     REFRESH_FAILED,
 
-    /** The field rejected ACTION_SET_TEXT (the paste fallback follows). */
+    /**
+     * The SET_TEXT leg failed: the field rejected ACTION_SET_TEXT, or accepted and
+     * DROPPED it (the landed-text verification found the text absent — an action's
+     * boolean is not proof; Chrome's a11y bridge can accept and drop). The paste
+     * fallback follows either way.
+     */
     SET_TEXT_REJECTED,
 
     /** No clipboard manager is reachable for the paste fallback. */
@@ -79,6 +88,12 @@ enum class TextEntryFailure {
 
     /** The paste fallback was attempted and rejected. */
     PASTE_FAILED,
+
+    /**
+     * The paste leg failed to deliver (2026-10-17 landed-text verification): ACTION_PASTE
+     * was accepted but the field's text does not contain the entered phrase.
+     */
+    TEXT_NOT_LANDED,
 }
 
 /**
@@ -162,7 +177,13 @@ class GestureExecutor(private val service: AccessibilityService) : ActionExecuto
         field.performAction(AccessibilityNodeInfo.ACTION_CLICK)
         val args = Bundle()
         args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
-        if (field.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)) return true
+        // Landed-text verification (2026-10-17, doc 04 §1 v1.8.4): an action's boolean is
+        // NOT proof — Chrome's a11y bridge can accept and drop. SET_TEXT "succeeded" with
+        // the text absent is an accepted-and-dropped leg: the same SET_TEXT_REJECTED
+        // cause, the same paste fallback.
+        if (field.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args) && textLanded(field, text)) {
+            return true
+        }
         cause(TextEntryFailure.SET_TEXT_REJECTED)
         // Paste fallback: clipboard + ACTION_PASTE for fields that reject SET_TEXT.
         val clipboard = service.getSystemService(ClipboardManager::class.java) ?: run {
@@ -170,13 +191,30 @@ class GestureExecutor(private val service: AccessibilityService) : ActionExecuto
             return false
         }
         clipboard.setPrimaryClip(ClipData.newPlainText(PASTE_CLIP_LABEL, text))
-        if (!field.performAction(AccessibilityNodeInfo.ACTION_PASTE)) {
+        val pasteAccepted = field.performAction(AccessibilityNodeInfo.ACTION_PASTE)
+        // Hygiene (RC1): the secret lingers on the clipboard after a paste — clear it
+        // whatever the paste's outcome (a rejected paste leaves the clip set too).
+        runCatching { clipboard.clearPrimaryClip() }
+        if (!pasteAccepted) {
             cause(TextEntryFailure.PASTE_FAILED)
             return false
         }
-        // Hygiene (RC1): the secret lingers on the clipboard after a paste — clear it.
-        runCatching { clipboard.clearPrimaryClip() }
-        return true
+        // The paste was accepted — but accepted is not landed (the run-3 lesson: both
+        // mechanisms "fired" five times while the field never held the text). Verify.
+        if (textLanded(field, text)) return true
+        cause(TextEntryFailure.TEXT_NOT_LANDED)
+        return false
+    }
+
+    /**
+     * Landed-text verification (2026-10-17, doc 04 §1 v1.8.4): refresh the field and read
+     * its text; the entered text must be CONTAINED (not equal — autofill/formatting may
+     * wrap it; the phrase is at most [MAX_PHRASE_LENGTH] chars). A failed refresh is a
+     * failed verification — an unreadable field proves nothing.
+     */
+    private fun textLanded(field: AccessibilityNodeInfo, text: String): Boolean {
+        if (!field.refresh()) return false
+        return field.text?.toString()?.contains(text) == true
     }
 
     /**

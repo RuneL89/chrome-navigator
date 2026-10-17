@@ -1,7 +1,7 @@
 # Evaluation Harness
 
 **Document ID:** `NAVIGATOR-VISION-007`
-**Version:** 1.5.0 *(amended 2026-10-12 (Phase 10D): §2 fixture law gains the informed-re-plan, plan-integrity and placeholder-label case families; §3's gate rule gains the restructure/re-plan writer prompt surface (owner-ratified with the Phase-10D plan). Amended 2026-10-11 (Phase 10C): §2 fixture law gains the condition-validation, report-goal, redirect, no-good-target and browser-chrome case families (owner-ratified). Amended 2026-10-10: cascade question forms — Tier A replays the two-stage cascade (intent synthesis + stage-2 score synthesis); intent-vocabulary/rubric/instruction changes join the gate rule's change list)*
+**Version:** 1.5.1 *(amended 2026-10-17 (the hotel-iteration run-3 repair): §2's informed-re-plan fixture family (f) gains the THIRD request variant — the mechanism-cause informed re-plan whose failure block carries the INPUT_MECHANISM strategy-change hint; the hint is prompt law, the variant fixture is additive (the v4 goldens untouched), and the restructure/re-plan writer prompt surface stays in §3's gate rule. Amended 2026-10-12 (Phase 10D): §2 fixture law gains the informed-re-plan, plan-integrity and placeholder-label case families; §3's gate rule gains the restructure/re-plan writer prompt surface (owner-ratified with the Phase-10D plan). Amended 2026-10-11 (Phase 10C): §2 fixture law gains the condition-validation, report-goal, redirect, no-good-target and browser-chrome case families (owner-ratified). Amended 2026-10-10: cascade question forms — Tier A replays the two-stage cascade (intent synthesis + stage-2 score synthesis); intent-vocabulary/rubric/instruction changes join the gate rule's change list)*
 **Status:** Ratified (2026-10-03)
 **Date:** 2026-10-03
 **Implements:** ART-7 (versioned state text gates), doc 02 §5 (pin upgrades), doc 03 §3
@@ -44,11 +44,13 @@ measurement decision (checkpoint, precision, provider, graduation). It has two t
   slate or a flat spread triggers the bounded stage-1 re-ask, never a silent subtask failure;
   (e) **browser-chrome cases** — every slate excludes the full Chrome UI (URL field, toolbar,
   tab strip, menus).
-- **Phase-10D fixture additions (v1.5.0, owner-ratified 2026-10-12):** (f) **informed-re-plan
+- **Phase-10D fixture additions (v1.5.0, owner-ratified 2026-10-12; v1.5.1 note 2026-10-17):** (f) **informed-re-plan
   cases** — a subtask failure re-asks the writer WITH the failure-context block (the failing
   subtask, the code's failure reason, the page and its action buckets, the history, the assist
-  text); the prompt surface carries both request variants (initial + informed re-plan) as one
-  prompt-version fixture family; (g) **plan-integrity cases** — a re-plan that rewrites the
+  text); the prompt surface carries the request variants as one prompt-version fixture family —
+  the initial restructure, the informed re-plan, and (v1.5.1) the **mechanism-cause informed
+  re-plan** whose failure block carries the INPUT_MECHANISM strategy-change hint (change the
+  ROUTE, not the wording) — each variant pinned in its own additive fixture; (g) **plan-integrity cases** — a re-plan that rewrites the
   verified prefix without a valid `rollback` declaration must be refused loudly (counting as
   no capacity), and a declared one-step rollback must re-key the pointer to the first
   unfinished subtask, never restart; (h) **placeholder-label cases** — an editable control

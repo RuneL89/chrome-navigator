@@ -196,6 +196,99 @@ class GenClientTest {
     }
 
     @Test
+    fun `gate 10D repair - the mechanism-cause informed re-plan rides the INPUT_MECHANISM guidance verbatim`() {
+        // The v4 family's THIRD request variant (doc 04 §1 v1.8.4 — the run-3 repair): an
+        // INPUT_MECHANISM failure carries the strategy-change Guidance line — the writer
+        // must change the ROUTE, not the wording. Additive fixture: the v4 goldens above
+        // stay byte-identical (retire-and-add, doc 07 §2).
+        val mechanismFixtureJson: String by lazy {
+            javaClass.getResourceAsStream("/gen/golden-restructure-v4-mechanism.json")!!
+                .readBytes().decodeToString()
+        }
+        val mechanismFixture by lazy { Json.parseToJsonElement(mechanismFixtureJson).jsonObject }
+        assertEquals(
+            Prompts.PROMPT_VERSION,
+            mechanismFixture["promptVersion"]!!.jsonPrimitive.content,
+            "the variant rides the CURRENT prompt version",
+        )
+        val server = MockWebServer()
+        server.start()
+        server.enqueue(MockResponse().setBody(mechanismFixtureString(mechanismFixture, "replanResponse")))
+        val client = GenClient(
+            transport = OkHttpTransport(server.url("/api/v1/chat/completions").toString()),
+            config = GenEngineConfigs.generative("test-key-not-a-secret"),
+            retryDelay = {},
+        )
+        val result = runBlocking {
+            client.restructure(
+                "find the central library's weekend opening hours and tell me them",
+                generation = 2,
+                failure = mechanismFailure(),
+            )
+        }
+        val sent = Json.parseToJsonElement(server.takeRequest().body.readUtf8()).jsonObject
+        val golden = mechanismFixture["replanRequest"]!!.jsonObject
+        assertEquals(
+            golden["messages"]!!.jsonArray[0].jsonObject["content"]!!.jsonPrimitive.content,
+            sent["messages"]!!.jsonArray[0].jsonObject["content"]!!.jsonPrimitive.content,
+            "the variant shares the pinned system prompt byte-identically",
+        )
+        val sentUser = sent["messages"]!!.jsonArray[1].jsonObject["content"]!!.jsonPrimitive.content
+        assertEquals(
+            golden["messages"]!!.jsonArray[1].jsonObject["content"]!!.jsonPrimitive.content,
+            sentUser,
+            "the mechanism-cause user message (the INPUT_MECHANISM Guidance line) is fixture law",
+        )
+        assertTrue(
+            "change the ROUTE, not the wording" in sentUser && "Guidance: Typing into the failing" in sentUser,
+            "the strategy-change hint must ride the sent bytes",
+        )
+        assertEquals("restructure-v4/gen2", result.ladder.versionTag(result.promptVersion, result.generation))
+        assertEquals(null, result.ladder.rollback, "a strategy change needs no rollback")
+        assertEquals(3, result.ladder.subtasks.size, "the re-plan splits the failing step (growth is lawful)")
+        assertTrue(result.ladder.subtasks.last().done is DoneCondition.AnswerExtracted)
+        assertEquals(864L, result.usage.costMicroUsd, "640*800/1000 + 88*4000/1000")
+        server.shutdown()
+    }
+
+    /** The mechanism-cause failure context (the fixture's replanRequest bytes). */
+    private fun mechanismFailure() = navigator.core.ladder.ReplanContext(
+        failingOrdinal = 2,
+        failingInstruction = "the search results for the opening hours are displayed",
+        failingDone = "the address contains 'library.example/search?query=opening hours'",
+        cause = "typing into this field failed mechanically (set text, paste) - no mechanism left",
+        causeClass = navigator.core.ladder.ReplanContext.CauseClass.INPUT_MECHANISM,
+        pageHost = "library.example",
+        pageTitle = "Central Library — Home",
+        pageExcerptLines = listOf(
+            "Central Library — the city's reading rooms",
+            "Search the catalogue",
+            "Opening hours are listed on each branch page",
+        ),
+        slateIntent = null,
+        slateBucket = "form-fields",
+        slateLines = listOf("[n12] \"\" tap edit (480,320)"),
+        otherBucketLines = listOf(
+            "nav-links: \"Catalogue\", \"Branches\", \"Membership\"",
+            "buttons: \"Search\"",
+        ),
+        historyLines = listOf(
+            "step 1: fill-field \"\" -> error (gate approved) (set-text rejected, paste rejected)",
+            "step 2: fill-field \"\" -> no_change (activation yield)",
+        ),
+        assistText = null,
+        verifiedCount = 1,
+        verifiedPrefixLines = listOf(
+            "the library home page is open — done: the URL host is library.example",
+        ),
+        totalSubtasks = 3,
+        generation = 1,
+    )
+
+    private fun mechanismFixtureString(fixture: kotlinx.serialization.json.JsonObject, key: String): String =
+        fixture[key]!!.jsonObject.toString()
+
+    @Test
     fun `gate 10D_1 - a rollback declared on generation 1 is schema-refused through the bounded retry`() {
         val rollbackOnGen1 =
             """{"summary":"Open it.","subtasks":[{"instruction":"the site is loaded","done":{"urlHost":"en.wikipedia.org"}}],""" +

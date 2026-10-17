@@ -240,6 +240,21 @@ class NavigationLoop(
     private var lastFrontWindow: String = ""
     private var readinessAttempted = false
 
+    /**
+     * The mechanism-rotation memory (doc 04 §1 v1.8.4 — the hotel-iteration run-3 repair):
+     * the typing legs already failed per candidate, scoped to (ACTIVE subtask, page hash) —
+     * a page change or a subtask advance invalidates it, so new candidates start fresh.
+     * The law lives in [TypeMechanism] (pure); the STATE lives here as CLASS FIELDS, not
+     * `run()` locals — the method-size discipline (see [lastAssistText]). Every `run()`
+     * resets them first (per-run facts, the same contract as the window truth above).
+     * [typeMechAttemptCauses] collects the CURRENT text-entry attempt's reported causes
+     * (the executor's sink reports each failed stage in sequence); read at the LOG step.
+     */
+    private var typeMechPageHash: Int? = null
+    private var typeMechSubtaskKey: String? = null
+    private val typeMechFailedLegs = mutableMapOf<String, MutableSet<TypeMechanism.Mechanism>>()
+    private val typeMechAttemptCauses = mutableListOf<TextEntryFailure>()
+
     data class Config(
         /** Vision 03 §5: fewer meaningful nodes than this = unusable tree. */
         val minUsableNodes: Int = 5,
@@ -390,6 +405,9 @@ class NavigationLoop(
         everBrowserFront = false
         lastFrontWindow = ""
         readinessAttempted = false
+        typeMechPageHash = null
+        typeMechSubtaskKey = null
+        typeMechFailedLegs.clear()
 
         // -- the task ladder (Phase 10, vision 04 §1 v1.4.0) ---------------------------
         // When [ladderSource] is wired, EVERY goal restructures before any navigation:
@@ -1712,11 +1730,18 @@ class NavigationLoop(
                 // sanctioned post-injection echo (the acted-on field's own a11y text IS the
                 // typed secret on live Chrome). It renders [credential-redacted] here
                 // (doc 05 §2); the state builder masks every section the same way. The verb
-                // is the stage-1 intent.
+                // is the stage-1 intent. A TYPE attempt that consumed a mechanism leg names
+                // the chain truthfully (doc 04 §1 v1.8.4) and records the legs.
+                val mechanismChain = typeMechanismChain(kind, execOk, candidate.id)
+                if (mechanismChain.isNotEmpty()) {
+                    line(TypeMechanism.attemptLine(candidate.id, typeMechAttemptCauses, execOk))
+                }
+                typeMechAttemptCauses.clear()
                 history.add(
                     "step $stepIndex: ${choice.chosenId} \"${redactedLabel(candidate.label, redactionKeys())}\" -> " +
                         serial(outcome) +
-                        (gateEvent?.let { " (gate ${it.decision.name.lowercase()})" } ?: ""),
+                        (gateEvent?.let { " (gate ${it.decision.name.lowercase()})" } ?: "") +
+                        (if (mechanismChain.isEmpty()) "" else " ($mechanismChain)"),
                 )
 
                 guards!!.record(
@@ -2696,6 +2721,131 @@ class NavigationLoop(
             }
 
             /**
+             * The mechanism-rotation step entry (doc 04 §1 v1.8.4 — the run-3 repair; ONE
+             * local fun so `run()` pays one call and one closure, the method-size
+             * discipline). Consults the per-(ACTIVE subtask, candidate, page-hash) memory
+             * and either falls through to the ordinary typing attempt (legs 1-2), yields
+             * (mechanism 3), or fails the fill loudly (exhausted). [stepGate] is the
+             * step's own gate outcome — it rides whichever leg's row.
+             */
+            suspend fun typeMechanismStep(target: Candidate, stepGate: LoggedGateEvent?): IntentDispatch {
+                typeMechAttemptCauses.clear()
+                return when (
+                    val plan = typeMechanismConsult(
+                        obs.screenHash,
+                        subtaskKey = "${ladderGeneration}:${pointer?.activeOrdinal ?: 0}",
+                        candidateId = target.id,
+                    )
+                ) {
+                    // Legs 1-2: the typing attempt (the executor's set-text -> paste chain).
+                    is TypeMechanism.Plan.Type -> IntentDispatch.FallThrough
+
+                    // Leg 3 — TAP_AND_YIELD: ONLY the activation (a real tap, no text),
+                    // then the loop yields to the page; a picker layer's own input becomes
+                    // a fresh candidate on the next DECIDE. Consumes its step as a real
+                    // action; counts NO text-entry failure. The leg records itself as
+                    // consumed so the next attempt on this candidate exhausts loudly
+                    // instead of yielding forever.
+                    TypeMechanism.Plan.Yield -> {
+                        typeMechanismRecordFailed(target.id, listOf(TypeMechanism.Mechanism.TAP_AND_YIELD))
+                        line(TypeMechanism.yieldLine(target.id))
+                        val dispatched = executor.tap(target.cx, target.cy)
+                        delay(config.settleMs)
+                        val post = observer.observe()
+                        notePageUrl(post)
+                        lastPost = post
+                        val outcome = when {
+                            !dispatched -> Outcome.ERROR
+                            post.lines == obs.lines -> Outcome.NO_CHANGE
+                            else -> Outcome.PROGRESSED
+                        }
+                        logRow(
+                            stepIndex, state, question, choice, candidates,
+                            ExecutedAction(target.id, LoggedActionKind.TAP, ActionDisposition.EXECUTED),
+                            gateEvent = stepGate,
+                            outcome = outcome,
+                            escalation = escalation,
+                            targetScores = targetScores,
+                            targetStateText = targetViewText,
+                        )
+                        uiListener?.onStep(
+                            LoopUiListener.StepFacts(
+                                stepIndex = stepIndex,
+                                verb = choice.chosenId,
+                                label = redactedLabel(target.label, redactionKeys()),
+                                confidence = choice.confidence,
+                                gateMarker = LoopUiListener.gateMarker(stepGate),
+                            ),
+                        )
+                        history.add(
+                            "step $stepIndex: ${choice.chosenId} \"" +
+                                redactedLabel(target.label, redactionKeys()) + "\" -> " +
+                                serial(outcome) + " (activation yield)",
+                        )
+                        stuck.record(
+                            StuckDetector.Footprint(
+                                actionKey = "fill-yield:${target.id}",
+                                screenHash = post.screenHash,
+                                textLines = post.lines,
+                                isError = outcome == Outcome.ERROR,
+                            ),
+                        )
+                        stepIndex += 1
+                        if (assessStuck()) {
+                            handleStuckKill("still stuck after the fill activation - L3 auto-kill")
+                                ?.let { return IntentDispatch.Terminal(it) }
+                        }
+                        IntentDispatch.Consumed
+                    }
+
+                    // Exhausted: every typing mechanism failed on this candidate while the
+                    // page held — the fill fails LOUDLY with the truthful mechanical cause,
+                    // routed to the bounded subtask-failure path (the informed re-plan
+                    // classifies it INPUT_MECHANISM and the writer changes the ROUTE, not
+                    // the wording). Row = the failed-dispatch precedent (TYPE/ERROR,
+                    // phraseFailureStep's shape). Nothing was typed.
+                    is TypeMechanism.Plan.Exhausted -> {
+                        line("fill: no mechanism left for ${target.id} - the fill fails with its cause")
+                        logRow(
+                            stepIndex, state, question, choice, candidates,
+                            ExecutedAction(target.id, LoggedActionKind.TYPE, ActionDisposition.EXECUTED),
+                            gateEvent = stepGate,
+                            outcome = Outcome.ERROR,
+                            escalation = escalation,
+                            targetScores = targetScores,
+                            targetStateText = targetViewText,
+                        )
+                        uiListener?.onStep(
+                            LoopUiListener.StepFacts(
+                                stepIndex = stepIndex,
+                                verb = choice.chosenId,
+                                label = redactedLabel(target.label, redactionKeys()),
+                                confidence = choice.confidence,
+                                gateMarker = LoopUiListener.gateMarker(stepGate),
+                            ),
+                        )
+                        history.add(
+                            "step $stepIndex: fill-field \"" +
+                                redactedLabel(target.label, redactionKeys()) + "\" failed - " +
+                                plan.cause,
+                        )
+                        stuck.record(
+                            StuckDetector.Footprint(
+                                actionKey = "fill-field:${target.id}",
+                                screenHash = obs.screenHash,
+                                textLines = obs.lines,
+                                isError = true,
+                            ),
+                        )
+                        stepIndex += 1
+                        handleSubtaskFailureOrKill(plan.cause)
+                            ?.let { IntentDispatch.Terminal(it) }
+                            ?: IntentDispatch.Consumed
+                    }
+                }
+            }
+
+            /**
              * The `open-site` step (vision 04 §2 v1.6.0): the code VIEW intent — a
              * resolved URL is opened directly ([SiteEntry] over the ACTIVE subtask; no
              * model target, never a tap). No URL resolved (or no launcher wired) is the
@@ -2866,6 +3016,103 @@ class NavigationLoop(
             }
 
             /**
+             * The empty-slate path of a target-bearing intent (extracted to a local fun —
+             * run()'s method-size budget, pure code motion, byte-identical lines). Grace
+             * first (the page's tree may still be materializing — observe-only steps),
+             * then ONE bounded stage-1 re-ask with the fact (Phase 10C), then the
+             * no-good-target fallback. Returns the task's terminal [RunResult] when the
+             * task must end, null when the loop continues.
+             */
+            suspend fun emptySlateStep(intentId: String, graceUsed: Int): RunResult? {
+                if (graceUsed <= EMPTY_SLATE_GRACE_STEPS) {
+                    // The page's tree is still materializing (or the bucket is
+                    // genuinely empty on a healthy page — the grace is short and
+                    // bounded): give the next OBSERVE a chance instead of killing
+                    // the task on the spot. The step still logs its row (one row
+                    // per decision, doc 05 §2) with nothing executed.
+                    line(
+                        "decide: no stage-2 slate for '$intentId' (the " +
+                            "${Cascade.bucketFor(intentId)?.serialName} bucket is empty) - " +
+                            "empty-slate grace $graceUsed/$EMPTY_SLATE_GRACE_STEPS " +
+                            "(the page may still be materializing; observe-only step)",
+                    )
+                    history.add(
+                        "step $stepIndex: empty slate for '$intentId' " +
+                            "(grace $graceUsed/$EMPTY_SLATE_GRACE_STEPS)",
+                    )
+                    logRow(
+                        stepIndex, state, question, choice, candidates,
+                        ExecutedAction(null, LoggedActionKind.FINISH, ActionDisposition.REFUSED_BY_GUARD),
+                        gateEvent = null,
+                        outcome = Outcome.NO_CHANGE,
+                        escalation = escalation,
+                    )
+                    stepIndex += 1
+                    return null
+                }
+                line(
+                    "decide: no stage-2 slate for '$intentId' (the " +
+                        "${Cascade.bucketFor(intentId)?.serialName} bucket is empty after " +
+                        "the browser-chrome exclusion) - no-good-target, never a tap",
+                )
+                // Phase 10C (vision 04 §2 v1.7.0): ONE bounded stage-1 re-ask with
+                // the fact, instead of failing the subtask on an unusable slate.
+                val reaskedEmpty = reaskIntent(
+                    obs, intentId,
+                    "the '${Cascade.bucketFor(intentId)?.serialName}' slate is empty",
+                    question,
+                )
+                if (reaskedEmpty != null) {
+                    forcedIntentNextStep = reaskedEmpty.chosenId
+                    logNoChangeRow(state, question, choice, candidates)
+                    stepIndex += 1
+                    return null
+                }
+                return cascadeFallbackStep(
+                    "the '${Cascade.bucketFor(intentId)?.serialName}' slate was empty for '$intentId'",
+                    withStage2 = false,
+                )
+            }
+
+            /**
+             * The stage-2 NO-GOOD-TARGET path (extracted to a local fun — run()'s
+             * method-size budget, pure code motion, byte-identical lines): ONE bounded
+             * stage-1 re-ask with the fact (Phase 10C), else the fallback with the FAILING
+             * slate's evidence riding the row (Phase 10D, the 10C store gap closed).
+             * Returns the task's terminal [RunResult] when the task must end, null when
+             * the loop continues.
+             */
+            suspend fun stage2NoGoodStep(intentId: String, s2: Stage2Outcome.NoGoodTarget): RunResult? {
+                line(
+                    "decide: stage-2 NO-GOOD-TARGET (${s2.reason}) - " +
+                        "handshake/fallback, never a tap",
+                )
+                // Phase 10C (vision 04 §2 v1.7.0): ONE bounded stage-1 re-ask
+                // with the fact, instead of failing the subtask.
+                val reaskedFlat = reaskIntent(
+                    obs, intentId,
+                    "no good target on the ${Cascade.bucketFor(intentId)?.serialName} slate " +
+                        "(${s2.reason})",
+                    question,
+                )
+                if (reaskedFlat != null) {
+                    forcedIntentNextStep = reaskedFlat.chosenId
+                    logNoChangeRow(state, question, choice, candidates, targetScores, targetViewText)
+                    stepIndex += 1
+                    return null
+                }
+                return cascadeFallbackStep(
+                    "no good target on the ${Cascade.bucketFor(intentId)?.serialName} slate " +
+                        "(${s2.reason})",
+                    withStage2 = true,
+                    // Phase 10D: the FAILING slate's evidence (the outcome carries it)
+                    // rides this row — the 10C store gap closed.
+                    stage2Scores = s2.scores,
+                    stage2ViewText = s2.viewText,
+                )
+            }
+
+            /**
              * The code-path intent dispatch (vision 04 §2; extracted in Phase 10C for the
              * `run` method-size budget — the branches moved wholesale): verify-done,
              * open-site, go-back and scroll own their code paths and end the step; the
@@ -3017,86 +3264,13 @@ class NavigationLoop(
                     val slate = Cascade.slate(candidates, intentId)
                     if (slate.isEmpty()) {
                         consecutiveEmptySlates += 1
-                        if (consecutiveEmptySlates <= EMPTY_SLATE_GRACE_STEPS) {
-                            // The page's tree is still materializing (or the bucket is
-                            // genuinely empty on a healthy page — the grace is short and
-                            // bounded): give the next OBSERVE a chance instead of killing
-                            // the task on the spot. The step still logs its row (one row
-                            // per decision, doc 05 §2) with nothing executed.
-                            line(
-                                "decide: no stage-2 slate for '$intentId' (the " +
-                                    "${Cascade.bucketFor(intentId)?.serialName} bucket is empty) - " +
-                                    "empty-slate grace $consecutiveEmptySlates/$EMPTY_SLATE_GRACE_STEPS " +
-                                    "(the page may still be materializing; observe-only step)",
-                            )
-                            history.add(
-                                "step $stepIndex: empty slate for '$intentId' " +
-                                    "(grace $consecutiveEmptySlates/$EMPTY_SLATE_GRACE_STEPS)",
-                            )
-                            logRow(
-                                stepIndex, state, question, choice, candidates,
-                                ExecutedAction(null, LoggedActionKind.FINISH, ActionDisposition.REFUSED_BY_GUARD),
-                                gateEvent = null,
-                                outcome = Outcome.NO_CHANGE,
-                                escalation = escalation,
-                            )
-                            stepIndex += 1
-                            continue
-                        }
-                        line(
-                            "decide: no stage-2 slate for '$intentId' (the " +
-                                "${Cascade.bucketFor(intentId)?.serialName} bucket is empty after " +
-                                "the browser-chrome exclusion) - no-good-target, never a tap",
-                        )
-                        // Phase 10C (vision 04 §2 v1.7.0): ONE bounded stage-1 re-ask with
-                        // the fact, instead of failing the subtask on an unusable slate.
-                        val reaskedEmpty = reaskIntent(
-                            obs, intentId,
-                            "the '${Cascade.bucketFor(intentId)?.serialName}' slate is empty",
-                            question,
-                        )
-                        if (reaskedEmpty != null) {
-                            forcedIntentNextStep = reaskedEmpty.chosenId
-                            logNoChangeRow(state, question, choice, candidates)
-                            stepIndex += 1
-                            continue
-                        }
-                        cascadeFallbackStep(
-                            "the '${Cascade.bucketFor(intentId)?.serialName}' slate was empty for '$intentId'",
-                            withStage2 = false,
-                        )?.let { return it }
+                        emptySlateStep(intentId, consecutiveEmptySlates)?.let { return it }
                         continue
                     }
                     consecutiveEmptySlates = 0 // a live slate: the page is serving candidates again
                     when (val s2 = runStage2(intentId, slate)) {
                         is Stage2Outcome.NoGoodTarget -> {
-                            line(
-                                "decide: stage-2 NO-GOOD-TARGET (${s2.reason}) - " +
-                                    "handshake/fallback, never a tap",
-                            )
-                            // Phase 10C (vision 04 §2 v1.7.0): ONE bounded stage-1 re-ask
-                            // with the fact, instead of failing the subtask.
-                            val reaskedFlat = reaskIntent(
-                                obs, intentId,
-                                "no good target on the ${Cascade.bucketFor(intentId)?.serialName} slate " +
-                                    "(${s2.reason})",
-                                question,
-                            )
-                            if (reaskedFlat != null) {
-                                forcedIntentNextStep = reaskedFlat.chosenId
-                                logNoChangeRow(state, question, choice, candidates, targetScores, targetViewText)
-                                stepIndex += 1
-                                continue
-                            }
-                            cascadeFallbackStep(
-                                "no good target on the ${Cascade.bucketFor(intentId)?.serialName} slate " +
-                                    "(${s2.reason})",
-                                withStage2 = true,
-                                // Phase 10D: the FAILING slate's evidence (the outcome carries it)
-                                // rides this row — the 10C store gap closed.
-                                stage2Scores = s2.scores,
-                                stage2ViewText = s2.viewText,
-                            )?.let { return it }
+                            stage2NoGoodStep(intentId, s2)?.let { return it }
                             continue
                         }
 
@@ -3249,10 +3423,19 @@ class NavigationLoop(
             // trust).
             var hclass: HClass? = codeClass
             var gateTrigger = GATE_TRIGGER_CODE_NET
-            if (codeClass == null &&
-                RiskGate.mutationNet(gateAction, pageContext) == RiskGate.MutationNet.SUSPICIOUS
-            ) {
-                val verdict = AdditiveEngineCheck.evaluate(gateAction, pageContext.site) { proposition ->
+
+            /**
+             * The additive-only H9 consult on a SUSPICIOUS surface (vision 06 §3;
+             * extracted to a local fun — run()'s method-size budget, pure code motion —
+             * the suspension it needs already existed inline). Returns the resolved class
+             * and the logged trigger source.
+             */
+            suspend fun additiveEngineConsult(
+                suspect: GateAction,
+                context: PageContext,
+                codeNullClass: HClass?,
+            ): Pair<HClass?, String> {
+                val verdict = AdditiveEngineCheck.evaluate(suspect, context.site) { proposition ->
                     // doc 06 §2a (PREUAT2-4 (A)): the consult proposition embeds the raw
                     // target label — a sanctioned post-injection echo must never reach
                     // ANY engine. Masked here with the same redaction seam as the decide
@@ -3273,16 +3456,23 @@ class NavigationLoop(
                     uiListener?.onThinking(false)
                     band(consultPTrue)
                 }
-                hclass = AdditiveEngineCheck.resolve(codeClass, verdict)
-                gateTrigger = GATE_TRIGGER_ADDITIVE_ENGINE
                 line(
-                    "gate: additive engine check on ${pageContext.site} -> " +
+                    "gate: additive engine check on ${context.site} -> " +
                         if (verdict == AdditiveEngineCheck.Verdict.AddH9) {
                             "engine non-LOW: H9 ADDED (gate rate raised, vision 06 §3)"
                         } else {
                             "engine LOW: no gate (logged for the audit trail)"
                         },
                 )
+                return AdditiveEngineCheck.resolve(codeNullClass, verdict) to GATE_TRIGGER_ADDITIVE_ENGINE
+            }
+
+            if (codeClass == null &&
+                RiskGate.mutationNet(gateAction, pageContext) == RiskGate.MutationNet.SUSPICIOUS
+            ) {
+                val (resolved, trigger) = additiveEngineConsult(gateAction, pageContext, codeClass)
+                hclass = resolved
+                gateTrigger = trigger
             }
 
             var proceed = true
@@ -3458,6 +3648,20 @@ class NavigationLoop(
                 )
             }
 
+            // The mechanism rotation (doc 04 §1 v1.8.4): consulted BEFORE the phrase fetch —
+            // a yielded or exhausted fill never costs a writer call. A gate-card secret
+            // keeps the single injected path (the owner approved THAT injection; an
+            // activation tap is no substitute) — the rotation governs the loop-phrased fill.
+            if (proceed && !taskAborted && kind == ActionKind.TYPE &&
+                textSource !is TextSource.GateSuppliedSecret
+            ) {
+                when (val d = typeMechanismStep(candidate, gateEvent)) {
+                    is IntentDispatch.Terminal -> return d.result
+                    IntentDispatch.Consumed -> continue
+                    IntentDispatch.FallThrough -> {}
+                }
+            }
+
             // The fill-field phrase fetch, AFTER the gate resolved (locked decision #4,
             // vision 04 §2 v1.6.0): a credential-typing path never reaches this (its
             // TextSource is the card's secret — the writer is never called on a
@@ -3480,44 +3684,64 @@ class NavigationLoop(
             // RC1: the terminal text-entry failure cause (null when nothing failed or
             // the executor did not report one); the execute line renders it.
             var typeFailureCause: TextEntryFailure? = null
-            if (proceed) {
-                execOk = when (kind) {
-                    ActionKind.TAP, ActionKind.SUBMIT -> executor.tap(candidate.cx, candidate.cy)
-                    ActionKind.TYPE -> {
-                        // Phase 08F (vision 04 §2 step 5): the TextSource is the ONLY
-                        // lawful payload. A TYPE action without one, a secret on a
-                        // non-credential action, or a credential action that somehow
-                        // kept the stub phrase is a wiring bug — fail loudly, never
-                        // fall through. The secret value is passed straight to the
-                        // injection call and bound nowhere else (doc 06 §2a).
-                        val source = requireNotNull(textSource) {
-                            "TYPE action ${candidate.id} has no TextSource - the typed-text seam is unwired"
-                        }
-                        val text = when (source) {
-                            is TextSource.StubPhrase -> source.text
-                            is TextSource.LlmPhrase -> source.text
-                            is TextSource.GateSuppliedSecret -> {
-                                check(credentialTyping) {
-                                    "a gate-supplied secret reached a non-credential typing action - wrong TextSource"
-                                }
-                                // RC2 binding check: the secret may only be injected
-                                // into the candidate it was approved FOR.
-                                requireSecretCandidateBinding(secretBoundTo, candidate.id)
-                                source.value
-                            }
-                        }
-                        // RC1: the executor reports the terminal failure cause; the
-                        // execute line logs it as `-> FAILED (CAUSE)`.
-                        executor.enterText(candidate.cx, candidate.cy, text) { typeFailureCause = it }
+
+            /**
+             * The intent's one action against the stage-2 target (vision 04 §2 step 5;
+             * extracted to a local fun — run()'s method-size budget — pure code motion,
+             * byte-identical behavior). NOT suspend: every executor call here is a plain
+             * (non-suspending) dispatch, so no coroutine state is added. A TYPE action's
+             * terminal failure cause is reported through [onTypeFailure] (RC1); the
+             * rotation's cause collector fills beside it.
+             */
+            fun executeAction(
+                actKind: ActionKind,
+                target: Candidate,
+                onTypeFailure: (TextEntryFailure) -> Unit,
+            ): Boolean = when (actKind) {
+                ActionKind.TAP, ActionKind.SUBMIT -> executor.tap(target.cx, target.cy)
+                ActionKind.TYPE -> {
+                    // Phase 08F (vision 04 §2 step 5): the TextSource is the ONLY
+                    // lawful payload. A TYPE action without one, a secret on a
+                    // non-credential action, or a credential action that somehow
+                    // kept the stub phrase is a wiring bug — fail loudly, never
+                    // fall through. The secret value is passed straight to the
+                    // injection call and bound nowhere else (doc 06 §2a).
+                    val source = requireNotNull(textSource) {
+                        "TYPE action ${target.id} has no TextSource - the typed-text seam is unwired"
                     }
-                    ActionKind.SCROLL -> executor.scroll(
-                        candidate.cx,
-                        candidate.cy,
-                        candidate.id.startsWith(CandidateEnumerator.SCROLL_DOWN_ID),
-                    )
-                    ActionKind.BACK -> executor.back()
-                    ActionKind.FINISH -> true
+                    val text = when (source) {
+                        is TextSource.StubPhrase -> source.text
+                        is TextSource.LlmPhrase -> source.text
+                        is TextSource.GateSuppliedSecret -> {
+                            check(credentialTyping) {
+                                "a gate-supplied secret reached a non-credential typing action - wrong TextSource"
+                            }
+                            // RC2 binding check: the secret may only be injected
+                            // into the candidate it was approved FOR.
+                            requireSecretCandidateBinding(secretBoundTo, target.id)
+                            source.value
+                        }
+                    }
+                    // RC1: the executor reports the terminal failure cause; the
+                    // execute line logs it as `-> FAILED (CAUSE)`. The rotation also
+                    // collects the full cause sequence — each failed stage names its
+                    // leg (doc 04 §1 v1.8.4).
+                    executor.enterText(target.cx, target.cy, text) {
+                        onTypeFailure(it)
+                        typeMechAttemptCauses.add(it)
+                    }
                 }
+                ActionKind.SCROLL -> executor.scroll(
+                    target.cx,
+                    target.cy,
+                    target.id.startsWith(CandidateEnumerator.SCROLL_DOWN_ID),
+                )
+                ActionKind.BACK -> executor.back()
+                ActionKind.FINISH -> true
+            }
+
+            if (proceed) {
+                execOk = executeAction(kind, candidate) { typeFailureCause = it }
                 // Credential-sourced text renders [credential-redacted] in the step log
                 // (doc 05 §2); the stub-phrase path keeps its pre-08F line unchanged.
                 // The acted-on label masks at SOURCE too (PREUAT2-4 (B)): it is page
@@ -3602,6 +3826,45 @@ class NavigationLoop(
             "the browser never came to the front, so there was no page to read " +
                 "(front window: ${lastFrontWindow.ifBlank { "unknown" }})"
         }
+
+    /**
+     * The mechanism-rotation consult (doc 04 §1 v1.8.4; class scope so `run()` pays one
+     * call — the method-size discipline): the per-(ACTIVE subtask, candidate) memory is
+     * scoped to the page hash — a hash change or a subtask advance INVALIDATES it (new
+     * candidates start fresh at the ladder's first leg). The law itself is pure
+     * [TypeMechanism.nextLeg].
+     */
+    private fun typeMechanismConsult(
+        pageHash: Int,
+        subtaskKey: String,
+        candidateId: String,
+    ): TypeMechanism.Plan {
+        if (pageHash != typeMechPageHash || subtaskKey != typeMechSubtaskKey) {
+            typeMechPageHash = pageHash
+            typeMechSubtaskKey = subtaskKey
+            typeMechFailedLegs.clear()
+        }
+        return TypeMechanism.nextLeg(typeMechFailedLegs[candidateId] ?: emptySet())
+    }
+
+    /** Records [legs] as failed on [candidateId] in the rotation memory. */
+    private fun typeMechanismRecordFailed(candidateId: String, legs: Collection<TypeMechanism.Mechanism>) {
+        if (legs.isEmpty()) return
+        typeMechFailedLegs.getOrPut(candidateId) { mutableSetOf() }.addAll(legs)
+    }
+
+    /**
+     * The finished TYPE attempt's chain phrase for the history line ("" when the attempt
+     * consumed no mechanism leg — a clean set-text success stays byte-identical). Records
+     * the failed legs as a side effect: this runs at the LOG step, exactly once per attempt.
+     */
+    private fun typeMechanismChain(kind: ActionKind, execOk: Boolean, candidateId: String): String {
+        if (kind != ActionKind.TYPE) return ""
+        val legs = TypeMechanism.legsFailed(typeMechAttemptCauses)
+        if (legs.isEmpty()) return ""
+        typeMechanismRecordFailed(candidateId, legs)
+        return TypeMechanism.chainPhrase(typeMechAttemptCauses, execOk)
+    }
 
     /** A gate refusal resolves to SKIP, or to ABORT_TASK on the second refusal. */
     private fun refusalOutcome(decision: GateDecision, onSkip: ActionDisposition): Pair<ActionDisposition, Boolean> =

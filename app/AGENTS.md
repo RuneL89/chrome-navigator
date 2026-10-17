@@ -520,7 +520,14 @@ setup wizard (`setup/`).
     waits BOUNDED (~5s, 400ms cadence, executor-internal) for the ACTIVE window to be
     an allowlisted browser before resolving the field, and clears the clipboard after
     a paste; the window DECISION is the pure `textEntryWindowCause` beside
-    `observe/BrowserPackages`, JVM-pinned — the Android wrapper stays thin), `GatePresenter` (interface; `AutoDenyGatePresenter` = harness
+    `observe/BrowserPackages`, JVM-pinned — the Android wrapper stays thin; the
+    2026-10-17 run-3 repair (doc 04 §1 v1.8.4): LANDED-TEXT VERIFICATION — after
+    ACTION_SET_TEXT success AND after ACTION_PASTE success the field is refreshed and
+    its text must CONTAIN the entered phrase (an action's boolean is not proof; an
+    accepted-and-dropped write reports SET_TEXT_REJECTED and falls through to the
+    paste leg; an accepted-and-dropped paste reports the additive enum value
+    TEXT_NOT_LANDED), the clipboard clears whatever the paste's outcome, and the
+    typed-field anchor keys off the verified return), `GatePresenter` (interface; `AutoDenyGatePresenter` = harness
     test mode, `DebugGatePresenter` = overlay dialog with 30s countdown,
     `ScriptedGatePresenter`; card visibility (2026-10-07 S25+ UAT defect fix, both Debug
     presenters): overlay window when "display over other apps" is granted, otherwise the
@@ -688,7 +695,11 @@ setup wizard (`setup/`).
     `<failure>` block), with the system prompt gaining the immutable-prefix /
     declared-rollback / growth rules and the per-cause hint; the golden
     `app/src/test/resources/gen/golden-restructure-v4.json` records both variants
-    (retire-and-add; v3 stays byte-identical). PLAN INTEGRITY IS CODE (`:core`
+    (retire-and-add; v3 stays byte-identical); the 2026-10-17 run-3 repair added the
+    family's THIRD request variant — the mechanism-cause informed re-plan whose failure
+    block carries the `INPUT_MECHANISM` strategy-change hint (the hint is PROMPT LAW;
+    `gen/golden-restructure-v4-mechanism.json`, additive, the v4 goldens untouched,
+    GenClientTest pins the variant byte-identically). PLAN INTEGRITY IS CODE (`:core`
     `ReplanRule.check`): the next ladder's first `verifiedCount − steps` subtasks must be
     byte-equal (instruction + rendered condition) to the verified prefix — growth is
     lawful, `Ladder.rollback = {steps = 1, lesson}` is the ONE declared step back (gen ≥ 2
@@ -716,6 +727,42 @@ setup wizard (`setup/`).
     …)" (class-scope `observeRefusalDetail()`), a browser-once-front one keeps
     "I can't read this site" byte-identically. The corner log's RECOVERY ROW rides the
     facts (see `LiveLogRecovery`/overlay). The LEGACY non-ladder path is untouched.
+    THE 2026-10-17 RUN-3 REPAIR (doc 04 §1 v1.8.4; owner picks solutions 1+2+3): the
+    FILL MECHANISM ROTATION + landed-text verification (see `StepExecutor`) + the
+    INPUT_MECHANISM routing. `TypeMechanism.kt` (NEW — PURE, JVM-pinned, no Android
+    types; the SetupLogic/LiveLogRecovery precedent): the per-(ACTIVE subtask,
+    candidate) mechanism ladder SET_TEXT → PASTE → TAP_AND_YIELD → exhausted — the LAW
+    is never to repeat a failed mechanism on the same candidate while the page hash is
+    unchanged; the MEMORY lives in CLASS fields (`typeMechPageHash`/`typeMechSubtaskKey`/
+    `typeMechFailedLegs`/`typeMechAttemptCauses`, reset at every run() start — the
+    method-size discipline) and clears on a page-hash change or a subtask advance (the
+    key is "<ladderGeneration>:<ordinal>"); the class-scope helpers
+    `typeMechanismConsult`/`typeMechanismRecordFailed`/`typeMechanismChain` keep run()
+    to one call. The loop consults the policy BEFORE the fill-field phrase fetch (a
+    yielded or exhausted fill never costs a writer call) through ONE local fun
+    `typeMechanismStep`: legs 1-2 fall through to the ordinary executor chain (the
+    cause sink's FULL sequence lands in `typeMechAttemptCauses`; the LOG step records
+    the consumed legs and names the chain truthfully —
+    `fill: set-text rejected, paste rejected (paste failed) - n31` — plus the history
+    digest suffix); the YIELD leg taps ONLY (the activation, no text), consumes its
+    step as a real action (row TAP + history "(activation yield)" + stuck footprint),
+    counts NO text-entry failure, records itself consumed, and lets the ordinary DECIDE
+    re-observe (a picker layer's real input becomes a fresh candidate); EXHAUSTED, the
+    fill fails to `handleSubtaskFailureOrKill` with the truthful cause "typing into
+    this field failed mechanically (set text, paste) - no mechanism left" (a non-ladder
+    run STUCK_KILLs with that detail verbatim). A gate-card secret is EXEMPT (the owner
+    approved THAT injection — `textSource !is TextSource.GateSuppliedSecret`). The
+    exhaustion cause classifies INPUT_MECHANISM (`ReplanSupport.classify`: the
+    "mechanically"/"set text"/"paste"/"no mechanism" markers, added AFTER the specific
+    existing prefixes) — core's additive `CauseClass.INPUT_MECHANISM` (doc 04 §1
+    v1.8.4) — whose per-cause hint is PROMPT LAW (the failure block's Guidance line:
+    change the ROUTE, not the wording — a different control, an activation step before
+    typing, a waypoint page, a reorder; never a rephrase); the v4 golden family gains
+    the THIRD request variant (`gen/golden-restructure-v4-mechanism.json`, ADDITIVE —
+    the v4 goldens untouched; GenClientTest pins the variant byte-identically + the
+    strategy-splitting response). The escalation card's copy is UNCHANGED (a card copy
+    change is a UI change with its own design interview); the truthful naming lives in
+    the step log, the cause, and the ReplanContext only.
     LOOP-STATE DISCIPLINE (measured 2026-10-12 with javap on the
     compiled class): `run()` was 58,646 of the JVM's 65,535-byte method cap after Phase 10D
     (6,889 bytes of headroom); the 2026-10-13 post-UAT repair rounds added the
@@ -739,6 +786,18 @@ setup wizard (`setup/`).
     `readinessAttempted` are CLASS fields (reset at every run() start; per-run facts)
     and the string moved to the class-scope `observeRefusalDetail()` — run() measured
     63,330/65,535 (~2.2 KB headroom).
+    Re-proven AGAIN 2026-10-17 (the run-3 rotation repair): the rotation's first cut
+    broke the cap a third time; the two NEW lessons, both verified by javap —
+    (c) a new SUSPEND local fun adds a coroutine suspension point whose dispatch/spill
+    tables cost far more than the moved code (the additive-engine consult and the
+    stage-2 extraction only paid off once the INLINE blocks they replaced shrank the
+    suspension regions), so prefer NON-suspend extractions (`executeAction` is
+    deliberately not suspend — every executor call in it is a plain dispatch) and
+    (d) the two big stage-2 branches (`emptySlateStep`/`stage2NoGoodStep`) plus the
+    additive-consult block (`additiveEngineConsult`) moved wholesale into local funs,
+    byte-identical lines. run() measured 57,364/65,535 (~8.2 KB headroom; the 2026-10-17
+    pre-repair HEAD baseline was 63,331 — the extraction round left run() SMALLER than
+    it found it).
   * `src/main/kotlin/navigator/app/stub/` — `StubEngine` (Phase 6; Phase 10B: the
     cascade scripting): a `DecisionEngine` replaying a `StubScript` deterministically
     ($0 spend); answers select by option id, `labelContains`, `bucketFirst`(+ordinal),
@@ -1086,7 +1145,19 @@ setup wizard (`setup/`).
   fire; the never-browser-front REFUSED detail names the browser-never-front truth +
   the recovery facts, a browser-once-front refusal keeps the doc-03 message
   byte-identically) + `LiveLogRecoveryTest` (2 — the PURE eligibility matrix over every
-  terminal; the exact owner-ratified label);
+  terminal; the exact owner-ratified label); the 2026-10-17 run-3 gates:
+  `TypeMechanismTest` (14 — the rotation matrix set-text→paste→tap-and-yield→exhausted
+  with the exact truthful cause; the leg mapping (a mechanism cause names its leg; the
+  pre-mechanism failures consume none); the truthful attempt/yield/chain lines (the
+  run-3 shape byte-pinned); the INPUT_MECHANISM classification over the mechanical
+  strings with every existing mapping unchanged; the strategy-change writer hint) +
+  `TypeMechanismLoopTest` (2 — the REAL loop: legs in order (one typing attempt, one
+  activation tap, nothing on exhaustion), the truthful cause on the non-ladder
+  STUCK_KILL terminal verbatim, the step-log chain + mechanism-3 lines, the phrase
+  fetched for the typing leg only; the exhaustion cause reaching the informed re-plan
+  verbatim as INPUT_MECHANISM + the accepted re-plan resetting the memory so the new
+  subtask types again) + GenClientTest's third-variant gate (the mechanism-cause
+  re-plan request byte-pinned + the strategy-splitting, rollback-free response);
   `./gradlew test` since Phase 10B Round 2: :core 360 + :app 512 = 872 tests, 0 failures
 (the Round-2 additions: `CascadeTest` — the pure routing module; `WindowTitlesTest` —
 the title reader's lawful-window decision; `Phase10BLoopTest` — the cascade execution

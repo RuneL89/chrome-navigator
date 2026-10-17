@@ -44,7 +44,9 @@ internal object ReplanSupport {
     /**
      * The failure's taxonomy class, derived from the loop's own cause string (the strings
      * are authored in [NavigationLoop]; this mapping is their only reader — a general
-     * classification, never site-specific).
+     * classification, never site-specific). The INPUT_MECHANISM markers (doc 04 §1
+     * v1.8.4) sit AFTER the more specific prefixes: a mechanical fill failure's truthful
+     * cause must classify as a planning problem, not fall through to OTHER.
      */
     fun classify(cause: String): ReplanContext.CauseClass = when {
         cause.startsWith("no good target") -> ReplanContext.CauseClass.NO_GOOD_TARGET
@@ -54,6 +56,10 @@ internal object ReplanSupport {
         cause.contains("found no scroll candidate") -> ReplanContext.CauseClass.NO_SCROLL_CANDIDATE
         cause.contains("auto-kill") || cause.contains("still stuck") -> ReplanContext.CauseClass.STUCK_REPEATS
         cause.contains("give-up") -> ReplanContext.CauseClass.ENGINE_GIVE_UP
+        cause.contains("mechanically") ||
+            cause.contains("set text") ||
+            cause.contains("paste") ||
+            cause.contains("no mechanism") -> ReplanContext.CauseClass.INPUT_MECHANISM
         else -> ReplanContext.CauseClass.OTHER
     }
 

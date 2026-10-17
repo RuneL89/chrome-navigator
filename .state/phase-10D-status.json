@@ -83,7 +83,23 @@
     "the 'hotel in Tallinn' enablers: ladders > 8 subtasks, cross-page working memory, the booking-class risk pathway"
   ],
   "suite_baseline": "1472 executions / 0 failures (924 unique: 376 core + 548 app) — phase-10d Stage 1 + verifier round-1 fixes green; phase-10c was 1442 executions pre-change by the same census",
-  "state": "ALL THREE STAGES COMPLETE — verifier clean on every stage (rounds 1-3 for Stage 1, two rounds each for Stages 2-3), emulator-verified, suite 1478 executions / 0 failures (928 unique). Ready for the owner UAT battery.",
+  "state": "ALL THREE STAGES COMPLETE — verifier clean on every stage (rounds 1-3 for Stage 1, two rounds each for Stages 2-3), emulator-verified, suite 1478 executions / 0 failures (928 unique). Ready for the owner UAT battery. Post-UAT: the 2026-10-13 repair rounds + the 2026-10-17 hotel-iteration repairs (runs 1-3) ride the same phase; run-3 repair below.",
+  "hotel_iteration_run3_repair": {
+    "date": "2026-10-17",
+    "mandate": "owner picked solutions 1+2+3 from .state/hotel-iter/run3/REPORT.md in one pass (1 = harden the EXISTING text-entry path; the CORRECTION recorded there stands: the paste fallback pre-existed and booking.com's combobox rejected BOTH mechanisms five times)",
+    "vision_amendments": ["04 v1.8.4 §1 (the fill mechanism rotation law, tap-and-yield, landed-text verification, INPUT_MECHANISM + the strategy-change hint, no card copy change)", "07 v1.5.1 (the informed-re-plan fixture family (f) gains the third mechanism-cause variant; the hint is prompt law; additive)"],
+    "landed": [
+      "StepExecutor.enterText: landed-text verification (refresh + containment) after SET_TEXT and after PASTE; accepted-and-dropped = SET_TEXT_REJECTED; additive TextEntryFailure.TEXT_NOT_LANDED; the clipboard clears whatever the paste's outcome; the anchor keys off the verified return",
+      "TypeMechanism.kt (NEW, pure, JVM-pinned): the SET_TEXT -> PASTE -> TAP_AND_YIELD -> exhausted ladder; the memory in NavigationLoop CLASS fields (page-hash + generation:ordinal scoped; reset per run; cleared on page change or subtask advance); consulted BEFORE the phrase fetch (a yielded/exhausted fill never costs a writer call); the YIELD leg taps only, consumes its step, counts no text-entry failure; EXHAUSTED routes the truthful cause to handleSubtaskFailureOrKill; gate-card secrets exempt",
+      "core ReplanContext.CauseClass.INPUT_MECHANISM (additive); ReplanSupport.classify gains the mechanical markers AFTER the specific prefixes; Prompts.causeHint carries the strategy-change hint (prompt law); golden-restructure-v4-mechanism.json (ADDITIVE third v4-family variant; GenClientTest pins it)"
+    ],
+    "method_limit": "the first cut broke the 64KB cap a third time; fixed by one local fun (typeMechanismStep) + pure code-motion extractions (executeAction NON-suspend — new suspend local funs add costly coroutine suspension points; additiveEngineConsult, emptySlateStep, stage2NoGoodStep). run() 57,364/65,535 (~8.2 KB headroom; HEAD baseline 63,331)",
+    "gates": ":core:test 380/0, :app:testDebugUnitTest 586/0 (full reruns; new gates: TypeMechanismTest 14, TypeMechanismLoopTest 2, GenClientTest +1), :app:assembleDebug BUILD SUCCESSFUL; Tier A report NOT regenerated (no Tier-A-pinned surface touched; the eval tests ran green inside :core:test — the committed drift artifacts stand)",
+    "llmCost": "$0.00 by the implementer (no live calls of any kind; the orchestrator owns the emulator/live legs)",
+    "deviations": [],
+    "blocker": null,
+    "nextAction": "canon-verifier cold round on this repair, then the orchestrator's emulator/live run-4"
+  },
   "final": {
     "branch": "phase-10d (master untouched)",
     "suite": "1478 executions / 0 failures (928 unique: 378 core + 550 app)",

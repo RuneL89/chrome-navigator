@@ -117,7 +117,9 @@ When the user requests a durable behavior change, record it here or in the relev
   Phase 10D: `ReplanRule` — the plan-integrity law (the verified prefix is code-frozen, one
   declared `Rollback {steps = 1, lesson}` step back is the only exception, growth lawful,
   violations refused loudly) + `ReplanContext` — the bounded failure-context payload the
-  informed re-plan carries),
+  informed re-plan carries (its `CauseClass` gained `INPUT_MECHANISM` additively,
+  doc 04 v1.8.4: a mechanical fill failure is a planning problem, not a wording
+  problem)),
   the laya tokenizer port (BOTH checkpoint families — the 421M ByteLevel BPE and the
   Phase-8C v32b 256k Metaspace BPE), risk gate: H1–H9 classifier (Phase 8E added H9
   persistent-state mutation: broad code net + the additive-only engine check) + per-task trust state
@@ -203,6 +205,12 @@ When the user requests a durable behavior change, record it here or in the relev
   state-truthful REFUSED detail (the browser-never-front truth instead of a
   misattributed "I can't read this site"), and the corner log's one-tap recovery
   action row ("Open the browser and retry" — browser-fixable refusals only, tap =
-  home launch + auto re-run of the same goal). See `app/AGENTS.md`
+  home launch + auto re-run of the same goal); the run-3 repair (doc 04 v1.8.4): the
+  fill mechanism rotation (a fill never repeats a failed typing mechanism per candidate
+  on an unchanged page — set-text → paste → the tap-and-yield activation leg → a loud
+  mechanical exhaustion), landed-text verification (an action's boolean is not proof),
+  and the exhaustion cause classified `INPUT_MECHANISM` whose informed re-plan hint
+  changes the ROUTE, never the wording (the v4 golden family's third request variant,
+  additive). See `app/AGENTS.md`
 * `tools/` — Phase-8/8C model-acquisition + reference-vector scripts (uv-driven; build-time
   HF downloads only). See `tools/AGENTS.md`

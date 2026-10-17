@@ -29,7 +29,10 @@ object Prompts {
      *
      * v4 (Phase 10D, doc 04 §1 v1.8.0): the re-plan generation is INFORMED — the same
      * version covers both request variants (the initial restructure and the informed
-     * re-plan with the `<failure>` block); the golden fixture records both.
+     * re-plan with the `<failure>` block); the golden fixture records both. v1.8.4
+     * (2026-10-17, the run-3 repair): the family gains a THIRD variant — the
+     * mechanism-cause informed re-plan ([CauseClass.INPUT_MECHANISM]'s Guidance line;
+     * fixture `golden-restructure-v4-mechanism.json`, additive, the v4 goldens untouched).
      */
     const val PROMPT_VERSION = "restructure-v4"
 
@@ -272,6 +275,11 @@ object Prompts {
         ReplanContext.CauseClass.ENGINE_GIVE_UP ->
             "The decision engine gave up on this page and step. Break the step down, or reach " +
                 "a different page first."
+        ReplanContext.CauseClass.INPUT_MECHANISM ->
+            "Typing into the failing control failed mechanically (every mechanism was " +
+                "rejected); change the ROUTE, not the wording — name a different control, an " +
+                "activation step before typing, a waypoint page, or reorder the subtasks; do " +
+                "not rephrase this subtask."
         ReplanContext.CauseClass.OTHER -> null
     }
 

@@ -91,6 +91,14 @@ data class ReplanContext(
         /** The engine chose give-up from the code recovery set. */
         ENGINE_GIVE_UP,
 
+        /**
+         * Text entry failed mechanically (the control rejected every typing mechanism) —
+         * a planning problem, not a wording problem. Doc 04 §1 v1.8.4: the informed
+         * re-plan must change the ROUTE (a different control, an activation step, a
+         * waypoint page, a reorder), never rephrase the failing subtask.
+         */
+        INPUT_MECHANISM,
+
         /** Anything else — the hint stays generic. */
         OTHER,
     }
