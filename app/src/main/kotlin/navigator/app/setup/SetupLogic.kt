@@ -5,18 +5,18 @@ package navigator.app.setup
  * Gate F JVM tests pin it without Robolectric. The wizard (SetupActivity) feeds the
  * device reads in and renders the states this derives.
  *
- * The checks (phase doc §2.2 + the 2026-10-17 hotel-iteration addition):
+ * The checks (phase doc §2.2 + the 2026-10-17 hotel-iteration addition), in render order:
  *  1. accessibility service enabled (the Android 13+ "Allow restricted settings" path
  *     is INSTRUCTION TEXT — a sideloaded a11y app is restricted after install);
  *  2. Samsung battery whitelist (TEXT-GUIDED: no programmatic whitelist on stock
  *     Android is lawful; non-Samsung devices pass with an info line so the wizard can
  *     complete green on the emulator);
  *  3. OpenRouter key saved (presence only — the value is never rendered back);
- *  4. on-device laya model status (informational, eval-only since the 2026-10-06 owner
- *     demotion — Jev is primary, the model is NOT required, never blocks);
- *  5. OpenRouter key LIVE (ON-DEMAND — [keyLiveCheck] runs only when the owner taps the
+ *  4. OpenRouter key LIVE (ON-DEMAND — [keyLiveCheck] runs only when the owner taps the
  *     card's Test button; a free GET validates the stored key, because presence says
- *     nothing about validity and the 2026-10-17 run died on a stored-but-dead key).
+ *     nothing about validity and the 2026-10-17 run died on a stored-but-dead key);
+ *  5. on-device laya model status (informational, eval-only since the 2026-10-06 owner
+ *     demotion — Jev is primary, the model is NOT required, never blocks).
  */
 object SetupLogic {
 
