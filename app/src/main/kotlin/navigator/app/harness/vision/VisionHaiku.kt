@@ -50,6 +50,7 @@ class VisionHaiku(
         userText: String,
         imageBase64: String?,
         what: String,
+        onRaw: ((requestBody: String, responseBody: String) -> Unit)? = null,
     ): String {
         val body = buildChatBody(model, system, userText, imageBase64?.takeUnless { ablateVision })
         var attempt = 0
@@ -85,6 +86,7 @@ class VisionHaiku(
             onUsage(
                 VisionJev.VisionUsage(input, output, GenClient.writerCostMicroUsd(input, output)),
             )
+            onRaw?.invoke(body, response.body)
             return content
         }
     }

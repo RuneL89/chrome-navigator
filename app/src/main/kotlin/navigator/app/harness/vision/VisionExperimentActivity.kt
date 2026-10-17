@@ -113,7 +113,7 @@ class VisionExperimentActivity : Activity() {
                 val service = awaitService()
                 val observer = HarnessObserver(service)
                 val resultJson = if (mode == MODE_PROBE) {
-                    runProbe(observer, jev, evidence, budget)
+                    runProbe(activity = this@VisionExperimentActivity, observer, haiku, evidence, budget)
                 } else {
                     runLoopMode(this@VisionExperimentActivity, observer, service, jev, haiku, evidence, budget, goal, runId)
                 }
@@ -128,6 +128,35 @@ class VisionExperimentActivity : Activity() {
                 finish()
             }
         }
+        // The blank activity must never be the observed screen: hand the front back to
+        // whatever the owner set up (the browser with the page) before the run observes.
+        moveTaskToBack(true)
+    }
+
+    // -- the shared readiness pre-step -----------------------------------------------------
+
+    /**
+     * The engine-free browser-readiness gate (the product loop's pre-step precedent):
+     * launch the allowlisted browser's HOME when a non-blank NON-browser window is
+     * front, then wait bounded for a browser to be readable. Returns false when no
+     * browser ever came (the caller proceeds loudly — the evidence tells the truth).
+     */
+    private suspend fun ensureBrowserFront(activity: VisionExperimentActivity, observer: HarnessObserver): Boolean {
+        val first = observer.observe()
+        if (first.windowPackage.isNotBlank() && !BrowserPackages.isBrowser(first.windowPackage)) {
+            HarnessObserver.installedBrowser(activity)?.let { pkg ->
+                log("front window is ${first.windowPackage} - launching browser home ($pkg)")
+                packageManager.getLaunchIntentForPackage(pkg)?.let { startActivity(it) }
+            }
+        }
+        val deadline = System.currentTimeMillis() + READINESS_WAIT_MS
+        while (System.currentTimeMillis() < deadline) {
+            val o = observer.observe()
+            if (BrowserPackages.isBrowser(o.windowPackage)) return true
+            delay(READINESS_POLL_MS)
+        }
+        log("WARNING: no allowlisted browser came to the front — observing whatever is front")
+        return false
     }
 
     // -- loop mode -------------------------------------------------------------------------
@@ -143,22 +172,7 @@ class VisionExperimentActivity : Activity() {
         goal: String,
         runId: String,
     ): kotlinx.serialization.json.JsonObject {
-        // The readiness pre-step, engine-free (the product loop's browser-readiness
-        // precedent): launch the allowlisted browser's HOME when the front window is
-        // non-blank and non-browser, then wait bounded for a browser to be readable.
-        val first = observer.observe()
-        if (first.windowPackage.isNotBlank() && !BrowserPackages.isBrowser(first.windowPackage)) {
-            HarnessObserver.installedBrowser(activity)?.let { pkg ->
-                log("front window is ${first.windowPackage} - launching browser home ($pkg)")
-                packageManager.getLaunchIntentForPackage(pkg)?.let { startActivity(it) }
-            }
-            val deadline = System.currentTimeMillis() + READINESS_WAIT_MS
-            while (System.currentTimeMillis() < deadline) {
-                val o = observer.observe()
-                if (BrowserPackages.isBrowser(o.windowPackage)) break
-                delay(READINESS_POLL_MS)
-            }
-        }
+        ensureBrowserFront(this, observer)
 
         val loop = VisionLoop(
             observer = observer,
@@ -197,17 +211,21 @@ class VisionExperimentActivity : Activity() {
     // -- Phase-A probe mode ----------------------------------------------------------------
 
     /**
-     * One screenshot, one Box question per labeled interactive node, IoU scored against
-     * the node's REAL bounds — the grounding calibration that needs no loop.
+     * One screenshot, one LOCATE call per labeled interactive node set, IoU scored
+     * against the node's REAL bounds — the grounding calibration that needs no loop.
+     * (v2: the locator is Haiku-with-image — the decisions proxy drops image assets,
+     * measured 2026-10-17, so the Box question type is unusable through this key.)
      */
     private suspend fun runProbe(
+        activity: VisionExperimentActivity,
         observer: HarnessObserver,
-        jev: VisionJev,
+        haiku: VisionHaiku,
         evidence: VisionEvidence,
         budget: ExpBudget,
     ): kotlinx.serialization.json.JsonObject {
         val service = NavigatorAccessibilityService.instance
             ?: throw IllegalStateException("a11y service vanished")
+        ensureBrowserFront(activity, observer)
         val obs = observer.observe()
         val shot = VisionCapture(service).capture()
         evidence.screenshot(0, shot, shot.jpegBytes)
@@ -224,31 +242,33 @@ class VisionExperimentActivity : Activity() {
         if (targets.isEmpty()) {
             log("probe: no labeled interactive nodes on this page")
         } else {
-            val ref = VisionJev.newImageRef()
-            val questions = targets.mapIndexed { i, node ->
-                val label = (node.text.ifBlank { node.desc }).take(60)
-                VisionJev.Question.Box("p$i", "the '$label' control")
-            }
-            val state = buildString {
-                append("PROBE: locate each named control on the page image. SCREENSHOT: `$ref`")
-            }
+            val labels = targets.map { (it.text.ifBlank { it.desc }).take(60) }
             val started = System.currentTimeMillis()
+            var rawReq = ""
             var rawRes = ""
-            val answers = jev.ask(
-                state, questions, shot.base64, ref, "probe",
-                onRaw = { _, res -> rawRes = res },
+            val content = haiku.chat(
+                VisionPrompts.LOCATE_SYSTEM,
+                VisionPrompts.locateUser(labels),
+                shot.base64,
+                "locate",
+                onRaw = { req, res -> rawReq = req; rawRes = res },
             )
-            evidence.call("probe", state, rawRes, System.currentTimeMillis() - started, null)
-            targets.forEachIndexed { i, node ->
-                val answer = answers["p$i"] as? VisionJev.Answer.Box ?: return@forEachIndexed
+            evidence.call("locate", rawReq, rawRes, System.currentTimeMillis() - started, null)
+            VisionPrompts.parseLocated(content, labels, "locate").forEach { loc ->
+                val node = targets.firstOrNull {
+                    (it.text.ifBlank { it.desc }).take(60).equals(loc.label, ignoreCase = true)
+                } ?: return@forEach
                 val box = VisionMath.boxToScreenRect(
-                    answer.left, answer.top, answer.right, answer.bottom, shot.screenWidth, shot.screenHeight,
+                    loc.box.left, loc.box.top, loc.box.right, loc.box.bottom, shot.screenWidth, shot.screenHeight,
                 )
                 val real = VisionMath.RectPx(node.left, node.top, node.right, node.bottom)
                 val iou = VisionMath.iou(box, real)
-                evidence.grounding.record(node.text.ifBlank { node.desc }, answer.confidence, iou, node.id)
-                rows.add(ProbeRow(node.text.ifBlank { node.desc }, answer.confidence, iou, box, real))
-                log("probe p$i: '${(node.text.ifBlank { node.desc }).take(40)}' conf=%.2f iou=%.2f box=$box real=$real".format(answer.confidence, iou))
+                evidence.grounding.record(loc.label, loc.confidence, iou, node.id)
+                rows.add(ProbeRow(loc.label, loc.confidence, iou, box, real))
+                log(
+                    "probe '${loc.label.take(40)}' conf=%.2f iou=%.2f box=$box real=$real"
+                        .format(loc.confidence, iou),
+                )
             }
         }
         return buildJsonObject {

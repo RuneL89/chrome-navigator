@@ -814,22 +814,32 @@ setup wizard (`setup/`).
     `vision/` (EXPERIMENT BRANCH ONLY — `exp/vision-box`, 2026-10-17, owner-directed
     pure try-out that deliberately ignores the Project Vision law; delete with the
     branch): the STANDALONE multimodal loop — per step it feeds BOTH the a11y read AND
-    a screenshot to the writer (Haiku plan/propose/confirm/extract via `VisionHaiku`
-    content-parts chat) and to Jev 1.14 (`VisionJev`: the images-API `assets` map +
-    `TypeSafe-Danger-Zone-Images` header; Box grounding + noul second opinion),
-    matches Box fractions to a11y node bounds by IoU (`VisionMath`, JVM-pinned), and
-    acts through the production `GestureExecutor`. `DoneConditionChecker` stays the
-    completion DECIDER — model opinions are RECORDED, never deciding. 10x product
-    budget ceilings (`ExpBudget`, owner directive); evidence (screenshots + raw
-    request/response JSON, owner-consented, EXPERIMENT-ONLY — the product ART-8
-    memory-only rule is untouched) to `run-reports/vision-exp/<runId>/`; reports via
-    `RunReportStore`. Entry: `VisionExperimentActivity` (adb; `--es goal` loop mode /
-    `--es visionMode probe` = the Phase-A grounding calibration: one screenshot, one
-    Box question per labeled interactive node, IoU scored against real bounds).
-    The debug build carries a DISTINCT identity (`navigator.app.visionexp` +
-    versionNameSuffix + the debug-sourceSet app/a11y labels) so it installs ALONGSIDE
-    the product app (owner directive 2026-10-17); remove the build.gradle.kts debug
-    block, `src/debug/res`, the manifest activity, and this bullet with the branch.
+    a screenshot to the writer (Haiku: plan/propose/confirm/extract via `VisionHaiku`
+    content-parts chat; the propose answer carries a per-proposal BOX — Haiku is the
+    LOCATOR, because the OpenRouter decisions proxy SILENTLY DROPS image assets,
+    live-measured 2026-10-17: a 199KB screenshot + danger header answered with
+    text-only usage and garbage boxes) and to Jev 1.14 (`VisionJev`: the alpha
+    endpoint, model alias `typesafe/jev-1.14`; TEXT-side only — the pick-Choice among
+    proposals + the noul second opinion; its Box support is built and dormant until a
+    typesafe-native key exists). Boxes map to a11y node bounds by IoU (`VisionMath`,
+    JVM-pinned); actions ride the production `GestureExecutor`. `DoneConditionChecker`
+    stays the completion DECIDER (plus the 10C honesty-gate habit: a WEAK content
+    condition cannot complete a subtask that has not acted); the one model-driven
+    terminal is `MODELS_CONFIRM_DONE` — proposer-exhausted + noul + confirm all
+    agreeing, DISTINCTLY FLAGGED code-unverified (it fired only on the webview-shell
+    emulator whose a11y depth filter hides body prose). 10x product budget ceilings
+    (`ExpBudget`, owner directive); evidence (screenshots + raw request/response JSON,
+    owner-consented, EXPERIMENT-ONLY — the product ART-8 memory-only rule is untouched)
+    to `run-reports/vision-exp/<runId>/`; reports via `RunReportStore`. Entry:
+    `VisionExperimentActivity` (adb; `--es goal` loop mode / `--es visionMode probe` =
+    the Phase-A grounding calibration: one screenshot, one LOCATE call, IoU scored
+    against real bounds — live result: near-exact boxes on visible controls, honest
+    misses on hidden items). Emulator-verified end to end: GOAL_ACHIEVED (report goal)
+    and MODELS_CONFIRM_DONE (navigation goal, tap at IoU 0.86). The debug build
+    carries a DISTINCT identity (`navigator.app.visionexp` + versionNameSuffix + the
+    debug-sourceSet app/a11y labels) so it installs ALONGSIDE the product app (owner
+    directive 2026-10-17); remove the build.gradle.kts debug block, `src/debug/res`,
+    the manifest activity, and this bullet with the branch.
     `HarnessActivity` (engine picker — Phase 8C mode register
     STUB | LIVE(jev) | LAYA | LAYA_FB_JEV via `--es engine` (the UI switch covers
     STUB↔LIVE; the laya modes arrive by intent, are shown, and disable the switch);

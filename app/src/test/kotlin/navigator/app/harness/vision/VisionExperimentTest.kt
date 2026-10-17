@@ -225,6 +225,43 @@ class VisionExperimentTest {
     }
 
     @Test
+    fun `proposals carry boxes and confidence when a screenshot rode along`() {
+        val content = """
+            {"proposals":[{"description":"the 'Search' field at the top","action":"type","text":"cat",
+              "box":{"top":0.1,"bottom":0.2,"left":0.3,"right":0.9},"confidence":0.8}]}
+        """.trimIndent()
+        val p = VisionPrompts.parseProposals(content, "t").single()
+        assertEquals(0.8, p.confidence)
+        assertEquals(0.1, p.box?.top)
+        assertEquals(0.9, p.box?.right)
+        assertFailsWith<VisionHaiku.VisionHaikuException> {
+            VisionPrompts.parseProposals(
+                """{"proposals":[{"description":"a","box":{"top":0.9,"bottom":0.2,"left":0.3,"right":0.9}}]}""",
+                "t",
+            )
+        }
+    }
+
+    @Test
+    fun `located labels parse back to the request`() {
+        val content = """
+            {"boxes":[{"label":"Search","box":{"top":0.05,"bottom":0.1,"left":0.8,"right":0.95},"confidence":0.9}]}
+        """.trimIndent()
+        val located = VisionPrompts.parseLocated(content, listOf("Search"), "t").single()
+        assertEquals("Search", located.label)
+        assertEquals(0.9, located.confidence)
+        assertEquals(0.8, located.box.left)
+        val numbered = """
+            {"boxes":[{"label":"0. Search","box":{"top":0.05,"bottom":0.1,"left":0.8,"right":0.95},"confidence":0.9}]}
+        """.trimIndent()
+        assertEquals("Search", VisionPrompts.parseLocated(numbered, listOf("Search"), "t").single().label)
+        assertEquals(0, VisionPrompts.parseLocated("""{"boxes":[]}""", listOf("Search"), "t").size)
+        assertFailsWith<VisionHaiku.VisionHaikuException> {
+            VisionPrompts.parseLocated("""{"results":[]}""", listOf("Search"), "t")
+        }
+    }
+
+    @Test
     fun `extract json handles fences and confirms parse tolerantly`() {
         val fenced = "```json\n{\"complete\":true,\"reason\":\"title matches\"}\n```"
         assertEquals(true, VisionPrompts.parseConfirm(fenced)?.first)

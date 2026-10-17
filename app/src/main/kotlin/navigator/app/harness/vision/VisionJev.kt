@@ -30,6 +30,14 @@ import navigator.core.wire.WireTransportException
  * backoff; any HTTP status and any malformed 200 are loud content failures. Usage is
  * reported per completed call; images price as text tokens, so the ledger prices tokens
  * at the production decision-engine table.
+ *
+ * MEASURED 2026-10-17 (live): the OpenRouter alpha/decisions proxy SILENTLY DROPS the
+ * image assets — a request carrying a 199KB screenshot + the danger header answered 200
+ * with `input_tokens: 455` (text-only size) and near-zero-confidence garbage boxes;
+ * a direct curl of the same payload reproduced it. The [Question.Box] type is kept and
+ * parses, but the loop's v2 grounding rides Haiku-with-image instead ([VisionHaiku]) —
+ * with a typesafe-native key (the vendor endpoint accepts images: docs.typesafe.ai)
+ * the Box leg is ready to switch back on.
  */
 class VisionJev(
     private val transport: WireTransport,
@@ -133,8 +141,13 @@ class VisionJev(
         /** The images API's required header whenever an asset rides the request. */
         const val DANGER_ZONE_IMAGES_HEADER = "TypeSafe-Danger-Zone-Images"
 
-        /** The experiment's default Jev snapshot for vision (docs: Box requires Jev 1.14). */
-        const val DEFAULT_VISION_MODEL = "typesafe/jev-1.14.0"
+        /**
+         * The experiment's default Jev snapshot for vision (Box requires Jev 1.14). The
+         * OpenRouter alpha endpoint resolves this ALIAS to the dated snapshot
+         * (`typesafe/jev-1.14` -> `typesafe/jev-1.14-20261014`, live-verified 2026-10-17);
+         * the vendor-style slugs (`jev-1.14.0`/`jev-preview`) 400 on the proxy.
+         */
+        const val DEFAULT_VISION_MODEL = "typesafe/jev-1.14"
 
         /**
          * A fresh image reference per request (the docs' `<uuid>-label` pattern; every

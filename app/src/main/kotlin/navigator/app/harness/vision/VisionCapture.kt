@@ -64,14 +64,17 @@ class VisionCapture(private val service: NavigatorAccessibilityService) {
     }
 
     private suspend fun rawCapture(attempt: Int): android.accessibilityservice.AccessibilityService.ScreenshotResult {
-        val displayId = service.display?.displayId ?: Display.DEFAULT_DISPLAY
+        // The DEFAULT display is the target (a service Context is not display-associated —
+        // Context.getDisplay throws UnsupportedOperationException on some images; the
+        // product blur path catches exactly that and degrades, which is why it never
+        // surfaced there). No display probe at all.
         val executor = java.util.concurrent.Executor { command ->
             Handler(Looper.getMainLooper()).post(command)
         }
         return suspendCancellableCoroutine { cont ->
             try {
                 service.takeScreenshot(
-                    displayId,
+                    Display.DEFAULT_DISPLAY,
                     executor,
                     object : android.accessibilityservice.AccessibilityService.TakeScreenshotCallback {
                         override fun onSuccess(screenshotResult: android.accessibilityservice.AccessibilityService.ScreenshotResult) {
