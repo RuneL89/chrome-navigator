@@ -5,7 +5,7 @@ package navigator.app.setup
  * Gate F JVM tests pin it without Robolectric. The wizard (SetupActivity) feeds the
  * device reads in and renders the states this derives.
  *
- * The four checks (phase doc §2.2):
+ * The checks (phase doc §2.2 + the 2026-10-17 hotel-iteration addition):
  *  1. accessibility service enabled (the Android 13+ "Allow restricted settings" path
  *     is INSTRUCTION TEXT — a sideloaded a11y app is restricted after install);
  *  2. Samsung battery whitelist (TEXT-GUIDED: no programmatic whitelist on stock
@@ -13,7 +13,10 @@ package navigator.app.setup
  *     complete green on the emulator);
  *  3. OpenRouter key saved (presence only — the value is never rendered back);
  *  4. on-device laya model status (informational, eval-only since the 2026-10-06 owner
- *     demotion — Jev is primary, the model is NOT required, never blocks).
+ *     demotion — Jev is primary, the model is NOT required, never blocks);
+ *  5. OpenRouter key LIVE (ON-DEMAND — [keyLiveCheck] runs only when the owner taps the
+ *     card's Test button; a free GET validates the stored key, because presence says
+ *     nothing about validity and the 2026-10-17 run died on a stored-but-dead key).
  */
 object SetupLogic {
 
@@ -140,6 +143,59 @@ object SetupLogic {
         required = false,
     )
 
+    /**
+     * The on-demand live-key test's states (2026-10-17 hotel iteration, run-1 fix 2):
+     * UNTESTED until the owner taps the card's Test button — the network call NEVER
+     * runs by itself (owner interview 2026-10-17: "only when I tap Test"), so wizard
+     * refreshes and resumes never ping OpenRouter.
+     */
+    enum class KeyTestState { UNTESTED, TESTING, LIVE, REJECTED, ERROR }
+
+    /** One live-key test's outcome: the state plus the human-facing status line. */
+    data class KeyTestOutcome(val state: KeyTestState, val detail: String)
+
+    /**
+     * The live-key check's state (check 5, "API key is live"): the stored key's PRESENCE
+     * (check 3) says nothing about its VALIDITY — the 2026-10-17 hotel run died on a
+     * stored-but-dead key (401 "User not found") at the first paid call. This check
+     * validates on demand: free (`GET /api/v1/key`, no tokens), explicit (button), and
+     * its result rides the card's detail line. INFORMATIONAL — never gates the summary
+     * (an offline owner must still complete the wizard).
+     */
+    fun keyLiveCheck(state: KeyTestState, detail: String): CheckState = when (state) {
+        KeyTestState.UNTESTED -> CheckState(
+            id = CHECK_KEY_LIVE,
+            status = Status.INFO,
+            detail = "Not tested yet — tap \"Test key\" to validate the stored key against " +
+                "OpenRouter (a free call; no tokens are spent).",
+            required = false,
+        )
+        KeyTestState.TESTING -> CheckState(
+            id = CHECK_KEY_LIVE,
+            status = Status.INFO,
+            detail = "Testing the key against OpenRouter…",
+            required = false,
+        )
+        KeyTestState.LIVE -> CheckState(
+            id = CHECK_KEY_LIVE,
+            status = Status.GREEN,
+            detail = detail,
+            required = false,
+        )
+        KeyTestState.REJECTED -> CheckState(
+            id = CHECK_KEY_LIVE,
+            status = Status.RED,
+            detail = detail,
+            required = false,
+        )
+        KeyTestState.ERROR -> CheckState(
+            id = CHECK_KEY_LIVE,
+            status = Status.RED,
+            detail = detail,
+            required = false,
+        )
+    }
+
     /** Whether the wizard can complete all-green (every REQUIRED check green/INFO-passed). */
     fun allRequiredGreen(states: List<CheckState>): Boolean =
         states.filter { it.required }.all { it.status == Status.GREEN }
@@ -148,6 +204,7 @@ object SetupLogic {
     const val CHECK_BATTERY = "battery"
     const val CHECK_KEY = "key"
     const val CHECK_MODEL = "model"
+    const val CHECK_KEY_LIVE = "keyLive"
 
     /**
      * UAT 9.2 revision R4 — the battery "Done" acknowledgement's persistence location:

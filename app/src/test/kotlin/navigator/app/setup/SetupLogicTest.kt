@@ -148,6 +148,71 @@ class SetupLogicTest {
     }
 
     @Test
+    fun `the live-key check maps every test state - untested and testing are info, live green, rejected and error red`() {
+        // 2026-10-17 hotel iteration, check 5: the on-demand live-key card's pure mapping.
+        val untested = SetupLogic.keyLiveCheck(
+            SetupLogic.KeyTestState.UNTESTED,
+            "Not tested yet — tap \"Test key\" to validate the stored key against " +
+                "OpenRouter (a free call; no tokens are spent).",
+        )
+        assertEquals(SetupLogic.Status.INFO, untested.status)
+        assertFalse(untested.required, "an untested (or offline) key never blocks the wizard")
+        assertTrue(untested.detail.contains("Test key"))
+
+        val testing = SetupLogic.keyLiveCheck(
+            SetupLogic.KeyTestState.TESTING,
+            "Testing the key against OpenRouter…",
+        )
+        assertEquals(SetupLogic.Status.INFO, testing.status)
+
+        val live = SetupLogic.keyLiveCheck(
+            SetupLogic.KeyTestState.LIVE,
+            "OpenRouter accepted the key — it is live.",
+        )
+        assertEquals(SetupLogic.Status.GREEN, live.status)
+        assertFalse(live.required)
+
+        val rejected = SetupLogic.keyLiveCheck(
+            SetupLogic.KeyTestState.REJECTED,
+            "OpenRouter rejected the key (401 — not found or revoked). " +
+                "Enter a fresh key above and save, then test again.",
+        )
+        assertEquals(SetupLogic.Status.RED, rejected.status)
+        assertTrue(rejected.detail.contains("401"), "the rejection names the failure class")
+        assertTrue(rejected.detail.contains("fresh key"), "the recovery path is named")
+
+        val error = SetupLogic.keyLiveCheck(
+            SetupLogic.KeyTestState.ERROR,
+            "Network error (IOException) — check the connection and try again.",
+        )
+        assertEquals(SetupLogic.Status.RED, error.status)
+    }
+
+    @Test
+    fun `the live-key check never gates the summary - offline owners complete the wizard`() {
+        val wizard = listOf(
+            SetupLogic.accessibilityCheck(true),
+            SetupLogic.batteryCheck("Google", acknowledged = false),
+            SetupLogic.keyCheck(true),
+            SetupLogic.keyLiveCheck(
+                SetupLogic.KeyTestState.UNTESTED,
+                "Not tested yet — tap \"Test key\" to validate the stored key against " +
+                    "OpenRouter (a free call; no tokens are spent).",
+            ),
+            SetupLogic.modelCheck(false),
+        )
+        assertTrue(
+            SetupLogic.allRequiredGreen(wizard),
+            "an untested live-key card must not block the all-green summary",
+        )
+    }
+
+    @Test
+    fun `the live-key card id and titles are stable`() {
+        assertEquals("keyLive", SetupLogic.CHECK_KEY_LIVE)
+    }
+
+    @Test
     fun `the summary is all-green only when every required check is green`() {
         val emulatorWizard = listOf(
             SetupLogic.accessibilityCheck(true),

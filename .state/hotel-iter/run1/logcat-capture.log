@@ -1,0 +1,13 @@
+--------- beginning of main
+10-17 09:59:06.452 19724 19724 W GoalInputOverlay: goal input: screenshot attempt 1 threw UnsupportedOperationException - retrying once in 400ms (first-attempt-after-connect quirk)
+10-17 09:59:06.855 19724 19886 W GoalInputOverlay: goal input: screenshot unavailable after retry (UnsupportedOperationException) - plain backdrop
+10-17 09:59:12.770 19724 19886 E NavigatorService: product run FAILED loudly: GenProtocolException: HTTP 401 from https://openrouter.ai/api/v1/chat/completions (model anthropic/claude-haiku-5.5) during restructure — not retried (wire law). Body: {"error":{"message":"User not found.","code":401}}
+--------- beginning of system
+10-17 10:12:50.755  3249  4102 D OverlayManager: reconcileSettingsForPackage pkgName=com.google.android.apps.bard userId=0
+10-17 10:12:50.755  3249  4102 I OverlayManager: updateOverlaysForTarget() called with: targetPackage = [com.google.android.apps.bard], userId = [0], flags = [8]
+10-17 10:12:50.763  3249  4102 D OverlayManager: reconcileSettingsForPackage pkgName=com.google.android.apps.maps userId=150
+10-17 10:12:50.763  3249  4102 I OverlayManager: updateOverlaysForTarget() called with: targetPackage = [com.google.android.apps.maps], userId = [150], flags = [8]
+10-17 10:19:32.763  3249  4102 D OverlayManager: reconcileSettingsForPackage pkgName=navigator.app userId=0
+10-17 10:19:32.763  3249  4102 I OverlayManager: updateOverlaysForTarget() called with: targetPackage = [navigator.app], userId = [0], flags = [2]
+10-17 10:19:32.821  3249  4102 D OverlayManager: reconcileSettingsForPackage pkgName=navigator.app userId=0
+10-17 10:19:32.821  3249  4102 I OverlayManager: updateOverlaysForTarget() called with: targetPackage = [navigator.app], userId = [0], flags = [0]

@@ -52,6 +52,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,11 +62,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import navigator.app.overlay.NavigatorService
 
 /**
- * The guided setup wizard (phase doc §2.2): four re-runnable checks with state and
- * deep-link actions —
+ * The guided setup wizard (phase doc §2.2): five checks with state and deep-link
+ * actions —
  *  1. accessibility-service enable (with the Android 13+ "Allow restricted settings"
  *     path explained — a sideloaded a11y app is restricted after install);
  *  2. Samsung battery whitelist (TEXT-GUIDED — no programmatic whitelist on stock
@@ -73,18 +77,25 @@ import navigator.app.overlay.NavigatorService
  *     green on the emulator);
  *  3. OpenRouter key entry ([OpenRouterKeyStore]; presence check only — never renders
  *     the key back; ART-8 local-only);
- *  4. model-download status (informational; eval-only since the 2026-10-06 owner
+ *  4. on-demand live-key validation (the 2026-10-17 hotel-iteration addition: a
+ *     "Test key" button fires ONE free GET to OpenRouter — presence says nothing about
+ *     validity, and that day's run died on a stored-but-dead key; the result is an
+ *     inline status line on its own card, never an auto-call);
+ *  5. model-download status (informational; eval-only since the 2026-10-06 owner
  *     demotion — Jev is primary, never blocks).
- * A summary line reports the all-required-green state. The screen also STARTS the
- * [NavigatorService] (a lawful FOREGROUND start — the FGS background-start law) and
- * triggers the goal-input overlay for the notification's "New task" action.
+ * A summary line reports the all-required-green state (check 4 never gates). The screen
+ * also STARTS the [NavigatorService] (a lawful FOREGROUND start — the FGS
+ * background-start law) and triggers the goal-input overlay for the notification's
+ * "New task" action.
  *
  * Presentation (owner design pass 2026-10-09, ai-ui-design-skills interview: warm
  * brand-forward, dark-first compact, restructure + polish): warm-dark token set
  * ([NavigatorColors]) under a dark [MaterialTheme], the runtime amber as the single
  * brand accent, page header + required-checks progress summary + one card per check.
  * Presentation only — every behavior, handler, and UAT-approved string below is
- * unchanged (R3 live refresh, R4 battery-ack persistence, R5 saved-key law).
+ * unchanged (R3 live refresh, R4 battery-ack persistence, R5 saved-key law). The
+ * live-key card follows the 2026-10-17 owner interview (a new check card, wizard
+ * language, tap-to-test, inline status line).
  */
 class SetupActivity : ComponentActivity() {
 
@@ -156,6 +167,15 @@ class SetupActivity : ComponentActivity() {
         var keyInput by remember { mutableStateOf("") }
         var keySaved by remember { mutableStateOf(false) }
         var keyPresent by remember { mutableStateOf(OpenRouterKeyStore.has(this@SetupActivity)) }
+        // Check 5 (the on-demand live-key test, 2026-10-17): its state lives OUTSIDE the
+        // refresh cycle — refresh() renders it from these vars but never triggers the
+        // network call; only the card's Test button does.
+        var keyTestState by remember { mutableStateOf(SetupLogic.KeyTestState.UNTESTED) }
+        var keyTestDetail by remember {
+            mutableStateOf("Not tested yet — tap \"Test key\" to validate the stored key against " +
+                "OpenRouter (a free call; no tokens are spent).")
+        }
+        val scope = rememberCoroutineScope()
 
         fun refresh() {
             val enabledServices = Settings.Secure.getString(
@@ -172,6 +192,7 @@ class SetupActivity : ComponentActivity() {
             ))
             checks.add(SetupLogic.batteryCheck(Build.MANUFACTURER, batteryAcknowledged))
             checks.add(SetupLogic.keyCheck(keyStored))
+            checks.add(SetupLogic.keyLiveCheck(keyTestState, keyTestDetail))
             checks.add(SetupLogic.modelCheck(modelPresent))
             keyPresent = keyStored
         }
@@ -318,12 +339,51 @@ class SetupActivity : ComponentActivity() {
                                             OpenRouterKeyStore.save(this@SetupActivity, keyInput)
                                             // The field clears; the state shows saved-only.
                                             keyInput = ""
+                                            // A new key invalidates the previous test result.
+                                            keyTestState = SetupLogic.KeyTestState.UNTESTED
+                                            keyTestDetail = (
+                                                "Not tested yet — tap \"Test key\" to validate " +
+                                                    "the stored key against OpenRouter (a free " +
+                                                    "call; no tokens are spent)."
+                                                )
                                             keySaved = !keySaved // re-trigger the LaunchedEffect
                                         }
                                     },
                                     enabled = keyInput.isNotBlank(),
                                     modifier = Modifier.fillMaxWidth(),
                                 ) { Text(if (keyPresent) "Replace key" else "Save key") }
+                            }
+
+                            SetupLogic.CHECK_KEY_LIVE -> Column(
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                if (keyPresent) {
+                                    OutlinedButton(
+                                        onClick = {
+                                            keyTestState = SetupLogic.KeyTestState.TESTING
+                                            keyTestDetail = "Testing the key against OpenRouter…"
+                                            scope.launch {
+                                                val outcome = withContext(Dispatchers.IO) {
+                                                    testStoredKey()
+                                                }
+                                                keyTestState = outcome.state
+                                                keyTestDetail = outcome.detail
+                                            }
+                                        },
+                                        enabled = keyTestState != SetupLogic.KeyTestState.TESTING,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) {
+                                        Text(
+                                            if (keyTestState == SetupLogic.KeyTestState.TESTING) {
+                                                "Testing…"
+                                            } else {
+                                                "Test key"
+                                            },
+                                        )
+                                    }
+                                }
+                                // No key stored: no button — the card's detail line already
+                                // points at check 3 (save a key first).
                             }
                         }
                     }
@@ -368,6 +428,59 @@ class SetupActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    /**
+     * Check 5's network edge (2026-10-17): ONE free GET against OpenRouter's key endpoint
+     * with the stored key — `200` = live, `401` = rejected (the exact failure the
+     * 2026-10-17 hotel run hit at its first paid call), anything else = an honest error
+     * line. Runs on [Dispatchers.IO] only (the button's coroutine dispatches); the key
+     * rides the Authorization header alone and is NEVER logged — the outcome carries
+     * only the HTTP code class.
+     */
+    private fun testStoredKey(): SetupLogic.KeyTestOutcome {
+        val key = OpenRouterKeyStore.load(this)
+            ?: return SetupLogic.KeyTestOutcome(
+                SetupLogic.KeyTestState.REJECTED,
+                "No key is stored — save one above first.",
+            )
+        val request = okhttp3.Request.Builder()
+            .url("https://openrouter.ai/api/v1/key")
+            .header("Authorization", "Bearer $key")
+            .get()
+            .build()
+        return try {
+            keyTestClient.newCall(request).execute().use { response ->
+                when (response.code) {
+                    200 -> SetupLogic.KeyTestOutcome(
+                        SetupLogic.KeyTestState.LIVE,
+                        "OpenRouter accepted the key — it is live.",
+                    )
+                    401 -> SetupLogic.KeyTestOutcome(
+                        SetupLogic.KeyTestState.REJECTED,
+                        "OpenRouter rejected the key (401 — not found or revoked). " +
+                            "Enter a fresh key above and save, then test again.",
+                    )
+                    else -> SetupLogic.KeyTestOutcome(
+                        SetupLogic.KeyTestState.ERROR,
+                        "OpenRouter answered HTTP ${response.code} — try again.",
+                    )
+                }
+            }
+        } catch (t: java.io.IOException) {
+            SetupLogic.KeyTestOutcome(
+                SetupLogic.KeyTestState.ERROR,
+                "Network error (${t::class.java.simpleName}) — check the connection and try again.",
+            )
+        }
+    }
+
+    /** The live-key test's HTTP client (short timeouts — a check must never hang the card). */
+    private val keyTestClient by lazy {
+        okhttp3.OkHttpClient.Builder()
+            .connectTimeout(java.time.Duration.ofSeconds(10))
+            .callTimeout(java.time.Duration.ofSeconds(15))
+            .build()
     }
 
     /** Page header: brand overline, title, one-line description (compact scale). */
@@ -496,6 +609,7 @@ class SetupActivity : ComponentActivity() {
         SetupLogic.CHECK_ACCESSIBILITY -> "Accessibility service"
         SetupLogic.CHECK_BATTERY -> "Battery whitelist"
         SetupLogic.CHECK_KEY -> "OpenRouter key"
+        SetupLogic.CHECK_KEY_LIVE -> "API key is live"
         SetupLogic.CHECK_MODEL -> "On-device model"
         else -> id.replaceFirstChar { it.uppercase() }
     }
