@@ -196,6 +196,13 @@ When the user requests a durable behavior change, record it here or in the relev
   verified prefix), the prompt surface becomes `restructure-v4` (both request variants
   golden-pinned), plan integrity is CODE (`ReplanRule` — verified prefix frozen, ONE
   declared `rollback` step with its lesson, growth lawful, resume-never-restart), and
-  `plan.rolledBack`/`plan.lesson` ride the rows additively. See `app/AGENTS.md`
+  `plan.rolledBack`/`plan.lesson` ride the rows additively. Hotel-iteration repairs
+  (2026-10-17, doc 04 v1.8.3 / doc 03 v2.7.0): the ladder path gained the code-decided
+  browser-readiness pre-step (readiness, NOT navigation — the engine-free
+  browser-home-launch seam fires once when a non-browser window is front), the
+  state-truthful REFUSED detail (the browser-never-front truth instead of a
+  misattributed "I can't read this site"), and the corner log's one-tap recovery
+  action row ("Open the browser and retry" — browser-fixable refusals only, tap =
+  home launch + auto re-run of the same goal). See `app/AGENTS.md`
 * `tools/` — Phase-8/8C model-acquisition + reference-vector scripts (uv-driven; build-time
   HF downloads only). See `tools/AGENTS.md`

@@ -1,8 +1,8 @@
 # State Observation
 
 **Document ID:** `NAVIGATOR-VISION-003`
-**Version:** 2.6.0 *(amended 2026-10-13 (post-UAT repair 2): §4 — the INTENT STATE VIEW gains the conditional TYPED FIELD line (a filled-but-unsubmitted field the loop itself typed into) — the 2026-10-13 live battery's Google run re-typed the same query four times for want of that fact. Amended 2026-10-13 (Phase 10D Stage 3): §2/§3 — the candidate label is NEVER blank: the chain is text → description → placeholder → role + container → the role word alone; an exactly doubled platform label ("X X") collapses to one phrase. The measured case: live Chrome enumerated a search input as `""`, unjudgeable by the stage-2 rubric. Amended 2026-10-11 (Phase 10C): §2/§3 — editable fields are detected by ROLE (editable/searchbox) regardless of accessible label, with the placeholder/container supplying the description when unlabeled; text-less controls (icon buttons, consent-wall buttons) are described by role + container relation; browser-chrome exclusion widens to ALL Chrome UI. Amended 2026-10-10: cascade state views v4 — the INTENT STATE VIEW and TARGET STATE VIEW join the dual-view law as per-stage derivations feeding the doc-02 §3 cascade; the taxonomy's role becomes stage-2 slate grouping with browser-chrome excluded from target slates; STATE_FORMAT_VERSION = 4; owner-ratified)*
-**Status:** Ratified (2026-10-03; amendments 2026-10-06, 2026-10-09)
+**Version:** 2.7.0 *(amended 2026-10-17 (hotel iteration run-2 repair; owner pre-ratified with solutions 1+4): §5 — the graceful refusal's message gains the state-truthful no-browser-ever-front variant (the 2026-10-17 run refused "I can't read this site" over the app's own setup screen — no browser was ever front; the truth names the front window instead). Amended 2026-10-13 (post-UAT repair 2): §4 — the INTENT STATE VIEW gains the conditional TYPED FIELD line (a filled-but-unsubmitted field the loop itself typed into) — the 2026-10-13 live battery's Google run re-typed the same query four times for want of that fact. Amended 2026-10-13 (Phase 10D Stage 3): §2/§3 — the candidate label is NEVER blank: the chain is text → description → placeholder → role + container → the role word alone; an exactly doubled platform label ("X X") collapses to one phrase. The measured case: live Chrome enumerated a search input as `""`, unjudgeable by the stage-2 rubric. Amended 2026-10-11 (Phase 10C): §2/§3 — editable fields are detected by ROLE (editable/searchbox) regardless of accessible label, with the placeholder/container supplying the description when unlabeled; text-less controls (icon buttons, consent-wall buttons) are described by role + container relation; browser-chrome exclusion widens to ALL Chrome UI. Amended 2026-10-10: cascade state views v4 — the INTENT STATE VIEW and TARGET STATE VIEW join the dual-view law as per-stage derivations feeding the doc-02 §3 cascade; the taxonomy's role becomes stage-2 slate grouping with browser-chrome excluded from target slates; STATE_FORMAT_VERSION = 4; owner-ratified)*
+**Status:** Ratified (2026-10-03; amendments 2026-10-06, 2026-10-09, 2026-10-17)
 **Date:** 2026-10-03
 **Implements:** ART-4 (page text is untrusted), ART-6 (deterministic candidate order),
 ART-7 (versioned state text)
@@ -176,3 +176,11 @@ one undifferentiated node (canvas-class pages), or the root walk fails twice. Re
 abort the goal cleanly with the message "I can't read this site", log the state and
 refusal, no screenshots are taken or sent (privacy boundary, ART-8). Vision fallback is a
 non-goal for v1 (doc 01 §5).
+
+**v2.7.0 (2026-10-17, hotel iteration): the message gains ONE state-truthful variant.**
+When NO observation this run ever named an allowlisted browser as the ACTIVE window (no
+browser was ever front — nothing was ever in front of the lens, so the site was never
+the problem), the refusal detail instead reads "the browser never came to the front, so
+there was no page to read (front window: <last package or unknown>)". A genuinely
+unreadable page observed WITH a browser front keeps "I can't read this site"
+byte-identically. The variant's loop law lives in doc 04 §1 v1.8.3.

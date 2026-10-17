@@ -74,6 +74,17 @@ fun interface BrowserLauncher {
     fun launch(url: String)
 }
 
+/**
+ * The home-launcher edge (2026-10-17 hotel iteration): fire the platform HOME launch
+ * intent for the allowlisted browser — READINESS, NOT NAVIGATION. No URL is named and
+ * no site is chosen; the engine still navigates every step from wherever the browser
+ * lands (ART-2 intact). The ladder-path readiness pre-step's only edge; implemented
+ * Android-side with `getLaunchIntentForPackage`; fakes in tests.
+ */
+fun interface BrowserHomeLauncher {
+    fun launchHome()
+}
+
 object ColdStart {
 
     /** Explicit URL in the goal text ("book a table at https://…"). */

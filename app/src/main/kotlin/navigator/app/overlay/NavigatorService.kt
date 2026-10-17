@@ -26,6 +26,7 @@ import navigator.app.harness.HarnessObserver
 import navigator.app.harness.HarnessPagesServer
 import navigator.app.harness.RoomDecisionLogSink
 import navigator.app.harness.ScriptedGoal
+import navigator.app.loop.BrowserHomeLauncher
 import navigator.app.loop.BrowserLauncher
 import navigator.app.loop.BrowserProbe
 import navigator.app.loop.GestureExecutor
@@ -74,6 +75,15 @@ class NavigatorService : Service() {
      * start (a stale cancel never kills the next task).
      */
     private val taskCancelFlag = TaskCancelFlag()
+
+    /**
+     * The last goal this service ran, IN MEMORY ONLY (2026-10-17 hotel iteration): the
+     * corner log's recovery action row re-runs the SAME goal after a browser-fixable
+     * refusal. Goals are not secrets (ART-8 holds — nothing here persists; the memory
+     * lifetime is the service's). Null before the first run.
+     */
+    @Volatile
+    private var lastGoalText: String? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -169,6 +179,7 @@ class NavigatorService : Service() {
         val manager = a11y.overlayManager ?: throw IllegalStateException(
             "product run: no overlay manager - overlays are impossible",
         )
+        lastGoalText = goalText
         notifyState(NOTIFICATION_WORKING, "Navigator working")
         manager.showLiveLog()
         // UAT 9.1 close-out: the ⏹ control's wiring. The flag resets HERE (a stale
@@ -178,6 +189,11 @@ class NavigatorService : Service() {
         // step boundary — the lawful owner exit, vision 04 §3; the flag only ever
         // STOPS the loop, it never decides or acts).
         manager.onStopTask = { taskCancelFlag.cancelActive() }
+        // The recovery row's wiring (2026-10-17): a tap on "Open the browser and retry"
+        // (offered only on browser-fixable refusals — LiveLogRecovery decides purely)
+        // fires the browser's home launch and re-runs the SAME goal through the exact
+        // in-process entry the goal-input submit uses.
+        manager.onRecoveryAction = { offerRecoveryRetry() }
         taskCancelFlag.beginTask()
         manager.setTaskRunning(true)
         try {
@@ -252,6 +268,13 @@ class NavigatorService : Service() {
                 uiListener = OverlayUiListener(manager) { notifyState(NOTIFICATION_READY, "Navigator ready") },
                 browserProbe = BrowserProbe { HarnessObserver.browserState(a11y, this) },
                 browserLauncher = BrowserLauncher { url -> openBrowser(url) },
+                // The ladder-path readiness pre-step's home-launch seam (2026-10-17,
+                // doc 04 §1 v1.8.3): wired ONLY when an allowlisted browser resolves —
+                // the SAME derivation the probe uses — so no browser means the pre-step
+                // could never fire anyway (null = never fires).
+                homeLauncher = HarnessObserver.installedBrowser(this)?.let { pkg ->
+                    BrowserHomeLauncher { openBrowserHome(pkg) }
+                },
                 ladderSource = genLadder ?: navigator.app.loop.LadderSource.None,
                 answerExtractor = genLadder,
                 // Phase 10B (phase doc §2.6): the cascade's writer seams over the SAME
@@ -332,6 +355,42 @@ class NavigatorService : Service() {
                 Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
             )
         }.onFailure { Log.w(TAG, "openBrowser failed: ${it::class.simpleName}: ${it.message}") }
+    }
+
+    /**
+     * The allowlisted browser's HOME launch (2026-10-17 hotel iteration) — the platform
+     * launch intent for [pkg] (derived by [HarnessObserver.installedBrowser], the same
+     * derivation the browser probe uses). READINESS, NOT NAVIGATION: no URL is named,
+     * no site is chosen; the engine navigates every step from wherever the browser
+     * lands. Sibling of [openBrowser] (same style, same failure law: loud log, never a
+     * crash).
+     */
+    private fun openBrowserHome(pkg: String) {
+        runCatching {
+            val intent = packageManager.getLaunchIntentForPackage(pkg)
+            if (intent != null) {
+                startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            } else {
+                Log.w(TAG, "openBrowserHome: no launch intent for $pkg")
+            }
+        }.onFailure { Log.w(TAG, "openBrowserHome failed: ${it::class.simpleName}: ${it.message}") }
+    }
+
+    /**
+     * The corner log's recovery row was tapped ("Open the browser and retry", offered
+     * only on browser-fixable refusals — [LiveLogRecovery]): fire the browser's home
+     * launch, then re-run the SAME goal through the exact internal entry the goal-input
+     * submit uses ([handleGoalSubmitted] → the in-process channel). The row dismisses
+     * itself before this runs (the tap handler clears it first).
+     */
+    private fun offerRecoveryRetry() {
+        val goal = lastGoalText
+        if (goal.isNullOrBlank()) {
+            Log.w(TAG, "recovery tap ignored: no goal in memory")
+            return
+        }
+        HarnessObserver.installedBrowser(this)?.let { openBrowserHome(it) }
+        handleGoalSubmitted(goal)
     }
 
     private fun createChannel() {
@@ -416,6 +475,10 @@ class NavigatorService : Service() {
         override fun onTaskState(state: LoopUiListener.TaskStateUpdate) {
             manager.setTaskStateLine(LoopUiListener.taskStateLine(state))
             onTerminal(state)
+        }
+
+        override fun onRecoveryOffer(terminal: String, everBrowserFront: Boolean) {
+            manager.offerRecovery(LiveLogRecovery.recoveryEligible(terminal, everBrowserFront))
         }
     }
 

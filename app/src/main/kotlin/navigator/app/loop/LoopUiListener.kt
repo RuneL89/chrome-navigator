@@ -64,6 +64,17 @@ interface LoopUiListener {
     /** The task reached its one terminal state (vision 04 §3 exits). */
     fun onTaskState(state: TaskStateUpdate)
 
+    /**
+     * The run's recovery-row facts (2026-10-17 hotel iteration): the terminal's name and
+     * whether ANY observation this run named an allowlisted browser as the ACTIVE window.
+     * Fired once at the single finish() funnel. The corner log's recovery action row is
+     * offered on browser-fixable refusals ONLY — the offer itself is the overlay edge's
+     * PURE decision ([navigator.app.overlay.LiveLogRecovery]); this callback carries the
+     * facts, never the decision (ART-2: fire-and-forget, it can never steer the loop).
+     * Default no-op (the additive law — existing paths byte-identical).
+     */
+    fun onRecoveryOffer(terminal: String, everBrowserFront: Boolean) {}
+
     /** The compact product facts of one logged step (the live-log line's payload). */
     data class StepFacts(
         /** The loop's 0-based step index. */

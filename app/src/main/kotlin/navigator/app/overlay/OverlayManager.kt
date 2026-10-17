@@ -217,8 +217,24 @@ class OverlayManager(private val service: AccessibilityService) {
      */
     var onStopTask: (() -> Unit)? = null
 
+    /**
+     * The recovery-row wiring (2026-10-17 hotel iteration): set by NavigatorService —
+     * a tap on the log's "Open the browser and retry" action row lands here and fires
+     * the browser's home launch + re-runs the SAME goal through the service's goal
+     * channel (the exact entry the goal-input submit uses). Null = no service wired →
+     * the tap dismisses the row and is otherwise a no-op.
+     */
+    var onRecoveryAction: (() -> Unit)? = null
+
     /** The ⏹ control's visibility state (only while a task runs — see LiveLogOverlay). */
     fun setTaskRunning(active: Boolean) = liveLog.setTaskRunning(active)
+
+    /**
+     * The recovery row's offer state (2026-10-17): the PURE eligibility decision
+     * ([LiveLogRecovery.recoveryEligible]) is computed by the caller from the loop's
+     * fire-and-forget facts; this only projects it onto the corner log.
+     */
+    fun offerRecovery(eligible: Boolean) = liveLog.setRecoveryAction(eligible)
 
     /** Streams one (already masked) compact line to the corner log. */
     fun appendLogLine(line: String) = liveLog.append(line)

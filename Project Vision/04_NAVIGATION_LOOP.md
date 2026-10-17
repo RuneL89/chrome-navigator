@@ -1,8 +1,8 @@
 # Navigation Loop
 
 **Document ID:** `NAVIGATOR-VISION-004`
-**Version:** 1.8.2 *(amended 2026-10-13 (post-UAT repair 2, owner-ordered loop): §1 — the outcome-based site entry accepts a text-named `urlContains` arrival, with the naming guard (never a condition-only destination — the false-completion class); §2 — `submit` executes as the platform IME action on a loop-filled field when the page offers no submit-shaped control (the mobile-search submit affordance), never bypassing the gate. Both surfaced by the live-key emulator battery: the engine chose `open-site` decisively on text-named arrivals the derivation refused, and typed queries had nothing to fire. Amended 2026-10-13 (post-UAT repair, owner-ordered): §3's anti-oscillation meter counts EVERY decision consumed inside the window — a withheld done claim included — so a page-static engine cannot keep the window armed forever (the emulator battery's 60-step livelock); §6's answer extraction is exactly ONE call per run over the freshest observation the loop holds (a report subtask's answer is authoritative; a zero-action completion never answers over a blank state). Both were implementation/law gaps surfaced by the 2026-10-13 live-key emulator battery, not new law. Amended 2026-10-12 (Phase 10D): the bounded failure re-plan is INFORMED — §1's failure-path law gains the failure-context payload, the immutable verified prefix, the ONE declared rollback step with its lesson, and the growth rule; owner-ratified with the Phase-10D plan. Amended 2026-10-11: goal-condition honesty — ladder-build validation rejects any IS-DONE condition already true where its subtask starts; the whitelist gains the `answerExtracted` report shape; every code navigation records its landing host and urlHost conditions reconcile to it; stage-1 banding routes on the chosen option's probability + a top-vs-second margin; a stage-2 no-good-target triggers a bounded stage-1 re-ask instead of a subtask failure; Path A requires a STRONG guard. Owner-ratified Phase-10C scope after the 9-run on-device battery. Amended 2026-10-10: the decision cascade — §2's DECIDE step becomes the two-stage cascade (stage-1 intent, stage-2 score-per-candidate target) with the bounded uncertainty handshake; typed text is writer-phrased on fill-field; §3's finish CHOICE retires in favor of the verify-done intent while Path B's sustained streak re-keys to the active done-condition and gains a bounded held-hash re-check. Owner-ratified after the Phase-10 UAT root-cause analysis (flat hollow-criteria lists → hedged engines → dead tasks).)*
-**Status:** Ratified (2026-10-03; amendments 2026-10-06, 2026-10-07, 2026-10-09, 2026-10-10, 2026-10-11, 2026-10-12, 2026-10-13)
+**Version:** 1.8.3 *(amended 2026-10-17 (hotel iteration run-2 repair; owner pre-ratified by picking solutions 1+4): §1 — the ladder path gains the browser-readiness pre-step (code-decided, engine-free, READINESS NOT NAVIGATION) and the state-truthful refusal detail (doc 03 §5 v2.7.0 carries the message law). The 2026-10-17 run ("book a hotel for next weekend in Tallinn") refused "I can't read this site" ~20s in with zero decision rows: the product (ladder) path subsumes the legacy cold-start, so NO code brought a browser to the front — the loop observed the app's own setup screen and the misattributed refusal fired. Amended 2026-10-13 (post-UAT repair 2, owner-ordered loop): §1 — the outcome-based site entry accepts a text-named `urlContains` arrival, with the naming guard (never a condition-only destination — the false-completion class); §2 — `submit` executes as the platform IME action on a loop-filled field when the page offers no submit-shaped control (the mobile-search submit affordance), never bypassing the gate. Both surfaced by the live-key emulator battery: the engine chose `open-site` decisively on text-named arrivals the derivation refused, and typed queries had nothing to fire. Amended 2026-10-13 (post-UAT repair, owner-ordered): §3's anti-oscillation meter counts EVERY decision consumed inside the window — a withheld done claim included — so a page-static engine cannot keep the window armed forever (the emulator battery's 60-step livelock); §6's answer extraction is exactly ONE call per run over the freshest observation the loop holds (a report subtask's answer is authoritative; a zero-action completion never answers over a blank state). Both were implementation/law gaps surfaced by the 2026-10-13 live-key emulator battery, not new law. Amended 2026-10-12 (Phase 10D): the bounded failure re-plan is INFORMED — §1's failure-path law gains the failure-context payload, the immutable verified prefix, the ONE declared rollback step with its lesson, and the growth rule; owner-ratified with the Phase-10D plan. Amended 2026-10-11: goal-condition honesty — ladder-build validation rejects any IS-DONE condition already true where its subtask starts; the whitelist gains the `answerExtracted` report shape; every code navigation records its landing host and urlHost conditions reconcile to it; stage-1 banding routes on the chosen option's probability + a top-vs-second margin; a stage-2 no-good-target triggers a bounded stage-1 re-ask instead of a subtask failure; Path A requires a STRONG guard. Owner-ratified Phase-10C scope after the 9-run on-device battery. Amended 2026-10-10: the decision cascade — §2's DECIDE step becomes the two-stage cascade (stage-1 intent, stage-2 score-per-candidate target) with the bounded uncertainty handshake; typed text is writer-phrased on fill-field; §3's finish CHOICE retires in favor of the verify-done intent while Path B's sustained streak re-keys to the active done-condition and gains a bounded held-hash re-check. Owner-ratified after the Phase-10 UAT root-cause analysis (flat hollow-criteria lists → hedged engines → dead tasks).)*
+**Status:** Ratified (2026-10-03; amendments 2026-10-06, 2026-10-07, 2026-10-09, 2026-10-10, 2026-10-11, 2026-10-12, 2026-10-13, 2026-10-17)
 **Date:** 2026-10-03
 **Implements:** ART-4 (no self-report completion), ART-5 (numbers in code), ART-9 (bounded
 tasks), ART-2 (one decision gateway)
@@ -62,6 +62,33 @@ followed ≥ 5"). The owner interview pins three absolutes:
   task class for budgets (§5) is derived from the validated ladder (single-target vs
   multi-target, per the done-condition shapes). The restructure prompt surface is
   versioned; its provenance rides every row (doc 05).
+
+**Browser-readiness pre-step (v1.8.3, 2026-10-17 — owner pre-ratified with the hotel
+iteration run-2 repair):** the ladder path subsumes the code-only cold-start, so the
+PRODUCT path had no code that would bring a browser to the front: a task-shaped goal
+(one that names an OUTCOME, not a site) observed whatever window happened to be front
+and refused. The law: on a ladder run, BEFORE the step loop's first observe (where the
+legacy branch runs its cold-start), the loop runs ONE code-decided readiness pre-step —
+NO engine is ever consulted (ART-2 intact). It fires the browser's HOME launch —
+READINESS, NOT NAVIGATION: no URL is named and no site is chosen; the engine still
+decides every step from wherever the browser lands — ONLY when ALL hold: the home
+launcher is wired, a browser is installed (the probe), and the fresh observation's
+ACTIVE window is a non-blank NON-browser package (some other app is front). It is
+deliberately silent when the window package is blank/unknown, when the browser is
+ALREADY front (mid-run tree recovery is the existing starvation machinery's job —
+homing would destroy recoverable state), or when no browser exists. ONE attempt per
+run; after the launch the existing bounded observation-readiness wait takes over, and
+the launch and its probes consume no budget and no steps. The generalization law binds
+the wording everywhere (code, prompts, tests): NO host, site, label, or
+language-specific string — "the browser" is the generic noun.
+
+**State-truthful refusal (v1.8.3, same amendment):** at the graceful-refusal site
+(doc 03 §5), when NO observation this run ever named an allowlisted browser as the
+ACTIVE window, the REFUSED terminal detail carries the truth — "the browser never came
+to the front, so there was no page to read (front window: <last package or
+unknown>)" — instead of "I can't read this site" (a misattribution: the site was never
+the problem). Once a browser WAS front at some point in the run, the doc-03 message
+stands byte-identically.
 
 **Failure path (bounded):** a subtask whose IS-DONE cannot be verified (stuck, denied,
 unexpected page shape) triggers at most **2 restructure calls per task** (re-plan);

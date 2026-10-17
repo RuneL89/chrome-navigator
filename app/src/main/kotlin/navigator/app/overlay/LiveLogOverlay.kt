@@ -90,6 +90,21 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
     /** The ⏹ control (present only while a task runs — see [setTaskRunning]). */
     private var stopButton: TextView? = null
 
+    /**
+     * The recovery action row (2026-10-17 hotel iteration, owner design interview):
+     * ONE compact tappable row under the terminal state line, shown ONLY when the run's
+     * terminal is recovery-eligible ([LiveLogRecovery] — a browser-fixable refusal).
+     * Tap = dismiss the row, fire the browser's home launch, re-run the same goal —
+     * through [OverlayManager.onRecoveryAction] into the service. Disappears on: the
+     * tap, a new run starting ([show] clears), the log's ✕ close ([hide]), and service
+     * restart ([teardown]). Never reappears for a non-eligible terminal.
+     */
+    private var recoveryRow: TextView? = null
+
+    /** Whether the recovery row is currently offered (snapshot-visible). */
+    @Volatile
+    private var recoveryOffered: Boolean = false
+
     /** Whether a task is running (the ⏹ control's state; see [setTaskRunning]). */
     @Volatile
     private var taskRunning: Boolean = false
@@ -158,6 +173,8 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
         // (a reused window never cleared). The stale-terminal display cannot recur.
         lines.clear()
         ladderHeader = emptyList()
+        // A new run also clears any recovery row from the previous terminal (2026-10-17).
+        setRecoveryAction(false)
         if (visible) {
             renderLines()
             return
@@ -250,6 +267,21 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
             }
             container.addView(thinking)
             container.addView(linesText)
+            // The recovery action row (2026-10-17, owner design interview): a compact
+            // amber pill UNDER the terminal state line (the terminal is always the
+            // newest streamed line), shown only for a recovery-eligible terminal
+            // ([LiveLogRecovery]; [setRecoveryAction] owns visibility). A clickable
+            // child like the header controls — in-window touches already reach the
+            // window; the tap never toggles expand/collapse (the row consumes it).
+            val recovery = controlButton(context, LiveLogRecovery.RECOVERY_LABEL, accent = true)
+                .apply {
+                    visibility = if (recoveryOffered) View.VISIBLE else View.GONE
+                    setOnClickListener {
+                        setRecoveryAction(false)
+                        manager.onRecoveryAction?.invoke()
+                    }
+                }
+            container.addView(recovery)
             val screen = manager.screenMetrics()
             val marginPx = dp(SCREEN_MARGIN_DP)
             val params = WindowManager.LayoutParams(
@@ -277,6 +309,7 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
             stopButton = stop
             linesView = linesText
             thinkingView = thinking
+            recoveryRow = recovery
             renderLines()
             manager.postDelayedOnMainThread(IME_POLL_INTERVAL_MS, imeWatch)
         }
@@ -295,19 +328,52 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
     }
 
     /**
+     * The recovery row's state (2026-10-17): offered ONLY when the run's terminal is
+     * recovery-eligible (the manager computes it with the PURE [LiveLogRecovery]
+     * decision from the loop's fire-and-forget facts). Idempotent; main-thread
+     * marshaled; clearing when no row window exists is a no-op that still resets the
+     * flag (so a window built later — [show] — starts with the row hidden).
+     */
+    fun setRecoveryAction(offered: Boolean) {
+        recoveryOffered = offered
+        manager.postOnMainThread {
+            recoveryRow?.visibility = if (offered) View.VISIBLE else View.GONE
+        }
+    }
+
+    /**
      * One compact header control (viewer-styled pill; clickable child of the log
      * window). The ⏹ [danger] variant gets the red-tinted pill — semantic color for
-     * the one destructive action, everything else stays neutral.
+     * the one destructive action; the recovery row's [accent] variant gets the brand
+     * amber (2026-10-17) — semantic color for the ONE owner action offer. Everything
+     * else stays neutral.
      */
-    private fun controlButton(context: android.content.Context, label: String, danger: Boolean = false): TextView =
+    private fun controlButton(
+        context: android.content.Context,
+        label: String,
+        danger: Boolean = false,
+        accent: Boolean = false,
+    ): TextView =
         TextView(context).apply {
             text = label
-            setTextColor(if (danger) COLOR_STOP_TEXT else COLOR_CONTROL_TEXT)
+            setTextColor(
+                when {
+                    danger -> COLOR_STOP_TEXT
+                    accent -> COLOR_ACCENT
+                    else -> COLOR_CONTROL_TEXT
+                },
+            )
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
             typeface = Typeface.MONOSPACE
             setPadding(dp(10), dp(4), dp(10), dp(4))
             background = GradientDrawable().apply {
-                setColor(if (danger) COLOR_STOP_BG else COLOR_CONTROL_BG)
+                setColor(
+                    when {
+                        danger -> COLOR_STOP_BG
+                        accent -> COLOR_ACCENT_BG
+                        else -> COLOR_CONTROL_BG
+                    },
+                )
                 cornerRadius = dp(13f)
                 setStroke(dp(1), COLOR_PILL_STROKE)
             }
@@ -321,13 +387,17 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
         stopImeWatch()
         // The viewer closed (✕ or programmatic): the running-indication resets with it.
         // A run, if any, CONTINUES (✕ is viewer-only); the next run re-sets the state.
+        // The recovery row dies with the window too (the ✕ close is one of its
+        // documented disappear paths, 2026-10-17).
         taskRunning = false
+        recoveryOffered = false
         manager.postOnMainThread {
             view?.let { manager.removeViewFromWindow(it) }
             view = null
             linesView = null
             thinkingView = null
             stopButton = null
+            recoveryRow = null
             windowParams = null
         }
     }
@@ -382,6 +452,7 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
         visible = false
         thinkingActive = false
         taskRunning = false
+        recoveryOffered = false
         stopImeWatch()
         manager.postOnMainThread {
             view?.let { manager.removeViewFromWindow(it) }
@@ -389,6 +460,7 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
             linesView = null
             thinkingView = null
             stopButton = null
+            recoveryRow = null
             windowParams = null
         }
         lines.clear()
@@ -628,6 +700,9 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
         private val COLOR_STOP_BG = Color.argb(235, 62, 26, 24)
         private val COLOR_STOP_TEXT = Color.rgb(245, 158, 148)
         private val COLOR_PILL_STROKE = Color.argb(200, 74, 62, 44)
+
+        /** The recovery row's amber-tinted pill (2026-10-17; the brand accent's bg). */
+        private val COLOR_ACCENT_BG = Color.argb(235, 66, 50, 24)
 
         /** The normal screen-edge margin (dp) for the bottom-right anchor. */
         private const val SCREEN_MARGIN_DP = 8

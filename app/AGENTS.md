@@ -102,7 +102,21 @@ setup wizard (`setup/`).
     STAYS up through a cancel showing the task-state line); both controls live in
     every state (collapsed + expanded), are clickable children (in-window touches
     already reach the NOT_TOUCH_MODAL window — no focusability change), and ride
-    every anchor move),
+    every anchor move); the 2026-10-17 hotel-iteration RECOVERY ROW (owner design
+    interview 2026-10-17: recovery as an ACTION ROW in the corner log — never a card,
+    never a notification; no new design system; auto re-run, browser-fixable-only):
+    ONE compact amber pill under the terminal state line, label exactly
+    `Open the browser and retry` (`LiveLogRecovery.RECOVERY_LABEL`), offered ONLY on a
+    recovery-eligible terminal — the PURE JVM-pinned
+    `LiveLogRecovery.recoveryEligible(terminal, everBrowserFront)` (`REFUSED` AND
+    never-browser-front; own file beside LiveLogAnchor, no Android types), fed by the
+    loop's fire-and-forget facts on the ADDITIVE default-noop
+    `LoopUiListener.onRecoveryOffer` fired at the single finish() funnel (the loop
+    reports facts; the overlay edge decides — ART-2); tap = dismiss the row +
+    `OverlayManager.onRecoveryAction` into the service (browser home launch + re-run
+    the SAME goal through the goal-input channel); the row disappears on the tap, a
+    new run (`show()` resets it), the log's ✕ close, and teardown, and never
+    reappears for a non-eligible terminal),
     the 2026-10-09 owner design pass (ai-ui-design-skills interview: warm
     brand-forward, dark compact): warm-dark panel + the amber brand accent
     (`NAVIGATOR` overline in the header), per-segment COLOR SPANS in
@@ -168,7 +182,15 @@ setup wizard (`setup/`).
     (both the ladder + extraction seams) over the Setup-stored key; the listener's
     `onLadderBlock` renders the corner log's pinned ladder block; the owner escalation
     card rides `OverlayEscalationCardPresenter`; the DEBUG-ONLY stub override stays
-    UN-laddered (a scripted $0 run has no writer); DEBUG-ONLY stub override for the Gate 9.3
+    UN-laddered (a scripted $0 run has no writer); the 2026-10-17 hotel-iteration
+    wiring: the loop's `homeLauncher` rides `HarnessObserver.installedBrowser` (the
+    SAME derivation the probe uses; null = no browser = the readiness pre-step never
+    fires) → `openBrowserHome(pkg)` (the platform launch intent; the sibling of
+    `openBrowser`), the recovery row's `onRecoveryAction` = home launch + re-run the
+    SAME goal through `handleGoalSubmitted` (the goal-input channel; `lastGoalText`
+    lives in memory only, ART-8 — goals are not secrets), and the listener's
+    `onRecoveryOffer` computes the row's eligibility with the pure `LiveLogRecovery`;
+    DEBUG-ONLY stub override for the Gate 9.3
     $0 emulator flow (its run is wrapped loud-but-polite — a stub mismatch fails the
     RUN, never the PROCESS the a11y service lives in)), `GateScenarios.kt` (MAIN source — the four gates' assertion
     bodies written ONCE, debug-gated at the caller; returns
@@ -406,7 +428,11 @@ setup wizard (`setup/`).
     ([BrowserProbe]; null = absent), fire the VIEW intent through [BrowserLauncher]
     only when the browser is absent or on an UNRELATED page — the same-site judgment
     is CODE (host equality, scheme/port/www-insensitive), never an engine call; the
-    derivation and the decision are ALWAYS logged and ride the step log/run report),
+    derivation and the decision are ALWAYS logged and ride the step log/run report;
+    2026-10-17 hotel iteration: [BrowserHomeLauncher] — the home-launch edge beside
+    the other two (the platform HOME intent for the allowlisted browser, READINESS NOT
+    NAVIGATION — no URL, no site chosen), the ladder-path readiness pre-step's ONE
+    seam),
     `CompletionGuards` (per-triage-class code state machines — ART-4; Phase 8J Guard
     2.0: `TargetEntity` — deterministic code extraction of the goal's target
     (quoted spans, "article/page titled|named|about X" cues, the goal's URL — UAT W1:
@@ -672,7 +698,25 @@ setup wizard (`setup/`).
     re-keys to the first unfinished subtask instead of resetting to 1. The declared
     rollback rides the rows additively (`LoggedPlan.rolledBack`/`lesson`, doc 05 §2
     v1.8.0). `handleSubtaskFailureOrKill`/`handleStuckKill` stash the failure cause for the
-    re-plan and pass it to the card path. LOOP-STATE DISCIPLINE (measured 2026-10-12 with javap on the
+    re-plan and pass it to the card path. THE 2026-10-17 HOTEL-ITERATION REPAIR (doc 04
+    §1 v1.8.3, doc 03 §5 v2.7.0; owner picks solutions 1+4): the ladder path gains the
+    BROWSER-READINESS PRE-STEP — the product branch subsumed the legacy cold-start, so a
+    task-shaped goal (one naming an OUTCOME, not a site) observed whatever window was
+    front (the app's own setup screen) and refused with zero decision rows. One
+    `browserReadinessPrestep()` before the step loop's first observe (after
+    `enterSubtask()`), engine-free (ART-2), READINESS NOT NAVIGATION: fires the
+    [BrowserHomeLauncher] HOME launch (ONE attempt per run — the `readinessAttempted`
+    guard) ONLY when launcher wired + browser installed (probe) + the fresh observation's
+    window is non-blank NON-browser; silent on blank packages, browser-already-front
+    (tree recovery is the starvation machinery's job), and browser-absent; then the
+    existing `waitForBrowserReadiness` bounded wait (no budget/steps). The
+    STATE-TRUTHFUL REFUSAL: `notePageUrl` (every observe path's choke point) records
+    `everBrowserFront`/`lastFrontWindow`; a never-browser-front REFUSED detail reads
+    "the browser never came to the front, so there was no page to read (front window:
+    …)" (class-scope `observeRefusalDetail()`), a browser-once-front one keeps
+    "I can't read this site" byte-identically. The corner log's RECOVERY ROW rides the
+    facts (see `LiveLogRecovery`/overlay). The LEGACY non-ladder path is untouched.
+    LOOP-STATE DISCIPLINE (measured 2026-10-12 with javap on the
     compiled class): `run()` was 58,646 of the JVM's 65,535-byte method cap after Phase 10D
     (6,889 bytes of headroom); the 2026-10-13 post-UAT repair rounds added the
     `lastObserved` assignment, the withheld `noteDecision`, the typed-field/submit wiring
@@ -689,6 +733,12 @@ setup wizard (`setup/`).
     (5,608 bytes of its own method) and the loop calls it once — that extraction is what
     bought the 5,676-byte reduction to today's 58,646. New loop code: prefer FILE-SCOPE
     helpers when it needs no loop locals; never add captured locals casually.
+    Re-proven LIVE 2026-10-17: the hotel repair's first cut added three run() locals +
+    an inline refusal-detail string and the compile died on MethodTooLargeException
+    again; the fix was exactly lesson (a) — `everBrowserFront`/`lastFrontWindow`/
+    `readinessAttempted` are CLASS fields (reset at every run() start; per-run facts)
+    and the string moved to the class-scope `observeRefusalDetail()` — run() measured
+    63,330/65,535 (~2.2 KB headroom).
   * `src/main/kotlin/navigator/app/stub/` — `StubEngine` (Phase 6; Phase 10B: the
     cascade scripting): a `DecisionEngine` replaying a `StubScript` deterministically
     ($0 spend); answers select by option id, `labelContains`, `bucketFirst`(+ordinal),
@@ -1028,6 +1078,15 @@ setup wizard (`setup/`).
   phase-doc shape, pointer-advance + re-plan regeneration pins, flatten/cap,
   presentation-parse predicate); `WriterBudgetTest` (the $0.05/$0.10 caps, integer
   accumulation, the hard cap blocking further writer calls);
+  the 2026-10-17 hotel-iteration gates: `LadderReadinessPrestepTest` (7 — the
+  ladder-path readiness pre-step's matrix in the REAL loop: the non-browser-front +
+  browser-present + launcher-wired case fires the HOME launch EXACTLY ONCE (the exact
+  readiness line) and the run proceeds to GOAL_ACHIEVED with the recovery facts riding
+  the listener; browser-front / launcher-null / probe-null / blank-windowPackage never
+  fire; the never-browser-front REFUSED detail names the browser-never-front truth +
+  the recovery facts, a browser-once-front refusal keeps the doc-03 message
+  byte-identically) + `LiveLogRecoveryTest` (2 — the PURE eligibility matrix over every
+  terminal; the exact owner-ratified label);
   `./gradlew test` since Phase 10B Round 2: :core 360 + :app 512 = 872 tests, 0 failures
 (the Round-2 additions: `CascadeTest` — the pure routing module; `WindowTitlesTest` —
 the title reader's lawful-window decision; `Phase10BLoopTest` — the cascade execution

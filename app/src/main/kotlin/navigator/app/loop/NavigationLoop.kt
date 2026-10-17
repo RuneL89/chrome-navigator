@@ -163,7 +163,9 @@ class NavigationLoop(
      * The task-ladder seam (Phase 10, vision 04 §1 v1.4.0): when wired, EVERY goal
      * restructures into a validated task ladder before any navigation — the ACTIVE
      * subtask rides the state text (v3), the pointer advances only on a verified
-     * IS-DONE (doc 04 §3), triage and the cold-start pre-step are subsumed. The default
+     * IS-DONE (doc 04 §3), triage and the cold-start pre-step are subsumed (the ONE
+     * exception: the browser-readiness pre-step, 2026-10-17 — readiness, not
+     * navigation). The default
      * ([LadderSource.None]) supplies NO ladder: every existing path is byte-identical
      * (the phase doc's non-ladder paths — the harness's scripted stub goals keep
      * triage/cold-start).
@@ -193,6 +195,14 @@ class NavigationLoop(
      */
     private val assistSource: AssistSource? = null,
     private val phraseSource: PhraseSource? = null,
+    /**
+     * The browser home-launch seam (2026-10-17 hotel iteration): the ONE edge the
+     * ladder-path readiness pre-step may fire — the platform HOME launch intent for
+     * the allowlisted browser (readiness, NOT navigation: no URL is named, no site is
+     * chosen, the engine still decides every step — ART-2). Null (the default) means
+     * the pre-step never fires: every existing path is byte-identical.
+     */
+    private val homeLauncher: BrowserHomeLauncher? = null,
 ) {
 
     /**
@@ -215,6 +225,20 @@ class NavigationLoop(
      */
     private var lastAssistText: String? = null
     private var lastFailureCause: String? = null
+
+    /**
+     * The run's window truth + the readiness pre-step's one-attempt flag (2026-10-17
+     * hotel iteration). CLASS FIELDS, not `run()` locals — the same method-size
+     * discipline as [lastAssistText] above (three more Ref allocations inside `run()`
+     * pushed it past the JVM 64 KB cap; on the instance they cost ~nothing). Every
+     * `run()` resets them first: they are PER-RUN facts, and the reset makes that a
+     * contract rather than a wiring convention. [everBrowserFront]/[lastFrontWindow]
+     * are noted at [notePageUrl] — the single choke point every observe path flows
+     * through; read by [observeRefusalDetail] and the recovery-row facts at finish.
+     */
+    private var everBrowserFront = false
+    private var lastFrontWindow: String = ""
+    private var readinessAttempted = false
 
     data class Config(
         /** Vision 03 §5: fewer meaningful nodes than this = unusable tree. */
@@ -359,6 +383,13 @@ class NavigationLoop(
         // chain falls back to the most recent observation that DID carry a usable
         // page URL (stored normalized). Null until some observation yields one.
         var lastKnownPageUrl: String? = null
+        // The run's window truth + the pre-step's one-attempt flag (2026-10-17): CLASS
+        // fields (the method-size discipline — see their declaration), reset per run
+        // here; noted at [notePageUrl], read by [observeRefusalDetail], the pre-step,
+        // and the finish funnel's recovery-row facts.
+        everBrowserFront = false
+        lastFrontWindow = ""
+        readinessAttempted = false
 
         // -- the task ladder (Phase 10, vision 04 §1 v1.4.0) ---------------------------
         // When [ladderSource] is wired, EVERY goal restructures before any navigation:
@@ -481,9 +512,15 @@ class NavigationLoop(
         }
 
         /** Notes [o]'s page URL (normalized — scheme-less bar text is stored schemed)
-         *  as the restore chain's last-known fallback; called at every observation. */
+         *  as the restore chain's last-known fallback; called at every observation.
+         *  Also records the run's window truth (2026-10-17): whether the observation
+         *  named an allowlisted browser as the ACTIVE window (a blank package never
+         *  counts — the fakes' shape), and the last front window's package for the
+         *  state-truthful refusal detail. */
         fun notePageUrl(o: StepObservation) {
             normalizePageUrl(o.url)?.let { lastKnownPageUrl = it }
+            lastFrontWindow = o.windowPackage
+            if (BrowserPackages.isBrowser(o.windowPackage)) everBrowserFront = true
         }
 
         /**
@@ -526,6 +563,46 @@ class NavigationLoop(
                         "(last window=${probe.windowPackage.ifBlank { "unknown" }})",
                 )
             }
+        }
+
+        /**
+         * The ladder-path browser-readiness pre-step (2026-10-17 hotel iteration, doc 04
+         * §1 v1.8.3): on a LADDER run — the product path, which subsumes the legacy
+         * cold-start — no code brought a browser to the front before this fix, so a
+         * task-shaped goal (one that names an OUTCOME, not a site) observed whatever
+         * window happened to be front and refused "I can't read this site" with zero
+         * decision rows. This pre-step runs ONCE, before the step loop's first observe
+         * (where the legacy cold-start sits on the non-ladder branch), and is READINESS,
+         * NOT NAVIGATION: it fires the browser's HOME launch ([BrowserHomeLauncher] —
+         * no URL, no site chosen, the engine still decides every step, ART-2) and lets
+         * the existing bounded readiness wait ([waitForBrowserReadiness]) take over.
+         *
+         * Fires ONLY when ALL hold: the home launcher is wired; the browser probe names
+         * an installed browser (nothing to launch otherwise); and the fresh observation's
+         * ACTIVE window is non-blank and NOT an allowlisted browser (some other app is
+         * front). Deliberately NOT fired when: the window package is blank/unknown
+         * (nothing truthful to act on); the browser IS already front (mid-run tree
+         * recovery is the existing starvation machinery's job — homing would destroy
+         * recoverable state); or no browser exists. The probe and the pre-step's
+         * observation consume no budget and no steps (the waitForBrowserReadiness
+         * precedent). At most ONE attempt per run. The legacy non-ladder path never
+         * calls this (byte-identical).
+         */
+        suspend fun browserReadinessPrestep() {
+            val launcher = homeLauncher ?: return
+            if (browserProbe?.probe() == null) return
+            if (readinessAttempted) return
+            val probe = observer.observe()
+            notePageUrl(probe)
+            val front = probe.windowPackage
+            if (front.isBlank() || BrowserPackages.isBrowser(front)) return
+            readinessAttempted = true
+            line(
+                "readiness: front window $front is not a browser - firing the browser's " +
+                    "home launch (readiness, not navigation)",
+            )
+            launcher.launchHome()
+            waitForBrowserReadiness()
         }
 
         /**
@@ -588,6 +665,11 @@ class NavigationLoop(
             line("terminal: $terminal - $detail")
             // Phase 9: the overlay surface learns the one terminal state (fire-and-forget).
             uiListener?.onTaskState(LoopUiListener.TaskStateUpdate(terminal, detail))
+            // The corner log's recovery-row facts (2026-10-17 hotel iteration): whether
+            // a browser-fixable refusal happened is the overlay edge's PURE decision
+            // ([navigator.app.overlay.LiveLogRecovery]); the loop only reports the facts
+            // it owns. Fire-and-forget — it can never steer the loop (ART-2).
+            uiListener?.onRecoveryOffer(terminal.name, everBrowserFront)
             // doc 06 §2a render law (via doc 05 §2): reports render credential-sourced
             // text as [credential-redacted]. Construction keeps the value out of every
             // line (the masking seams above); this render-boundary pass guarantees it
@@ -1437,7 +1519,9 @@ class NavigationLoop(
         // -- GOAL RESTRUCTURE (Phase 10, vision 04 §1 v1.4.0): when a ladder source is
         //    wired, EVERY goal enters through the writer's ONE restructure call; the
         //    ladder SUBSUMES triage and the cold-start pre-step (site entry folds under
-        //    the ladder's outcome-based mechanism). Invalid output = the clean
+        //    the ladder's outcome-based mechanism) — EXCEPT the browser-readiness
+        //    pre-step below (2026-10-17, doc 04 §1 v1.8.3: readiness, not navigation).
+        //    Invalid output = the clean
         //    pre-navigation refusal — nothing navigates. The default source is
         //    [LadderSource.None]: the legacy cold-start + triage path below stays
         //    byte-identical (the phase doc's non-ladder paths).
@@ -1465,6 +1549,12 @@ class NavigationLoop(
             line("guard state: ${guards!!.describe()}")
             publishLadderSurfaces()
             enterSubtask()
+            // The ladder-path browser-readiness pre-step (2026-10-17, doc 04 §1 v1.8.3):
+            // the product path subsumes the legacy cold-start, so THIS is where a browser
+            // first gets brought to the front when some other app is sitting there —
+            // before the step loop's first observe, mirroring the legacy branch (where
+            // the cold-start sits before triage). One attempt; readiness, not navigation.
+            browserReadinessPrestep()
         } else {
             // -- COLD-START (vision 04 §1: deterministic code BEFORE triage and the first
             //    OBSERVE; NO engine is ever consulted for opening the browser) ---------
@@ -1949,7 +2039,7 @@ class NavigationLoop(
             val obsOrNull = observeUsable()
             if (obsOrNull == null) {
                 line("observe: tree still unusable - graceful refusal (vision 03 §5)")
-                return finish(TerminalState.REFUSED, REFUSAL_MESSAGE, stepIndex)
+                return finish(TerminalState.REFUSED, observeRefusalDetail(), stepIndex)
             }
             var obs = obsOrNull
             lastObserved = obs
@@ -3495,6 +3585,23 @@ class NavigationLoop(
      */
     private fun ready(obs: StepObservation): Boolean =
         usable(obs) && BrowserPackages.isBrowser(obs.windowPackage)
+
+    /**
+     * The state-truthful observe-refusal detail (2026-10-17, doc 03 §5 v2.7.0): when NO
+     * browser window was ever front this run, "I can't read this site" misattributes the
+     * failure — there was no SITE in front of the lens at all (the 2026-10-17 hotel
+     * run's class). The detail then names the truth and the last front window; once a
+     * browser WAS front the doc-03 message stands byte-identically. Class-scope helper
+     * (reads the window-truth fields) — the run()-size discipline keeps the string
+     * building out of [run].
+     */
+    private fun observeRefusalDetail(): String =
+        if (everBrowserFront) {
+            REFUSAL_MESSAGE
+        } else {
+            "the browser never came to the front, so there was no page to read " +
+                "(front window: ${lastFrontWindow.ifBlank { "unknown" }})"
+        }
 
     /** A gate refusal resolves to SKIP, or to ABORT_TASK on the second refusal. */
     private fun refusalOutcome(decision: GateDecision, onSkip: ActionDisposition): Pair<ActionDisposition, Boolean> =
