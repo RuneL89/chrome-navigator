@@ -199,8 +199,17 @@ class SetupActivity : ComponentActivity() {
 
         // R3: the tick re-runs every check on resume/window-focus (returning from a
         // Settings deep-link flips the row immediately); the other keys re-run on the
-        // checkbox and the save button.
-        LaunchedEffect(batteryAcknowledged, keySaved, refreshTick) { refresh() }
+        // checkbox and the save button. keyTestState/keyTestDetail ride the keys too:
+        // the live-key card's chip + detail render from `checks` (derived here), so the
+        // outcome write must re-run refresh() or the card would stay on "Testing…"
+        // forever while only the button updated.
+        LaunchedEffect(
+            batteryAcknowledged,
+            keySaved,
+            refreshTick,
+            keyTestState,
+            keyTestDetail,
+        ) { refresh() }
 
         Surface(modifier = Modifier.fillMaxSize(), color = NavigatorColors.Canvas) {
             Column(
