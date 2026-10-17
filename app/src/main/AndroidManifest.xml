@@ -34,7 +34,7 @@
     </queries>
 
     <application
-        android:label="Chrome Navigator"
+        android:label="@string/app_name"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
 
         <activity
@@ -73,6 +73,16 @@
             android:name=".observe.CaptureActivity"
             android:exported="true" />
 
+        <!-- EXPERIMENT BRANCH ONLY (exp/vision-box): the vision-box try-out's adb entry.
+             The debug build runs under the DISTINCT applicationId navigator.app.visionexp
+             (build.gradle.kts) so it installs alongside the product app; the class lives
+             in the (branch-only) harness.vision package. Exported for adb-driven runs,
+             the HarnessActivity precedent. -->
+        <activity
+            android:name=".harness.vision.VisionExperimentActivity"
+            android:exported="true"
+            android:label="Navigator Vision Experiment" />
+
         <!-- Debug-only adb capture trigger: fires while the browser stays foreground
              (refused unless the build is debuggable). -->
         <receiver
@@ -87,7 +97,7 @@
         <service
             android:name=".observe.NavigatorAccessibilityService"
             android:exported="true"
-            android:label="Chrome Navigator Observation"
+            android:label="@string/a11y_service_label"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />

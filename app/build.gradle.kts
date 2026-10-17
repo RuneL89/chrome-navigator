@@ -32,6 +32,14 @@ android {
     }
 
     buildTypes {
+        debug {
+            // EXPERIMENT BRANCH ONLY (exp/vision-box, 2026-10-17): the debug APK installs
+            // ALONGSIDE the product app instead of replacing it — the owner's device runs
+            // the phase-10d build under `navigator.app`, and the vision experiment must
+            // not touch it. Remove this block when the branch merges or dies.
+            applicationIdSuffix = ".visionexp"
+            versionNameSuffix = "-visionexp"
+        }
         release {
             isMinifyEnabled = false
         }

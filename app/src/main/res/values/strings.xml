@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="app_name">Chrome Navigator</string>
+    <string name="a11y_service_label">Chrome Navigator Observation</string>
     <string name="a11y_service_summary">Reads Chrome pages to help navigate them</string>
     <string name="a11y_service_description">Observes Chrome\'s accessibility tree to read the
         current page (node list, coordinates, URL bar). Read-only in this phase: it never

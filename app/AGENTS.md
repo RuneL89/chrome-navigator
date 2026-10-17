@@ -810,7 +810,27 @@ setup wizard (`setup/`).
     `phraseStub` as a `PhraseSource` (the STUB-mode fill-field text; the LIVE modes
     use the GenClient adapters)
   * `src/main/kotlin/navigator/app/harness/` — the headless debug harness (Phase 6,
-    NOT product UI): `HarnessActivity` (engine picker — Phase 8C mode register
+    NOT product UI):
+    `vision/` (EXPERIMENT BRANCH ONLY — `exp/vision-box`, 2026-10-17, owner-directed
+    pure try-out that deliberately ignores the Project Vision law; delete with the
+    branch): the STANDALONE multimodal loop — per step it feeds BOTH the a11y read AND
+    a screenshot to the writer (Haiku plan/propose/confirm/extract via `VisionHaiku`
+    content-parts chat) and to Jev 1.14 (`VisionJev`: the images-API `assets` map +
+    `TypeSafe-Danger-Zone-Images` header; Box grounding + noul second opinion),
+    matches Box fractions to a11y node bounds by IoU (`VisionMath`, JVM-pinned), and
+    acts through the production `GestureExecutor`. `DoneConditionChecker` stays the
+    completion DECIDER — model opinions are RECORDED, never deciding. 10x product
+    budget ceilings (`ExpBudget`, owner directive); evidence (screenshots + raw
+    request/response JSON, owner-consented, EXPERIMENT-ONLY — the product ART-8
+    memory-only rule is untouched) to `run-reports/vision-exp/<runId>/`; reports via
+    `RunReportStore`. Entry: `VisionExperimentActivity` (adb; `--es goal` loop mode /
+    `--es visionMode probe` = the Phase-A grounding calibration: one screenshot, one
+    Box question per labeled interactive node, IoU scored against real bounds).
+    The debug build carries a DISTINCT identity (`navigator.app.visionexp` +
+    versionNameSuffix + the debug-sourceSet app/a11y labels) so it installs ALONGSIDE
+    the product app (owner directive 2026-10-17); remove the build.gradle.kts debug
+    block, `src/debug/res`, the manifest activity, and this bullet with the branch.
+    `HarnessActivity` (engine picker — Phase 8C mode register
     STUB | LIVE(jev) | LAYA | LAYA_FB_JEV via `--es engine` (the UI switch covers
     STUB↔LIVE; the laya modes arrive by intent, are shown, and disable the switch);
     LAYA/LAYA_FB_JEV run BARE — a shadow request under them is refused loudly
