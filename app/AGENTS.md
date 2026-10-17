@@ -246,7 +246,11 @@ setup wizard (`setup/`).
     — the battery "Done" acknowledgement's PLAIN-SharedPreferences location (a user
     acknowledgement, not a secret) — and `SAVED_KEY_INDICATOR`, the FIXED 8-dot
     saved-key marker that must never be derived from the stored value or its true
-    length), `SetupActivity` (the re-runnable four-check Compose wizard: a11y enable
+    length; 2026-10-17 hotel iteration: `keyLiveCheck`/`KeyTestState`/`KeyTestOutcome`
+    — the FIFTH check "API key is live", ON-DEMAND only (tap-to-test; never auto-runs,
+    never gates), because key presence says nothing about validity and that day's run
+    died on a stored-but-dead key at its first paid call),
+    `SetupActivity` (the re-runnable five-check Compose wizard: a11y enable
     deep-links with the Android 13+ "Allow restricted settings" path explained, the
     TEXT-GUIDED Samsung battery whitelist (no programmatic whitelist on stock Android
     is lawful), the password-transformed key entry, the model status; the UAT 9.2
@@ -254,7 +258,12 @@ setup wizard (`setup/`).
     (the R3 live-update — a row flips the moment the user returns from Settings), the
     battery acknowledgement persists across restarts (R4), and a saved key renders as
     the FIXED dot row beside the always-EMPTY entry field with "type a new one to
-    replace" / "Replace key" wording (R5 — no echo, no length leak); STARTS the
+    replace" / "Replace key" wording (R5 — no echo, no length leak); the 2026-10-17
+    live-key card: the Test-key button fires ONE free `GET openrouter.ai/api/v1/key` on
+    `Dispatchers.IO` (200 → green "accepted", 401 → red with the fresh-key recovery
+    path, else an honest error line; key rides the Authorization header only, never
+    logged; saving a new key resets the card to untested; the state lives OUTSIDE the
+    refresh cycle so no resume/focus ever pings OpenRouter); STARTS the
     foreground service from the foreground (the FGS background-start law) and triggers
     the goal overlay for the notification's "New task" action),
     the 2026-10-09 owner design pass (ai-ui-design-skills interview: warm
