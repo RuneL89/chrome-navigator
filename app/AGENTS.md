@@ -796,7 +796,7 @@ setup wizard (`setup/`).
     (d) the two big stage-2 branches (`emptySlateStep`/`stage2NoGoodStep`) plus the
     additive-consult block (`additiveEngineConsult`) moved wholesale into local funs,
     byte-identical lines. run() measured 57,364/65,535 (~8.2 KB headroom; the 2026-10-17
-    pre-repair HEAD baseline was 63,331 — the extraction round left run() SMALLER than
+    pre-repair HEAD baseline was 63,330 (the verifier's javap reproduces both numbers) — the extraction round left run() SMALLER than
     it found it).
   * `src/main/kotlin/navigator/app/stub/` — `StubEngine` (Phase 6; Phase 10B: the
     cascade scripting): a `DecisionEngine` replaying a `StubScript` deterministically
@@ -1146,7 +1146,7 @@ setup wizard (`setup/`).
   the recovery facts, a browser-once-front refusal keeps the doc-03 message
   byte-identically) + `LiveLogRecoveryTest` (2 — the PURE eligibility matrix over every
   terminal; the exact owner-ratified label); the 2026-10-17 run-3 gates:
-  `TypeMechanismTest` (14 — the rotation matrix set-text→paste→tap-and-yield→exhausted
+  `TypeMechanismTest` (12 — the rotation matrix set-text→paste→tap-and-yield→exhausted
   with the exact truthful cause; the leg mapping (a mechanism cause names its leg; the
   pre-mechanism failures consume none); the truthful attempt/yield/chain lines (the
   run-3 shape byte-pinned); the INPUT_MECHANISM classification over the mechanical
