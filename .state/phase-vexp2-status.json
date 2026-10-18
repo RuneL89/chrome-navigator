@@ -1,0 +1,27 @@
+{
+  "phase": "VEXP2",
+  "title": "The engine switch + the 100x budgets",
+  "phaseDoc": ".state/vision-iter/PHASE_VEXP2_engine_switch_100x.md",
+  "branch": "exp/vision-box",
+  "status": "in-progress",
+  "startedAt": "2026-10-19",
+  "goal": "useVisionLoop preference (default OFF) routes NavigatorService goals through VisionLoop when both keys stored; all budgets to 100x product values.",
+  "stoppingCondition": "Gates green + service-branch construction test (toggled=vision, untoggled=old, byte-identical) + budget constants pinned at 100x.",
+  "gatesPassed": [],
+  "gatesFailed": [],
+  "gatesPending": [
+    ":app:testDebugUnitTest --tests navigator.app.harness.vision.*",
+    ":app:testDebugUnitTest",
+    ":core:test",
+    ":app:assembleDebug",
+    "APK badge + dex vision-exp-v7"
+  ],
+  "deviations": [],
+  "llmCost": "implementation $0 (deterministic)",
+  "blocker": null,
+  "nextAction": "canon-implementer builds work items 1-5 per the phase doc",
+  "notes": [
+    "Owner directives 2026-10-19: the engine switch; ALL budgets 100x (models dirt cheap, runs may span days).",
+    "Sub-agents communicate via this file."
+  ]
+}
