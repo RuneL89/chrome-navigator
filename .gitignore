@@ -36,3 +36,4 @@ app/src/main/assets-local/
 
 # ZCode session state (plans/logs)
 .zcode/
+.state/vision-iter/**/REPORT.md

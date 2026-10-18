@@ -31,13 +31,17 @@ import navigator.core.wire.WireTransportException
  * reported per completed call; images price as text tokens, so the ledger prices tokens
  * at the production decision-engine table.
  *
- * MEASURED 2026-10-17 (live): the OpenRouter alpha/decisions proxy SILENTLY DROPS the
- * image assets — a request carrying a 199KB screenshot + the danger header answered 200
- * with `input_tokens: 455` (text-only size) and near-zero-confidence garbage boxes;
- * a direct curl of the same payload reproduced it. The [Question.Box] type is kept and
- * parses, but the loop's v2 grounding rides Haiku-with-image instead ([VisionHaiku]) —
- * with a typesafe-native key (the vendor endpoint accepts images: docs.typesafe.ai)
- * the Box leg is ready to switch back on.
+ * MEASURED 2026-10-17 (live): the **base64-in-JSON** upload loses the image through
+ * the OpenRouter `alpha/decisions` route — a request carrying a 199KB screenshot + the
+ * danger header answered 200 with `input_tokens: 455` (text-only size) and
+ * near-zero-confidence garbage boxes; a direct curl of the same payload reproduced it.
+ * This is a FORMAT finding, not a capability one: OpenRouter's registry declares
+ * `typesafe/jev-1.14` as `text+image → decisions`. The vendor-RECOMMENDED multipart/
+ * form-data format (images referenced by file `part`) was untested — the key expired
+ * mid-test; the staged curl lives in `.state/vision-iter/run1/REPORT.md` corrections.
+ * The [Question.Box] type is kept and parses; if multipart carries the image, the Box
+ * leg switches back on with no other key at all — until then the loop's v2 grounding
+ * rides Haiku-with-image instead ([VisionHaiku]).
  */
 class VisionJev(
     private val transport: WireTransport,

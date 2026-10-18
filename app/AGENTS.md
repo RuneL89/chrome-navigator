@@ -816,12 +816,15 @@ setup wizard (`setup/`).
     branch): the STANDALONE multimodal loop — per step it feeds BOTH the a11y read AND
     a screenshot to the writer (Haiku: plan/propose/confirm/extract via `VisionHaiku`
     content-parts chat; the propose answer carries a per-proposal BOX — Haiku is the
-    LOCATOR, because the OpenRouter decisions proxy SILENTLY DROPS image assets,
-    live-measured 2026-10-17: a 199KB screenshot + danger header answered with
-    text-only usage and garbage boxes) and to Jev 1.14 (`VisionJev`: the alpha
+    LOCATOR, because the OpenRouter decisions route LOSES the image in the
+    **base64-in-JSON** upload format (live-measured 2026-10-17: a 199KB screenshot +
+    danger header answered with text-only usage and garbage boxes; the registry
+    declares `typesafe/jev-1.14` text+image, so this is a format finding — the
+    vendor-recommended multipart form is untested, staged curl in
+    `.state/vision-iter/run1/REPORT.md`) and to Jev 1.14 (`VisionJev`: the alpha
     endpoint, model alias `typesafe/jev-1.14`; TEXT-side only — the pick-Choice among
-    proposals + the noul second opinion; its Box support is built and dormant until a
-    typesafe-native key exists). Boxes map to a11y node bounds by IoU (`VisionMath`,
+    proposals + the noul second opinion; its Box support is built and dormant pending
+    the multipart test). Boxes map to a11y node bounds by IoU (`VisionMath`,
     JVM-pinned); actions ride the production `GestureExecutor`. `DoneConditionChecker`
     stays the completion DECIDER (plus the 10C honesty-gate habit: a WEAK content
     condition cannot complete a subtask that has not acted); the one model-driven
