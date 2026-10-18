@@ -31,17 +31,17 @@ import navigator.core.wire.WireTransportException
  * reported per completed call; images price as text tokens, so the ledger prices tokens
  * at the production decision-engine table.
  *
- * MEASURED 2026-10-17 (live): the **base64-in-JSON** upload loses the image through
- * the OpenRouter `alpha/decisions` route — a request carrying a 199KB screenshot + the
- * danger header answered 200 with `input_tokens: 455` (text-only size) and
- * near-zero-confidence garbage boxes; a direct curl of the same payload reproduced it.
- * This is a FORMAT finding, not a capability one: OpenRouter's registry declares
- * `typesafe/jev-1.14` as `text+image → decisions`. The vendor-RECOMMENDED multipart/
- * form-data format (images referenced by file `part`) was untested — the key expired
- * mid-test; the staged curl lives in `.state/vision-iter/run1/REPORT.md` corrections.
- * The [Question.Box] type is kept and parses; if multipart carries the image, the Box
- * leg switches back on with no other key at all — until then the loop's v2 grounding
- * rides Haiku-with-image instead ([VisionHaiku]).
+ * SETTLED 2026-10-18 (all formats tested with a fresh key, known-answer frame):
+ * the alpha/decisions route REJECTS multipart outright (`400 invalid content-type`)
+ * and strips base64-in-JSON regardless of state form (both object- and string-form
+ * returned text-only `input_tokens: 360`, box confidence 0.03 far off ground truth,
+ * noul 0.48 — a blind coin flip). OpenRouter's registry declares `typesafe/jev-1.14`
+ * `text+image`, but this route carries no image payload in either documented upload
+ * format — an OpenRouter proxy gap (the vendor API accepts both per docs); the repro
+ * set lives in `.state/vision-iter/run1/REPORT.md`. The [Question.Box] type is kept
+ * and parses; the Box leg switches on the day the route carries images or a direct
+ * TypeSafe key is used — until then the loop's v2 grounding rides Haiku-with-image
+ * ([VisionHaiku]).
  */
 class VisionJev(
     private val transport: WireTransport,
