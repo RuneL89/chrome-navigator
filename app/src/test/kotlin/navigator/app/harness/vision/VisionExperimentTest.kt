@@ -270,6 +270,132 @@ class VisionExperimentTest {
         assertEquals(1, obj["a"]?.jsonPrimitive?.content?.toInt())
     }
 
+    // -- the skill-routed manifest + verification battery ---------------------------------
+
+    @Test
+    fun `the planner system prompt carries the distilled tool manifest`() {
+        assertTrue(VisionPrompts.PLAN_SYSTEM.contains(VisionPrompts.JEV_TOOL_MANIFEST))
+        assertTrue(VisionPrompts.PLAN_SYSTEM.contains("0.5 means UNSURE"))
+        assertTrue(VisionPrompts.PLAN_SYSTEM.contains("verify battery"))
+    }
+
+    @Test
+    fun `verify batteries parse per subtask with loud boundaries`() {
+        val content = """
+            {"summary":"s","taskClass":"read","subtasks":[
+              {"instruction":"a","done":{"markerText":"x"},
+               "verify":[{"question":"is the result visible?","badIsTrue":false},
+                         {"question":"is the page an error page?","badIsTrue":true}]},
+              {"instruction":"b","done":{"markerText":"y"}}]}
+        """.trimIndent()
+        val battery = VisionPrompts.parseVerifyBlocks(content, "t")
+        assertEquals(2, battery[0]?.size)
+        assertEquals(true, battery[0]?.get(1)?.badIsTrue)
+        assertEquals(false, battery[0]?.get(0)?.badIsTrue)
+        assertEquals(emptyList(), battery[1].orEmpty())
+        assertTrue(VisionPrompts.parseVerifyBlocks("""{"summary":"s"}""", "t").isEmpty())
+        assertFailsWith<VisionHaiku.VisionHaikuException> {
+            VisionPrompts.parseVerifyBlocks(
+                """{"subtasks":[{"instruction":"a","verify":[{"question":"  "}]}]}""", "t",
+            )
+        }
+        assertFailsWith<VisionHaiku.VisionHaikuException> {
+            VisionPrompts.parseVerifyBlocks(
+                """{"subtasks":[{"instruction":"a","verify":[{"question":"1"},{"question":"2"},{"question":"3"},{"question":"4"}]}]}""",
+                "t",
+            )
+        }
+    }
+
+    @Test
+    fun `battery answers map back with numbering tolerance and gaps`() {
+        val content = """
+            {"answers":[{"question":"1. is the result visible?","answer":true}]}
+        """.trimIndent()
+        val requested = listOf("is the result visible?", "is the page an error page?")
+        val answers = VisionPrompts.parseBatteryAnswers(content, requested, "t")
+        assertEquals(1, answers.size)
+        assertEquals("is the result visible?", answers[0].question)
+        assertEquals(true, answers[0].answer)
+        assertFailsWith<VisionHaiku.VisionHaikuException> {
+            VisionPrompts.parseBatteryAnswers("""{"responses":[]}""", requested, "t")
+        }
+    }
+
+    @Test
+    fun `battery gate is max-style - one red flag escalates, all-clean achieves`() {
+        fun check(
+            question: String, badIsTrue: Boolean = false,
+            textNoul: Double? = null, imageConfirm: Boolean? = null,
+        ) = VisionLoop.CheckResult(question, badIsTrue, textNoul, imageConfirm)
+        val red = 0.70
+        val agree = 0.70
+
+        // one confident red flag escalates even when an outcome check also achieved
+        val escalated = VisionLoop.batteryGate(
+            listOf(
+                check("result visible", textNoul = 0.9),
+                check("error page", badIsTrue = true, textNoul = 0.85),
+            ),
+            red, agree,
+        )
+        assertTrue(escalated is VisionLoop.BatteryGate.RedFlags)
+        assertEquals(listOf("error page"), (escalated as VisionLoop.BatteryGate.RedFlags).flags)
+
+        // image-confirm alone (text channel abstained) flags
+        val imageFlag = VisionLoop.batteryGate(
+            listOf(check("error page", badIsTrue = true, imageConfirm = true, textNoul = null)),
+            red, agree,
+        )
+        assertTrue(imageFlag is VisionLoop.BatteryGate.RedFlags)
+
+        // image says bad but the text channel CONFIDENTLY refutes -> proceed (text is the calibrated judge)
+        val refutedByText = VisionLoop.batteryGate(
+            listOf(check("error page", badIsTrue = true, imageConfirm = true, textNoul = 0.4)),
+            red, agree,
+        )
+        assertTrue(refutedByText is VisionLoop.BatteryGate.Proceed)
+
+        // every outcome check achieved, no red flags -> outcome achieved
+        assertEquals(
+            VisionLoop.BatteryGate.OutcomeAchieved,
+            VisionLoop.batteryGate(
+                listOf(check("result visible", textNoul = 0.9), check("marker seen", imageConfirm = true)),
+                red, agree,
+            ),
+        )
+
+        // mixed/weak -> proceed (the loop acts)
+        assertEquals(
+            VisionLoop.BatteryGate.Proceed,
+            VisionLoop.batteryGate(
+                listOf(check("result visible", textNoul = 0.4, imageConfirm = false)),
+                red, agree,
+            ),
+        )
+        assertEquals(
+            VisionLoop.BatteryGate.Proceed,
+            VisionLoop.batteryGate(emptyList(), red, agree),
+        )
+    }
+
+    @Test
+    fun `noul 0_5 is unsure - the gate treats sub-threshold text as non-refuting`() {
+        // image says RED, text is exactly at the unsure point -> still a red flag
+        // (the image channel is a witness; text below redFlag but >= 0.5 does not refute)
+        val atUnsure = VisionLoop.batteryGate(
+            listOf(VisionLoop.CheckResult("error page", badIsTrue = true, textNoul = 0.5, imageConfirm = true)),
+            0.70, 0.70,
+        )
+        assertTrue(atUnsure is VisionLoop.BatteryGate.RedFlags)
+        // text REFUTES the image ( confidently not-bad) -> no red flag -> proceed
+        val refuted = VisionLoop.batteryGate(
+            listOf(VisionLoop.CheckResult("error page", badIsTrue = true, textNoul = 0.05, imageConfirm = true)),
+            0.70, 0.70,
+        )
+        assertTrue(refuted is VisionLoop.BatteryGate.Proceed)
+    }
+
     // -- ExpBudget (10x ceilings) --------------------------------------------------------
 
     @Test

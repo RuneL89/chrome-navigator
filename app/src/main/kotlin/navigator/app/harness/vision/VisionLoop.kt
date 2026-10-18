@@ -59,9 +59,56 @@ class VisionLoop(
             VisionEvidence.GroundingMetrics.GROUND_CONFIDENCE,
         /** The noul's recorded agreement threshold (opinion only — never decides). */
         val noulAgreeAbove: Double = 0.70,
+        /**
+         * The verification battery's red-flag threshold (bad-is-true checks): ONE check
+         * at or above this escalates to re-plan — max-gate, never averaged (the SDE
+         * cascade law). Calibration duty: run-1 evidence separated cleanly (refusals
+         * 0.13–0.22 vs accept 0.98).
+         */
+        val redFlagAbove: Double = 0.70,
     )
 
     enum class Terminal { GOAL_ACHIEVED, MODELS_CONFIRM_DONE, STEPS_EXHAUSTED, BUDGET_EXHAUSTED, REPLANS_EXHAUSTED, CANCELLED, PLAN_REFUSED }
+
+    /** One answered battery check: the two channels' raw evidence (null = channel refused). */
+    data class CheckResult(
+        val question: String,
+        val badIsTrue: Boolean,
+        val textNoul: Double?,
+        val imageConfirm: Boolean?,
+    )
+
+    /** The battery's max-gate verdict (the SDE-cascade law: one confident red flag escalates). */
+    sealed interface BatteryGate {
+        data class RedFlags(val flags: List<String>) : BatteryGate
+        data object OutcomeAchieved : BatteryGate
+        data object Proceed : BatteryGate
+    }
+
+    companion object {
+        /**
+         * Pure max-gate over the battery's results:
+         * - a bad-is-true check at/above [redFlagAbove] (text) or image-confirmed true
+         *   with non-refuting text (≥0.5 or refused) → RED FLAGS (re-plan);
+         * - every outcome check achieved (text ≥ [agreeAbove], or image-confirmed true
+         *   with non-refuting text) while no red flag → OUTCOME ACHIEVED (the plan's
+         *   condition is mis-shaped — re-plan with the right cause);
+         * - otherwise PROCEED (the loop acts).
+         * The code `DoneConditionChecker` remains the ACCEPT authority; the battery is
+         * the ESCALATION authority only.
+         */
+        fun batteryGate(results: List<CheckResult>, redFlagAbove: Double, agreeAbove: Double): BatteryGate {
+            fun flagHigh(r: CheckResult) = (r.textNoul != null && r.textNoul >= redFlagAbove) ||
+                (r.imageConfirm == true && (r.textNoul == null || r.textNoul >= 0.5))
+            fun achieved(r: CheckResult) = (r.textNoul != null && r.textNoul >= agreeAbove) ||
+                (r.imageConfirm == true && (r.textNoul == null || r.textNoul >= 0.5))
+            val reds = results.filter { it.badIsTrue && flagHigh(it) }
+            if (reds.isNotEmpty()) return BatteryGate.RedFlags(reds.map { it.question })
+            val outcomes = results.filter { !it.badIsTrue }
+            if (outcomes.isNotEmpty() && outcomes.all { achieved(it) }) return BatteryGate.OutcomeAchieved
+            return BatteryGate.Proceed
+        }
+    }
 
     data class Result(
         val terminal: Terminal,
@@ -100,10 +147,12 @@ class VisionLoop(
         evidence.event("run start goal=<${goal.take(80)}> budget=10x writer=${budget.hasWriterHardRoom()}")
         var obs = observer.observe()
         var shot = captureSafely(screenshots++)
-        var ladder = planLadder(goal, obs, failure = null, shot) ?: run {
+        var planned = planLadder(goal, obs, failure = null, shot) ?: run {
             evidence.event("PLAN_REFUSED: no valid ladder in ${config.planAttempts} attempts")
             return terminal(Terminal.PLAN_REFUSED, null)
         }
+        var ladder = planned.ladder
+        var batteries = planned.battery
         evidence.event("plan: ${ladder.summary} (${ladder.subtasks.size} subtasks, ${ladder.taskClass})")
         outcomes.add("plan: ${ladder.summary}")
         var pointer = 0
@@ -187,31 +236,64 @@ class VisionLoop(
                 consecutiveFailures = config.stepFailuresBeforeReplan
             }
 
-            // -- PROPOSE -> GROUND -> MATCH -> ACT --------------------------------------
-            var actedNodeId: String? = null
-            var stepLine = "step $step: "
-            val attempted = attemptStep(active, doneText, obs, shot, counters, actedNodeIds, typedSoFar)
-            when (attempted) {
-                is Attempted.Acted -> {
-                    actedNodeId = attempted.actedNodeId
-                    stepLine += attempted.detail
-                    // Only REAL progress resets the failure counter: a scroll/back probe
-                    // is recovery machinery, not advancement — otherwise empty-proposal
-                    // failures alternate with "successful" scrolls forever and the
-                    // re-plan gate never fires (measured live 2026-10-17).
-                    if (attempted.progresses) consecutiveFailures = 0
-                    if (attempted.typed != null) typedSoFar = attempted.typed
+            // -- the verification battery (writer-authored, cascade law) -----------------
+            // Narrow checks over BOTH channels: Jev nouls batched over the text state,
+            // Haiku answering the same questions over the screenshot. Max-gate: one
+            // confident red flag — or every outcome check achieved while the code
+            // checker disagrees — escalates straight to the re-plan gate instead of
+            // burning a step on PROPOSE (the run-1 failure, now instrumented).
+            var escalateCause: String? = null
+            var proposerExhaustedLast = false
+            val batteryChecks = batteries[pointer].orEmpty()
+            if (batteryChecks.isNotEmpty()) {
+                val results = runBattery(batteryChecks, obs, shot)
+                when (val gate = batteryGate(results, config.redFlagAbove, config.noulAgreeAbove)) {
+                    is BatteryGate.RedFlags ->
+                        escalateCause = "verification battery red flag(s): " +
+                            gate.flags.joinToString("; ")
+                    BatteryGate.OutcomeAchieved ->
+                        escalateCause = "verification battery: the subtask outcome is ALREADY visible " +
+                            "on this page while the done-condition is not satisfied — the condition is mis-shaped"
+                    BatteryGate.Proceed -> {}
                 }
-                is Attempted.Failed -> {
-                    stepLine += "FAILED (${attempted.reason})"
-                    consecutiveFailures += 1
+                if (escalateCause != null) {
+                    val line = "step $step: BATTERY ESCALATE - $escalateCause"
+                    outcomes.add(line)
+                    log("[vision] $line")
+                    evidence.event(line)
+                    consecutiveFailures = config.stepFailuresBeforeReplan
+                    step += 1
                 }
             }
-            outcomes.add(stepLine)
-            log("[vision] $stepLine")
-            evidence.event(stepLine)
-            step += 1
-            stepsOnSubtask += 1
+
+            if (escalateCause == null && consecutiveFailures < config.stepFailuresBeforeReplan) {
+                // -- PROPOSE -> GROUND -> MATCH -> ACT ----------------------------------
+                var actedNodeId: String? = null
+                var stepLine = "step $step: "
+                val attempted = attemptStep(active, doneText, obs, shot, counters, actedNodeIds, typedSoFar)
+                when (attempted) {
+                    is Attempted.Acted -> {
+                        actedNodeId = attempted.actedNodeId
+                        stepLine += attempted.detail
+                        // Only REAL progress resets the failure counter: a scroll/back probe
+                        // is recovery machinery, not advancement — otherwise empty-proposal
+                        // failures alternate with "successful" scrolls forever and the
+                        // re-plan gate never fires (measured live 2026-10-17).
+                        if (attempted.progresses) consecutiveFailures = 0
+                        if (attempted.typed != null) typedSoFar = attempted.typed
+                    }
+                    is Attempted.Failed -> {
+                        stepLine += "FAILED (${attempted.reason})"
+                        consecutiveFailures += 1
+                        proposerExhaustedLast = attempted.reason.startsWith("no proposals")
+                    }
+                }
+                outcomes.add(stepLine)
+                log("[vision] $stepLine")
+                evidence.event(stepLine)
+                step += 1
+                stepsOnSubtask += 1
+            }
 
             // -- the failure -> informed re-plan gate -----------------------------------
             if (consecutiveFailures >= config.stepFailuresBeforeReplan) {
@@ -223,8 +305,7 @@ class VisionLoop(
                 // terminal is DISTINCTLY FLAGGED: code-unverified completion, the exact
                 // quantity this experiment measures. On a browser whose text layer
                 // carries page content, the code check fires first and this stays shut.
-                val proposerExhausted = attempted is Attempted.Failed &&
-                    attempted.reason.startsWith("no proposals")
+                val proposerExhausted = proposerExhaustedLast
                 if (proposerExhausted) {
                     val op = recordedOpinions(active, obs, shot)
                     if (op.confirm == true && (op.noul ?: 0.0) >= config.noulAgreeAbove) {
@@ -252,7 +333,8 @@ class VisionLoop(
                     return terminal(Terminal.REPLANS_EXHAUSTED, ladder)
                 }
                 replans += 1
-                ladder = rePlan
+                ladder = rePlan.ladder
+                batteries = rePlan.battery
                 pointer = pointer.coerceAtMost(ladder.subtasks.size - 1)
                 consecutiveFailures = 0
                 recentHashes.clear()
@@ -448,6 +530,55 @@ class VisionLoop(
             ),
         )
 
+    /**
+     * The verification battery, both channels per the fan-out law: ONE batched Jev
+     * request over the text state (every check as a noul) + ONE Haiku call answering
+     * the same questions over the screenshot. Channel failures degrade to null (that
+     * channel abstains — the gate works on whatever answered).
+     */
+    private suspend fun runBattery(
+        checks: List<VisionPrompts.VerifyCheck>,
+        obs: StepObservation,
+        shot: VisionCapture.ScreenShot?,
+    ): List<CheckResult> {
+        val textNouls: List<Double?> = try {
+            val questions = checks.mapIndexed { i, c -> VisionJev.Question.Noul("v$i", c.question) }
+            var rawReq = ""
+            var rawRes = ""
+            val answers = jev.ask(
+                digest(obs), questions, null, VisionJev.newImageRef(), "verify-battery",
+                onRaw = { req, res -> rawReq = req; rawRes = res },
+            )
+            evidence.call("verify-battery", rawReq, rawRes, 0, null)
+            checks.mapIndexed { i, _ -> (answers["v$i"] as? VisionJev.Answer.Noul)?.pTrue }
+        } catch (e: Exception) {
+            evidence.event("battery text channel refused: ${e.message?.take(140)}")
+            checks.map { null }
+        }
+        val imageConfirms: List<Boolean?> = if (shot != null) {
+            try {
+                val questions = checks.map { it.question }
+                var rawReq = ""
+                var rawRes = ""
+                val content = haiku.chat(
+                    VisionPrompts.BATTERY_SYSTEM,
+                    VisionPrompts.batteryUser(questions),
+                    shot.base64,
+                    "battery",
+                ) { req, res -> rawReq = req; rawRes = res }
+                evidence.call("battery", rawReq, rawRes, 0, null)
+                val answered = VisionPrompts.parseBatteryAnswers(content, questions, "battery")
+                checks.map { c -> answered.firstOrNull { it.question == c.question }?.answer }
+            } catch (e: Exception) {
+                evidence.event("battery image channel refused: ${e.message?.take(140)}")
+                checks.map { null }
+            }
+        } else {
+            checks.map { null }
+        }
+        return checks.mapIndexed { i, c -> CheckResult(c.question, c.badIsTrue, textNouls[i], imageConfirms[i]) }
+    }
+
     /** The recorded (never-deciding) opinions: Jev noul + Haiku confirm. */
     private data class Opinions(val noul: Double?, val confirm: Boolean?, val render: String)
 
@@ -490,7 +621,13 @@ class VisionLoop(
         return Opinions(noul, confirm, "[$noulVerdict confirm=$confirm]")
     }
 
-    private suspend fun planLadder(goal: String, obs: StepObservation, failure: String?, shot: VisionCapture.ScreenShot?): Ladder? {
+    /** A parsed plan plus the writer-authored per-subtask verification batteries (index → checks). */
+    private class PlannedLadder(
+        val ladder: Ladder,
+        val battery: Map<Int, List<VisionPrompts.VerifyCheck>>,
+    )
+
+    private suspend fun planLadder(goal: String, obs: StepObservation, failure: String?, shot: VisionCapture.ScreenShot?): PlannedLadder? {
         var correction: String? = null
         repeat(config.planAttempts) { attempt ->
             try {
@@ -508,7 +645,11 @@ class VisionLoop(
                     rawReq = req; rawRes = res
                 }
                 evidence.call(if (failure == null) "plan" else "replan", rawReq, rawRes, 0, null)
-                return LadderSchema.parse(content, maxSubtasks = 8)
+                // The battery parses FIRST (it is not part of the product Ladder type):
+                // a malformed battery is a refused attempt and feeds the error-fed retry.
+                val battery = VisionPrompts.parseVerifyBlocks(content, "plan")
+                val ladder = LadderSchema.parse(content, maxSubtasks = 8)
+                return PlannedLadder(ladder, battery)
             } catch (e: Exception) {
                 correction = "Your previous JSON was refused: ${e.message?.take(300)} — fix exactly that and return the STRICT JSON again."
                 evidence.event("plan attempt ${attempt + 1} refused: ${e.message?.take(160)}")
