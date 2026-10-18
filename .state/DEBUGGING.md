@@ -76,6 +76,14 @@ FILTER per app (see §0 table):
 
 AUTHORITATIVE terminal signal per app:
 
+> **CORRECTION (2026-10-18, vision-iter run1):** the channel follows the LAUNCH PATH,
+> not the app choice alone. A goal submitted through the app's OVERLAY (goal input)
+> runs the PRODUCT loop even inside `navigator.app.visionexp` — the authoritative
+> signal is then that app's OWN Room DB (`run-as navigator.app.visionexp …
+> navigator-decision-log.db` → `task_terminal`), and the vision report/logcat channel
+> stays silent. The vision report channel applies ONLY to runs launched via
+> `VisionExperimentActivity` (adb). Arm the baseline for the path you actually launched.
+
 * product: a row in `task_terminal` inside `databases/navigator-decision-log.db` of
   `navigator.app` — that is the Room DB's real name (a literal `log.db` also exists in
   the tree and is NOT it; polling the wrong one silently reads an empty 49-byte file).
