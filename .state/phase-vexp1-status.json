@@ -1,0 +1,28 @@
+{
+  "phase": "VEXP1",
+  "title": "Image+Box on the TypeSafe route, dual API keys, and the skill-compiled informed re-plan",
+  "phaseDoc": ".state/vision-iter/PHASE_VEXP1_image_box_dual_keys.md",
+  "branch": "exp/vision-box",
+  "status": "in-progress",
+  "startedAt": "2026-10-18",
+  "goal": "Vendor-route image+Box live in the loop; dual keys stored/tested; the re-plan compiles Jev findings per the distilled TypeSafe skill; all gates green; owner UAT accepted.",
+  "stoppingCondition": "All gates green + emulator probe shows image riding the vendor route (asset in request JSON, grounding attempts scored) + dual tester verdicts + badge/dex verified + owner UAT accepted.",
+  "gatesPassed": [],
+  "gatesFailed": [],
+  "gatesPending": [
+    ":app:testDebugUnitTest --tests navigator.app.harness.vision.*",
+    ":app:testDebugUnitTest",
+    ":core:test",
+    ":app:assembleDebug",
+    "APK badge navigator.app.visionexp + dex marker vision-exp-v6",
+    "emulator live probe: asset in request + grounding scored"
+  ],
+  "deviations": [],
+  "llmCost": "implementation $0 (deterministic); verifier live probe ~$0.001 budget",
+  "blocker": null,
+  "nextAction": "canon-implementer builds work items 1-7 per the phase doc",
+  "notes": [
+    "Law for this phase = the experiment charter (phase doc header); Project Vision departures pre-sanctioned by owner 2026-10-18.",
+    "Sub-agents communicate via this file; do not use conversation."
+  ]
+}

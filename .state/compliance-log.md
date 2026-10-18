@@ -1295,3 +1295,10 @@ a new dated entry. Format per `Implementation Plan/MASTER_IMPLEMENTATION_PROMPT.
   Tests (+15 = 12+2+1): `TypeMechanismTest` (12) + `TypeMechanismLoopTest` (2, the REAL loop over the chain-failing fake executor) + GenClientTest +1. Suite: :core 380 / 0 failures, :app 586 / 0 failures (both full reruns); :app:assembleDebug BUILD SUCCESSFUL. Tier A: `:core:generateTierAReport` NOT re-run — CauseClass/the writer hint touch no Tier-A-pinned surface (state format, wire, taxonomy, gate classes, intents, rubric, per-question instructions all untouched) and the Tier A eval tests inside :core:test ran green (19 tests / 0 failures — the committed drift artifacts stand).
   Compliance: COMPLIANT — implementation matches doc 04 v1.8.4 + doc 07 v1.5.1; additive-only (the enum value, the CauseClass member, the classify mappings, one golden family variant); no card copy change; no live API call by the implementer ($0; the orchestrator owns the emulator/live legs); no key material read or committed.
   Checked By: orchestrator (implementation) — canon-verifier round requested before the owner's run-4
+
+## 2026-10-18 — PHASE_VEXP1 compliance pre-check
+* Checker: orchestrator (canon loop, exp/vision-box)
+* Phase doc: .state/vision-iter/PHASE_VEXP1_image_box_dual_keys.md
+* Changed files (planned): app/src/main/kotlin/navigator/app/harness/vision/*, app/src/main/kotlin/navigator/app/setup/*, app/src/test/kotlin/navigator/app/harness/vision/*, app/AGENTS.md, .state/DEBUGGING.md
+* Law checked against: the EXPERIMENT CHARTER (app/AGENTS.md vision/ bullet; .state/vision-iter/run1/REPORT.md rev2+corrections incl. the measured transport matrix). Project Vision/ departures (image in decisions, product-adjacent setup changes on this branch) are PRE-SANCTIONED by the owner's 2026-10-18 directive — recorded in the phase doc header; the Verifier checks against the phase doc, not Project Vision.
+* Result: PASS — no contradiction with the phase law; all transports live-proven (vendor test recorded in run1 REPORT corrections).
