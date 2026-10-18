@@ -249,4 +249,70 @@ class SetupLogicTest {
         }
         assertFalse(SetupLogic.allRequiredGreen(noKey))
     }
+
+    // -- PHASE_VEXP1 work item 2: the TypeSafe key card + the dual tester -------------------
+
+    @Test
+    fun `the TypeSafe key check is presence-only fixed-dot and REQUIRED`() {
+        val green = SetupLogic.typesafeKeyCheck(true)
+        assertEquals(SetupLogic.Status.GREEN, green.status)
+        assertTrue(green.required, "REQUIRED in this app (owner may flip at UAT; decision recorded)")
+        assertEquals("typesafeKey", SetupLogic.CHECK_TYPESAFE_KEY)
+        assertEquals(SetupLogic.CHECK_TYPESAFE_KEY, green.id)
+        assertTrue(green.detail.contains(SetupLogic.SAVED_KEY_INDICATOR), "the R5 fixed-dot law verbatim")
+        assertTrue(green.detail.contains("replaces"), "the replace wording verbatim")
+        assertFalse(green.detail.contains("sk-"), "no key-material shape may ever render")
+        val red = SetupLogic.typesafeKeyCheck(false)
+        assertEquals(SetupLogic.Status.RED, red.status)
+        assertTrue(red.required)
+        assertTrue(red.detail.contains("api.typesafe.ai"), "the red state names the channel")
+    }
+
+    @Test
+    fun `the dual tester renders two independent verdict lines and derives status from both channels`() {
+        fun dual(
+            or: SetupLogic.KeyTestState,
+            ts: SetupLogic.KeyTestState,
+            orDetail: String = "or verdict",
+            tsDetail: String = "ts verdict",
+        ) = SetupLogic.dualKeyLiveCheck(SetupLogic.DualKeyTest(or, orDetail, ts, tsDetail))
+
+        val both = dual(SetupLogic.KeyTestState.LIVE, SetupLogic.KeyTestState.LIVE)
+        assertEquals(SetupLogic.Status.GREEN, both.status)
+        assertFalse(both.required, "the tester never gates the summary")
+        assertTrue(both.detail.contains("OpenRouter: or verdict"), "line one")
+        assertTrue(both.detail.contains("\nTypeSafe: ts verdict"), "line two, independent")
+
+        assertEquals(SetupLogic.Status.RED, dual(SetupLogic.KeyTestState.LIVE, SetupLogic.KeyTestState.REJECTED).status)
+        assertEquals(SetupLogic.Status.RED, dual(SetupLogic.KeyTestState.ERROR, SetupLogic.KeyTestState.LIVE).status)
+        assertEquals(SetupLogic.Status.INFO, dual(SetupLogic.KeyTestState.UNTESTED, SetupLogic.KeyTestState.UNTESTED).status)
+        assertEquals(SetupLogic.Status.INFO, dual(SetupLogic.KeyTestState.TESTING, SetupLogic.KeyTestState.LIVE).status)
+        assertEquals(
+            SetupLogic.Status.INFO,
+            dual(SetupLogic.KeyTestState.LIVE, SetupLogic.KeyTestState.UNTESTED).status,
+            "one green channel is not both green",
+        )
+    }
+
+    @Test
+    fun `the dual tester never blocks the summary but the TypeSafe key card does`() {
+        val wizard = listOf(
+            SetupLogic.accessibilityCheck(true),
+            SetupLogic.batteryCheck("Google", acknowledged = false),
+            SetupLogic.keyCheck(true),
+            SetupLogic.typesafeKeyCheck(true),
+            SetupLogic.dualKeyLiveCheck(
+                SetupLogic.DualKeyTest(
+                    SetupLogic.KeyTestState.UNTESTED, "u",
+                    SetupLogic.KeyTestState.UNTESTED, "u",
+                ),
+            ),
+            SetupLogic.modelCheck(false),
+        )
+        assertTrue(SetupLogic.allRequiredGreen(wizard), "an untested dual card never blocks")
+        val noTypesafe = wizard.map {
+            if (it.id == SetupLogic.CHECK_TYPESAFE_KEY) SetupLogic.typesafeKeyCheck(false) else it
+        }
+        assertFalse(SetupLogic.allRequiredGreen(noTypesafe), "a missing TypeSafe key DOES block")
+    }
 }

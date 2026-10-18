@@ -33,21 +33,28 @@ import java.io.File
  * ```
  * adb shell am start -n navigator.app.visionexp/navigator.app.harness.vision.VisionExperimentActivity \
  *   --es goal "find the cheapest airfryer on a shopping site" [--el startDelayMs 0] \
- *   [--ez ablateVision true] [--ez evidence true] [--es visionJevModel typesafe/jev-1.14.0]
+ *   [--ez ablateVision true] [--ez evidence true] [--es visionJevModel jev-1.14.0] \
+ *   [--es visionJevUrl https://api.typesafe.ai/v1/systemone]
  * ```
- * Probe mode (Phase-A grounding calibration; no loop, no goal): captures one screenshot,
- * fires one Box question per labeled interactive node, and scores each box against the
- * node's real a11y bounds (the hit-rate/confidence-histogram output that picks the floor):
+ * Probe mode (Phase-A grounding calibration; no loop, no goal): captures one screenshot
+ * and fires ONE batched vendor request — a Box question per labeled interactive node
+ * plus one noul — scoring each box against the node's real a11y bounds (the
+ * hit-rate/confidence-histogram output that picks the floor, now on the REAL transport):
  * ```
  * adb shell am start -n navigator.app.visionexp/navigator.app.harness.vision.VisionExperimentActivity \
  *   --es visionMode probe
  * ```
  *
- * Key resolution: `--es openrouterKey` > the Setup wizard's saved key
- * ([OpenRouterKeyStore]) > env/keys-file ([DefaultEngineConfigs.resolveKey]). Missing key
- * = loud refusal, never a silent run. Evidence (owner-consented, experiment-only) lands
- * in the app-external `run-reports/vision-exp/<runId>/` plus a summary JSON in
- * `run-reports/` — adb-pullable. Streaming log: `adb logcat -s NavigatorVision`.
+ * DUAL key resolution (PHASE_VEXP1 work items 2+5), symmetric per channel —
+ * `--es openrouterKey` / `--es typesafeKey` > the Setup wizard's saved keys
+ * ([OpenRouterKeyStore]) > env `NAVIGATOR_OPENROUTER_KEY` / `NAVIGATOR_TYPESAFE_KEY` >
+ * the keys file ([DefaultEngineConfigs.resolveKey], via [VisionKeys]). Missing EITHER
+ * key = loud refusal naming the channel ([VisionKeys.refusal]), never a silent run.
+ * The OpenRouter key rides the writer (Haiku); the TypeSafe key rides the vendor
+ * image+Box route (Jev, defaulted to [VisionJev.DEFAULT_VISION_BASE_URL]). Evidence
+ * (owner-consented, experiment-only) lands in the app-external
+ * `run-reports/vision-exp/<runId>/` plus a summary JSON in `run-reports/` —
+ * adb-pullable. Streaming log: `adb logcat -s NavigatorVision`.
  */
 class VisionExperimentActivity : Activity() {
 
@@ -64,21 +71,23 @@ class VisionExperimentActivity : Activity() {
         val jevModel = intent.getStringExtra(EXTRA_JEV_MODEL)?.trim()?.takeIf { it.isNotEmpty() }
             ?: VisionJev.DEFAULT_VISION_MODEL
         val jevUrl = intent.getStringExtra(EXTRA_JEV_URL)?.trim()?.takeIf { it.isNotEmpty() }
-            ?: DefaultEngineConfigs.OPENROUTER_BASE_URL
+            ?: VisionJev.DEFAULT_VISION_BASE_URL
         val startDelayMs = intent.getLongExtra(EXTRA_START_DELAY_MS, 0L)
 
         if (mode != MODE_PROBE && goal.isEmpty()) {
             failAndFinish("--es goal is required in loop mode (any free-text task)")
             return
         }
-        val key = intent.getStringExtra(EXTRA_KEY)?.trim()?.takeIf { it.isNotEmpty() }
-            ?: OpenRouterKeyStore.load(this)
-            ?: DefaultEngineConfigs.resolveKey(DefaultEngineConfigs.OPENROUTER_KEY_ENV)
-        if (key == null) {
-            failAndFinish(
-                "no OpenRouter key: pass --es openrouterKey, save one via the (VisionExp) setup " +
-                    "wizard, or set ${DefaultEngineConfigs.OPENROUTER_KEY_ENV}",
-            )
+        val openRouterKey = VisionKeys.openRouterKey(
+            intentExtra = intent.getStringExtra(EXTRA_KEY),
+            storedKey = OpenRouterKeyStore.load(this),
+        )
+        val typesafeKey = VisionKeys.typesafeKey(
+            intentExtra = intent.getStringExtra(EXTRA_TYPESAFE_KEY),
+            storedKey = OpenRouterKeyStore.loadTypesafeKey(this),
+        )
+        VisionKeys.refusal(openRouterKey, typesafeKey)?.let {
+            failAndFinish(it)
             return
         }
 
@@ -91,11 +100,11 @@ class VisionExperimentActivity : Activity() {
         val budget = ExpBudget()
         val transport = OkHttpWireTransport(callTimeoutMs = WIRE_TIMEOUT_MS)
         val jev = VisionJev(
-            transport = transport, baseUrl = jevUrl, model = jevModel, apiKey = key,
+            transport = transport, baseUrl = jevUrl, model = jevModel, apiKey = typesafeKey!!,
             onUsage = { budget.recordSpend(it.costMicroUsd, writerSurface = false) },
         )
         val haiku = VisionHaiku(
-            transport = transport, apiKey = key, ablateVision = ablate,
+            transport = transport, apiKey = openRouterKey!!, ablateVision = ablate,
             onUsage = { usage ->
                 budget.recordSpend(usage.costMicroUsd, writerSurface = true)
                 when (val w = budget.writerCheck()) {
@@ -113,7 +122,7 @@ class VisionExperimentActivity : Activity() {
                 val service = awaitService()
                 val observer = HarnessObserver(service)
                 val resultJson = if (mode == MODE_PROBE) {
-                    runProbe(activity = this@VisionExperimentActivity, observer, haiku, evidence, budget)
+                    runProbe(activity = this@VisionExperimentActivity, observer, jev, evidence, budget)
                 } else {
                     runLoopMode(this@VisionExperimentActivity, observer, service, jev, haiku, evidence, budget, goal, runId)
                 }
@@ -211,15 +220,15 @@ class VisionExperimentActivity : Activity() {
     // -- Phase-A probe mode ----------------------------------------------------------------
 
     /**
-     * One screenshot, one LOCATE call per labeled interactive node set, IoU scored
-     * against the node's REAL bounds — the grounding calibration that needs no loop.
-     * (v2: the locator is Haiku-with-image — the decisions proxy drops image assets,
-     * measured 2026-10-17, so the Box question type is unusable through this key.)
+     * One screenshot, ONE batched vendor request — a Jev Box question per labeled
+     * interactive node + one noul over text+image — IoU-scored against the node's REAL
+     * bounds (PHASE_VEXP1 work item 5: the probe measures the REAL transport now; the
+     * v2 Haiku-LOCATE arm rode the image-less proxy era and is retired with it).
      */
     private suspend fun runProbe(
         activity: VisionExperimentActivity,
         observer: HarnessObserver,
-        haiku: VisionHaiku,
+        jev: VisionJev,
         evidence: VisionEvidence,
         budget: ExpBudget,
     ): kotlinx.serialization.json.JsonObject {
@@ -239,43 +248,61 @@ class VisionExperimentActivity : Activity() {
 
         data class ProbeRow(val label: String, val confidence: Double, val iou: Double, val box: VisionMath.RectPx, val real: VisionMath.RectPx)
         val rows = mutableListOf<ProbeRow>()
+        var pageNoul: Double? = null
         if (targets.isEmpty()) {
             log("probe: no labeled interactive nodes on this page")
         } else {
             val labels = targets.map { (it.text.ifBlank { it.desc }).take(60) }
+            val imageRef = VisionJev.newImageRef()
+            val questions = buildList {
+                labels.forEachIndexed { i, label -> add(VisionJev.Question.Box("b$i", label)) }
+                add(
+                    VisionJev.Question.Noul(
+                        "page",
+                        "The screenshot shows a live mobile browser page with readable content.",
+                    ),
+                )
+            }
+            val state = buildString {
+                append("PROBE: locate each labeled control in the screenshot.\n")
+                append(VisionLoop.stateWithImage(digest(obs), imageRef))
+            }
             val started = System.currentTimeMillis()
             var rawReq = ""
             var rawRes = ""
-            val content = haiku.chat(
-                VisionPrompts.LOCATE_SYSTEM,
-                VisionPrompts.locateUser(labels),
-                shot.base64,
-                "locate",
+            val answers = jev.ask(
+                state, questions, shot.base64, imageRef, "probe-locate",
                 onRaw = { req, res -> rawReq = req; rawRes = res },
             )
-            evidence.call("locate", rawReq, rawRes, System.currentTimeMillis() - started, null)
-            VisionPrompts.parseLocated(content, labels, "locate").forEach { loc ->
-                val node = targets.firstOrNull {
-                    (it.text.ifBlank { it.desc }).take(60).equals(loc.label, ignoreCase = true)
-                } ?: return@forEach
+            evidence.call(
+                "probe-locate", rawReq, rawRes, System.currentTimeMillis() - started, null,
+                note = jev.describe,
+            )
+            pageNoul = (answers["page"] as? VisionJev.Answer.Noul)?.pTrue
+            labels.forEachIndexed { i, label ->
+                val boxAnswer = answers["b$i"] as? VisionJev.Answer.Box ?: return@forEachIndexed
+                val node = targets.getOrNull(i) ?: return@forEachIndexed
                 val box = VisionMath.boxToScreenRect(
-                    loc.box.left, loc.box.top, loc.box.right, loc.box.bottom, shot.screenWidth, shot.screenHeight,
+                    boxAnswer.left, boxAnswer.top, boxAnswer.right, boxAnswer.bottom,
+                    shot.screenWidth, shot.screenHeight,
                 )
                 val real = VisionMath.RectPx(node.left, node.top, node.right, node.bottom)
                 val iou = VisionMath.iou(box, real)
-                evidence.grounding.record(loc.label, loc.confidence, iou, node.id)
-                rows.add(ProbeRow(loc.label, loc.confidence, iou, box, real))
+                evidence.grounding.record(label, boxAnswer.confidence, iou, node.id)
+                rows.add(ProbeRow(label, boxAnswer.confidence, iou, box, real))
                 log(
-                    "probe '${loc.label.take(40)}' conf=%.2f iou=%.2f box=$box real=$real"
-                        .format(loc.confidence, iou),
+                    "probe '${label.take(40)}' conf=%.2f iou=%.2f box=$box real=$real"
+                        .format(boxAnswer.confidence, iou),
                 )
             }
         }
         return buildJsonObject {
             put("kind", "vision-probe")
             put("promptVersion", VisionPrompts.VISION_PROMPT_VERSION)
+            put("route", jev.describe)
             put("nodes", obs.nodes.size)
             put("probed", rows.size)
+            pageNoul?.let { put("pageNoul", it) }
             put("spendMicroUsd", budget.spendMicroUsd)
             put("elapsedMs", budget.elapsedMs())
             putJsonArray("rows") {
@@ -294,6 +321,13 @@ class VisionExperimentActivity : Activity() {
             put("grounding", evidence.grounding.summarize())
             put("evidence", evidence.summaryJson())
         }
+    }
+
+    /** The probe request's page digest (the same shape the loop's states embed). */
+    private fun digest(o: navigator.app.loop.StepObservation): String = buildString {
+        append("TITLE: ").append(o.title).append('\n')
+        append("URL: ").append(o.url).append('\n')
+        append(o.lines.take(60).joinToString("\n"))
     }
 
     // -- plumbing --------------------------------------------------------------------------
@@ -328,6 +362,7 @@ class VisionExperimentActivity : Activity() {
         private const val EXTRA_JEV_URL = "visionJevUrl"
         private const val EXTRA_START_DELAY_MS = "startDelayMs"
         private const val EXTRA_KEY = "openrouterKey"
+        private const val EXTRA_TYPESAFE_KEY = "typesafeKey"
 
         /** Image requests are slower than the 15s text default; the experiment pays patience. */
         private const val WIRE_TIMEOUT_MS = 60_000L

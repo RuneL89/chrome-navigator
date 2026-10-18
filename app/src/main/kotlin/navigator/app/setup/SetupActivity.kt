@@ -66,10 +66,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import navigator.app.overlay.NavigatorService
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 
 /**
- * The guided setup wizard (phase doc §2.2): five checks with state and deep-link
- * actions —
+ * The guided setup wizard (phase doc §2.2) — checks with state and deep-link actions:
  *  1. accessibility-service enable (with the Android 13+ "Allow restricted settings"
  *     path explained — a sideloaded a11y app is restricted after install);
  *  2. Samsung battery whitelist (TEXT-GUIDED — no programmatic whitelist on stock
@@ -77,25 +78,26 @@ import navigator.app.overlay.NavigatorService
  *     green on the emulator);
  *  3. OpenRouter key entry ([OpenRouterKeyStore]; presence check only — never renders
  *     the key back; ART-8 local-only);
- *  4. on-demand live-key validation (the 2026-10-17 hotel-iteration addition: a
- *     "Test key" button fires ONE free GET to OpenRouter — presence says nothing about
- *     validity, and that day's run died on a stored-but-dead key; the result is an
- *     inline status line on its own card, never an auto-call);
- *  5. model-download status (informational; eval-only since the 2026-10-06 owner
+ *  4. TypeSafe key entry (PHASE_VEXP1 work item 2: the vision experiment's vendor image
+ *     channel; same R5 law — masked entry, fixed-dot saved marker, replace wording);
+ *  5. the DUAL live-key validation (the 2026-10-17 hotel-iteration card, dual since
+ *     PHASE_VEXP1: one "Test keys" button fires BOTH the free OpenRouter GET AND a
+ *     minimal one-noul TypeSafe probe, rendering TWO independent verdict lines — never
+ *     an auto-call, never a resume/focus ping, each save resets its own verdict);
+ *  6. model-download status (informational; eval-only since the 2026-10-06 owner
  *     demotion — Jev is primary, never blocks).
- * A summary line reports the all-required-green state (check 4 never gates). The screen
- * also STARTS the [NavigatorService] (a lawful FOREGROUND start — the FGS
- * background-start law) and triggers the goal-input overlay for the notification's
- * "New task" action.
+ * A summary line reports the all-required-green state (the dual-tester card never
+ * gates). The screen also STARTS the [NavigatorService] (a lawful FOREGROUND start —
+ * the FGS background-start law) and triggers the goal-input overlay for the
+ * notification's "New task" action.
  *
  * Presentation (owner design pass 2026-10-09, ai-ui-design-skills interview: warm
  * brand-forward, dark-first compact, restructure + polish): warm-dark token set
  * ([NavigatorColors]) under a dark [MaterialTheme], the runtime amber as the single
  * brand accent, page header + required-checks progress summary + one card per check.
  * Presentation only — every behavior, handler, and UAT-approved string below is
- * unchanged (R3 live refresh, R4 battery-ack persistence, R5 saved-key law). The
- * live-key card follows the 2026-10-17 owner interview (a new check card, wizard
- * language, tap-to-test, inline status line).
+ * unchanged (R3 live refresh, R4 battery-ack persistence, R5 saved-key law) except the
+ * phase-prescribed dual-key additions, which mirror the R5 laws verbatim.
  */
 class SetupActivity : ComponentActivity() {
 
@@ -167,13 +169,21 @@ class SetupActivity : ComponentActivity() {
         var keyInput by remember { mutableStateOf("") }
         var keySaved by remember { mutableStateOf(false) }
         var keyPresent by remember { mutableStateOf(OpenRouterKeyStore.has(this@SetupActivity)) }
-        // Check 5 (the on-demand live-key test, 2026-10-17): its state lives OUTSIDE the
-        // refresh cycle — refresh() renders it from these vars but never triggers the
-        // network call; only the card's Test button does.
+        // The TypeSafe key card (PHASE_VEXP1 work item 2): same R5 law as the OpenRouter
+        // card — masked entry, fixed-dot saved marker, "type a new one to replace".
+        var typesafeKeyInput by remember { mutableStateOf("") }
+        var typesafeSaved by remember { mutableStateOf(false) }
+        var typesafePresent by remember { mutableStateOf(OpenRouterKeyStore.hasTypesafeKey(this@SetupActivity)) }
+        // The DUAL key test (one "Test keys" tap fires BOTH channels): each channel's
+        // verdict lives OUTSIDE the refresh cycle — refresh() renders them from these
+        // vars but never triggers the network calls; only the card's button does.
         var keyTestState by remember { mutableStateOf(SetupLogic.KeyTestState.UNTESTED) }
         var keyTestDetail by remember {
-            mutableStateOf("Not tested yet — tap \"Test key\" to validate the stored key against " +
-                "OpenRouter (a free call; no tokens are spent).")
+            mutableStateOf(UNTESTED_DETAIL)
+        }
+        var typesafeTestState by remember { mutableStateOf(SetupLogic.KeyTestState.UNTESTED) }
+        var typesafeTestDetail by remember {
+            mutableStateOf(UNTESTED_DETAIL)
         }
         val scope = rememberCoroutineScope()
 
@@ -186,29 +196,39 @@ class SetupActivity : ComponentActivity() {
                 assets.list(LAYA_ASSET_DIR)?.contains(LAYA_ASSET_FILE) == true
             }.getOrDefault(false)
             val keyStored = OpenRouterKeyStore.has(this@SetupActivity)
+            val typesafeStored = OpenRouterKeyStore.hasTypesafeKey(this@SetupActivity)
             checks.clear()
             checks.add(SetupLogic.accessibilityCheck(
                 SetupLogic.isAccessibilityServiceEnabled(enabledServices, packageName),
             ))
             checks.add(SetupLogic.batteryCheck(Build.MANUFACTURER, batteryAcknowledged))
             checks.add(SetupLogic.keyCheck(keyStored))
-            checks.add(SetupLogic.keyLiveCheck(keyTestState, keyTestDetail))
+            checks.add(SetupLogic.typesafeKeyCheck(typesafeStored))
+            checks.add(
+                SetupLogic.dualKeyLiveCheck(
+                    SetupLogic.DualKeyTest(keyTestState, keyTestDetail, typesafeTestState, typesafeTestDetail),
+                ),
+            )
             checks.add(SetupLogic.modelCheck(modelPresent))
             keyPresent = keyStored
+            typesafePresent = typesafeStored
         }
 
         // R3: the tick re-runs every check on resume/window-focus (returning from a
         // Settings deep-link flips the row immediately); the other keys re-run on the
-        // checkbox and the save button. keyTestState/keyTestDetail ride the keys too:
-        // the live-key card's chip + detail render from `checks` (derived here), so the
-        // outcome write must re-run refresh() or the card would stay on "Testing…"
+        // checkbox and the save buttons. The test states/details ride the keys too:
+        // the dual-tester card's chip + detail render from `checks` (derived here), so
+        // an outcome write must re-run refresh() or the card would stay on "Testing…"
         // forever while only the button updated.
         LaunchedEffect(
             batteryAcknowledged,
             keySaved,
+            typesafeSaved,
             refreshTick,
             keyTestState,
             keyTestDetail,
+            typesafeTestState,
+            typesafeTestDetail,
         ) { refresh() }
 
         Surface(modifier = Modifier.fillMaxSize(), color = NavigatorColors.Canvas) {
@@ -348,13 +368,10 @@ class SetupActivity : ComponentActivity() {
                                             OpenRouterKeyStore.save(this@SetupActivity, keyInput)
                                             // The field clears; the state shows saved-only.
                                             keyInput = ""
-                                            // A new key invalidates the previous test result.
+                                            // A new key invalidates THIS channel's previous
+                                            // test result (the TypeSafe verdict is untouched).
                                             keyTestState = SetupLogic.KeyTestState.UNTESTED
-                                            keyTestDetail = (
-                                                "Not tested yet — tap \"Test key\" to validate " +
-                                                    "the stored key against OpenRouter (a free " +
-                                                    "call; no tokens are spent)."
-                                                )
+                                            keyTestDetail = UNTESTED_DETAIL
                                             keySaved = !keySaved // re-trigger the LaunchedEffect
                                         }
                                     },
@@ -363,36 +380,111 @@ class SetupActivity : ComponentActivity() {
                                 ) { Text(if (keyPresent) "Replace key" else "Save key") }
                             }
 
+                            SetupLogic.CHECK_TYPESAFE_KEY -> Column(
+                                verticalArrangement = Arrangement.spacedBy(10.dp),
+                            ) {
+                                if (typesafePresent) {
+                                    // R5 verbatim: the FIXED dot row beside the always-EMPTY
+                                    // entry field — no echo, no length leak.
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Lock,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(14.dp),
+                                        )
+                                        Text(
+                                            text = "Saved: ${SetupLogic.SAVED_KEY_INDICATOR}",
+                                            style = MaterialTheme.typography.labelLarge,
+                                            fontWeight = FontWeight.SemiBold,
+                                        )
+                                    }
+                                    Text(
+                                        text = "Saving again replaces the stored key.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                OutlinedTextField(
+                                    value = typesafeKeyInput,
+                                    onValueChange = { typesafeKeyInput = it },
+                                    label = {
+                                        Text(
+                                            if (typesafePresent) {
+                                                "TypeSafe key (type a new one to replace)"
+                                            } else {
+                                                "TypeSafe key"
+                                            },
+                                        )
+                                    },
+                                    visualTransformation = PasswordVisualTransformation(),
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                Button(
+                                    onClick = {
+                                        if (typesafeKeyInput.isNotBlank()) {
+                                            OpenRouterKeyStore.saveTypesafeKey(this@SetupActivity, typesafeKeyInput)
+                                            typesafeKeyInput = ""
+                                            // A new key invalidates THIS channel's previous
+                                            // test result (the OpenRouter verdict is untouched).
+                                            typesafeTestState = SetupLogic.KeyTestState.UNTESTED
+                                            typesafeTestDetail = UNTESTED_DETAIL
+                                            typesafeSaved = !typesafeSaved // re-trigger the LaunchedEffect
+                                        }
+                                    },
+                                    enabled = typesafeKeyInput.isNotBlank(),
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) { Text(if (typesafePresent) "Replace key" else "Save key") }
+                            }
+
                             SetupLogic.CHECK_KEY_LIVE -> Column(
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
-                                if (keyPresent) {
+                                if (keyPresent || typesafePresent) {
+                                    // The DUAL tester (PHASE_VEXP1 work item 2): ONE tap
+                                    // fires BOTH channels and renders TWO independent
+                                    // verdict lines. Never auto-runs; never pings on
+                                    // resume/focus (the state lives outside the refresh).
                                     OutlinedButton(
                                         onClick = {
                                             keyTestState = SetupLogic.KeyTestState.TESTING
                                             keyTestDetail = "Testing the key against OpenRouter…"
+                                            typesafeTestState = SetupLogic.KeyTestState.TESTING
+                                            typesafeTestDetail = "Testing the key against TypeSafe…"
                                             scope.launch {
-                                                val outcome = withContext(Dispatchers.IO) {
+                                                val orOutcome = withContext(Dispatchers.IO) {
                                                     testStoredKey()
                                                 }
-                                                keyTestState = outcome.state
-                                                keyTestDetail = outcome.detail
+                                                keyTestState = orOutcome.state
+                                                keyTestDetail = orOutcome.detail
+                                                val tsOutcome = withContext(Dispatchers.IO) {
+                                                    testTypesafeKey()
+                                                }
+                                                typesafeTestState = tsOutcome.state
+                                                typesafeTestDetail = tsOutcome.detail
                                             }
                                         },
-                                        enabled = keyTestState != SetupLogic.KeyTestState.TESTING,
+                                        enabled = keyTestState != SetupLogic.KeyTestState.TESTING &&
+                                            typesafeTestState != SetupLogic.KeyTestState.TESTING,
                                         modifier = Modifier.fillMaxWidth(),
                                     ) {
                                         Text(
-                                            if (keyTestState == SetupLogic.KeyTestState.TESTING) {
+                                            if (keyTestState == SetupLogic.KeyTestState.TESTING ||
+                                                typesafeTestState == SetupLogic.KeyTestState.TESTING
+                                            ) {
                                                 "Testing…"
                                             } else {
-                                                "Test key"
+                                                "Test keys"
                                             },
                                         )
                                     }
                                 }
-                                // No key stored: no button — the card's detail line already
-                                // points at check 3 (save a key first).
+                                // No key stored on either channel: no button — the card's
+                                // detail lines already point at the save cards.
                             }
                         }
                     }
@@ -440,12 +532,12 @@ class SetupActivity : ComponentActivity() {
     }
 
     /**
-     * Check 5's network edge (2026-10-17): ONE free GET against OpenRouter's key endpoint
-     * with the stored key — `200` = live, `401` = rejected (the exact failure the
-     * 2026-10-17 hotel run hit at its first paid call), anything else = an honest error
-     * line. Runs on [Dispatchers.IO] only (the button's coroutine dispatches); the key
-     * rides the Authorization header alone and is NEVER logged — the outcome carries
-     * only the HTTP code class.
+     * The dual tester's OpenRouter edge (2026-10-17; dual since PHASE_VEXP1): ONE free
+     * GET against OpenRouter's key endpoint with the stored key — `200` = live, `401` =
+     * rejected (the exact failure the 2026-10-17 hotel run hit at its first paid call),
+     * anything else = an honest error line. Runs on [Dispatchers.IO] only (the button's
+     * coroutine dispatches); the key rides the Authorization header alone and is NEVER
+     * logged — the outcome carries only the HTTP code class.
      */
     private fun testStoredKey(): SetupLogic.KeyTestOutcome {
         val key = OpenRouterKeyStore.load(this)
@@ -473,6 +565,54 @@ class SetupActivity : ComponentActivity() {
                     else -> SetupLogic.KeyTestOutcome(
                         SetupLogic.KeyTestState.ERROR,
                         "OpenRouter answered HTTP ${response.code} — try again.",
+                    )
+                }
+            }
+        } catch (t: java.io.IOException) {
+            SetupLogic.KeyTestOutcome(
+                SetupLogic.KeyTestState.ERROR,
+                "Network error (${t::class.java.simpleName}) — check the connection and try again.",
+            )
+        }
+    }
+
+    /**
+     * The dual tester's TypeSafe edge (PHASE_VEXP1 work item 2): ONE minimal one-noul
+     * request against the vendor endpoint — the cheapest proven validation (≈ $0.000012
+     * per the run-1 transport matrix). `200` = live (the key authenticated; 401 would
+     * have fired otherwise), `401` = rejected, anything else = an honest error line.
+     * Runs on [Dispatchers.IO] only; the key rides the Authorization header alone and is
+     * NEVER logged — the outcome carries only the HTTP code class. No danger header: the
+     * probe carries no image.
+     */
+    private fun testTypesafeKey(): SetupLogic.KeyTestOutcome {
+        val key = OpenRouterKeyStore.loadTypesafeKey(this)
+            ?: return SetupLogic.KeyTestOutcome(
+                SetupLogic.KeyTestState.REJECTED,
+                "No TypeSafe key is stored — save one above first.",
+            )
+        val body = "{\"state\":\"key validation probe\",\"model\":\"$TYPESAFE_PROBE_MODEL\"," +
+            "\"questions\":{\"live\":{\"type\":\"noul\",\"instructions\":\"This is a key validation probe.\"}}}"
+        val request = okhttp3.Request.Builder()
+            .url(TYPESAFE_VALIDATION_URL)
+            .header("Authorization", "Bearer $key")
+            .post(body.toRequestBody("application/json; charset=utf-8".toMediaType()))
+            .build()
+        return try {
+            keyTestClient.newCall(request).execute().use { response ->
+                when (response.code) {
+                    200 -> SetupLogic.KeyTestOutcome(
+                        SetupLogic.KeyTestState.LIVE,
+                        "TypeSafe accepted the key — it is live (one-noul probe).",
+                    )
+                    401 -> SetupLogic.KeyTestOutcome(
+                        SetupLogic.KeyTestState.REJECTED,
+                        "TypeSafe rejected the key (401 — not found or revoked). " +
+                            "Enter a fresh key above and save, then test again.",
+                    )
+                    else -> SetupLogic.KeyTestOutcome(
+                        SetupLogic.KeyTestState.ERROR,
+                        "TypeSafe answered HTTP ${response.code} — try again.",
                     )
                 }
             }
@@ -618,7 +758,8 @@ class SetupActivity : ComponentActivity() {
         SetupLogic.CHECK_ACCESSIBILITY -> "Accessibility service"
         SetupLogic.CHECK_BATTERY -> "Battery whitelist"
         SetupLogic.CHECK_KEY -> "OpenRouter key"
-        SetupLogic.CHECK_KEY_LIVE -> "API key is live"
+        SetupLogic.CHECK_TYPESAFE_KEY -> "TypeSafe key"
+        SetupLogic.CHECK_KEY_LIVE -> "API keys are live"
         SetupLogic.CHECK_MODEL -> "On-device model"
         else -> id.replaceFirstChar { it.uppercase() }
     }
@@ -632,6 +773,17 @@ class SetupActivity : ComponentActivity() {
     companion object {
         /** The "New task" notification action lands here (then opens the goal overlay). */
         const val EXTRA_SHOW_GOAL_INPUT = "showGoalInput"
+
+        /** The dual tester's untested line (both channels start here; a save resets its own). */
+        const val UNTESTED_DETAIL =
+            "Not tested yet — tap \"Test keys\" to validate both stored keys (a free " +
+                "OpenRouter call + a minimal one-noul TypeSafe probe)."
+
+        /** The TypeSafe validation endpoint (the vendor systemone route, run-1 transport matrix). */
+        const val TYPESAFE_VALIDATION_URL = "https://api.typesafe.ai/v1/systemone"
+
+        /** The validation probe's model (the vendor slug the vision route pins). */
+        const val TYPESAFE_PROBE_MODEL = "jev-1.14.0"
 
         private const val POST_NOTIFICATIONS_REQUEST = 91
         private const val LAYA_ASSET_DIR = "laya"

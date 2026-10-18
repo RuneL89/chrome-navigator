@@ -1,20 +1,29 @@
 package navigator.app.harness.vision
 
+import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import navigator.core.enumerate.ObservedNode
+import navigator.core.wire.DefaultEngineConfigs
+import navigator.core.wire.WireHttpRequest
+import navigator.core.wire.WireHttpResponse
+import navigator.core.wire.WireTransport
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
  * The EXPERIMENT's pure-JVM gates (branch-only): the grounding math, the two wire-body
- * builders + parsers, the prompt JSON contract, and the 10x ledger. No network, no
- * Android types (the capture/loop mechanics are device-verified by Phases A/B/C).
+ * builders + parsers, the prompt JSON contract, the 10x ledger, and — PHASE_VEXP1 — the
+ * evidence-block assembly, the REPLAN_SKILL surface, the dual key resolution, and the
+ * vendor-route request shape. No network, no live keys (the CapturingTransport below is
+ * a pure fake; the key strings in this file are obviously-fake test fixtures).
  */
 class VisionExperimentTest {
 
@@ -423,5 +432,240 @@ class VisionExperimentTest {
         budget.recordSpend(ExpBudget.WRITER_HARD_MICRO_USD, writerSurface = true)
         assertFalse(budget.hasWriterHardRoom())
         assertTrue(budget.writerCheck() is ExpBudget.Check.Hard)
+    }
+
+    // -- PHASE_VEXP1 WI1: the evidence block + REPLAN_SKILL --------------------------------
+
+    @Test
+    fun `the evidence block renders battery code-verdict escalation grounding and route`() {
+        val block = VisionPrompts.jevEvidenceBlock(
+            VisionPrompts.JevEvidence(
+                battery = listOf(
+                    VisionPrompts.EvidenceCheck(
+                        "a search result listing the requested product is visible",
+                        badIsTrue = false, textNoul = 0.98, imageConfirm = true,
+                    ),
+                    VisionPrompts.EvidenceCheck(
+                        "the page is an error page",
+                        badIsTrue = true, textNoul = 0.02, imageConfirm = false,
+                    ),
+                ),
+                conditionRender = "elementPresent add-to-cart control on the product page",
+                conditionSatisfied = false,
+                escalation = VisionPrompts.EscalationKind.OUTCOME_ACHIEVED_WHILE_CONDITION_UNMET,
+                grounding = VisionPrompts.EvidenceGrounding(
+                    "Jev box", "the Celsius Lemon Lime 24-pack result card", 529, 1170, 0.76, "n9",
+                ),
+                actions = listOf("type celsius lemon lime", "submit", "type celsius lemon lime"),
+                routeRepeated = 2,
+            ),
+        )
+        assertTrue(block.startsWith("<jev-evidence>"))
+        assertTrue(block.endsWith("</jev-evidence>"))
+        assertTrue(block.contains("battery (Jev noul over text+image, Haiku over image):"))
+        assertTrue(
+            block.contains(
+                "[outcome] \"a search result listing the requested product is visible\" → text 0.98 / image TRUE",
+            ),
+        )
+        assertTrue(
+            block.contains("[badIsTrue] \"the page is an error page\" → text 0.02 / image FALSE"),
+        )
+        assertTrue(
+            block.contains(
+                "condition verdict: done-condition " +
+                    "'elementPresent add-to-cart control on the product page' NOT satisfied (code checker)",
+            ),
+        )
+        assertTrue(block.contains("escalation kind: OUTCOME-ACHIEVED-WHILE-CONDITION-UNMET"))
+        assertTrue(
+            block.contains(
+                "grounding: Jev box located 'the Celsius Lemon Lime 24-pack result card' → " +
+                    "screen (529,1170), IoU 0.76 vs a11y node n9",
+            ),
+        )
+        assertTrue(
+            block.contains("last actions: type celsius lemon lime → submit → type celsius lemon lime"),
+        )
+        assertFalse(block.contains("ROUTE-REPEATED"), "below the 3 streak the tag must not render")
+    }
+
+    @Test
+    fun `the evidence block renders all escalation kinds and omits absent pieces`() {
+        val bare = VisionPrompts.jevEvidenceBlock(
+            VisionPrompts.JevEvidence(
+                battery = emptyList(),
+                conditionRender = "urlHost verkkokauppa.com",
+                conditionSatisfied = false,
+                escalation = VisionPrompts.EscalationKind.EXHAUSTED,
+                grounding = null,
+                actions = emptyList(),
+            ),
+        )
+        assertTrue(bare.contains("escalation kind: EXHAUSTED"))
+        assertFalse(bare.contains("battery ("), "no battery ran — no battery lines")
+        assertFalse(bare.contains("grounding:"), "no grounding this step — no line")
+        assertFalse(bare.contains("last actions:"), "no actions yet — no line")
+
+        val red = VisionPrompts.jevEvidenceBlock(
+            VisionPrompts.JevEvidence(
+                battery = listOf(
+                    VisionPrompts.EvidenceCheck("q", badIsTrue = true, textNoul = null, imageConfirm = null),
+                ),
+                conditionRender = "c",
+                conditionSatisfied = false,
+                escalation = VisionPrompts.EscalationKind.RED_FLAGS,
+                grounding = null,
+                actions = listOf("tap x", "tap x", "tap x"),
+                routeRepeated = 3,
+            ),
+        )
+        assertTrue(red.contains("escalation kind: RED-FLAGS"))
+        assertTrue(red.contains("text n/a / image n/a"), "a refused channel renders n/a, never 0.5")
+        assertTrue(red.contains("last actions: tap x → tap x → tap x (ROUTE-REPEATED x3)"))
+    }
+
+    @Test
+    fun `route streak counts the trailing same-verb run`() {
+        assertEquals(3, VisionPrompts.routeStreak(listOf("type", "submit", "type", "type", "type")))
+        assertEquals(2, VisionPrompts.routeStreak(listOf("type", "submit", "type", "type")))
+        assertEquals(1, VisionPrompts.routeStreak(listOf("tap", "type")))
+        assertEquals(0, VisionPrompts.routeStreak(emptyList()))
+    }
+
+    @Test
+    fun `REPLAN_SKILL rides only the replan system prompt beside the manifest`() {
+        assertEquals(VisionPrompts.PLAN_SYSTEM, VisionPrompts.planSystem(replan = false))
+        val replan = VisionPrompts.planSystem(replan = true)
+        assertTrue(replan.startsWith(VisionPrompts.PLAN_SYSTEM))
+        assertTrue(replan.contains(VisionPrompts.REPLAN_SKILL))
+        assertTrue(VisionPrompts.REPLAN_SKILL.contains("accessibility"), "the evidence-universe law")
+        assertTrue(VisionPrompts.REPLAN_SKILL.contains("never a retry"), "the outcome-achieved law")
+        assertTrue(VisionPrompts.REPLAN_SKILL.contains("OUTCOME-ACHIEVED-WHILE-CONDITION-UNMET"))
+        assertTrue(VisionPrompts.REPLAN_SKILL.contains("tap the located"), "the grounding law")
+        assertTrue(VisionPrompts.REPLAN_SKILL.contains("ROUTE-REPEATED"), "the route-variation law")
+        assertTrue(VisionPrompts.REPLAN_SKILL.contains("bad-is-true"), "the battery-authoring law")
+        assertTrue(VisionPrompts.REPLAN_SKILL.contains("Jev (cheap)"), "the cascade framing")
+    }
+
+    @Test
+    fun `the prompt version is vision-exp-v6`() {
+        assertEquals("vision-exp-v6", VisionPrompts.VISION_PROMPT_VERSION)
+    }
+
+    // -- PHASE_VEXP1 WI3: the vendor route --------------------------------------------------
+
+    @Test
+    fun `the vision defaults point at the typesafe vendor route`() {
+        assertEquals("https://api.typesafe.ai/v1/systemone", VisionJev.DEFAULT_VISION_BASE_URL)
+        assertEquals("jev-1.14.0", VisionJev.DEFAULT_VISION_MODEL)
+    }
+
+    /** Pure fake transport: captures the request, answers 200 with the canned body. */
+    private class CapturingTransport(private val responseBody: String) : WireTransport {
+        var lastRequest: WireHttpRequest? = null
+        override suspend fun execute(request: WireHttpRequest): WireHttpResponse {
+            lastRequest = request
+            return WireHttpResponse(200, responseBody)
+        }
+    }
+
+    @Test
+    fun `ask rides the vendor route - url model danger header assets and the batched box+noul`() = runBlocking {
+        val response = """
+            {"answers":{
+              "b0":{"type":"box","box":{"top":0.43,"bottom":0.57,"left":0.05,"right":0.93},"confidence":0.46},
+              "v0":{"type":"noul","noul":0.98}},
+             "usage":{"input_tokens":6188,"output_tokens":9}}
+        """.trimIndent()
+        val transport = CapturingTransport(response)
+        val jev = VisionJev(transport, VisionJev.DEFAULT_VISION_BASE_URL, VisionJev.DEFAULT_VISION_MODEL, "fixture-key")
+        val answers = jev.ask(
+            VisionLoop.stateWithImage("the page text", "ref0"),
+            listOf(
+                VisionJev.Question.Box("b0", "the result card"),
+                VisionJev.Question.Noul("v0", "the result card is visible"),
+            ),
+            "QUJD", "ref0", "test",
+        )
+        val req = transport.lastRequest ?: throw AssertionError("no request captured")
+        assertEquals("https://api.typesafe.ai/v1/systemone", req.url)
+        assertEquals("Bearer fixture-key", req.headers["Authorization"])
+        assertEquals("true", req.headers[VisionJev.DANGER_ZONE_IMAGES_HEADER])
+        val body = Json.parseToJsonElement(req.body).jsonObject
+        assertEquals("jev-1.14.0", body["model"]?.jsonPrimitive?.content)
+        assertEquals(
+            "the page text\n<screen>\nthe page screenshot is `ref0`\n</screen>",
+            body["state"]?.jsonPrimitive?.content,
+            "the image reference rides IN STATE",
+        )
+        assertNotNull(body["assets"]?.jsonObject?.get("ref0"), "the asset map carries the ref")
+        val questions = body["questions"]?.jsonObject ?: throw AssertionError("questions missing")
+        assertEquals(2, questions.size, "box + noul ride ONE batched request")
+        assertEquals("box", questions["b0"]?.jsonObject?.get("type")?.jsonPrimitive?.content)
+        assertEquals("noul", questions["v0"]?.jsonObject?.get("type")?.jsonPrimitive?.content)
+        assertEquals(0.98, (answers["v0"] as VisionJev.Answer.Noul).pTrue)
+        assertEquals(0.46, (answers["b0"] as VisionJev.Answer.Box).confidence)
+    }
+
+    @Test
+    fun `usage without a provider cost falls back to the conservative production table`() {
+        val (answers, usage) = VisionJev.parseResponse(
+            """{"answers":{"done":{"type":"noul","noul":0.9}},"usage":{"input_tokens":1000,"output_tokens":10}}""",
+            listOf(VisionJev.Question.Noul("done", "x")),
+            "t",
+        )
+        assertEquals(0.9, (answers["done"] as VisionJev.Answer.Noul).pTrue)
+        assertEquals(VisionJev.jevCost(1000, 10), usage.costMicroUsd)
+        assertTrue(usage.costMicroUsd > 0, "the vendor's missing cost must never read as free")
+    }
+
+    // -- PHASE_VEXP1 WI4: the battery's image-in-state shape --------------------------------
+
+    @Test
+    fun `the battery state embeds the image reference and degrades to text without one`() {
+        val withImage = VisionLoop.stateWithImage("TITLE: t", "ref1")
+        assertTrue(withImage.contains("`ref1`"), "the reference rides backticked in state")
+        assertEquals("TITLE: t", VisionLoop.stateWithImage("TITLE: t", null))
+    }
+
+    // -- PHASE_VEXP1 WI2: the dual key resolution -------------------------------------------
+
+    /** A path that never exists: resolveKey must NOT read the developer machine's real keys file. */
+    private val noKeysFile: Path = Path.of("build", "no-such-keys-file")
+
+    @Test
+    fun `dual key resolution prefers intent then store then env per channel`() {
+        val env = mapOf(
+            DefaultEngineConfigs.OPENROUTER_KEY_ENV to "env-openrouter",
+            VisionKeys.TYPESAFE_KEY_ENV to "env-typesafe",
+        )
+        // the intent extra wins on both channels (trimmed)
+        assertEquals("intent-or", VisionKeys.openRouterKey(" intent-or ", "stored-or", env, noKeysFile))
+        assertEquals("intent-ts", VisionKeys.typesafeKey(" intent-ts ", "stored-ts", env, noKeysFile))
+        // then the Setup store
+        assertEquals("stored-or", VisionKeys.openRouterKey(null, "stored-or", env, noKeysFile))
+        assertEquals("stored-ts", VisionKeys.typesafeKey(null, "stored-ts", env, noKeysFile))
+        // then the environment
+        assertEquals("env-openrouter", VisionKeys.openRouterKey(null, null, env, noKeysFile))
+        assertEquals("env-typesafe", VisionKeys.typesafeKey(null, null, env, noKeysFile))
+        // then nothing (blank is not a key)
+        assertNull(VisionKeys.openRouterKey(null, null, emptyMap(), noKeysFile))
+        assertNull(VisionKeys.typesafeKey(null, null, emptyMap(), noKeysFile))
+        assertNull(VisionKeys.openRouterKey("   ", null, emptyMap(), noKeysFile))
+    }
+
+    @Test
+    fun `the refusal names the missing channel and its delivery options`() {
+        assertNull(VisionKeys.refusal("or", "ts"))
+        val noTypesafe = VisionKeys.refusal("or", null) ?: throw AssertionError("refusal expected")
+        assertTrue(noTypesafe.contains("TypeSafe"))
+        assertTrue(noTypesafe.contains("--es typesafeKey"))
+        assertTrue(noTypesafe.contains(VisionKeys.TYPESAFE_KEY_ENV))
+        val noOpenRouter = VisionKeys.refusal(null, "ts") ?: throw AssertionError("refusal expected")
+        assertTrue(noOpenRouter.contains("OpenRouter"))
+        assertTrue(noOpenRouter.contains(DefaultEngineConfigs.OPENROUTER_KEY_ENV))
+        val none = VisionKeys.refusal(null, null) ?: throw AssertionError("refusal expected")
+        assertTrue(none.contains("BOTH missing"))
     }
 }

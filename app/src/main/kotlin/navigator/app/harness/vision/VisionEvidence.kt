@@ -106,9 +106,21 @@ class VisionEvidence(baseDir: File?, val runId: String) {
         return path
     }
 
-    /** Records one model call: kind, latency, usage, and (on disk) the raw bodies. */
+    /**
+     * Records one model call: kind, latency, usage, and (on disk) the raw bodies. The
+     * optional [note] rides the event line — image-carrying Jev calls record
+     * endpoint+model here (PHASE_VEXP1 WI3), so the run report names the route each
+     * image actually took.
+     */
     @Synchronized
-    fun call(kind: String, requestBody: String, responseBody: String, latencyMs: Long, usage: VisionJev.VisionUsage?) {
+    fun call(
+        kind: String,
+        requestBody: String,
+        responseBody: String,
+        latencyMs: Long,
+        usage: VisionJev.VisionUsage?,
+        note: String? = null,
+    ) {
         if (dir != null) {
             val n = nextCallIndex++
             File(dir, "call-%03d-$kind.req.json".format(n)).writeText(requestBody)
@@ -116,7 +128,7 @@ class VisionEvidence(baseDir: File?, val runId: String) {
         }
         event(
             "call $kind ${latencyMs}ms in=${usage?.inputTokens ?: 0} out=${usage?.outputTokens ?: 0} " +
-                "cost=${usage?.costMicroUsd ?: 0}µ\$",
+                "cost=${usage?.costMicroUsd ?: 0}µ\$" + (note?.let { " $it" } ?: ""),
         )
     }
 

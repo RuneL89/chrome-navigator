@@ -5,17 +5,20 @@ package navigator.app.setup
  * Gate F JVM tests pin it without Robolectric. The wizard (SetupActivity) feeds the
  * device reads in and renders the states this derives.
  *
- * The checks (phase doc §2.2 + the 2026-10-17 hotel-iteration addition), in render order:
+ * The checks (phase doc §2.2 + the 2026-10-17 hotel-iteration addition + the PHASE_VEXP1
+ * dual-key revision), in render order:
  *  1. accessibility service enabled (the Android 13+ "Allow restricted settings" path
  *     is INSTRUCTION TEXT — a sideloaded a11y app is restricted after install);
  *  2. Samsung battery whitelist (TEXT-GUIDED: no programmatic whitelist on stock
  *     Android is lawful; non-Samsung devices pass with an info line so the wizard can
  *     complete green on the emulator);
  *  3. OpenRouter key saved (presence only — the value is never rendered back);
- *  4. OpenRouter key LIVE (ON-DEMAND — [keyLiveCheck] runs only when the owner taps the
- *     card's Test button; a free GET validates the stored key, because presence says
- *     nothing about validity and the 2026-10-17 run died on a stored-but-dead key);
- *  5. on-device laya model status (informational, eval-only since the 2026-10-06 owner
+ *  4. TypeSafe key saved (PHASE_VEXP1 work item 2: the vision experiment's vendor image
+ *     channel; REQUIRED in this app — same presence-only law, same fixed-dot marker);
+ *  5. keys LIVE (ON-DEMAND — the DUAL tester: one "Test keys" tap fires BOTH the free
+ *     OpenRouter `GET /api/v1/key` AND a minimal one-noul TypeSafe probe, rendering TWO
+ *     independent verdict lines; never auto-runs, never gates);
+ *  6. on-device laya model status (informational, eval-only since the 2026-10-06 owner
  *     demotion — Jev is primary, the model is NOT required, never blocks).
  */
 object SetupLogic {
@@ -128,6 +131,32 @@ object SetupLogic {
     }
 
     /**
+     * The TypeSafe key check's state (PHASE_VEXP1 work item 2): the vision experiment's
+     * vendor image channel (`api.typesafe.ai/v1/systemone` — the only live-proven
+     * transport that carries images to Jev). Same laws as [keyCheck] verbatim — presence
+     * only, the fixed-dot marker, never renders the value — and REQUIRED in this app
+     * (owner may flip at UAT; the decision is recorded in the phase status file).
+     */
+    fun typesafeKeyCheck(keyPresent: Boolean): CheckState = if (keyPresent) {
+        CheckState(
+            id = CHECK_TYPESAFE_KEY,
+            status = Status.GREEN,
+            detail = "TypeSafe key saved ($SAVED_KEY_INDICATOR — stored encrypted on " +
+                "this device, shown only as these fixed dots; saving a new key replaces it).",
+            required = true,
+        )
+    } else {
+        CheckState(
+            id = CHECK_TYPESAFE_KEY,
+            status = Status.RED,
+            detail = "No TypeSafe key saved. The vision experiment's image channel (Jev + " +
+                "Box on api.typesafe.ai) needs it. Paste your key below and save — it " +
+                "stays on this device and is never logged.",
+            required = true,
+        )
+    }
+
+    /**
      * The model-status check: INFORMATIONAL ONLY (the 2026-10-06 owner decision — the
      * on-device laya model is eval-only, Jev is primary, the model is NOT required) and
      * NEVER gates the summary.
@@ -196,6 +225,37 @@ object SetupLogic {
         )
     }
 
+    /**
+     * The DUAL key-test's two independent verdicts (PHASE_VEXP1 work item 2): ONE
+     * "Test keys" tap fires BOTH channels — the OpenRouter free key GET and the TypeSafe
+     * minimal one-noul probe — and each channel reports ITS OWN verdict. Never auto-runs
+     * and never pings on resume/focus (the keyLiveCheck laws, both keys); saving either
+     * key resets ITS verdict only.
+     */
+    data class DualKeyTest(
+        val openRouter: KeyTestState,
+        val openRouterDetail: String,
+        val typesafe: KeyTestState,
+        val typesafeDetail: String,
+    )
+
+    /**
+     * The dual-tester card's state: GREEN only when BOTH channels are LIVE; RED when
+     * either was rejected or errored; INFO while untested/testing. INFORMATIONAL — never
+     * gates the summary (an offline owner must still complete the wizard).
+     */
+    fun dualKeyLiveCheck(t: DualKeyTest): CheckState = CheckState(
+        id = CHECK_KEY_LIVE,
+        status = when {
+            t.openRouter == KeyTestState.LIVE && t.typesafe == KeyTestState.LIVE -> Status.GREEN
+            t.openRouter == KeyTestState.REJECTED || t.openRouter == KeyTestState.ERROR ||
+                t.typesafe == KeyTestState.REJECTED || t.typesafe == KeyTestState.ERROR -> Status.RED
+            else -> Status.INFO
+        },
+        detail = "OpenRouter: ${t.openRouterDetail}\nTypeSafe: ${t.typesafeDetail}",
+        required = false,
+    )
+
     /** Whether the wizard can complete all-green (every REQUIRED check green/INFO-passed). */
     fun allRequiredGreen(states: List<CheckState>): Boolean =
         states.filter { it.required }.all { it.status == Status.GREEN }
@@ -203,6 +263,7 @@ object SetupLogic {
     const val CHECK_ACCESSIBILITY = "accessibility"
     const val CHECK_BATTERY = "battery"
     const val CHECK_KEY = "key"
+    const val CHECK_TYPESAFE_KEY = "typesafeKey"
     const val CHECK_MODEL = "model"
     const val CHECK_KEY_LIVE = "keyLive"
 

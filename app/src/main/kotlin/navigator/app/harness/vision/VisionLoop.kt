@@ -24,17 +24,34 @@ import navigator.core.enumerate.CandidateEnumerator
  * 2. CODE-CHECK IS-DONE first — [DoneConditionChecker] stays the completion DECIDER;
  *    the Jev noul + Haiku confirm ride along as RECORDED OPINIONS (the experiment
  *    measures whether vision adds signal, it does not hand completion to a model).
- * 3. PROPOSE   Haiku names 1..3 controls (verb + referential description + text-to-type).
- * 4. GROUND    ONE Jev request: a Box question per tappable proposal + one Choice among
- *    all of them (+ a `none` option). Boxes map to screen pixels and match against the
- *    a11y node bounds (IoU) — a match identifies the target; an unmatched box still acts
- *    at its own center (raw-coordinate action, the experiment's grounding-fallback arm).
- * 5. ACT       tap / focus-first typed entry / IME submit / back / scroll.
- * 6. VERIFY    next iteration's code check, with the recorded opinions.
+ * 3. BATTERY   the writer-authored verification battery BEFORE acting — ONE batched Jev
+ *    request over text+IMAGE (the screenshot rides the vendor route in state) + ONE
+ *    Haiku call over its own image channel (independence preserved). One confident red
+ *    flag — or every outcome check achieved while the code checker disagrees — goes
+ *    straight to the informed re-plan instead of burning a step on PROPOSE.
+ * 4. PROPOSE   Haiku names 1..3 controls (verb + referential description + text-to-type).
+ * 5. GROUND    AT the action: ONE batched Jev request — image in state + a Box per
+ *    tap/type proposal + the pick-Choice. Jev's box is the PRIMARY grounding; the Haiku
+ *    proposal box DEMOTES to fallback (Jev box missing / sub-floor / channel failed)
+ *    and is recorded as the cross-check. Boxes map to screen pixels and match against
+ *    the a11y node bounds (IoU) — an unmatched box still acts at its own center
+ *    (raw-coordinate action, the experiment's grounding-fallback arm).
+ * 6. ACT       tap / focus-first typed entry / IME submit / back / scroll.
+ * 7. VERIFY    next iteration's code check, with the recorded opinions.
  *
- * Recovery: 2 consecutive failed steps on a subtask -> an INFORMED RE-PLAN (Haiku + the
- * failure context + a FRESH screenshot, <=2 per task, resume at the failing index); a
- * static screen -> one scroll probe, then the re-plan path.
+ * Ordering law (PHASE_VEXP1 WI4): the battery runs BEFORE acting (escalation precedes
+ * action); the grounding runs AT the action. Two Jev requests per step (battery +
+ * ground) is deliberate — one judges the outcome, one locates the control.
+ *
+ * The informed re-plan (<=2 per task, Haiku + the failure context + a FRESH screenshot)
+ * is run-1's counterfactual made permanent: its failure context carries the
+ * code-assembled `<jev-evidence>` block ([VisionPrompts.jevEvidenceBlock]) — battery
+ * results, the code verdict, the typed escalation, the step's best grounding and the
+ * action route, all from the per-step cache (ZERO extra calls) — and the system prompt
+ * gains the REPLAN_SKILL addendum ([VisionPrompts.planSystem]).
+ *
+ * Recovery: 2 consecutive failed steps on a subtask -> the INFORMED RE-PLAN; a static
+ * screen -> one scroll probe, then the re-plan path.
  */
 class VisionLoop(
     private val observer: LoopObserver,
@@ -87,6 +104,18 @@ class VisionLoop(
 
     companion object {
         /**
+         * The image-in-state law (PHASE_VEXP1 WI4): the TEXT state with the screenshot
+         * reference embedded (backticks) where the image belongs — the images API's
+         * required form. null ref = the text-only degrade (a failed capture).
+         */
+        internal fun stateWithImage(textState: String, imageRef: String?): String =
+            if (imageRef == null) {
+                textState
+            } else {
+                "$textState\n<screen>\nthe page screenshot is `$imageRef`\n</screen>"
+            }
+
+        /**
          * Pure max-gate over the battery's results:
          * - a bad-is-true check at/above [redFlagAbove] (text) or image-confirmed true
          *   with non-refuting text (≥0.5 or refused) → RED FLAGS (re-plan);
@@ -121,6 +150,39 @@ class VisionLoop(
     )
 
     private class NodeMatch(val node: navigator.core.enumerate.ObservedNode, val iou: Double)
+
+    /** The step's best grounding, cached at the GROUND step for the evidence block (zero extra calls). */
+    private class StepGrounding(
+        val source: String,
+        val description: String,
+        val screenX: Int,
+        val screenY: Int,
+        val iou: Double,
+        val nodeId: String?,
+    )
+
+    // -- the per-step evidence cache (PHASE_VEXP1 WI1a) -----------------------------------
+    // CLASS fields, not run() locals, per the loop-state discipline measured on the
+    // product loop: a new captured local in a suspend body costs Ref plumbing in every
+    // nested helper; instance state costs ~nothing. Reset at the top of every step.
+
+    /** The battery's results this step (empty = the battery did not run or had no checks). */
+    private var stepBattery: List<CheckResult> = emptyList()
+
+    /** The battery gate's typed escalation this step (null = the gate did not escalate). */
+    private var stepEscalation: VisionPrompts.EscalationKind? = null
+
+    /** The code checker's verdict this step (the block's "condition verdict" line). */
+    private var stepConditionSatisfied: Boolean = false
+
+    /** The step's best grounding (set at the GROUND step). */
+    private var stepGrounding: StepGrounding? = null
+
+    /** The action-route tail (the block's "last actions" line; cap 3 labels). */
+    private val actionHistory = ArrayDeque<String>()
+
+    /** The verbs behind [actionHistory] (cap 6) — [VisionPrompts.routeStreak] reads the trailing run. */
+    private val verbHistory = ArrayDeque<String>()
 
     suspend fun run(goal: String, goalId: String, isCancelled: () -> Boolean): Result {
         val outcomes = mutableListOf<String>()
@@ -169,6 +231,11 @@ class VisionLoop(
                 is ExpBudget.Check.Soft -> log("[vision] budget soft: ${check.detail}")
                 ExpBudget.Check.Ok -> {}
             }
+            // Fresh per-step evidence: the cache must only ever describe THIS step.
+            stepBattery = emptyList()
+            stepEscalation = null
+            stepGrounding = null
+            stepConditionSatisfied = false
 
             obs = observer.observe()
             shot = captureSafely(screenshots++)
@@ -198,7 +265,9 @@ class VisionLoop(
                     stepsOnSubtask == 0 || obs.screenHash == subtaskStartHash
                 else -> false
             }
-            if (!weakAtStart && codeDone(active, obs, counters, answersProduced = answer?.let { 1 } ?: 0)) {
+            val doneNow = codeDone(active, obs, counters, answersProduced = answer?.let { 1 } ?: 0)
+            stepConditionSatisfied = doneNow
+            if (!weakAtStart && doneNow) {
                 val opinions = recordedOpinions(active, obs, shot)
                 outcomes.add("subtask ${pointer + 1}/${ladder.subtasks.size} DONE (code) ${opinions.render}")
                 evidence.event("subtask ${pointer + 1} done: ${active.instruction.take(60)} $opinions")
@@ -215,6 +284,8 @@ class VisionLoop(
                 recentHashes.clear()
                 stepsOnSubtask = 0
                 subtaskStartHash = obs.screenHash
+                actionHistory.clear()
+                verbHistory.clear()
                 step += 1
                 continue
             }
@@ -247,13 +318,18 @@ class VisionLoop(
             val batteryChecks = batteries[pointer].orEmpty()
             if (batteryChecks.isNotEmpty()) {
                 val results = runBattery(batteryChecks, obs, shot)
+                stepBattery = results
                 when (val gate = batteryGate(results, config.redFlagAbove, config.noulAgreeAbove)) {
-                    is BatteryGate.RedFlags ->
+                    is BatteryGate.RedFlags -> {
                         escalateCause = "verification battery red flag(s): " +
                             gate.flags.joinToString("; ")
-                    BatteryGate.OutcomeAchieved ->
+                        stepEscalation = VisionPrompts.EscalationKind.RED_FLAGS
+                    }
+                    BatteryGate.OutcomeAchieved -> {
                         escalateCause = "verification battery: the subtask outcome is ALREADY visible " +
                             "on this page while the done-condition is not satisfied — the condition is mis-shaped"
+                        stepEscalation = VisionPrompts.EscalationKind.OUTCOME_ACHIEVED_WHILE_CONDITION_UNMET
+                    }
                     BatteryGate.Proceed -> {}
                 }
                 if (escalateCause != null) {
@@ -322,10 +398,11 @@ class VisionLoop(
                     evidence.event("REPLANS_EXHAUSTED after $replans re-plans")
                     return terminal(Terminal.REPLANS_EXHAUSTED, ladder)
                 }
-                val failureCtx = buildString {
-                    append("subtask ${pointer + 1}: \"${active.instruction}\" (done: $doneText). ")
-                    append("Last outcomes: ${outcomes.takeLast(3).joinToString(" | ")}")
-                }
+                // The failure context is the CODE-ASSEMBLED EVIDENCE BLOCK (PHASE_VEXP1
+                // WI1a) — it replaces the old prose "Last outcomes" line so the re-plan
+                // sees Jev's actual findings (battery verdicts, the code verdict, the
+                // typed escalation, the best grounding, the action route).
+                val failureCtx = failureContext(pointer, active, doneText)
                 val fresh = captureSafely(screenshots++)
                 val rePlan = planLadder(goal, obs, failure = failureCtx, shot = fresh)
                 if (rePlan == null) {
@@ -340,6 +417,8 @@ class VisionLoop(
                 recentHashes.clear()
                 stepsOnSubtask = 0
                 subtaskStartHash = obs.screenHash
+                actionHistory.clear()
+                verbHistory.clear()
                 val line = "REPLAN #$replans: ${ladder.summary} (resume at subtask ${pointer + 1})"
                 outcomes.add(line)
                 evidence.event(line)
@@ -378,14 +457,28 @@ class VisionLoop(
         }
         if (proposals.isEmpty()) return Attempted.Failed("no proposals for this page")
 
-        // GROUND (v2): Haiku located each tap/type proposal IN the PROPOSE call (its box
-        // fractions ride the proposal). The Jev request carries the pick-Choice over all
-        // proposals — TEXT-ONLY now (the decisions proxy silently drops image assets,
-        // measured 2026-10-17), which doubles as the cross-model adjudication.
+        // GROUND (v6, PHASE_VEXP1 WI4): ONE batched Jev request on the vendor route — the
+        // screenshot rides IN STATE (the assets map), a Box question per tap/type
+        // proposal, and the pick-Choice over all of them (+ `none`). Jev's box is the
+        // PRIMARY grounding; the Haiku proposal box DEMOTES to fallback (Jev box missing
+        // / sub-floor confidence / channel failed) and is recorded as the cross-check.
+        // No screenshot: the request rides text-only (pick-Choice alone) and matching
+        // degrades to the label match.
+        val tapTypeIndices = proposals.withIndex()
+            .filter {
+                it.value.action == VisionPrompts.ProposalAction.TAP ||
+                    it.value.action == VisionPrompts.ProposalAction.TYPE
+            }
+            .map { it.index }
         var pickIndex = 0
-        if (proposals.size > 1) {
-            try {
-                val questions = listOf(
+        val jevBoxes = mutableMapOf<Int, VisionJev.Answer.Box>()
+        if (shot != null) {
+            val imageRef = VisionJev.newImageRef()
+            val questions = buildList {
+                tapTypeIndices.forEach { i ->
+                    add(VisionJev.Question.Box("b$i", proposals[i].description))
+                }
+                add(
                     VisionJev.Question.Choice(
                         "pick",
                         "Which proposed action best fulfills the subtask on this page? Answer with one option id.",
@@ -393,11 +486,49 @@ class VisionLoop(
                             listOf("none" to "none of the proposals can advance the subtask"),
                     ),
                 )
-                val started = System.currentTimeMillis()
+            }
+            try {
                 var rawReq = ""
                 var rawRes = ""
+                val started = System.currentTimeMillis()
                 val answers = jev.ask(
-                    groundState(active, doneText, obs), questions, null, VisionJev.newImageRef(), "ground-choice",
+                    groundState(active, doneText, obs, imageRef), questions, shot.base64, imageRef, "ground",
+                    onRaw = { req, res -> rawReq = req; rawRes = res },
+                )
+                evidence.call("ground", rawReq, rawRes, System.currentTimeMillis() - started, null, note = jev.describe)
+                (answers["pick"] as? VisionJev.Answer.Choice)?.let { pick ->
+                    pickIndex = when {
+                        pick.chosen == "none" || !pick.chosen.startsWith("p") ->
+                            return Attempted.Failed("jev picked none of the proposals")
+                        else -> pick.chosen.removePrefix("p").toIntOrNull()
+                            ?: return Attempted.Failed("jev picked unparseable '${pick.chosen}'")
+                    }
+                }
+                tapTypeIndices.forEach { i ->
+                    (answers["b$i"] as? VisionJev.Answer.Box)?.let { jevBoxes[i] = it }
+                }
+            } catch (e: Exception) {
+                evidence.event("ground degraded (boxes+pick): ${e.message?.take(160)} — first proposal, haiku-box fallback")
+                pickIndex = 0
+            }
+        } else if (proposals.size > 1) {
+            // The no-image degrade: the pick-Choice alone rides TEXT-ONLY (a box without
+            // an image is incoherent — refused at construction).
+            try {
+                var rawReq = ""
+                var rawRes = ""
+                val started = System.currentTimeMillis()
+                val answers = jev.ask(
+                    groundState(active, doneText, obs, null),
+                    listOf(
+                        VisionJev.Question.Choice(
+                            "pick",
+                            "Which proposed action best fulfills the subtask on this page? Answer with one option id.",
+                            proposals.mapIndexed { i, p -> "p$i" to "${p.action.name.lowercase()} ${p.description}" } +
+                                listOf("none" to "none of the proposals can advance the subtask"),
+                        ),
+                    ),
+                    null, VisionJev.newImageRef(), "ground-choice",
                     onRaw = { req, res -> rawReq = req; rawRes = res },
                 )
                 evidence.call("ground-choice", rawReq, rawRes, System.currentTimeMillis() - started, null)
@@ -416,29 +547,90 @@ class VisionLoop(
         }
 
         val proposal = proposals.getOrNull(pickIndex) ?: proposals.first()
-        val verb = proposal.action.name.lowercase()
 
-        // MATCH: the Haiku box's screen rect -> best actionable node (or the label degrade).
-        val box = proposal.box
+        // MATCH: the JEV box is PRIMARY (when it cleared the floor); the Haiku proposal
+        // box is the FALLBACK; without any image the description's label match is the
+        // last resort.
         var target: NodeMatch? = null
         var rawRect: VisionMath.RectPx? = null
-        if (box != null && shot != null) {
-            rawRect = VisionMath.boxToScreenRect(box.left, box.top, box.right, box.bottom, shot.screenWidth, shot.screenHeight)
-            target = VisionMath.bestNodeMatch(obs.nodes, rawRect)?.let { NodeMatch(it.first, it.second) }
-            evidence.grounding.record(proposal.description, proposal.confidence, target?.iou ?: 0.0, target?.node?.id)
-        } else if (shot == null) {
-            // The no-image degrade: match the description by label; null = the action dies.
-            VisionMath.bestLabelMatch(obs.nodes, proposal.description)?.let {
-                target = NodeMatch(it, 1.0)
-            } ?: return Attempted.Failed("no screenshot and no label match for '${proposal.description.take(60)}'")
+        var groundSource: String? = null
+        var groundConfidence = 0.0
+        val jevBox = jevBoxes[pickIndex]
+        if (jevBox != null && shot != null && jevBox.confidence >= config.boxConfidenceFloor) {
+            val jevRect = VisionMath.boxToScreenRect(
+                jevBox.left, jevBox.top, jevBox.right, jevBox.bottom, shot.screenWidth, shot.screenHeight,
+            )
+            rawRect = jevRect
+            target = VisionMath.bestNodeMatch(obs.nodes, jevRect)?.let { NodeMatch(it.first, it.second) }
+            groundSource = "Jev box"
+            groundConfidence = jevBox.confidence
+            // The calibration ledger scores JEV boxes (Phase-A now measures the real
+            // transport); the Haiku cross-check and the fallback arm ride the event log.
+            evidence.grounding.record(proposal.description, jevBox.confidence, target?.iou ?: 0.0, target?.node?.id)
+            stepGrounding = StepGrounding(
+                source = "Jev box",
+                description = proposal.description,
+                screenX = jevRect.centerX,
+                screenY = jevRect.centerY,
+                iou = target?.iou ?: 0.0,
+                nodeId = target?.node?.id,
+            )
+            proposal.box?.let { hb ->
+                val hRect = VisionMath.boxToScreenRect(
+                    hb.left, hb.top, hb.right, hb.bottom, shot.screenWidth, shot.screenHeight,
+                )
+                evidence.event(
+                    "cross-check: haiku box conf=%.2f iou-vs-jev-rect=%.2f".format(
+                        proposal.confidence,
+                        VisionMath.iou(hRect, jevRect),
+                    ),
+                )
+            }
+        }
+        if (groundSource == null) {
+            if (jevBox != null) {
+                evidence.event(
+                    "jev box sub-floor (conf=%.2f < %.2f) — haiku-box fallback"
+                        .format(jevBox.confidence, config.boxConfidenceFloor),
+                )
+            }
+            val box = proposal.box
+            if (box != null && shot != null) {
+                val haikuRect = VisionMath.boxToScreenRect(box.left, box.top, box.right, box.bottom, shot.screenWidth, shot.screenHeight)
+                rawRect = haikuRect
+                target = VisionMath.bestNodeMatch(obs.nodes, haikuRect)?.let { NodeMatch(it.first, it.second) }
+                groundSource = "haiku box fallback"
+                groundConfidence = proposal.confidence
+                evidence.event(
+                    "fallback grounding: '%s' conf=%.2f iou=%.2f node=%s".format(
+                        proposal.description.take(60),
+                        proposal.confidence,
+                        target?.iou ?: 0.0,
+                        target?.node?.id ?: "none",
+                    ),
+                )
+                stepGrounding = StepGrounding(
+                    source = "haiku box fallback",
+                    description = proposal.description,
+                    screenX = haikuRect.centerX,
+                    screenY = haikuRect.centerY,
+                    iou = target?.iou ?: 0.0,
+                    nodeId = target?.node?.id,
+                )
+            } else if (shot == null) {
+                // The no-image degrade: match the description by label; null = the action dies.
+                VisionMath.bestLabelMatch(obs.nodes, proposal.description)?.let {
+                    target = NodeMatch(it, 1.0)
+                } ?: return Attempted.Failed("no screenshot and no label match for '${proposal.description.take(60)}'")
+            }
         }
 
-        // The grounding quality marker: a self-reported low-confidence location on a
-        // miss-grade match rides the step line LOUDLY (during calibration the step still
-        // acts — the evidence is the product; the floor gets picked from the histogram).
-        val lowConfMark = if (box != null && proposal.confidence < config.boxConfidenceFloor &&
+        // The grounding quality marker: a low-confidence location on a miss-grade match
+        // rides the step line LOUDLY (during calibration the step still acts — the
+        // evidence is the product; the floor gets picked from the histogram).
+        val lowConfMark = if (groundSource != null && groundConfidence < config.boxConfidenceFloor &&
             (target?.iou ?: 0.0) < VisionEvidence.GroundingMetrics.IOU_PARTIAL
-        ) " (LOW-CONF ground conf=%.2f iou=%.2f)".format(proposal.confidence, target?.iou ?: 0.0) else ""
+        ) " (LOW-CONF ground conf=%.2f iou=%.2f)".format(groundConfidence, target?.iou ?: 0.0) else ""
 
         // ACT: matched node center, else the box's own center (the raw-coordinate arm).
         // Scroll/back need no location: they act on the screen center by design.
@@ -447,7 +639,8 @@ class VisionLoop(
         val needsLocation = proposal.action == VisionPrompts.ProposalAction.TAP ||
             proposal.action == VisionPrompts.ProposalAction.TYPE
         val where = when {
-            target != null -> "node ${target.node.id} iou=%.2f".format(target.iou)
+            target != null -> "node ${target.node.id} iou=%.2f".format(target.iou) +
+                (groundSource?.let { src -> " (${src.lowercase().replace(' ', '-')})" } ?: "")
             rawRect != null -> "raw (${x},${y})"
             needsLocation -> "degraded"
             else -> "screen center"
@@ -491,6 +684,20 @@ class VisionLoop(
             VisionPrompts.ProposalAction.SCROLL_UP,
             -> false
         }
+        // The evidence cache's action route (the re-plan's ROUTE-REPEATED law: same verb
+        // consecutively >= 3 renders the tag on the evidence block).
+        val actionLabel = when (proposal.action) {
+            VisionPrompts.ProposalAction.TAP -> "tap ${shortLabel(proposal.description)}"
+            VisionPrompts.ProposalAction.TYPE -> "type ${shortLabel(proposal.text ?: proposal.description)}"
+            VisionPrompts.ProposalAction.SUBMIT -> "submit"
+            VisionPrompts.ProposalAction.BACK -> "back"
+            VisionPrompts.ProposalAction.SCROLL_DOWN -> "scroll down"
+            VisionPrompts.ProposalAction.SCROLL_UP -> "scroll up"
+        }
+        actionHistory.addLast(actionLabel)
+        while (actionHistory.size > 3) actionHistory.removeFirst()
+        verbHistory.addLast(actionLabel.substringBefore(' '))
+        while (verbHistory.size > 6) verbHistory.removeFirst()
         delay(config.settleMs)
         if (executed && target != null && actedNodeIds.add(target.node.id) &&
             proposal.action != VisionPrompts.ProposalAction.BACK &&
@@ -504,8 +711,30 @@ class VisionLoop(
 
     // -- helpers ---------------------------------------------------------------------------
 
-    /** The GROUND request's state: the subtask and the code-readable page (text-only — the decisions proxy drops images). */
-    private fun groundState(active: Subtask, doneText: String, obs: StepObservation): String =
+    /** The informed re-plan's failure context: the failing subtask + the evidence block. */
+    private fun failureContext(index: Int, active: Subtask, doneText: String): String = buildString {
+        append("subtask ${index + 1}: \"${active.instruction}\" (done: $doneText).")
+        append("\n\n")
+        append(VisionPrompts.jevEvidenceBlock(currentEvidence(doneText)))
+    }
+
+    /** Assembles the evidence block from the per-step cache — ZERO extra model calls. */
+    private fun currentEvidence(doneText: String) = VisionPrompts.JevEvidence(
+        battery = stepBattery.map {
+            VisionPrompts.EvidenceCheck(it.question, it.badIsTrue, it.textNoul, it.imageConfirm)
+        },
+        conditionRender = doneText,
+        conditionSatisfied = stepConditionSatisfied,
+        escalation = stepEscalation ?: VisionPrompts.EscalationKind.EXHAUSTED,
+        grounding = stepGrounding?.let {
+            VisionPrompts.EvidenceGrounding(it.source, it.description, it.screenX, it.screenY, it.iou, it.nodeId)
+        },
+        actions = actionHistory.toList(),
+        routeRepeated = VisionPrompts.routeStreak(verbHistory.toList()).takeIf { it >= 3 },
+    )
+
+    /** The GROUND request's state: the subtask and the code-readable page, plus the screenshot reference when the image rides. */
+    private fun groundState(active: Subtask, doneText: String, obs: StepObservation, imageRef: String?): String =
         buildString {
             append("SUBTASK: ").append(active.instruction).append('\n')
             append("DONE WHEN: ").append(doneText).append('\n')
@@ -513,8 +742,14 @@ class VisionLoop(
             append("TITLE: ").append(obs.title).append('\n')
             append("URL: ").append(obs.url).append('\n')
             append(obs.lines.take(40).joinToString("\n")).append('\n')
+            if (imageRef != null) {
+                append("SCREEN: the page screenshot is `$imageRef`\n")
+            }
             append("</untrusted-page>")
         }
+
+    /** A compact action label for the evidence cache's route line. */
+    private fun shortLabel(s: String): String = s.trim().replace(Regex("\\s+"), " ").take(24)
 
     /** The code decider (the product's own checker over code-read evidence). */
     private fun codeDone(active: Subtask, obs: StepObservation, counters: Map<String, Int>, answersProduced: Int): Boolean =
@@ -532,24 +767,35 @@ class VisionLoop(
 
     /**
      * The verification battery, both channels per the fan-out law: ONE batched Jev
-     * request over the text state (every check as a noul) + ONE Haiku call answering
-     * the same questions over the screenshot. Channel failures degrade to null (that
-     * channel abstains — the gate works on whatever answered).
+     * request over text+IMAGE — the screenshot rides IN STATE on the vendor route
+     * (PHASE_VEXP1 WI4: nouls judge text+image in one request) — plus ONE Haiku call
+     * answering the same questions over its own image channel (independence preserved).
+     * Channel failures degrade to null (that channel abstains — the gate works on
+     * whatever answered). Ordering: this runs BEFORE the step acts (escalation precedes
+     * action); the GROUND request at the acting step is the SECOND Jev call — deliberate.
      */
     private suspend fun runBattery(
         checks: List<VisionPrompts.VerifyCheck>,
         obs: StepObservation,
         shot: VisionCapture.ScreenShot?,
     ): List<CheckResult> {
+        val imageRef = VisionJev.newImageRef()
         val textNouls: List<Double?> = try {
             val questions = checks.mapIndexed { i, c -> VisionJev.Question.Noul("v$i", c.question) }
             var rawReq = ""
             var rawRes = ""
             val answers = jev.ask(
-                digest(obs), questions, null, VisionJev.newImageRef(), "verify-battery",
+                stateWithImage(digest(obs), if (shot != null) imageRef else null),
+                questions,
+                shot?.base64,
+                imageRef,
+                "verify-battery",
                 onRaw = { req, res -> rawReq = req; rawRes = res },
             )
-            evidence.call("verify-battery", rawReq, rawRes, 0, null)
+            evidence.call(
+                "verify-battery", rawReq, rawRes, 0, null,
+                note = if (shot != null) jev.describe else null,
+            )
             checks.mapIndexed { i, _ -> (answers["v$i"] as? VisionJev.Answer.Noul)?.pTrue }
         } catch (e: Exception) {
             evidence.event("battery text channel refused: ${e.message?.take(140)}")
@@ -584,8 +830,9 @@ class VisionLoop(
 
     private suspend fun recordedOpinions(active: Subtask, obs: StepObservation, shot: VisionCapture.ScreenShot?): Opinions {
         val doneText = DoneConditionChecker.render(active.done)
-        // The noul rides TEXT-ONLY (the decisions proxy drops image assets — measured
-        // 2026-10-17); the visual half of the second opinion IS the Haiku confirm.
+        // The second opinion's noul rides the TEXT state (the visual half of the second
+        // opinion IS the Haiku confirm over its own image channel — independence
+        // preserved); the battery is the channel that judges text+image together.
         var noul: Double? = null
         try {
             noul = (jev.ask(
@@ -639,9 +886,12 @@ class VisionLoop(
                 // The bounded retry is ERROR-FED: the writer sees WHY its last JSON was
                 // refused (a blind retry repeated the same taskClass/size mistakes live).
                 val user = correction?.let { c -> "$base\n\n<correction>$c</correction>" } ?: base
+                // The RE-PLAN call gains the REPLAN_SKILL addendum (PHASE_VEXP1 WI1b):
+                // the writer re-plans FROM the evidence block the failure context carries.
+                val system = VisionPrompts.planSystem(replan = failure != null)
                 var rawReq = ""
                 var rawRes = ""
-                val content = haiku.chat(VisionPrompts.PLAN_SYSTEM, user, shot?.base64, "plan") { req, res ->
+                val content = haiku.chat(system, user, shot?.base64, "plan") { req, res ->
                     rawReq = req; rawRes = res
                 }
                 evidence.call(if (failure == null) "plan" else "replan", rawReq, rawRes, 0, null)

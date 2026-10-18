@@ -156,8 +156,10 @@ When the user requests a durable behavior change, record it here or in the relev
   gate-runner surface (`GateScenarios` — the four gates' assertion bodies in main
   source, run by adb OUTSIDE instrumentation because the JUnit shell is
   platform-blocked on the API 35 emulator; evidence = `logcat -s NavigatorGates`)) and
-  the setup wizard (`setup/` — the four-check
-  wizard + `EncryptedSharedPreferences` key store; `MainActivity` is a thin launcher
+  the setup wizard (`setup/` — the six-check
+  wizard (a11y, Samsung battery, OpenRouter key, TypeSafe key, the dual live-key
+  tester, model status) + the `EncryptedSharedPreferences` TWO-slot key store;
+  `MainActivity` is a thin launcher
   into it); UAT ACCEPTED 2026-10-09 (owner on-device, two revision rounds); a 2026-10-09
   owner design pass (warm brand-forward, dark-first compact) restyled the setup wizard
   (card layout + progress) and the corner live log (amber accent, outcome-colored

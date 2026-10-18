@@ -3,26 +3,36 @@
   "title": "Image+Box on the TypeSafe route, dual API keys, and the skill-compiled informed re-plan",
   "phaseDoc": ".state/vision-iter/PHASE_VEXP1_image_box_dual_keys.md",
   "branch": "exp/vision-box",
-  "status": "in-progress",
+  "status": "verified-awaiting-reporter",
   "startedAt": "2026-10-18",
+  "implementedAt": "2026-10-18",
   "goal": "Vendor-route image+Box live in the loop; dual keys stored/tested; the re-plan compiles Jev findings per the distilled TypeSafe skill; all gates green; owner UAT accepted.",
   "stoppingCondition": "All gates green + emulator probe shows image riding the vendor route (asset in request JSON, grounding attempts scored) + dual tester verdicts + badge/dex verified + owner UAT accepted.",
-  "gatesPassed": [],
-  "gatesFailed": [],
-  "gatesPending": [
-    ":app:testDebugUnitTest --tests navigator.app.harness.vision.*",
-    ":app:testDebugUnitTest",
-    ":core:test",
+  "gatesPassed": [
+    ":app:testDebugUnitTest --tests navigator.app.harness.vision.* (33/33)",
+    ":app:testDebugUnitTest (622/0)",
+    ":core:test (380/0)",
     ":app:assembleDebug",
-    "APK badge navigator.app.visionexp + dex marker vision-exp-v6",
-    "emulator live probe: asset in request + grounding scored"
+    "APK badge navigator.app.visionexp + dex vision-exp-v6 (classes13.dex)",
+    "emulator live probe: asset in request (b64len 166708, input_tokens 22047), 7 questions batched, grounding attempts 6 scored, route+pageNoul 0.9 recorded, no crash"
   ],
-  "deviations": [],
-  "llmCost": "implementation $0 (deterministic); verifier live probe ~$0.001 budget",
+  "gatesFailed": [],
+  "gatesPending": [],
+  "deviations": [
+    "Probe Haiku-LOCATE arm retired by the prescribed Jev-Box probe; LOCATE_* prompts unused pending owner read at UAT",
+    "Dual-tester copy 'API keys are live'/'Test keys'",
+    "keyLiveCheck retained beside dualKeyLiveCheck (tests pin the single-channel mapper)",
+    "recordedOpinions second-opinion noul stays text-side (image ride scoped to battery+GROUND)",
+    "Root AGENTS.md wizard count refreshed (DOX hygiene)"
+  ],
+  "llmCost": "implementation $0 (deterministic; no live API calls); verifier live probe ~$0.001 budget (both keys via intent extras)",
   "blocker": null,
-  "nextAction": "canon-implementer builds work items 1-7 per the phase doc",
+  "nextAction": "canon-reporter presents human-verifiable UAT (3 steps); owner accepts -> commit + badge-verified reinstall on S25+",
   "notes": [
-    "Law for this phase = the experiment charter (phase doc header); Project Vision departures pre-sanctioned by owner 2026-10-18.",
+    "Implementation summary: WI1 — VisionPrompts gained the pure <jev-evidence> builder (typed EscalationKind, EvidenceCheck/EvidenceGrounding, routeStreak/ROUTE-REPEATED at >=3) and REPLAN_SKILL (appended beside the v5 manifest on the re-plan call only via planSystem); VISION_PROMPT_VERSION = vision-exp-v6; VisionLoop keeps a per-step CLASS-field cache (battery results, code verdict, best grounding, action/verb tails, cleared on subtask advance/re-plan) so the failure context assembles the block with ZERO extra calls, replacing the prose 'Last outcomes'. WI2 — OpenRouterKeyStore second encrypted slot (typesafe-key); SetupLogic.typesafeKeyCheck (REQUIRED, R5 verbatim) + DualKeyTest/dualKeyLiveCheck (two independent verdict lines, never gates); SetupActivity dual tester (one 'Test keys' tap = free OpenRouter GET + minimal one-noul TypeSafe POST api.typesafe.ai/v1/systemone probe ~$0.000012, no danger header, never auto-runs, resume/focus never pings, each save resets its own verdict); VisionKeys (new pure object) resolves each channel intent > store > env > keys file and refuses LOUDLY naming the missing channel. WI3 — VisionJev defaults to https://api.typesafe.ai/v1/systemone + jev-1.14.0 (adb extras override); endpoint+model recorded on every image-carrying call's evidence event; vendor no-cost usage keeps the conservative price-table fallback ($0.042/M noted). WI4 — the battery's Jev nouls ride text+IMAGE in one request (state embeds the backticked screenshot ref), Haiku answers over its own channel; GROUND = ONE batched request (image in state + Box per tap/type proposal + pick-Choice); Jev box over the confidence floor is the PRIMARY grounding, the Haiku proposal box demotes to fallback + recorded cross-check (the calibration ledger scores Jev boxes only); ordering law documented (battery BEFORE acting, ground AT the action, two Jev requests per step deliberate). WI5 — the Activity resolves both keys via VisionKeys with loud per-channel refusals and the probe exercises the live vendor Box path. WI7 — app/AGENTS.md vision/ + setup/ bullets rewritten for v6, DEBUGGING.md carries the two-key/two-channel procedure incl. the TypeSafe validation call, compliance log entry appended.",
+    "Security: no key values anywhere in code/tests/logs; live keys exist only at runtime (Setup store / intent extras); tests use obviously-fake fixture strings, a pure CapturingTransport, and a nonexistent keys-file path so resolveKey can never read the developer machine's real .tools/keys.env.",
+    "Law for this phase = the experiment charter (phase doc header); Project Vision departures pre-sanctioned by owner 2026-10-18. Verifier checks against the phase doc.",
     "Sub-agents communicate via this file; do not use conversation."
-  ]
+  ],
+  "verification": ".state/phase-vexp1-verification.md (VERDICT: PASS)"
 }

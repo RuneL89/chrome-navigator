@@ -259,33 +259,41 @@ setup wizard (`setup/`).
     §2a): the loop masks sanctioned secrets out of the goal/final-state/page
     material/field labels and the TARGET STATE VIEW's slate labels before any call;
     law: `Project Vision/01` §3, `Project Vision/04` §1 v1.4.0 + §2 v1.6.0, `Project Vision/06` §2a/§4
-  * `src/main/kotlin/navigator/app/setup/` — the setup wizard (Phase 9, §2.2):
+  * `src/main/kotlin/navigator/app/setup/` — the setup wizard (Phase 9, §2.2;
+    PHASE_VEXP1 grew it to SIX checks with the TypeSafe key card + the dual tester):
     `SetupLogic` (PURE state derivation, JVM-pinned: the a11y-enabled check string
     parsing, the Samsung-only battery branching — non-Samsung passes with an info line
-    so the wizard completes green on the emulator, presence-only key state, the
-    informational eval-only model check that NEVER gates, the all-required-green
+    so the wizard completes green on the emulator, presence-only key state for BOTH
+    keys (OpenRouter + `typesafeKeyCheck` — the TypeSafe card REQUIRED in this app,
+    same R5 laws), the on-demand dual key tester's states
+    (`keyLiveCheck`/`DualKeyTest`/`dualKeyLiveCheck` — one "Test keys" tap, two
+    independent channel verdicts, never gating), the informational eval-only model
+    check that NEVER gates, the all-required-green
     summary; the UAT 9.2 revision constants: `BATTERY_ACK_PREFS_FILE`/`BATTERY_ACK_PREF_KEY`
     — the battery "Done" acknowledgement's PLAIN-SharedPreferences location (a user
     acknowledgement, not a secret) — and `SAVED_KEY_INDICATOR`, the FIXED 8-dot
     saved-key marker that must never be derived from the stored value or its true
     length; 2026-10-17 hotel iteration: `keyLiveCheck`/`KeyTestState`/`KeyTestOutcome`
-    — the FIFTH check "API key is live", ON-DEMAND only (tap-to-test; never auto-runs,
+    — the on-demand "key is live" states (tap-to-test; never auto-runs,
     never gates), because key presence says nothing about validity and that day's run
     died on a stored-but-dead key at its first paid call),
-    `SetupActivity` (the re-runnable five-check Compose wizard: a11y enable
+    `SetupActivity` (the re-runnable six-check Compose wizard: a11y enable
     deep-links with the Android 13+ "Allow restricted settings" path explained, the
     TEXT-GUIDED Samsung battery whitelist (no programmatic whitelist on stock Android
-    is lawful), the password-transformed key entry, the model status; the UAT 9.2
+    is lawful), the OpenRouter key card, the TypeSafe key card (masked entry, fixed
+    8-dot saved marker, "type a new one to replace" — R5 verbatim), the model status; the UAT 9.2
     revisions live here: ALL checks re-evaluate on onResume AND window-focus gain
     (the R3 live-update — a row flips the moment the user returns from Settings), the
     battery acknowledgement persists across restarts (R4), and a saved key renders as
     the FIXED dot row beside the always-EMPTY entry field with "type a new one to
     replace" / "Replace key" wording (R5 — no echo, no length leak); the 2026-10-17
-    live-key card: the Test-key button fires ONE free `GET openrouter.ai/api/v1/key` on
-    `Dispatchers.IO` (200 → green "accepted", 401 → red with the fresh-key recovery
-    path, else an honest error line; key rides the Authorization header only, never
-    logged; saving a new key resets the card to untested; the state lives OUTSIDE the
-    refresh cycle so no resume/focus ever pings OpenRouter); STARTS the
+    live-key card, DUAL since PHASE_VEXP1: the "Test keys" button fires BOTH the free
+    `GET openrouter.ai/api/v1/key` AND a minimal one-noul `POST api.typesafe.ai/v1/systemone`
+    probe (~$0.000012, no danger header — no image) on
+    `Dispatchers.IO`, rendering TWO independent verdict lines (green accepted / red
+    with the recovery path / honest error; keys ride Authorization headers only, never
+    logged; saving either key resets ITS verdict; the state lives OUTSIDE the
+    refresh cycle so no resume/focus ever pings either provider); STARTS the
     foreground service from the foreground (the FGS background-start law) and triggers
     the goal overlay for the notification's "New task" action),
     the 2026-10-09 owner design pass (ai-ui-design-skills interview: warm
@@ -299,8 +307,9 @@ setup wizard (`setup/`).
     `WindowInsets.safeDrawing` padding — targetSdk 36 ENFORCES edge-to-edge, so the
     theme's bar-color items are ignored on API 35+ and the content pads itself
     (measured: the first cut drew under the status bar),
-    `OpenRouterKeyStore` (`EncryptedSharedPreferences` — the key is LOCAL ONLY, never
-    logged, never rendered back)
+    `OpenRouterKeyStore` (`EncryptedSharedPreferences` — TWO slots since PHASE_VEXP1:
+    the OpenRouter key + the `typesafe-key` slot; keys are LOCAL ONLY, never logged,
+    never rendered back — presence check only)
   * `src/main/kotlin/navigator/app/observe/` — observation layer (Phase 1,
     vision 03): `NavigatorAccessibilityService` (fresh-root reads of the
     PACKAGE_ALLOWLIST browsers; Phase 6 added `observeForLoop()` = the same fresh
@@ -815,31 +824,59 @@ setup wizard (`setup/`).
     pure try-out that deliberately ignores the Project Vision law; delete with the
     branch): the STANDALONE multimodal loop — per step it feeds BOTH the a11y read AND
     a screenshot to the writer (Haiku: plan/propose/confirm/extract via `VisionHaiku`
-    content-parts chat; the propose answer carries a per-proposal BOX — Haiku is the
-    LOCATOR, because the OpenRouter decisions route carries NO image payload in ANY
-    documented upload format (settled 2026-10-18 with all formats tested on a
-    known-answer frame: multipart rejected `400 invalid content-type` — the route is
-    JSON-only; base64-in-JSON stripped in both state forms — text-only token counts,
-    box conf 0.03 off ground truth, noul 0.48 blind coin-flip; the registry still
-    declares `typesafe/jev-1.14` text+image — an OpenRouter proxy gap, repros in
-    `.state/vision-iter/run1/REPORT.md`) and to Jev 1.14 (`VisionJev`: the alpha
-    endpoint, model alias `typesafe/jev-1.14`; TEXT-side only — the pick-Choice among
-    proposals + the noul second opinion; its Box support is built and dormant pending
-    the route carrying images or a direct TypeSafe key). Boxes map to a11y node bounds by IoU (`VisionMath`,
-    JVM-pinned); actions ride the production `GestureExecutor`. `DoneConditionChecker`
-    stays the completion DECIDER (plus the 10C honesty-gate habit: a WEAK content
-    condition cannot complete a subtask that has not acted); the one model-driven
-    terminal is `MODELS_CONFIRM_DONE` — proposer-exhausted + noul + confirm all
-    agreeing, DISTINCTLY FLAGGED code-unverified (it fired only on the webview-shell
-    emulator whose a11y depth filter hides body prose). 10x product budget ceilings
-    (`ExpBudget`, owner directive); evidence (screenshots + raw request/response JSON,
-    owner-consented, EXPERIMENT-ONLY — the product ART-8 memory-only rule is untouched)
-    to `run-reports/vision-exp/<runId>/`; reports via `RunReportStore`. Entry:
-    `VisionExperimentActivity` (adb; `--es goal` loop mode / `--es visionMode probe` =
-    the Phase-A grounding calibration: one screenshot, one LOCATE call, IoU scored
-    against real bounds — live result: near-exact boxes on visible controls, honest
-    misses on hidden items). Emulator-verified end to end: GOAL_ACHIEVED (report goal)
-    and MODELS_CONFIRM_DONE (navigation goal, tap at IoU 0.86). The debug build
+    content-parts chat) and to Jev 1.14 on the TYPESAFE VENDOR ROUTE (PHASE_VEXP1 v6:
+    `VisionJev` defaults to `https://api.typesafe.ai/v1/systemone` + model `jev-1.14.0`
+    — the only live-proven transport that carries images to Jev (input_tokens 6188 on
+    the known-answer frame, noul 0.98, box IoU ~0.76); the OpenRouter alpha route stays
+    available for A/B via the adb extras but strips image payloads in EVERY documented
+    upload format (an OpenRouter proxy gap — multipart rejected 400, base64-in-JSON
+    stripped blind, repros in `.state/vision-iter/run1/REPORT.md`)). JEV BOX IS THE
+    PRIMARY GROUNDER: GROUND is ONE batched vendor request — image in state + a Box per
+    tap/type proposal + the pick-Choice; a Jev box at/over the confidence floor grounds
+    the tap/type, and the Haiku proposal box DEMOTES to fallback
+    (missing/sub-floor/channel-failed) recorded as the cross-check. The verification
+    battery gained eyes: its Jev nouls ride text+IMAGE in ONE request (the state embeds
+    the screenshot reference), Haiku answers the same questions over its own image
+    channel (independence preserved); ORDERING LAW — battery BEFORE acting (escalation
+    precedes action), ground AT the action; two Jev requests per step is deliberate.
+    THE INFORMED RE-PLAN is run-1's counterfactual made permanent (PHASE_VEXP1 WI1):
+    the failure context carries the code-assembled `<jev-evidence>` block
+    (`VisionPrompts.jevEvidenceBlock` — the typed escalation enum
+    OUTCOME-ACHIEVED-WHILE-CONDITION-UNMET | RED-FLAGS | EXHAUSTED, the per-step cache
+    of battery results + the code verdict + the step's best grounding + the action
+    route with the ROUTE-REPEATED tag (same verb consecutively >= 3), assembled with
+    ZERO extra calls — it replaced the prose "Last outcomes") and the re-plan system
+    prompt gains `REPLAN_SKILL` (`VisionPrompts.planSystem`: match conditions to the
+    evidence universe, never point a condition past an achieved outcome, act on the
+    located box, author batteries Jev can answer, vary the route, cascade framing);
+    `VISION_PROMPT_VERSION` = `vision-exp-v6`. DUAL KEYS (PHASE_VEXP1 WI2):
+    `OpenRouterKeyStore` carries a SECOND encrypted slot (`typesafe-key`;
+    `save/has/loadTypesafeKey`, same local-only/never-logged/presence-only laws); vision
+    runs resolve each channel symmetrically through `VisionKeys` (intent extra
+    `--es openrouterKey`/`--es typesafeKey` > the Setup store > env
+    `NAVIGATOR_OPENROUTER_KEY`/`NAVIGATOR_TYPESAFE_KEY` > the keys file via
+    `DefaultEngineConfigs.resolveKey`) and a run missing EITHER key refuses LOUDLY
+    naming the channel; the wizard grew the REQUIRED "TypeSafe key" card
+    (`SetupLogic.typesafeKeyCheck` — R5 laws verbatim) and the DUAL tester (one
+    "Test keys" tap fires BOTH the free OpenRouter key GET and a minimal one-noul
+    TypeSafe probe, TWO independent verdict lines; never auto-runs, never pings on
+    resume/focus, saving either key resets ITS verdict). Boxes map to a11y node bounds
+    by IoU (`VisionMath`, JVM-pinned); actions ride the production `GestureExecutor`.
+    `DoneConditionChecker` stays the completion DECIDER (plus the 10C honesty-gate
+    habit: a WEAK content condition cannot complete a subtask that has not acted); the
+    one model-driven terminal is `MODELS_CONFIRM_DONE` — proposer-exhausted + noul +
+    confirm all agreeing, DISTINCTLY FLAGGED code-unverified (it fired only on the
+    webview-shell emulator whose a11y depth filter hides body prose). 10x product
+    budget ceilings (`ExpBudget`, owner directive); evidence (screenshots + raw
+    request/response JSON, owner-consented, EXPERIMENT-ONLY — the product ART-8
+    memory-only rule is untouched) to `run-reports/vision-exp/<runId>/` (every
+    image-carrying Jev call records endpoint+model on its evidence event); reports via
+    `RunReportStore`. Entry: `VisionExperimentActivity` (adb; `--es goal` loop mode /
+    `--es visionMode probe` = the Phase-A grounding calibration on the REAL transport:
+    one screenshot, ONE batched vendor request — a Box per labeled interactive node +
+    one noul — IoU scored against real bounds). Emulator-verified end to end:
+    GOAL_ACHIEVED (report goal) and MODELS_CONFIRM_DONE (navigation goal, tap at IoU
+    0.86). The debug build
     carries a DISTINCT identity (`navigator.app.visionexp` + versionNameSuffix + the
     debug-sourceSet app/a11y labels) so it installs ALONGSIDE the product app (owner
     directive 2026-10-17); remove the build.gradle.kts debug block, `src/debug/res`,

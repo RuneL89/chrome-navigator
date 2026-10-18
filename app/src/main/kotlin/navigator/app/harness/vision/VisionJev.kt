@@ -36,20 +36,24 @@ import navigator.core.wire.WireTransportException
  *   danger header, model `jev-1.14.0`, base64-in-JSON): **the full image contract
  *   works** — `input_tokens: 6188` (image rode), noul 0.98 on "the search result
  *   listing is visible", box IoU ≈ 0.76 vs ground truth (conf 0.46), center inside
- *   the card. This is the route the loop's image/Box leg uses.
+ *   the card. This is the DEFAULT route (PHASE_VEXP1 work item 3:
+ *   [DEFAULT_VISION_BASE_URL] / [DEFAULT_VISION_MODEL]).
  * - OpenRouter `alpha/decisions`: multipart rejected (`400 invalid content-type` —
  *   JSON-only route), base64 stripped in both state forms (text-only token counts,
  *   blind answers). Registry declares `text+image` — an OpenRouter proxy gap; repro
- *   set in `.state/vision-iter/run1/REPORT.md` for a support report.
- * The [Question.Box] type is live on the vendor route; the [Question.Box] leg of the
- * loop's grounding switches on by pointing [VisionJev] at the vendor endpoint with a
- * TypeSafe key — until that wiring lands, the loop's v2 grounding rides
- * Haiku-with-image ([VisionHaiku]).
+ *   set in `.state/vision-iter/run1/REPORT.md` for a support report. The alias
+ *   `typesafe/jev-1.14` stays available for A/B via the adb extras.
+ * The [Question.Box] type is live on the vendor route.
+ *
+ * Usage/pricing: the vendor response carries no `cost` field — [readUsage] keeps the
+ * conservative production price-table fallback ($3/M in, $15/M out); the OpenRouter
+ * registry price for reference is ~$0.042/M prompt tokens, so the ledger overcounts by
+ * design (never undercounts).
  */
 class VisionJev(
     private val transport: WireTransport,
-    private val baseUrl: String,
-    private val model: String,
+    val baseUrl: String,
+    val model: String,
     private val apiKey: String,
     private val onUsage: (VisionUsage) -> Unit = {},
     private val maxRetries: Int = 2,
@@ -94,6 +98,9 @@ class VisionJev(
     }
 
     class VisionJevException(message: String) : IllegalStateException(message)
+
+    /** The evidence-event identity of this client (endpoint + model, never the key). */
+    val describe: String get() = "endpoint=$baseUrl model=$model"
 
     private data class BoxEdges(val top: Double, val bottom: Double, val left: Double, val right: Double)
 
@@ -149,12 +156,26 @@ class VisionJev(
         const val DANGER_ZONE_IMAGES_HEADER = "TypeSafe-Danger-Zone-Images"
 
         /**
-         * The experiment's default Jev snapshot for vision (Box requires Jev 1.14). The
-         * OpenRouter alpha endpoint resolves this ALIAS to the dated snapshot
-         * (`typesafe/jev-1.14` -> `typesafe/jev-1.14-20261014`, live-verified 2026-10-17);
-         * the vendor-style slugs (`jev-1.14.0`/`jev-preview`) 400 on the proxy.
+         * The DEFAULT route for vision (PHASE_VEXP1 work item 3): the VENDOR endpoint —
+         * the only live-proven transport that carries images to Jev (input_tokens 6188 on
+         * the known-answer frame). The adb `--es visionJevUrl` extra still overrides for
+         * A/B (e.g. the OpenRouter alpha endpoint, which strips image assets).
          */
-        const val DEFAULT_VISION_MODEL = "typesafe/jev-1.14"
+        const val DEFAULT_VISION_BASE_URL = "https://api.typesafe.ai/v1/systemone"
+
+        /**
+         * The experiment's default Jev snapshot for vision (Box requires Jev 1.14). The
+         * VENDOR endpoint takes the dated vendor slug `jev-1.14.0`; the OpenRouter alpha
+         * endpoint resolves the ALIAS `typesafe/jev-1.14` instead (`typesafe/jev-1.14-20261014`,
+         * live-verified 2026-10-17; the vendor-style slugs 400 on the proxy).
+         */
+        const val DEFAULT_VISION_MODEL = "jev-1.14.0"
+
+        /**
+         * The evidence-event identity of this client rides the instance: [baseUrl] and
+         * [model] are public read-only, so callers record
+         * `"endpoint=$baseUrl model=$model"` on every image-carrying call's event.
+         */
 
         /**
          * A fresh image reference per request (the docs' `<uuid>-label` pattern; every
