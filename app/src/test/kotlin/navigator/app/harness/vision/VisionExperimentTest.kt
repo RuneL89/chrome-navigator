@@ -8,15 +8,23 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import navigator.app.loop.ActionExecutor
+import navigator.app.loop.LoopObserver
+import navigator.app.loop.StepObservation
 import navigator.core.enumerate.ObservedNode
 import navigator.core.wire.DefaultEngineConfigs
 import navigator.core.wire.WireHttpRequest
 import navigator.core.wire.WireHttpResponse
 import navigator.core.wire.WireTransport
+import navigator.core.wire.WireTransportException
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 
 /**
  * The EXPERIMENT's pure-JVM gates (branch-only): the grounding math, the two wire-body
@@ -549,8 +557,19 @@ class VisionExperimentTest {
     }
 
     @Test
-    fun `the prompt version is vision-exp-v6`() {
-        assertEquals("vision-exp-v6", VisionPrompts.VISION_PROMPT_VERSION)
+    fun `the prompt version is vision-exp-v7`() {
+        assertEquals("vision-exp-v7", VisionPrompts.VISION_PROMPT_VERSION)
+    }
+
+    @Test
+    fun `the planner law demands a final-subtask battery over the visible end state`() {
+        // Round-2 false-completion law: a markerText-style condition matching the page's
+        // own hero text must never be the last word — the FINAL subtask's battery checks
+        // the VISIBLE end state, and the loop's accept gate enforces concurrence.
+        assertTrue(VisionPrompts.PLAN_SYSTEM.contains("FINAL subtask must ALWAYS carry a verify battery"))
+        assertTrue(VisionPrompts.PLAN_SYSTEM.contains("never a heading or hero text"))
+        assertTrue(VisionPrompts.PLAN_SYSTEM.contains("a results list,\na confirmation screen, the cart contents"))
+        assertTrue(VisionPrompts.PLAN_SYSTEM.contains("badIsTrue check\nis welcome here"))
     }
 
     // -- PHASE_VEXP1 WI3: the vendor route --------------------------------------------------
@@ -667,5 +686,451 @@ class VisionExperimentTest {
         assertTrue(noOpenRouter.contains(DefaultEngineConfigs.OPENROUTER_KEY_ENV))
         val none = VisionKeys.refusal(null, null) ?: throw AssertionError("refusal expected")
         assertTrue(none.contains("BOTH missing"))
+    }
+
+    // -- PHASE_VEXP1 live-run defect fix: the escalation-without-action guard ---------------
+    //
+    // Emulator evidence (vision-loop-1792356890231): a battery escalation skips
+    // attemptStep, so an UNCHANGED screen re-fired the same bad-is-true verdict every
+    // iteration — re-plans burned with zero actions into REPLANS_EXHAUSTED. The guard:
+    // a battery-escalation re-plan is followed by ONE battery-free action attempt; the
+    // battery re-arms afterwards; the re-plan budget still bounds the loop.
+
+    /** Routes by URL: chat-completions pops [chatResponses], everything else [jevResponses]. */
+    private class ScriptedVisionTransport(
+        private val chatResponses: ArrayDeque<String>,
+        private val jevResponses: ArrayDeque<String>,
+    ) : WireTransport {
+        var chatCalls = 0
+        var jevCalls = 0
+
+        override suspend fun execute(request: WireHttpRequest): WireHttpResponse {
+            val isChat = request.url.contains("chat/completions")
+            if (isChat) chatCalls++ else jevCalls++
+            val body = (
+                if (isChat) chatResponses.removeFirstOrNull() else jevResponses.removeFirstOrNull()
+                ) ?: throw WireTransportException("script exhausted for ${request.url}")
+            return WireHttpResponse(200, body)
+        }
+    }
+
+    private class ScriptedObserver(vararg observations: StepObservation) : LoopObserver {
+        private val script = ArrayDeque(observations.toList())
+        override suspend fun observe(): StepObservation =
+            script.removeFirstOrNull() ?: error("observer script exhausted")
+    }
+
+    private class RecordingExecutor : ActionExecutor {
+        val taps = mutableListOf<Pair<Int, Int>>()
+        override fun tap(x: Int, y: Int): Boolean { taps.add(x to y); return true }
+        override fun scroll(x: Int, y: Int, down: Boolean): Boolean = true
+        override fun back(): Boolean = true
+        override fun submit(): Boolean = true
+        override fun enterText(x: Int, y: Int, text: String): Boolean = true
+    }
+
+    /** Chat-completions envelope around the writer's inner JSON content. */
+    private fun chatContent(innerJson: String): String = buildJsonObject {
+        put("choices", buildJsonArray {
+            add(buildJsonObject {
+                put("message", buildJsonObject { put("content", JsonPrimitive(innerJson)) })
+            })
+        })
+        put("usage", buildJsonObject { put("prompt_tokens", 10); put("completion_tokens", 5) })
+    }.toString()
+
+    private fun jevAnswer(name: String, pTrue: Double): String = jevAnswers(name to pTrue)
+
+    /** A batched multi-check answer (the two-check battery shape: v0 outcome + v1 bad). */
+    private fun jevAnswers(vararg pairs: Pair<String, Double>): String = buildJsonObject {
+        put("answers", buildJsonObject {
+            pairs.forEach { (name, p) ->
+                put(name, buildJsonObject {
+                    put("type", JsonPrimitive("noul"))
+                    put("noul", JsonPrimitive(p))
+                })
+            }
+        })
+        put("usage", buildJsonObject { put("input_tokens", 10); put("output_tokens", 1) })
+    }.toString()
+
+    private fun jevBatteryAnswer(pTrue: Double): String = jevAnswer("v0", pTrue)
+
+    private fun observation(vararg lines: String): StepObservation =
+        observationAt("https://booking.test/search", *lines)
+
+    private fun observationAt(url: String, vararg lines: String): StepObservation = StepObservation(
+        url = url,
+        title = "Booking",
+        lines = lines.toList(),
+        nodes = listOf(
+            node("n1", left = 100, top = 200, right = 300, bottom = 260, text = "Search"),
+        ),
+    )
+
+    @Test
+    fun `a battery-escalation replan gets its action attempt - then the per-subtask budget forces PROCEED`() = runBlocking {
+        // The defect's shape: one bad-is-true check that is true BY DEFINITION while no
+        // action has run since the last escalation (the old-default-dates question).
+        // Round-3 update: the first escalation re-plans under the BATTERY budget; once
+        // that per-subtask budget is spent (1 here), the next escalation degrades to a
+        // forced PROCEED — the cascade acts — and the loop only terminates through the
+        // failure budget (maxReplans), which battery escalations no longer drain.
+        val plan = """
+            {"summary":"search riga hotels","taskClass":"read","subtasks":[
+              {"instruction":"search riga hotels for next weekend","done":{"urlHost":"riga.test"},
+               "verify":[{"question":"does the date field still show the old default dates?","badIsTrue":true}]}]}
+        """.trimIndent()
+        val propose = """{"proposals":[{"description":"the Search button","action":"tap"}]}"""
+        val proposeEmpty = """{"proposals":[]}"""
+        val confirmFalse = """{"complete":false,"reason":"no results list is visible"}"""
+        val transport = ScriptedVisionTransport(
+            // plan, battery re-plan, propose(tap), propose(empty) after the forced
+            // PROCEED, confirm(false) at the failure re-plan gate, failure re-plan,
+            // propose(empty), confirm(false) at the exhausted-failure-budget gate
+            chatResponses = ArrayDeque(
+                listOf(
+                    chatContent(plan),
+                    chatContent(plan),
+                    chatContent(propose),
+                    chatContent(proposeEmpty),
+                    chatContent(confirmFalse),
+                    chatContent(plan),
+                    chatContent(proposeEmpty),
+                    chatContent(confirmFalse),
+                ),
+            ),
+            // battery (escalate), battery (escalate -> forced PROCEED), the MODELS-check
+            // noul, the second MODELS-check noul (the held step fires no battery)
+            jevResponses = ArrayDeque(
+                listOf(
+                    jevBatteryAnswer(0.95),
+                    jevBatteryAnswer(0.95),
+                    jevAnswer("done", 0.1),
+                    jevAnswer("done", 0.1),
+                ),
+            ),
+        )
+        val executor = RecordingExecutor()
+        val loop = VisionLoop(
+            observer = ScriptedObserver(
+                observation("initial page"), // the run() start observe (planLadder's digest)
+                observation("step-zero page"),
+                observation("step-one page"),
+                observation("step-two page"),
+                observation("step-three page"),
+            ),
+            executor = executor,
+            capture = VisionCapture(null), // null service -> every capture degrades text-only
+            haiku = VisionHaiku(transport, "fixture-key", backoffBaseMs = 1, retryDelay = {}),
+            jev = VisionJev(
+                transport, "https://jev.test/v1/systemone", "jev-1.14.0", "fixture-key",
+                backoffBaseMs = 1, retryDelay = {},
+            ),
+            budget = ExpBudget(),
+            evidence = VisionEvidence(null, "guard-test"),
+            config = VisionLoop.Config(
+                settleMs = 0,
+                maxReplans = 1,
+                batteryReplansPerSubtask = 1,
+                stepFailuresBeforeReplan = 1,
+            ),
+        )
+
+        val result = loop.run("find a hotel in riga for next weekend", "guard-test") { false }
+
+        // The battery budget still bounds: the second escalation forced PROCEED, and the
+        // loop terminates through the FAILURE budget (maxReplans) as before.
+        assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal)
+        assertEquals(1, result.replans, "only the failure re-plan spends maxReplans")
+        // The held step RAN its action attempt exactly once (the defect produced zero).
+        assertEquals(1, executor.taps.size)
+        // The battery fired on the escalating steps only — the held step fired none, and
+        // the forced-PROCEED steps reused/ran their batteries without re-planning.
+        assertEquals(4, transport.jevCalls)
+        assertEquals(8, transport.chatCalls)
+        val escalations = result.subtaskOutcomes.indices.filter {
+            result.subtaskOutcomes[it].contains("BATTERY ESCALATE")
+        }
+        assertEquals(2, escalations.size)
+        val budgetLines = result.subtaskOutcomes.count {
+            it.contains("battery budget exhausted for this subtask - acting per cascade")
+        }
+        assertEquals(1, budgetLines, "the spent per-subtask budget degrades to a forced PROCEED")
+        val actionIndex = result.subtaskOutcomes.indexOfFirst { it.contains("step 1: tap") }
+        assertTrue(actionIndex > escalations[0], "the action attempt follows the first escalation")
+        assertTrue(actionIndex < escalations[1], "the battery re-arms only after the action attempt")
+    }
+
+    @Test
+    fun `the battery re-plan budget is per subtask - spent escalations force PROCEED and a subtask advance resets`() = runBlocking {
+        // Round 3 (budget coalescing), the live defect's shape: keep-acting red-flag
+        // escalations drained the task budget so the USEFUL mis-shaped-condition
+        // re-plan never fired. Now: two battery re-plans per subtask (budget 2 here),
+        // the third escalation forces PROCEED (acts, no re-plan), and the subtask
+        // advance resets the budget — the next subtask's first escalation re-plans.
+        val plan = """
+            {"summary":"riga dates","taskClass":"read","subtasks":[
+              {"instruction":"select the check-in date","done":{"urlHost":"next.test"},
+               "verify":[{"question":"is the chosen check-in date visible in the field?","badIsTrue":false},
+                         {"question":"is the date picker stuck with no selection made?","badIsTrue":true}]},
+              {"instruction":"select the check-out date","done":{"markerText":"CHECKOUT-DONE-MARKER"},
+               "verify":[{"question":"is the chosen check-out date visible?","badIsTrue":false}]}]}
+        """.trimIndent()
+        val propose = """{"proposals":[{"description":"the Search button","action":"tap"}]}"""
+        val transport = ScriptedVisionTransport(
+            // plan, battery re-plan #1, tap, battery re-plan #2, tap, tap (forced
+            // PROCEED — NO re-plan chat here), the accept's recorded-opinion confirm
+            // (tolerant), battery re-plan #1 on subtask 2 (post-reset), tap, the final
+            // accept's recorded-opinion confirm. Every ACCEPT also spends one tolerant
+            // noul (jev) + one confirm (chat) — recordedOpinions rides the accept path.
+            chatResponses = ArrayDeque(
+                listOf(
+                    chatContent(plan),
+                    chatContent(plan),
+                    chatContent(propose),
+                    chatContent(plan),
+                    chatContent(propose),
+                    chatContent(propose),
+                    chatContent(confirmTrue),
+                    chatContent(plan),
+                    chatContent(propose),
+                    chatContent(confirmTrue),
+                ),
+            ),
+            // s0 battery (red flag), s0 battery (red flag), s0 battery (red flag ->
+            // budget spent), s0 ACCEPT battery (concurs) + its opinions noul, s1 battery
+            // (outcome achieved -> escalates), s1 ACCEPT battery (concurs) + its noul
+            jevResponses = ArrayDeque(
+                listOf(
+                    jevAnswers("v0" to 0.1, "v1" to 0.95),
+                    jevAnswers("v0" to 0.1, "v1" to 0.95),
+                    jevAnswers("v0" to 0.1, "v1" to 0.95),
+                    jevAnswers("v0" to 0.9, "v1" to 0.1),
+                    jevAnswer("done", 0.9),
+                    jevAnswers("v0" to 0.9),
+                    jevAnswers("v0" to 0.9),
+                    jevAnswer("done", 0.9),
+                ),
+            ),
+        )
+        val executor = RecordingExecutor()
+        val loop = VisionLoop(
+            observer = ScriptedObserver(
+                observationAt("https://old.test/", "hotel page"),             // run() start
+                observationAt("https://old.test/", "hotel page 2"),           // iter0: escalate -> battery re-plan #1
+                observationAt("https://old.test/", "hotel page 3"),           // iter1: held -> tap
+                observationAt("https://old.test/", "hotel page 4"),           // iter2: escalate -> battery re-plan #2
+                observationAt("https://old.test/", "hotel page 5"),           // iter3: held -> tap
+                observationAt("https://old.test/", "hotel page 6"),           // iter4: escalate -> budget spent -> FORCED PROCEED -> tap
+                observationAt("https://next.test/search", "dates set page"),  // iter5: accept (concurs) -> advance, budget reset
+                observationAt("https://next.test/search", "checkout page"),   // iter6: s1 escalate -> battery re-plan #1 (post-reset)
+                observationAt("https://next.test/search", "checkout page 2"), // iter7: held -> tap
+                observationAt("https://next.test/search", "CHECKOUT-DONE-MARKER posted"), // iter8: accept -> GOAL_ACHIEVED
+            ),
+            executor = executor,
+            capture = VisionCapture(null),
+            haiku = VisionHaiku(transport, "fixture-key", backoffBaseMs = 1, retryDelay = {}),
+            jev = VisionJev(
+                transport, "https://jev.test/v1/systemone", "jev-1.14.0", "fixture-key",
+                backoffBaseMs = 1, retryDelay = {},
+            ),
+            budget = ExpBudget(),
+            evidence = VisionEvidence(null, "budget-split-test"),
+            config = VisionLoop.Config(settleMs = 0, maxReplans = 5, batteryReplansPerSubtask = 2),
+        )
+
+        val result = loop.run("find a hotel in riga for next weekend", "budget-split-test") { false }
+
+        // The run PROGRESSES to a true completion instead of starving: the battery
+        // escalations re-planned within the per-subtask budget, the spent budget forced
+        // PROCEED (act, no re-plan), and the subtask advance reset the budget so the
+        // next subtask's first escalation re-planned again.
+        assertEquals(VisionLoop.Terminal.GOAL_ACHIEVED, result.terminal)
+        assertEquals(0, result.replans, "battery escalations never spend the failure budget")
+        assertEquals(4, executor.taps.size)
+        assertEquals(
+            1,
+            result.subtaskOutcomes.count { it.contains("battery budget exhausted for this subtask - acting per cascade") },
+        )
+        assertEquals(
+            3,
+            result.subtaskOutcomes.count { it.contains("REPLAN (battery") },
+            "two battery re-plans on subtask 1 + one on subtask 2 (the advance reset the budget)",
+        )
+        // The forced-PROCEED step acted: the budget line is immediately followed by a tap.
+        val budgetIndex = result.subtaskOutcomes.indexOfFirst {
+            it.contains("battery budget exhausted for this subtask - acting per cascade")
+        }
+        assertTrue(
+            budgetIndex >= 0 && result.subtaskOutcomes[budgetIndex + 1].contains("tap"),
+            "a spent-budget escalation must degrade to an action attempt",
+        )
+    }
+
+    // -- PHASE_VEXP1 round-2 live defect: the accept-side battery gate ----------------------
+    //
+    // Emulator evidence (vision-loop-1792358155819): the final subtask's markerText-style
+    // condition matched the page's own hero heading ("Search hotels in Riga" is printed
+    // on the page) and the ACCEPT path — where the verification battery never spoke —
+    // returned GOAL_ACHIEVED with the date picker open, default dates, and no results.
+
+    /** The false-completion shape: a text condition the hero text satisfies, plus an outcome check. */
+    private val rigaFinalPlan = """
+        {"summary":"search riga hotels","taskClass":"read","subtasks":[
+          {"instruction":"search riga hotels for next weekend","done":{"markerText":"Search hotels in Riga"},
+           "verify":[{"question":"is a results list with the selected dates visible?","badIsTrue":false}]}]}
+    """.trimIndent()
+
+    private val proposeSearchTap = """{"proposals":[{"description":"the Search button","action":"tap"}]}"""
+    private val proposeEmpty = """{"proposals":[]}"""
+    private val confirmFalse = """{"complete":false,"reason":"no results list is visible"}"""
+    private val confirmTrue = """{"complete":true,"reason":"the results list is visible"}"""
+
+    @Test
+    fun `a hero-text condition cannot accept when the battery outcome check fails - no false GOAL_ACHIEVED`() = runBlocking {
+        val transport = ScriptedVisionTransport(
+            // plan, propose(tap), propose(empty) after the refused accept, confirm(false)
+            // at the first re-plan gate, re-plan, then one more propose-failure round
+            // (the re-plan reset the failure counter) ending in confirm(false) at the
+            // exhausted-budget gate
+            chatResponses = ArrayDeque(
+                listOf(
+                    chatContent(rigaFinalPlan),
+                    chatContent(proposeSearchTap),
+                    chatContent(proposeEmpty),
+                    chatContent(confirmFalse),
+                    chatContent(rigaFinalPlan),
+                    chatContent(proposeEmpty),
+                    chatContent(confirmFalse),
+                    chatContent(proposeEmpty),
+                    chatContent(confirmFalse),
+                ),
+            ),
+            // pre-act battery (step 0), accept battery (refused), the first MODELS-check
+            // noul, the re-planned step's battery, the second and third MODELS-check nouls
+            jevResponses = ArrayDeque(
+                listOf(
+                    jevBatteryAnswer(0.1),
+                    jevBatteryAnswer(0.1),
+                    jevAnswer("done", 0.1),
+                    jevBatteryAnswer(0.1),
+                    jevAnswer("done", 0.1),
+                    jevAnswer("done", 0.1),
+                ),
+            ),
+        )
+        val executor = RecordingExecutor()
+        val loop = VisionLoop(
+            observer = ScriptedObserver(
+                observation("some other page"),
+                observation("Search hotels in Riga", "check-in row"),
+                observation("Search hotels in Riga", "date picker open"),
+                observation("Search hotels in Riga", "date picker open"),
+                observation("Search hotels in Riga", "date picker open"),
+            ),
+            executor = executor,
+            capture = VisionCapture(null),
+            haiku = VisionHaiku(transport, "fixture-key", backoffBaseMs = 1, retryDelay = {}),
+            jev = VisionJev(
+                transport, "https://jev.test/v1/systemone", "jev-1.14.0", "fixture-key",
+                backoffBaseMs = 1, retryDelay = {},
+            ),
+            budget = ExpBudget(),
+            evidence = VisionEvidence(null, "accept-gate-false"),
+            config = VisionLoop.Config(settleMs = 0, maxReplans = 1),
+        )
+
+        val result = loop.run("find a hotel in riga for next weekend", "accept-gate-false") { false }
+
+        // The money assertion: the hero-text mention NEVER accepts.
+        assertTrue(
+            result.subtaskOutcomes.none { it.contains("GOAL_ACHIEVED") } &&
+                result.terminal != VisionLoop.Terminal.GOAL_ACHIEVED,
+            "a false completion slipped through: ${result.terminal} ${result.subtaskOutcomes}",
+        )
+        assertTrue(result.subtaskOutcomes.any { it.contains("ACCEPT REFUSED") }, "the refusal is loud")
+        assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal)
+        assertEquals(1, result.replans, "the refusal feeds the existing failure/re-plan budget")
+        assertEquals(1, executor.taps.size)
+    }
+
+    @Test
+    fun `a concurring battery lets the accept stand - GOAL_ACHIEVED on the visible end state`() = runBlocking {
+        val transport = ScriptedVisionTransport(
+            chatResponses = ArrayDeque(
+                listOf(chatContent(rigaFinalPlan), chatContent(proposeSearchTap), chatContent(confirmTrue)),
+            ),
+            jevResponses = ArrayDeque(
+                listOf(jevBatteryAnswer(0.1), jevBatteryAnswer(0.9), jevAnswer("done", 0.9)),
+            ),
+        )
+        val executor = RecordingExecutor()
+        val loop = VisionLoop(
+            observer = ScriptedObserver(
+                observation("some other page"),
+                observation("Search hotels in Riga", "check-in row"),
+                observation("Search hotels in Riga", "results list with 15 properties"),
+            ),
+            executor = executor,
+            capture = VisionCapture(null),
+            haiku = VisionHaiku(transport, "fixture-key", backoffBaseMs = 1, retryDelay = {}),
+            jev = VisionJev(
+                transport, "https://jev.test/v1/systemone", "jev-1.14.0", "fixture-key",
+                backoffBaseMs = 1, retryDelay = {},
+            ),
+            budget = ExpBudget(),
+            evidence = VisionEvidence(null, "accept-gate-true"),
+            config = VisionLoop.Config(settleMs = 0, maxReplans = 1),
+        )
+
+        val result = loop.run("find a hotel in riga for next weekend", "accept-gate-true") { false }
+
+        assertEquals(VisionLoop.Terminal.GOAL_ACHIEVED, result.terminal)
+        assertEquals(0, result.replans)
+        assertEquals(1, executor.taps.size)
+        assertTrue(result.subtaskOutcomes.any { it.contains("DONE (code)") })
+    }
+
+    @Test
+    fun `accept-side concurrence mirrors the max-gate rules - red flags refuse missing outcomes speak`() {
+        fun check(badIsTrue: Boolean, textNoul: Double?, imageConfirm: Boolean? = null) =
+            VisionLoop.CheckResult("q", badIsTrue, textNoul, imageConfirm)
+        // a red flag refuses even when an outcome check achieved
+        assertFalse(
+            VisionLoop.batteryConcurs(
+                listOf(check(false, 0.9), check(true, 0.85)),
+                redFlagAbove = 0.70, agreeAbove = 0.70,
+            ),
+        )
+        // an unachieved outcome check refuses
+        assertFalse(
+            VisionLoop.batteryConcurs(
+                listOf(check(false, 0.1)),
+                redFlagAbove = 0.70, agreeAbove = 0.70,
+            ),
+        )
+        // both channels refused on the outcome check -> cannot concur
+        assertFalse(
+            VisionLoop.batteryConcurs(
+                listOf(check(false, null)),
+                redFlagAbove = 0.70, agreeAbove = 0.70,
+            ),
+        )
+        // image-confirmed alone concurs (the two-channel witness rule)
+        assertTrue(
+            VisionLoop.batteryConcurs(
+                listOf(check(false, null, imageConfirm = true)),
+                redFlagAbove = 0.70, agreeAbove = 0.70,
+            ),
+        )
+        // no outcome checks authored -> the battery cannot speak -> code rules alone
+        assertTrue(
+            VisionLoop.batteryConcurs(
+                listOf(check(true, 0.1)),
+                redFlagAbove = 0.70, agreeAbove = 0.70,
+            ),
+        )
+        assertTrue(VisionLoop.batteryConcurs(emptyList(), redFlagAbove = 0.70, agreeAbove = 0.70))
     }
 }

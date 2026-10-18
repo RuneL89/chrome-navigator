@@ -839,6 +839,27 @@ setup wizard (`setup/`).
     the screenshot reference), Haiku answers the same questions over its own image
     channel (independence preserved); ORDERING LAW — battery BEFORE acting (escalation
     precedes action), ground AT the action; two Jev requests per step is deliberate.
+    THE ACCEPT-SIDE BATTERY GATE (round-2 live defect, run vision-loop-1792358155819:
+    the final subtask's markerText matched the page's own hero heading and the accept
+    path — where the battery never spoke — returned a false GOAL_ACHIEVED with no
+    results): before ANY accept the ACTIVE subtask's verify battery must CONCUR
+    (`VisionLoop.batteryConcurs` — max-gate red flags refuse; every outcome check
+    achieved, the same two-channel rule as `batteryGate`; a battery without outcome
+    checks cannot speak) — code = condition satisfied, battery = outcome visible, BOTH;
+    the accept/pre-act battery share a screen-hash-keyed REUSE-OR-RUN cache (a refused
+    accept on an unchanged screen never pays twice; cleared on subtask/plan change);
+    a refusal is loud ("ACCEPT REFUSED"), advances nothing, and feeds the existing
+    failure/re-plan budget. PLANNER LAW (v7): the FINAL subtask ALWAYS carries a verify
+    battery over the VISIBLE end state (a results list, a confirmation screen, the cart
+    contents — never a heading or hero text present on every page of the site).
+    BUDGET SPLIT (round 3, budget coalescing — the live loop then ACTED and the battery
+    steered, but keep-acting red-flag escalations drained the task budget so the useful
+    mis-shaped-condition re-plan never fired): battery-driven re-plans count against
+    `Config.batteryReplansPerSubtask` (3; reset on subtask advance and on a
+    failure-driven re-plan), a spent budget degrades an escalation to a forced PROCEED
+    ("battery budget exhausted for this subtask - acting per cascade" — act, no
+    re-plan, no step burned); stuck/step-failure re-plans keep `maxReplans` per task;
+    battery re-plans render "REPLAN (battery #N)".
     THE INFORMED RE-PLAN is run-1's counterfactual made permanent (PHASE_VEXP1 WI1):
     the failure context carries the code-assembled `<jev-evidence>` block
     (`VisionPrompts.jevEvidenceBlock` — the typed escalation enum
@@ -849,7 +870,13 @@ setup wizard (`setup/`).
     prompt gains `REPLAN_SKILL` (`VisionPrompts.planSystem`: match conditions to the
     evidence universe, never point a condition past an achieved outcome, act on the
     located box, author batteries Jev can answer, vary the route, cascade framing);
-    `VISION_PROMPT_VERSION` = `vision-exp-v6`. DUAL KEYS (PHASE_VEXP1 WI2):
+    `VISION_PROMPT_VERSION` = `vision-exp-v7` (v6 added the evidence block +
+    REPLAN_SKILL; v7 added the final-subtask battery law). THE ROUND-1 LIVE DEFECT
+    (run vision-loop-1792356890231: a battery escalation skips attemptStep, so a frozen
+    screen re-fired the identical verdict and two re-plans burned with zero actions):
+    the escalation-without-action guard — a battery-escalation re-plan is followed by
+    ONE battery-free action attempt (any attempt clears it; the battery re-arms).
+    DUAL KEYS (PHASE_VEXP1 WI2):
     `OpenRouterKeyStore` carries a SECOND encrypted slot (`typesafe-key`;
     `save/has/loadTypesafeKey`, same local-only/never-logged/presence-only laws); vision
     runs resolve each channel symmetrically through `VisionKeys` (intent extra

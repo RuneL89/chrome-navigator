@@ -30,8 +30,13 @@ import kotlin.coroutines.resumeWithException
  *   ONE bounded retry after 400ms;
  * - hardware bitmaps cannot compress(): copy to ARGB_8888 first (the same chain the
  *   blur path proved).
+ *
+ * The [service] param is nullable purely as the JVM-test seam (production always wires
+ * the bound service): a null service makes every [capture] throw, which the loop's
+ * [VisionLoop] degrades to its loud text-only path — exactly the faked-subject shape
+ * the loop guard test needs.
  */
-class VisionCapture(private val service: NavigatorAccessibilityService) {
+class VisionCapture(private val service: NavigatorAccessibilityService?) {
 
     /** One encoded capture. [jpegBytes] rides only long enough for the evidence write. */
     class ScreenShot(
@@ -68,12 +73,13 @@ class VisionCapture(private val service: NavigatorAccessibilityService) {
         // Context.getDisplay throws UnsupportedOperationException on some images; the
         // product blur path catches exactly that and degrades, which is why it never
         // surfaced there). No display probe at all.
+        val captureService = requireNotNull(service) { "the a11y service is required for capture" }
         val executor = java.util.concurrent.Executor { command ->
             Handler(Looper.getMainLooper()).post(command)
         }
         return suspendCancellableCoroutine { cont ->
             try {
-                service.takeScreenshot(
+                captureService.takeScreenshot(
                     Display.DEFAULT_DISPLAY,
                     executor,
                     object : android.accessibilityservice.AccessibilityService.TakeScreenshotCallback {

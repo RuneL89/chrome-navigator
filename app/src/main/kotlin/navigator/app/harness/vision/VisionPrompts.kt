@@ -17,8 +17,8 @@ import kotlinx.serialization.json.jsonPrimitive
  */
 object VisionPrompts {
 
-    /** Bumped when any prompt text here changes (rides the run report). v6: the evidence block + REPLAN_SKILL (PHASE_VEXP1 work item 1). */
-    const val VISION_PROMPT_VERSION = "vision-exp-v6"
+    /** Bumped when any prompt text here changes (rides the run report). v6: the evidence block + REPLAN_SKILL. v7: the FINAL-subtask battery law (the round-2 false-completion fix). */
+    const val VISION_PROMPT_VERSION = "vision-exp-v7"
 
     /** Max proposals per PROPOSE call (one Box question each, same request). */
     const val MAX_PROPOSALS = 3
@@ -94,6 +94,10 @@ SEE when that subtask is done (a screenshot-visible fact, a content marker) — 
 accessibility text (Jev noul) and the screenshot (vision confirm), and ONE confident red flag re-plans the
 run, per the escalation law in the manifest. Add a badIsTrue failure check only for a likely specific
 failure mode (an error page, an empty result list).
+The FINAL subtask must ALWAYS carry a verify battery that checks the VISIBLE end state — a results list,
+a confirmation screen, the cart contents — never a heading or hero text that exists on every page of the
+site (a condition matching the site's own hero heading has accepted false completions). A badIsTrue check
+is welcome here (e.g. "the results list is empty / no hotels are listed").
 You receive the current page (accessibility text, and a screenshot when available) as context for the FIRST
 subtask only; the rest of the plan may leave the page.
 

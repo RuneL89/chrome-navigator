@@ -50,6 +50,13 @@ import navigator.core.enumerate.CandidateEnumerator
  * action route, all from the per-step cache (ZERO extra calls) — and the system prompt
  * gains the REPLAN_SKILL addendum ([VisionPrompts.planSystem]).
  *
+ * BUDGET SPLIT (round 3, budget coalescing): battery-driven re-plans count against
+ * [Config.batteryReplansPerSubtask] (reset on subtask advance / failure re-plan);
+ * stuck/step-failure re-plans count against [Config.maxReplans]. When a subtask's
+ * battery budget is spent, an escalation degrades to a forced PROCEED (the cascade
+ * acts) instead of re-planning — keep-acting escalations can no longer starve a
+ * genuinely mis-shaped condition of its re-plan (the round-3 live defect).
+ *
  * Recovery: 2 consecutive failed steps on a subtask -> the INFORMED RE-PLAN; a static
  * screen -> one scroll probe, then the re-plan path.
  */
@@ -83,6 +90,16 @@ class VisionLoop(
          * 0.13–0.22 vs accept 0.98).
          */
         val redFlagAbove: Double = 0.70,
+        /**
+         * The battery-driven re-plan budget PER SUBTASK (round 3, budget coalescing:
+         * battery escalations previously drained the task-level [maxReplans], so a
+         * genuinely mis-shaped condition could never get its re-plan). Reset on subtask
+         * advance and on a failure-driven re-plan (the new plan gets fresh battery
+         * budget for its own subtasks); a battery-driven re-plan does not reset its own
+         * counter — that would make the forced-PROCEED arm unreachable. When spent, a
+         * battery escalation degrades to a forced PROCEED (the cascade acts).
+         */
+        val batteryReplansPerSubtask: Int = 3,
     )
 
     enum class Terminal { GOAL_ACHIEVED, MODELS_CONFIRM_DONE, STEPS_EXHAUSTED, BUDGET_EXHAUSTED, REPLANS_EXHAUSTED, CANCELLED, PLAN_REFUSED }
@@ -115,6 +132,16 @@ class VisionLoop(
                 "$textState\n<screen>\nthe page screenshot is `$imageRef`\n</screen>"
             }
 
+        /** One check flags red: confident text, or image-confirmed with non-refuting text (the witness rule). */
+        private fun flagHigh(r: CheckResult, redFlagAbove: Double): Boolean =
+            (r.textNoul != null && r.textNoul >= redFlagAbove) ||
+                (r.imageConfirm == true && (r.textNoul == null || r.textNoul >= 0.5))
+
+        /** One outcome check achieved: confident text, or image-confirmed with non-refuting text. */
+        private fun achieved(r: CheckResult, agreeAbove: Double): Boolean =
+            (r.textNoul != null && r.textNoul >= agreeAbove) ||
+                (r.imageConfirm == true && (r.textNoul == null || r.textNoul >= 0.5))
+
         /**
          * Pure max-gate over the battery's results:
          * - a bad-is-true check at/above [redFlagAbove] (text) or image-confirmed true
@@ -123,19 +150,36 @@ class VisionLoop(
          *   with non-refuting text) while no red flag → OUTCOME ACHIEVED (the plan's
          *   condition is mis-shaped — re-plan with the right cause);
          * - otherwise PROCEED (the loop acts).
-         * The code `DoneConditionChecker` remains the ACCEPT authority; the battery is
-         * the ESCALATION authority only.
+         * The code `DoneConditionChecker` remains the ACCEPT authority — now jointly
+         * with [batteryConcurs] (the accept-side gate below).
          */
         fun batteryGate(results: List<CheckResult>, redFlagAbove: Double, agreeAbove: Double): BatteryGate {
-            fun flagHigh(r: CheckResult) = (r.textNoul != null && r.textNoul >= redFlagAbove) ||
-                (r.imageConfirm == true && (r.textNoul == null || r.textNoul >= 0.5))
-            fun achieved(r: CheckResult) = (r.textNoul != null && r.textNoul >= agreeAbove) ||
-                (r.imageConfirm == true && (r.textNoul == null || r.textNoul >= 0.5))
-            val reds = results.filter { it.badIsTrue && flagHigh(it) }
+            val reds = results.filter { it.badIsTrue && flagHigh(it, redFlagAbove) }
             if (reds.isNotEmpty()) return BatteryGate.RedFlags(reds.map { it.question })
             val outcomes = results.filter { !it.badIsTrue }
-            if (outcomes.isNotEmpty() && outcomes.all { achieved(it) }) return BatteryGate.OutcomeAchieved
+            if (outcomes.isNotEmpty() && outcomes.all { achieved(it, agreeAbove) }) return BatteryGate.OutcomeAchieved
             return BatteryGate.Proceed
+        }
+
+        /**
+         * The ACCEPT-side battery verdict (round-2 live defect, emulator run
+         * vision-loop-1792358155819): the code checker reads TEXT, so a markerText-style
+         * condition is satisfied by the page's own hero/heading text — and the pre-act
+         * battery never speaks on the accept path. Before ANY accept the battery must
+         * CONCUR:
+         * - any max-gate red flag refuses (the same [flagHigh] rule);
+         * - with outcome checks authored, EVERY one must be achieved (the same
+         *   [achieved] two-channel rule — one not-achieved outcome check refuses);
+         * - a battery without outcome checks cannot speak — the code checker rules
+         *   alone (the planner law now guarantees the FINAL subtask carries one).
+         * The code checker and the battery must BOTH concur: code = condition
+         * satisfied, battery = outcome visible.
+         */
+        fun batteryConcurs(results: List<CheckResult>, redFlagAbove: Double, agreeAbove: Double): Boolean {
+            if (results.any { it.badIsTrue && flagHigh(it, redFlagAbove) }) return false
+            val outcomes = results.filter { !it.badIsTrue }
+            if (outcomes.isEmpty()) return true
+            return outcomes.all { achieved(it, agreeAbove) }
         }
     }
 
@@ -184,6 +228,29 @@ class VisionLoop(
     /** The verbs behind [actionHistory] (cap 6) — [VisionPrompts.routeStreak] reads the trailing run. */
     private val verbHistory = ArrayDeque<String>()
 
+    /**
+     * The escalation-without-action guard (live-run defect, emulator run
+     * vision-loop-1792356890231): a battery escalation skips attemptStep, so an
+     * UNCHANGED screen re-fired the SAME battery verdict every iteration — two re-plans
+     * burned with zero actions and the run starved into REPLANS_EXHAUSTED. Set when a
+     * battery escalation produces a successful re-plan ([stepEscalation] non-null at
+     * the re-plan gate); the NEXT iteration then SKIPS the battery and gives the fresh
+     * plan its action attempt (act first, then the battery re-verifies the changed
+     * screen); ANY action attempt (acted or failed) clears it and the battery re-arms
+     * from the following step. Escalations still consume the ordinary re-plan budget.
+     */
+    private var batteryEscalatedWithoutAction = false
+
+    /**
+     * The last battery's results + the screen hash they measured — the SHARED
+     * accept/pre-act cache (the round-2 accept-side law): the accept gate and the
+     * pre-act battery reuse fresh results instead of re-firing an identical battery on
+     * the same screen. Cleared when the subtask or the plan changes (new checks make
+     * cached results meaningless), and reset per run.
+     */
+    private var lastBatteryResults: List<CheckResult> = emptyList()
+    private var lastBatteryHash: Int? = null
+
     suspend fun run(goal: String, goalId: String, isCancelled: () -> Boolean): Result {
         val outcomes = mutableListOf<String>()
         val counters = mutableMapOf<String, Int>()
@@ -191,6 +258,15 @@ class VisionLoop(
         var typedSoFar: String? = null
         var answer: String? = null
         var replans = 0
+
+        /**
+         * The battery-driven re-plan counter (round 3): counts THIS subtask's
+         * battery-escalation re-plans against [Config.batteryReplansPerSubtask]; reset
+         * on subtask advance and on a failure-driven re-plan. Kept separate from
+         * [replans] so keep-acting battery escalations never starve a genuinely
+         * mis-shaped condition of its re-plan (the round-3 live defect).
+         */
+        var batteryReplans = 0
         var screenshots = 0
         var step = 0
         var consecutiveFailures = 0
@@ -220,6 +296,9 @@ class VisionLoop(
         var pointer = 0
         var subtaskStartHash = obs.screenHash
         var stepsOnSubtask = 0
+        batteryEscalatedWithoutAction = false
+        lastBatteryResults = emptyList()
+        lastBatteryHash = null
 
         while (true) {
             if (isCancelled()) return terminal(Terminal.CANCELLED, ladder)
@@ -268,26 +347,54 @@ class VisionLoop(
             val doneNow = codeDone(active, obs, counters, answersProduced = answer?.let { 1 } ?: 0)
             stepConditionSatisfied = doneNow
             if (!weakAtStart && doneNow) {
-                val opinions = recordedOpinions(active, obs, shot)
-                outcomes.add("subtask ${pointer + 1}/${ladder.subtasks.size} DONE (code) ${opinions.render}")
-                evidence.event("subtask ${pointer + 1} done: ${active.instruction.take(60)} $opinions")
-                if (pointer == ladder.subtasks.size - 1) {
-                    if (ladder.subtasks.any { it.done is DoneCondition.AnswerExtracted } && answer == null) {
-                        answer = extractAnswer(goal, obs, shot)
-                        outcomes.add("answer: ${answer?.take(120) ?: "(extraction refused)"}")
+                // ACCEPT-SIDE BATTERY GATE (round-2 live defect, run
+                // vision-loop-1792358155819): a markerText-style condition is satisfied
+                // by the page's own hero text, and the pre-act battery never speaks on
+                // this path — so the battery must CONCUR before ANY accept: reuse this
+                // step's results when it already measured this screen, otherwise run it
+                // now. Code = condition satisfied; battery = outcome visible; BOTH.
+                val batteryChecks = batteries[pointer].orEmpty()
+                val concurs = batteryChecks.isEmpty() || batteryConcurs(
+                    batteryResults(batteryChecks, obs, shot),
+                    config.redFlagAbove,
+                    config.noulAgreeAbove,
+                )
+                if (!concurs) {
+                    // The existing refusal path: no advance; feeds failure/re-plan
+                    // (for the FINAL subtask this prevents a false GOAL_ACHIEVED).
+                    val line = "step $step: ACCEPT REFUSED - the code condition is satisfied but " +
+                        "the verify battery does not concur (the outcome is not visible)"
+                    outcomes.add(line)
+                    log("[vision] $line")
+                    evidence.event(line)
+                    consecutiveFailures += 1
+                    step += 1
+                } else {
+                    val opinions = recordedOpinions(active, obs, shot)
+                    outcomes.add("subtask ${pointer + 1}/${ladder.subtasks.size} DONE (code) ${opinions.render}")
+                    evidence.event("subtask ${pointer + 1} done: ${active.instruction.take(60)} $opinions")
+                    if (pointer == ladder.subtasks.size - 1) {
+                        if (ladder.subtasks.any { it.done is DoneCondition.AnswerExtracted } && answer == null) {
+                            answer = extractAnswer(goal, obs, shot)
+                            outcomes.add("answer: ${answer?.take(120) ?: "(extraction refused)"}")
+                        }
+                        evidence.event("GOAL_ACHIEVED after $step steps")
+                        return terminal(Terminal.GOAL_ACHIEVED, ladder)
                     }
-                    evidence.event("GOAL_ACHIEVED after $step steps")
-                    return terminal(Terminal.GOAL_ACHIEVED, ladder)
+                    pointer += 1
+                    consecutiveFailures = 0
+                    recentHashes.clear()
+                    stepsOnSubtask = 0
+                    subtaskStartHash = obs.screenHash
+                    actionHistory.clear()
+                    verbHistory.clear()
+                    // The next subtask gets fresh battery re-plan budget (round 3).
+                    batteryReplans = 0
+                    lastBatteryResults = emptyList()
+                    lastBatteryHash = null
+                    step += 1
+                    continue
                 }
-                pointer += 1
-                consecutiveFailures = 0
-                recentHashes.clear()
-                stepsOnSubtask = 0
-                subtaskStartHash = obs.screenHash
-                actionHistory.clear()
-                verbHistory.clear()
-                step += 1
-                continue
             }
 
             // -- the stuck probe: a static screen earns ONE scroll, then the replan path
@@ -315,10 +422,23 @@ class VisionLoop(
             // burning a step on PROPOSE (the run-1 failure, now instrumented).
             var escalateCause: String? = null
             var proposerExhaustedLast = false
+            // True when THIS step's escalation was routed to the re-plan gate under the
+            // battery's own per-subtask budget (vs a stuck/step-failure entry, which
+            // spends the task-level maxReplans).
+            var batteryReplanQueued = false
             val batteryChecks = batteries[pointer].orEmpty()
-            if (batteryChecks.isNotEmpty()) {
-                val results = runBattery(batteryChecks, obs, shot)
-                stepBattery = results
+            if (batteryChecks.isNotEmpty() && batteryEscalatedWithoutAction) {
+                // The escalation-without-action guard: the fresh re-planned plan gets
+                // its action attempt FIRST — a battery re-fire on this (so far
+                // unchanged) screen would just re-escalate identically and starve the
+                // loop of actions. The attempt below clears the guard; the battery
+                // re-arms from the next step.
+                val line = "battery held one step: the re-planned plan acts first"
+                log("[vision] $line")
+                evidence.event(line)
+            }
+            if (batteryChecks.isNotEmpty() && !batteryEscalatedWithoutAction) {
+                val results = batteryResults(batteryChecks, obs, shot)
                 when (val gate = batteryGate(results, config.redFlagAbove, config.noulAgreeAbove)) {
                     is BatteryGate.RedFlags -> {
                         escalateCause = "verification battery red flag(s): " +
@@ -337,8 +457,26 @@ class VisionLoop(
                     outcomes.add(line)
                     log("[vision] $line")
                     evidence.event(line)
-                    consecutiveFailures = config.stepFailuresBeforeReplan
-                    step += 1
+                    if (batteryReplans < config.batteryReplansPerSubtask) {
+                        // The battery's OWN per-subtask re-plan budget (round 3, budget
+                        // coalescing): a battery escalation must never drain the
+                        // task-level failure budget — the genuinely mis-shaped condition
+                        // three escalations later still gets its re-plan.
+                        consecutiveFailures = config.stepFailuresBeforeReplan
+                        batteryReplanQueued = true
+                        step += 1
+                    } else {
+                        // Budget spent for this subtask: do NOT re-plan and do NOT burn
+                        // a step on the escalation — forced PROCEED. The cascade tries a
+                        // different action; the act-first guard already keeps the
+                        // battery from re-firing before an action after any re-plan.
+                        val budgetLine =
+                            "battery budget exhausted for this subtask - acting per cascade"
+                        outcomes.add(budgetLine)
+                        log("[vision] $budgetLine")
+                        evidence.event(budgetLine)
+                        escalateCause = null
+                    }
                 }
             }
 
@@ -347,6 +485,9 @@ class VisionLoop(
                 var actedNodeId: String? = null
                 var stepLine = "step $step: "
                 val attempted = attemptStep(active, doneText, obs, shot, counters, actedNodeIds, typedSoFar)
+                // ANY action attempt (acted or failed) clears the escalation guard —
+                // the battery re-arms from the following step.
+                batteryEscalatedWithoutAction = false
                 when (attempted) {
                     is Attempted.Acted -> {
                         actedNodeId = attempted.actedNodeId
@@ -394,7 +535,10 @@ class VisionLoop(
                     }
                     evidence.event("models did NOT confirm (noul=${op.noul} confirm=${op.confirm}) — re-planning")
                 }
-                if (replans >= config.maxReplans) {
+                // The budget follows the ENTRY: a battery-escalation re-plan spends the
+                // per-subtask battery budget (checked when the escalation was queued);
+                // stuck/step-failure entries spend the task-level maxReplans (round 3).
+                if (!batteryReplanQueued && replans >= config.maxReplans) {
                     evidence.event("REPLANS_EXHAUSTED after $replans re-plans")
                     return terminal(Terminal.REPLANS_EXHAUSTED, ladder)
                 }
@@ -409,7 +553,15 @@ class VisionLoop(
                     evidence.event("re-plan refused: no valid ladder — stopping")
                     return terminal(Terminal.REPLANS_EXHAUSTED, ladder)
                 }
-                replans += 1
+                if (batteryReplanQueued) {
+                    batteryReplans += 1
+                } else {
+                    replans += 1
+                    // A failure re-plan's new plan gets fresh battery budget for its own
+                    // subtasks (a battery-driven re-plan does not reset its own counter —
+                    // the forced-PROCEED arm must stay reachable).
+                    batteryReplans = 0
+                }
                 ladder = rePlan.ladder
                 batteries = rePlan.battery
                 pointer = pointer.coerceAtMost(ladder.subtasks.size - 1)
@@ -419,7 +571,17 @@ class VisionLoop(
                 subtaskStartHash = obs.screenHash
                 actionHistory.clear()
                 verbHistory.clear()
-                val line = "REPLAN #$replans: ${ladder.summary} (resume at subtask ${pointer + 1})"
+                // A new plan authors new batteries — the accept/pre-act cache is void.
+                lastBatteryResults = emptyList()
+                lastBatteryHash = null
+                // A battery-escalation re-plan must be given an action attempt before
+                // the battery re-fires (the live-run starvation defect): arm the guard.
+                if (stepEscalation != null) batteryEscalatedWithoutAction = true
+                val line = if (batteryReplanQueued) {
+                    "REPLAN (battery #${batteryReplans + 1}): ${ladder.summary} (resume at subtask ${pointer + 1})"
+                } else {
+                    "REPLAN #$replans: ${ladder.summary} (resume at subtask ${pointer + 1})"
+                }
                 outcomes.add(line)
                 evidence.event(line)
             }
@@ -764,6 +926,32 @@ class VisionLoop(
                 answersProduced = answersProduced,
             ),
         )
+
+    /**
+     * The battery, REUSE-OR-RUN (the round-2 accept-side law): fresh results when the
+     * battery already measured THIS screen hash (the accept gate and the pre-act
+     * battery share one cache, so a refused accept on an unchanged screen never pays
+     * for a second identical battery), otherwise a new two-channel run. Callers guard
+     * on non-empty [checks]. The result rides [stepBattery] either way, so the re-plan's
+     * evidence block always describes the battery this step actually used.
+     */
+    private suspend fun batteryResults(
+        checks: List<VisionPrompts.VerifyCheck>,
+        obs: StepObservation,
+        shot: VisionCapture.ScreenShot?,
+    ): List<CheckResult> {
+        val cached = lastBatteryHash == obs.screenHash && lastBatteryResults.isNotEmpty()
+        val results = if (cached) {
+            lastBatteryResults
+        } else {
+            runBattery(checks, obs, shot).also {
+                lastBatteryResults = it
+                lastBatteryHash = obs.screenHash
+            }
+        }
+        stepBattery = results
+        return results
+    }
 
     /**
      * The verification battery, both channels per the fan-out law: ONE batched Jev
