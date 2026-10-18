@@ -31,17 +31,20 @@ import navigator.core.wire.WireTransportException
  * reported per completed call; images price as text tokens, so the ledger prices tokens
  * at the production decision-engine table.
  *
- * SETTLED 2026-10-18 (all formats tested with a fresh key, known-answer frame):
- * the alpha/decisions route REJECTS multipart outright (`400 invalid content-type`)
- * and strips base64-in-JSON regardless of state form (both object- and string-form
- * returned text-only `input_tokens: 360`, box confidence 0.03 far off ground truth,
- * noul 0.48 — a blind coin flip). OpenRouter's registry declares `typesafe/jev-1.14`
- * `text+image`, but this route carries no image payload in either documented upload
- * format — an OpenRouter proxy gap (the vendor API accepts both per docs); the repro
- * set lives in `.state/vision-iter/run1/REPORT.md`. The [Question.Box] type is kept
- * and parses; the Box leg switches on the day the route carries images or a direct
- * TypeSafe key is used — until then the loop's v2 grounding rides Haiku-with-image
- * ([VisionHaiku]).
+ * SETTLED 2026-10-18 (all routes/formats tested, known-answer frame):
+ * - TypeSafe VENDOR endpoint (`api.typesafe.ai/v1/systemone`, TypeSafe key,
+ *   danger header, model `jev-1.14.0`, base64-in-JSON): **the full image contract
+ *   works** — `input_tokens: 6188` (image rode), noul 0.98 on "the search result
+ *   listing is visible", box IoU ≈ 0.76 vs ground truth (conf 0.46), center inside
+ *   the card. This is the route the loop's image/Box leg uses.
+ * - OpenRouter `alpha/decisions`: multipart rejected (`400 invalid content-type` —
+ *   JSON-only route), base64 stripped in both state forms (text-only token counts,
+ *   blind answers). Registry declares `text+image` — an OpenRouter proxy gap; repro
+ *   set in `.state/vision-iter/run1/REPORT.md` for a support report.
+ * The [Question.Box] type is live on the vendor route; the [Question.Box] leg of the
+ * loop's grounding switches on by pointing [VisionJev] at the vendor endpoint with a
+ * TypeSafe key — until that wiring lands, the loop's v2 grounding rides
+ * Haiku-with-image ([VisionHaiku]).
  */
 class VisionJev(
     private val transport: WireTransport,
