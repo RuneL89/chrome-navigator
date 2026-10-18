@@ -69,6 +69,15 @@ remembers."
   deterministic replay, Phase 7; regenerate with `./gradlew :core:generateTierAReport` —
   the committed bytes are the drift detector a state/wire/taxonomy/gate change must keep
   green); Tier B reports (Phase 12) extend the same schema prefix
+* `DEBUGGING.md` — the standing on-device run-monitoring procedure (owner-ratified
+  2026-10-17, S25+ wireless ADB): per-branch pre-flight identity checks (branch ↔ app id
+  ↔ APK file ↔ dex marker — both branches share the build-output dir and clobber each
+  other's APK), navcap arming/stopping, the per-app authoritative terminal signal
+  (product: `task_terminal` row in `navigator-decision-log.db`; vision: the report JSON
+  + `terminal=` logcat line — the vision app writes no Room rows), pull/analysis, the
+  REPORT.md format, and the three-surface cleanup. Run folders: `hotel-iter/runN/`
+  (product) and `vision-iter/runN/` (vision experiments); reports stay untracked by
+  convention
 
 ## Local Contracts
 
