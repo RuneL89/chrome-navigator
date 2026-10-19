@@ -1,0 +1,24 @@
+{
+  "phase": "VEXP4",
+  "title": "The default flip: the vision loop IS the app's engine",
+  "phaseDoc": ".state/vision-iter/PHASE_VEXP4_default_flip.md",
+  "branch": "exp/vision-box",
+  "status": "in-progress",
+  "startedAt": "2026-10-19",
+  "goal": "useVisionLoop defaults TRUE; app goals run VisionLoop by default; missing TypeSafe key = loud refusal, never silent legacy fallback; dormant laya setup probe removed.",
+  "stoppingCondition": "Gates green + behavior-matrix tests (default+keys=Vision, default+missing-TS=Refused, OFF=Legacy byte-identical) + probe gone.",
+  "gatesPassed": [],
+  "gatesFailed": [],
+  "gatesPending": [
+    ":app:testDebugUnitTest --tests navigator.app.harness.vision.*",
+    ":app:testDebugUnitTest",
+    ":core:test",
+    ":app:assembleDebug",
+    "badge + dex vision-exp-v7 + APK < 40MB"
+  ],
+  "deviations": [],
+  "llmCost": "implementation $0 (deterministic)",
+  "blocker": null,
+  "nextAction": "canon-implementer builds work items 1-3 per the phase doc",
+  "notes": ["Sub-agents communicate via this file."]
+}

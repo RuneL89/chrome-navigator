@@ -1367,3 +1367,8 @@ a new dated entry. Format per `Implementation Plan/MASTER_IMPLEMENTATION_PROMPT.
 
 ## 2026-10-19 — PHASE_VEXP3 gate amendment
 * Checker: orchestrator. The phase doc's APK < 10MB assertion (and the plan's "~3MB" premise) was a packaging error: the measured AndroidX/Compose/Tink debug base (~33MB uncompressed) + the KEPT 3.4MB tokenizer resource make <10MB infeasible without an R8 pass (out of scope). Amended (dated, in the phase doc) to < 40MB + zero ONNX/laya residue — the removal's true intent. The implementation's measured 34.96MB PASSES the amended gate; the removal itself is APK-verified complete.
+
+## 2026-10-19 — PHASE_VEXP4 compliance pre-check
+* Checker: orchestrator. Phase doc: .state/vision-iter/PHASE_VEXP4_default_flip.md
+* Planned: preference default flip (all readers), wizard wording, behavior-matrix tests, dormant laya setup-probe removal, docs.
+* Law: experiment charter + owner promotion directive. Departures pre-sanctioned. Result: PASS — additive default change with an explicit OFF escape; probe removal is dead-code cleanup.
