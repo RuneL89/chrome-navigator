@@ -28,10 +28,20 @@ branch switch, and after building ALWAYS sanity-check the APK's identity —
 `aapt2 dump badging` for the package id, plus the dex string marker for the intended
 lineage, with the wrong lineage's marker confirmed absent.
 
-The OpenRouter key lives in the app's `EncryptedSharedPreferences` (entered once in
-that app's Setup) — never in commands, logs, or git. (The vision app's key store is its
-OWN, separate from the product's; until the key is saved in the VisionExp Setup, runs
-may pass the owner-issued disposable key via `--es openrouterKey`.)
+TWO keys, TWO channels (PHASE_VEXP1, 2026-10-18): the OPENROUTER key (the writer
+channel — Haiku rides `openrouter.ai/api/v1/chat/completions`) and the TYPESAFE key
+(the vendor image channel — Jev rides `https://api.typesafe.ai/v1/systemone`, model
+`jev-1.14.0`, the `TypeSafe-Danger-Zone-Images: true` header whenever a screenshot is
+attached; the only live-proven transport that carries images to Jev — the OpenRouter
+`alpha/decisions` route strips image payloads in every format). Both live in the app's
+`EncryptedSharedPreferences` (two slots, entered once in that app's Setup; the "Test
+keys" button validates BOTH on demand — the free OpenRouter `GET /api/v1/key` plus a
+minimal one-noul `POST /v1/systemone` probe ≈ $0.000012 — rendering two independent
+verdict lines, never an auto-call) — never in commands, logs, or git. (The vision
+app's key store is its OWN, separate from the product's; until the keys are saved in
+the VisionExp Setup, runs may pass them via `--es openrouterKey` / `--es typesafeKey`,
+or env `NAVIGATOR_OPENROUTER_KEY` / `NAVIGATOR_TYPESAFE_KEY` / the keys file. A vision
+run missing EITHER key refuses loudly naming the channel and its delivery options.)
 
 Never `am force-stop` either app (`navigator.app` OR `navigator.app.visionexp`): that
 kills its accessibility service.
@@ -83,6 +93,18 @@ AUTHORITATIVE terminal signal per app:
 > navigator-decision-log.db` → `task_terminal`), and the vision report/logcat channel
 > stays silent. The vision report channel applies ONLY to runs launched via
 > `VisionExperimentActivity` (adb). Arm the baseline for the path you actually launched.
+>
+> **EXTENSION (2026-10-19, PHASE_VEXP2 the engine switch):** the channel now ALSO
+> follows the WIZARD TOGGLE. With the app's "Use vision loop (experimental engine)"
+> preference ON (Setup card; needs BOTH keys stored), an overlay-submitted goal runs
+> VisionLoop — not the product loop: the authoritative end is the CORNER LOG's
+> task-state line ("task <TERMINAL> — steps N, replans M") together with the READY
+> notification — NO `task_terminal` row (the vision loop has no sink) and NO
+> `vision-exp-*-<ts>.json` report file (the run id is `task-<ts>`). The per-run
+> evidence still lands under `run-reports/vision-exp/task-<ts>/` (external files:
+> events.log, call-*.req/res.json, screen-*.jpg) — adb-pullable, and the terminal
+> value is the task-state line's own text. Toggle OFF (the default) keeps every rule
+> above unchanged.
 
 * product: a row in `task_terminal` inside `databases/navigator-decision-log.db` of
   `navigator.app` — that is the Room DB's real name (a literal `log.db` also exists in
@@ -130,7 +152,12 @@ Write the run's `REPORT.md` in the standing format — Headline / where we got s
 (citing frame filenames and row ids or evidence-file names) / root cause + the
 generalized issue / 4 suggested solutions with generalizability evidence /
 recommendation / cost (sum the rows' micro-USD; the vision report carries
-`spendMicroUsd` directly). Folder convention: `.state/hotel-iter/runN/` for product
+`spendMicroUsd` directly). COST CEILINGS (owner directive 2026-10-19, PHASE_VEXP2 —
+"models are dirt cheap — runs may span days", ALL budgets at 100x the product values):
+steps 4000/6000, time 500/1000 min, spend $20/$25, writer $5/$10, re-plans 20/task +
+30/subtask battery re-plans, 20 plan attempts, 20 transport retries — a toggled or
+adb-launched vision run may legitimately run for HOURS; the ceilings are the wall, not
+the clock. Folder convention: `.state/hotel-iter/runN/` for product
 runs, `.state/vision-iter/runN/` for vision runs. If analysis later disproves a claim,
 append a dated correction to the report — never rewrite it silently.
 
