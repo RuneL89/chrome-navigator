@@ -607,8 +607,83 @@ class VisionExperimentTest {
     }
 
     @Test
-    fun `the prompt version is vision-exp-v11`() {
-        assertEquals("vision-exp-v11", VisionPrompts.VISION_PROMPT_VERSION)
+    fun `the prompt version is vision-exp-v12`() {
+        assertEquals("vision-exp-v12", VisionPrompts.VISION_PROMPT_VERSION)
+    }
+
+    @Test
+    fun `the repair prompt pins the outcome-only no-clock law and the whitelist`() {
+        // PHASE_VEXP7 WI2 — the run-5 condition repair: the repair-only surface must carry
+        // the whitelist, the OUTCOME law and the owner's no-clock/no-date law (the planner
+        // has no clock; a date copied from the page proves nothing).
+        val repair = VisionPrompts.REPAIR_SYSTEM
+        assertTrue(repair.contains("""{"done": <exactly one shape>}"""), "the STRICT JSON contract")
+        listOf("urlHost", "urlContains", "markerText", "elementPresent", "count", "answerExtracted")
+            .forEach { shape ->
+                assertTrue(repair.contains("\"$shape\""), "the whitelist names $shape: $repair")
+            }
+        assertTrue(repair.contains("Name the OUTCOME the battery saw"), "the outcome law")
+        assertTrue(
+            repair.contains("NEVER write a date or time condition. You have no clock"),
+            "the no-clock / no-date law",
+        )
+        assertTrue(repair.contains("incidental mention"), "the never-a-mention law")
+        assertTrue(repair.contains("UNTRUSTED DATA"), "the untrusted-page law")
+
+        val user = VisionPrompts.repairUser(
+            instruction = "search Riga hotels",
+            doneText = "an element matching 'a list of hotel cards' is present",
+            pageDigest = "TITLE: Booking\nURL: https://booking.test/search",
+            outcomeEvidence = "<jev-evidence>\ncondition verdict: NOT satisfied\n</jev-evidence>",
+        )
+        assertTrue(user.contains("<subtask>\nsearch Riga hotels\n</subtask>"), "the active subtask rides")
+        assertTrue(user.contains("<old-done>\nan element matching"), "the old condition rides")
+        assertTrue(user.contains("<battery-outcome>\n<jev-evidence>"), "the battery outcome rides")
+        assertTrue(user.contains("<untrusted-page>\nTITLE: Booking"), "the page digest rides")
+    }
+
+    @Test
+    fun `the repair parser accepts exactly one whitelisted condition and is loud otherwise`() {
+        assertEquals(
+            navigator.core.ladder.DoneCondition.MarkerText("81 hotels found in Riga"),
+            VisionPrompts.parseRepairedCondition(
+                """{"done":{"markerText":"81 hotels found in Riga"}}""",
+                "repair",
+            ),
+        )
+        assertEquals(
+            navigator.core.ladder.DoneCondition.UrlHost("booking.test"),
+            VisionPrompts.parseRepairedCondition("""{"done":{"urlHost":"booking.test"}}""", "repair"),
+        )
+        assertEquals(
+            navigator.core.ladder.DoneCondition.AnswerExtracted,
+            VisionPrompts.parseRepairedCondition("""{"done":{"answerExtracted":{}}}""", "repair"),
+        )
+        // ``` fences are stripped, the same discipline every writer answer obeys.
+        assertEquals(
+            navigator.core.ladder.DoneCondition.MarkerText("from a fenced answer"),
+            VisionPrompts.parseRepairedCondition(
+                "```json\n{\"done\":{\"markerText\":\"from a fenced answer\"}}\n```",
+                "repair",
+            ),
+        )
+        // An opinion-shaped condition (no whitelisted key) is schema-REJECTED.
+        assertFailsWith<VisionHaiku.VisionHaikuException> {
+            VisionPrompts.parseRepairedCondition("""{"done":{"looksRight":"yes"}}""", "repair")
+        }
+        // A blend of two whitelisted shapes resolves through the SAME ladder schema the
+        // plans obey (the first matching shape wins there; the repair adds no new rule).
+        assertEquals(
+            navigator.core.ladder.DoneCondition.UrlHost("booking.test"),
+            VisionPrompts.parseRepairedCondition(
+                """{"done":{"urlHost":"booking.test","markerText":"x"}}""",
+                "repair",
+            ),
+        )
+        // A missing `done` object is loud.
+        assertFailsWith<VisionHaiku.VisionHaikuException> {
+            VisionPrompts.parseRepairedCondition("""{"condition":{"urlHost":"booking.test"}}""", "repair")
+        }
     }
 
     @Test
@@ -1050,7 +1125,9 @@ class VisionExperimentTest {
         val transport = ScriptedVisionTransport(
             // plan, battery re-plan #1, tap, battery re-plan #2, tap, tap (forced
             // PROCEED — NO re-plan chat here), the accept's recorded-opinion confirm
-            // (tolerant), battery re-plan #1 on subtask 2 (post-reset), tap, the final
+            // (tolerant), PHASE_VEXP7 the s1 OutcomeAchieved trigger's ONE repair turn
+            // (a non-matching condition -> no acceptance, so the existing battery path
+            // runs), battery re-plan #1 on subtask 2 (post-reset), tap, the final
             // accept's recorded-opinion confirm. Every ACCEPT also spends one tolerant
             // noul (jev) + one confirm (chat) — recordedOpinions rides the accept path.
             chatResponses = ArrayDeque(
@@ -1062,6 +1139,7 @@ class VisionExperimentTest {
                     chatContent(propose),
                     chatContent(propose),
                     chatContent(confirmTrue),
+                    chatContent("""{"done":{"markerText":"NOT-THE-CHECKOUT-PAGE"}}"""),
                     chatContent(plan),
                     chatContent(propose),
                     chatContent(confirmTrue),

@@ -240,7 +240,15 @@ When the user requests a durable behavior change, record it here or in the relev
   the plan text governs a native TYPE (divergent proposals overridden), prompt v11
   (type-then-submit, complete query, results-shaped search conditions), every run
   writes a final `terminal=…` evidence line, and the WORKING notification carries a
-  "Stop task" action riding the same cancel flag. See `app/AGENTS.md`
+  "Stop task" action riding the same cancel flag. PHASE_VEXP7 (2026-10-19) adds the
+  run-5 RUNTIME CONDITION REPAIR: exactly the battery's OutcomeAchieved escalation
+  spends ONE bounded repair turn per (active subtask, plan) — a v12 repair-only
+  planner call (strict `{"done": <whitelisted shape>}`, outcome-naming, no clock/date)
+  with a code URL-host/line fallback ONLY when the call fails — the repaired condition
+  code-checked on the current observation and concurred by the same battery; the
+  accept mirrors the normal advance through the shared helper (weak-at-start bypassed
+  ONLY for this acceptance, documented); red flags and failed repairs keep the
+  existing re-plan path. See `app/AGENTS.md`
 * `tools/` — RETIRED folder (owner directive 2026-10-19, PHASE_VEXP3): the Phase-8/8C
   model-acquisition + reference-vector scripts are deleted; no live scripts, no build
   step. See `tools/AGENTS.md`

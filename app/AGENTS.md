@@ -849,7 +849,7 @@ legacy-engine fallback.
     prompt gains `REPLAN_SKILL` (`VisionPrompts.planSystem`: match conditions to the
     evidence universe, never point a condition past an achieved outcome, act on the
     located box, author batteries Jev can answer, vary the route, cascade framing);
-    `VISION_PROMPT_VERSION` = `vision-exp-v11` (v6 added the evidence block +
+    `VISION_PROMPT_VERSION` = `vision-exp-v12` (v6 added the evidence block +
     REPLAN_SKILL; v7 added the final-subtask battery law; v8 the taskClass honesty
     sentence — "Claim 'multi' ONLY when a count-shaped done condition exists;
     otherwise use read or action", after the writer repeatedly claimed MULTI without
@@ -880,7 +880,12 @@ legacy-engine fallback.
     results-page/results-only-marker search condition; `PROPOSE_SYSTEM` names `submit`
     as the post-typing action, forbids omnibox-suggestion/clear-X taps, submits a
     suggestion list showing the typed query, and types exactly the subtask's
-    `enterText`). THE EDITABLE RESOLUTION (the sixth
+    `enterText`; v12 THE RUN-5 CONDITION-REPAIR LAW — `VisionPrompts.REPAIR_SYSTEM`/
+    `repairUser` + `parseRepairedCondition`: the repair-only surface used by the
+    battery's OutcomeAchieved turn (see the VEXP7 passage below), naming the OUTCOME
+    and carrying the owner's no-clock law — the planner has no clock and NEVER writes
+    a date/time condition; a date-shaped condition that does not match the current
+    screen simply fails the code check). THE EDITABLE RESOLUTION (the sixth
     actual-app live-test repair, run `task-1792398381736`; JVM gates in
     `VisionLoopTypeEditableTest`): a TYPE (native or tap-converted) whose grounded node
     is NOT editable resolves the real field first — `VisionMath.editableNodeAt` at the
@@ -1060,10 +1065,50 @@ legacy-engine fallback.
     action ONLY while WORKING (`PendingIntent.getService` + `ACTION_STOP_TASK`) that
     cancels through the SAME `TaskCancelFlag` and appends one corner-log line
     "stop requested — ending at the next step" (READY keeps exactly "New task"; no
-    other notification/UI change). JVM gates:
+    other notification/UI change). PHASE_VEXP7 (2026-10-19 — THE RUN-5 RUNTIME
+    CONDITION REPAIR; phase doc `.state/vision-iter/PHASE_VEXP7_condition_repair.md`,
+    solution 2 of `.state/vision-iter/run5/REPORT.md`; NO device/emulator run): run
+    `task-1792414981694` step 22 showed Booking's 81 hotel cards while the battery fired
+    OUTCOME_ACHIEVED_WHILE_CONDITION_UNMET (the plan's `elementPresent` was a list
+    DESCRIPTION matching no control label), and the loop only re-planned. THE REPAIR
+    LAW: the trigger is EXACTLY `BatteryGate.OutcomeAchieved` (red-flag and Proceed
+    paths untouched); ONE repair turn per (active subtask, plan) — the class-field
+    `repairAttempted` set keyed by the subtask pointer, cleared on the accept advance,
+    on every new plan install and at run start; a failed/invalid turn falls through to
+    the existing battery re-plan path unchanged (budget + held-step guard intact).
+    PLANNER-FIRST: `VisionPrompts.REPAIR_SYSTEM`/`repairUser` (repair-only; the active
+    subtask, the old condition, the code-assembled `<jev-evidence>` battery outcome and
+    the page digest) is ONE `VisionHaiku.chat` call with the CURRENT screenshot, `call
+    repair` raw req/res evidence, strict `{"done": <shape>}` via
+    `VisionPrompts.parseRepairedCondition` (the SAME `LadderSchema` whitelist every
+    ladder obeys). An invalid shape or a valid-but-non-matching condition = NO
+    acceptance -> the existing re-plan path (no fallback). CODE FALLBACK ONLY when the
+    planner CALL fails: the current readable URL host under the checker's normalization,
+    else the longest visible page line as `markerText` — code-checked on the current
+    evidence and recorded `condition repair: code-derived fallback`. THE NO-DATE LAW
+    (owner decision): the planner has no clock and never writes a date/time condition;
+    a date-shaped condition that does not match the current screen simply fails the
+    check. ACCEPTANCE: the repaired condition checked with
+    `DoneConditionChecker.satisfied` on the CURRENT observation AND
+    `batteryConcurs` over THIS step's battery results; it is an ACCEPT path — no
+    executor call, no gate — and mirrors the normal advance/terminal EXACTLY through the
+    shared local `acceptAdvance` (the same pointer/`consecutiveFailures`/`recentHashes`/
+    `stepsOnSubtask`/`subtaskStartHash`/`actionHistory`/`verbHistory`/`batteryReplans`/
+    cache/`step` resets; the final subtask extracts when the ladder carries
+    `answerExtracted`, then GOAL_ACHIEVED). THE WEAK-AT-START BYPASS is DELIBERATE and
+    SCOPED to exactly this acceptance: the repair runs only when the battery saw the
+    outcome after the subtask's own actions, so the battery is the arrival evidence (a
+    mention that is also the achieved outcome is accepted); the normal code-first gate,
+    every action acceptance and every red-flag path stay untouched. Evidence: the step
+    line `step N: CONDITION REPAIRED - '<old render>' -> '<new render>' (the outcome was
+    visible)` rides outcomes + events.log, the source/no-accept lines ride the evidence,
+    and the repaired accept adds the normal `subtask N/M DONE (condition repaired)`.
+    JVM gates:
     `VisionExperimentTest` (the prompt JSON contracts + deterministic parsers — incl.
-    `parseEnterTexts` — the evidence block, the vendor-route request shapes, the v11
-    search-submit contract pins, and the prompt-version pin),
+    `parseEnterTexts` and the PHASE_VEXP7 `parseRepairedCondition` — the evidence block,
+    the vendor-route request shapes, the v11 search-submit contract pins, the v12
+    repair surface pins (outcome-only + no-clock/no-date law), and the prompt-version
+    pin),
     `VisionLoopGroundingTest` (the grounding-quality ladder over scripted transports:
     Jev box / Haiku-box fallback / label match / the loud TYPE refusal),
     `VisionLoopEnterTextTest` (the plan-`enterText` TAP→TYPE conversion over scripted
@@ -1079,6 +1124,16 @@ legacy-engine fallback.
     and CANCELLED each write exactly one `terminal=…` events.log line) +
     `NavigatorServiceNotificationTest` (Robolectric: "Stop task" rides only the WORKING
     notification after "New task"; `ACTION_STOP_TASK` cancels the shared flag),
+    PHASE_VEXP7's JVM gate: `VisionLoopConditionRepairTest` (8 real-loop scripted cases,
+    $0: OutcomeAchieved + a vague elementPresent + a visible-marker repair accepts and
+    advances to the terminal, with the exact step line and `call repair` raw evidence; an
+    invalid repair shape and a valid-but-non-matching repair each never accept and take
+    the existing battery re-plan path with no code fallback; a FAILED repair call falls
+    back to the current URL host and accepts; a second OutcomeAchieved on the same
+    subtask/plan never calls the repair again (`call repair` count 1); the repaired
+    results subtask advances to the final `answerExtracted`, extracts once and ends
+    GOAL_ACHIEVED; a red-flag escalation never calls the repair; a marker present only
+    on an earlier page does not accept — the check reads the CURRENT observation only),
     `VisionLoopGateTest` (the WI1 battery: approve/deny/timeout/credential-swap/
     double-refusal-abort/ungated-null/scroll-back-never + the wrong-source failures +
     per-task trust),

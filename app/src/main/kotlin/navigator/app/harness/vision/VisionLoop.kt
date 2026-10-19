@@ -23,6 +23,7 @@ import navigator.core.gate.TaskGate
 import navigator.core.ladder.DoneCondition
 import navigator.core.ladder.DoneConditionChecker
 import navigator.core.ladder.Ladder
+import navigator.core.ladder.LadderLimits
 import navigator.core.ladder.Subtask
 import navigator.core.enumerate.Bucket
 import navigator.core.enumerate.Candidate
@@ -82,6 +83,21 @@ import navigator.core.enumerate.ObservedNode
  *
  * Recovery: 2 consecutive failed steps on a subtask -> the INFORMED RE-PLAN; a static
  * screen -> one scroll probe, then the re-plan path.
+ *
+ * THE RUNTIME CONDITION REPAIR (PHASE_VEXP7, run 5): when the verification battery's
+ * [BatteryGate.OutcomeAchieved] branch fires — the active subtask's OUTCOME is visibly
+ * achieved while its code done-condition is not satisfied — the loop spends ONE bounded
+ * repair turn (per active subtask per plan) BEFORE the existing battery re-plan path:
+ * a repair-only planner call ([VisionPrompts.REPAIR_SYSTEM]) whose returned condition is
+ * schema-validated and code-checked against the CURRENT observation, with a code-derived
+ * URL-host/longest-line fallback ONLY when the planner CALL fails. Acceptance requires
+ * the repaired condition AND [batteryConcurs] over THIS step's battery results; it is an
+ * ACCEPT path (no executor call, no gate) that mirrors the normal accept's advance/terminal
+ * semantics. THE WEAK-AT-START BYPASS is scoped to exactly this acceptance: the repair
+ * exists because the outcome was produced by the subtask's own actions and the battery saw
+ * it, so the battery is the arrival evidence (the normal code-first gate is untouched).
+ * RED-FLAG escalations are NEVER repaired, and the planner has no clock: a date-shaped
+ * condition that does not match the current screen simply fails the check.
  */
 class VisionLoop(
     private val observer: LoopObserver,
@@ -179,6 +195,17 @@ class VisionLoop(
         data class RedFlags(val flags: List<String>) : BatteryGate
         data object OutcomeAchieved : BatteryGate
         data object Proceed : BatteryGate
+    }
+
+    /**
+     * PHASE_VEXP7 — one bounded repair turn's result. [Accepted] means a schema-valid
+     * repaired condition was also code-verified on the CURRENT observation (the caller
+     * still requires the trigger battery's concurrence before accepting); [NoAccept]
+     * means the existing battery re-plan path runs, with [detail] recorded loudly.
+     */
+    private sealed interface ConditionRepair {
+        data class Accepted(val oldRender: String, val newRender: String) : ConditionRepair
+        data class NoAccept(val detail: String) : ConditionRepair
     }
 
     companion object {
@@ -325,6 +352,15 @@ class VisionLoop(
     private var lastBatteryResults: List<CheckResult> = emptyList()
     private var lastBatteryHash: Int? = null
 
+    /**
+     * PHASE_VEXP7 — the ONE runtime condition repair per (active subtask, plan): the
+     * subtask pointers whose repair turn already ran under the CURRENT plan. Cleared on
+     * the pointer advance and on every new plan install (a re-plan's subtask gets its own
+     * allowance), and at every `run()` start. Class field, not a run() local (the loop-
+     * state discipline) — [conditionRepairTurn] reads it off the instance.
+     */
+    private val repairAttempted = mutableSetOf<Int>()
+
     /** Whether the one-per-run "exclusion bounds unavailable" evidence note already fired (D2). */
     private var exclusionNoteLogged = false
 
@@ -416,6 +452,42 @@ class VisionLoop(
         exclusionNoteLogged = false
         // PHASE_VEXP5 WI1: the first frame's scope line fires once per run.
         sourceNoteLogged = false
+        // PHASE_VEXP7: the one-repair allowance never crosses runs/tasks.
+        repairAttempted.clear()
+
+        /**
+         * PHASE_VEXP7 — the SHARED ACCEPT-advance: the normal code-first accept and the
+         * repaired-condition accept mirror each other EXACTLY through this one helper.
+         * Returns the terminal result on the FINAL subtask (the answer extraction runs
+         * first when the ladder carries an `answerExtracted`), or null after a mid-ladder
+         * advance. The state resets are the pre-VEXP7 accept block verbatim plus the
+         * repair-set clear (a new subtask gets its own one-repair allowance).
+         */
+        suspend fun acceptAdvance(): Result? {
+            if (pointer == ladder.subtasks.size - 1) {
+                if (ladder.subtasks.any { it.done is DoneCondition.AnswerExtracted } && answer == null) {
+                    answer = extractAnswer(goal, obs, shot)
+                    outcomes.add("answer: ${answer?.take(120) ?: "(extraction refused)"}")
+                }
+                evidence.event("GOAL_ACHIEVED after $step steps")
+                return terminal(Terminal.GOAL_ACHIEVED, ladder)
+            }
+            pointer += 1
+            consecutiveFailures = 0
+            recentHashes.clear()
+            stepsOnSubtask = 0
+            subtaskStartHash = obs.screenHash
+            actionHistory.clear()
+            verbHistory.clear()
+            // The next subtask gets fresh battery re-plan budget (round 3).
+            batteryReplans = 0
+            lastBatteryResults = emptyList()
+            lastBatteryHash = null
+            // PHASE_VEXP7: the next subtask gets its own one-repair allowance.
+            repairAttempted.clear()
+            step += 1
+            return null
+        }
 
         while (true) {
             if (isCancelled()) return terminal(Terminal.CANCELLED, ladder)
@@ -490,26 +562,9 @@ class VisionLoop(
                     val opinions = recordedOpinions(active, obs, shot)
                     outcomes.add("subtask ${pointer + 1}/${ladder.subtasks.size} DONE (code) ${opinions.render}")
                     evidence.event("subtask ${pointer + 1} done: ${active.instruction.take(60)} $opinions")
-                    if (pointer == ladder.subtasks.size - 1) {
-                        if (ladder.subtasks.any { it.done is DoneCondition.AnswerExtracted } && answer == null) {
-                            answer = extractAnswer(goal, obs, shot)
-                            outcomes.add("answer: ${answer?.take(120) ?: "(extraction refused)"}")
-                        }
-                        evidence.event("GOAL_ACHIEVED after $step steps")
-                        return terminal(Terminal.GOAL_ACHIEVED, ladder)
-                    }
-                    pointer += 1
-                    consecutiveFailures = 0
-                    recentHashes.clear()
-                    stepsOnSubtask = 0
-                    subtaskStartHash = obs.screenHash
-                    actionHistory.clear()
-                    verbHistory.clear()
-                    // The next subtask gets fresh battery re-plan budget (round 3).
-                    batteryReplans = 0
-                    lastBatteryResults = emptyList()
-                    lastBatteryHash = null
-                    step += 1
+                    // PHASE_VEXP7: the shared accept-advance (the repaired-condition accept
+                    // routes through the SAME helper, so the resets cannot drift).
+                    acceptAdvance()?.let { return it }
                     continue
                 }
             }
@@ -574,6 +629,7 @@ class VisionLoop(
             }
             if (batteryChecks.isNotEmpty() && !batteryEscalatedWithoutAction) {
                 val results = batteryResults(batteryChecks, obs, shot)
+                var repaired: ConditionRepair.Accepted? = null
                 when (val gate = batteryGate(results, config.redFlagAbove, config.noulAgreeAbove)) {
                     is BatteryGate.RedFlags -> {
                         escalateCause = "verification battery red flag(s): " +
@@ -581,11 +637,61 @@ class VisionLoop(
                         stepEscalation = VisionPrompts.EscalationKind.RED_FLAGS
                     }
                     BatteryGate.OutcomeAchieved -> {
-                        escalateCause = "verification battery: the subtask outcome is ALREADY visible " +
-                            "on this page while the done-condition is not satisfied — the condition is mis-shaped"
-                        stepEscalation = VisionPrompts.EscalationKind.OUTCOME_ACHIEVED_WHILE_CONDITION_UNMET
+                        // PHASE_VEXP7 — THE RUNTIME CONDITION REPAIR (run 5): the battery
+                        // says the subtask's OUTCOME is visibly achieved while the code
+                        // done-condition is unmet — the condition is mis-shaped. Spend ONE
+                        // bounded repair turn for this (active subtask, plan); a failed or
+                        // invalid turn falls through to the existing battery re-plan path
+                        // (budget + held-step guard untouched). RED FLAGS never enter here.
+                        val turn = conditionRepairTurn(
+                            pointer = pointer,
+                            active = active,
+                            doneText = doneText,
+                            obs = obs,
+                            shot = shot,
+                            counters = counters,
+                            answersProduced = answer?.let { 1 } ?: 0,
+                        )
+                        if (turn is ConditionRepair.Accepted &&
+                            batteryConcurs(results, config.redFlagAbove, config.noulAgreeAbove)
+                        ) {
+                            repaired = turn
+                        } else {
+                            if (turn is ConditionRepair.NoAccept) {
+                                evidence.event(
+                                    "condition repair: ${turn.detail} - the existing battery path runs",
+                                )
+                            }
+                            escalateCause = "verification battery: the subtask outcome is ALREADY visible " +
+                                "on this page while the done-condition is not satisfied — the condition is mis-shaped"
+                            stepEscalation = VisionPrompts.EscalationKind.OUTCOME_ACHIEVED_WHILE_CONDITION_UNMET
+                        }
                     }
                     BatteryGate.Proceed -> {}
+                }
+                if (repaired != null) {
+                    // THE WEAK-AT-START BYPASS (PHASE_VEXP7, deliberate and SCOPED): the
+                    // code-first gate above ignores a WEAK content condition that already
+                    // held where the subtask started, because a mention is not arrival.
+                    // The repaired condition is EXEMPT from that gate — ONLY here: the
+                    // repair runs solely when the verification battery saw the subtask's
+                    // OUTCOME on this page after the subtask's own actions, so the battery
+                    // is the arrival evidence. No normal accept, no action, no gate, and
+                    // no red-flag path ever rides this exemption.
+                    val line = "step $step: CONDITION REPAIRED - '${repaired.oldRender}' -> " +
+                        "'${repaired.newRender}' (the outcome was visible)"
+                    outcomes.add(line)
+                    log("[vision] $line")
+                    evidence.event(line)
+                    outcomes.add(
+                        "subtask ${pointer + 1}/${ladder.subtasks.size} DONE (condition repaired)",
+                    )
+                    evidence.event(
+                        "subtask ${pointer + 1} done (condition repaired): ${active.instruction.take(60)}",
+                    )
+                    // The normal accept-advance, shared byte-for-byte (resets + terminal).
+                    acceptAdvance()?.let { return it }
+                    continue
                 }
                 if (escalateCause != null) {
                     val line = "step $step: BATTERY ESCALATE - $escalateCause"
@@ -723,6 +829,9 @@ class VisionLoop(
                 // A new plan authors new batteries — the accept/pre-act cache is void.
                 lastBatteryResults = emptyList()
                 lastBatteryHash = null
+                // PHASE_VEXP7: a new plan (re-plan generation) gets its own one-repair
+                // allowance per subtask — the pointer may resume at the same ordinal.
+                repairAttempted.clear()
                 // A battery-escalation re-plan must be given an action attempt before
                 // the battery re-fires (the live-run starvation defect): arm the guard.
                 if (stepEscalation != null) batteryEscalatedWithoutAction = true
@@ -1537,17 +1646,146 @@ class VisionLoop(
 
     /** The code decider (the product's own checker over code-read evidence). */
     private fun codeDone(active: Subtask, obs: StepObservation, counters: Map<String, Int>, answersProduced: Int): Boolean =
-        DoneConditionChecker.satisfied(
-            active.done,
-            DoneConditionChecker.Evidence(
-                url = obs.url.takeUnless { it == "hidden" || it == "unavailable" },
-                title = obs.title,
-                pageText = obs.lines + obs.excerpt,
-                candidateLabels = CandidateEnumerator.enumerate(obs.nodes).flat.map { it.label },
-                counters = counters,
-                answersProduced = answersProduced,
+        conditionHolds(active.done, obs, counters, answersProduced)
+
+    /** The checker's verdict for ONE condition over this observation's code-read facts. */
+    private fun conditionHolds(
+        condition: DoneCondition,
+        obs: StepObservation,
+        counters: Map<String, Int>,
+        answersProduced: Int,
+    ): Boolean = DoneConditionChecker.satisfied(condition, checkerEvidence(obs, counters, answersProduced))
+
+    private fun checkerEvidence(
+        obs: StepObservation,
+        counters: Map<String, Int>,
+        answersProduced: Int,
+    ): DoneConditionChecker.Evidence = DoneConditionChecker.Evidence(
+        url = obs.url.takeUnless { it == "hidden" || it == "unavailable" },
+        title = obs.title,
+        pageText = obs.lines + obs.excerpt,
+        candidateLabels = CandidateEnumerator.enumerate(obs.nodes).flat.map { it.label },
+        counters = counters,
+        answersProduced = answersProduced,
+    )
+
+    /**
+     * PHASE_VEXP7 WI2 — ONE bounded condition-repair turn for the CURRENT (active subtask,
+     * plan). The planner-FIRST source: one repair-only Haiku call (the current screenshot
+     * rides along) whose `{"done": <shape>}` answer is parsed through the ladder whitelist
+     * and code-checked on the CURRENT observation. A valid-but-non-matching condition or an
+     * invalid shape returns [ConditionRepair.NoAccept] (the existing re-plan path runs — no
+     * fallback). The CODE FALLBACK runs ONLY when the planner call itself fails: the current
+     * readable URL's host (the checker's normalization), else the longest visible page line
+     * as `markerText` — also code-checked on the current evidence and recorded as derived.
+     * The one-per-(subtask, plan) marker is claimed BEFORE any call, so a second
+     * OutcomeAchieved on the same subtask/plan never spends another repair call.
+     */
+    private suspend fun conditionRepairTurn(
+        pointer: Int,
+        active: Subtask,
+        doneText: String,
+        obs: StepObservation,
+        shot: VisionCapture.ScreenShot?,
+        counters: Map<String, Int>,
+        answersProduced: Int,
+    ): ConditionRepair {
+        if (!repairAttempted.add(pointer)) {
+            return ConditionRepair.NoAccept("the one repair for this subtask already ran - no second call")
+        }
+        // The battery's own evidence, assembled from the per-step cache (ZERO extra calls);
+        // the escalation kind is the trigger's even though the cache field is set later.
+        val outcomeEvidence = VisionPrompts.jevEvidenceBlock(
+            currentEvidence(doneText).copy(
+                escalation = VisionPrompts.EscalationKind.OUTCOME_ACHIEVED_WHILE_CONDITION_UNMET,
             ),
         )
+        val content = try {
+            var rawReq = ""
+            var rawRes = ""
+            val started = System.currentTimeMillis()
+            val answer = haiku.chat(
+                VisionPrompts.REPAIR_SYSTEM,
+                VisionPrompts.repairUser(active.instruction, doneText, digest(obs), outcomeEvidence),
+                shot?.base64,
+                "repair",
+            ) { req, res -> rawReq = req; rawRes = res }
+            evidence.call("repair", rawReq, rawRes, System.currentTimeMillis() - started, null)
+            answer
+        } catch (e: Exception) {
+            evidence.event(
+                "condition repair: planner call failed (${e.javaClass.simpleName}: " +
+                    "${e.message?.take(140)}) - code fallback",
+            )
+            null
+        }
+        if (content != null) {
+            val planned = try {
+                VisionPrompts.parseRepairedCondition(content, "repair")
+            } catch (e: Exception) {
+                evidence.event(
+                    "condition repair: the planner's answer is not a valid done-condition " +
+                        "(${e.message?.take(160)}) - no acceptance",
+                )
+                null
+            }
+            if (planned == null) {
+                return ConditionRepair.NoAccept("the planner's answer is not a valid done-condition")
+            }
+            if (!conditionHolds(planned, obs, counters, answersProduced)) {
+                // A valid shape that the CURRENT page does not satisfy (a date copied from
+                // elsewhere, an old page's marker, a bare mention) simply fails the check.
+                evidence.event(
+                    "condition repair: the planner's condition does not hold on the current " +
+                        "page - no acceptance",
+                )
+                return ConditionRepair.NoAccept("the repaired condition does not hold on the current observation")
+            }
+            val render = DoneConditionChecker.render(planned)
+            evidence.event("condition repair: planner source -> $render")
+            return ConditionRepair.Accepted(doneText, render)
+        }
+        // The code fallback: ONLY the planner call failed. The derived condition is still
+        // checked on the current evidence; the battery's outcome stays the load-bearing
+        // evidence and the derived condition is the artifact (never an extra decision).
+        val derived = codeDerivedCondition(obs)
+            ?: return ConditionRepair.NoAccept(
+                "the planner call failed and the page offers no code-derived condition",
+            )
+        if (!conditionHolds(derived, obs, counters, answersProduced)) {
+            return ConditionRepair.NoAccept("the code-derived condition does not hold on the current observation")
+        }
+        val render = DoneConditionChecker.render(derived)
+        evidence.event("condition repair: code-derived fallback -> $render")
+        return ConditionRepair.Accepted(doneText, render)
+    }
+
+    /**
+     * The repair's CODE FALLBACK derivation (PHASE_VEXP7 WI2): the current readable URL's
+     * host under the checker's own normalization (scheme/userinfo/port/www./trailing-slash
+     * stripped, lowercased — the `DoneConditionChecker.hostOf` rules), else the longest
+     * visible page line as `markerText` (capped at the whitelist's condition-text cap).
+     * NULL when the page offers neither (the caller then takes the existing re-plan path).
+     * No date is ever derived — the page's own dates prove nothing.
+     */
+    private fun codeDerivedCondition(obs: StepObservation): DoneCondition? {
+        readableHost(obs)?.let { return DoneCondition.UrlHost(it) }
+        val line = obs.lines.asSequence()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .maxByOrNull { it.length }
+            ?: return null
+        return DoneCondition.MarkerText(line.take(LadderLimits.MAX_CONDITION_TEXT_CHARS))
+    }
+
+    /** The current page's URL host under the checker's normalization; null = unreadable. */
+    private fun readableHost(obs: StepObservation): String? {
+        val url = obs.url.takeUnless { it == "hidden" || it == "unavailable" } ?: return null
+        val normalized = DoneConditionChecker.normalizeUrl(url) ?: return null
+        val host = normalized.substringBefore('/').substringBefore('?').substringBefore('#')
+        return host.takeIf { it.isNotBlank() && it.contains('.') }
+    }
+
 
     /**
      * The battery, REUSE-OR-RUN (the round-2 accept-side law): fresh results when the

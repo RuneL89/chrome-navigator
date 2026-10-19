@@ -269,6 +269,27 @@ AUTHORITATIVE terminal signal per app:
 > `search submit: <ok|failed> node=<id>`. A search that still taps omnibox suggestion
 > rows / the clear-X means a stale build — re-check the dex marker
 > (`vision-exp-v11`, §0).
+>
+> **EXTENSION (2026-10-19, PHASE_VEXP7 — THE RUN-5 RUNTIME CONDITION REPAIR):** when the
+> verification battery escalates `OUTCOME_ACHIEVED_WHILE_CONDITION_UNMET` (the subtask's
+> outcome is visibly achieved while its code done-condition cannot match), the loop now
+> spends ONE bounded repair turn for that (active subtask, plan) before the battery
+> re-plan. An accepted repair reads `step N: CONDITION REPAIRED - '<old condition>' ->
+> '<new condition>' (the outcome was visible)` in the corner log and `events.log`,
+> followed by `subtask N/M DONE (condition repaired)`; the evidence dir carries the
+> repair call's raw bodies as `call-<n>-repair.req.json` / `.res.json` with a `call
+> repair` line, and a `condition repair: planner source -> <render>` or `condition
+> repair: code-derived fallback -> <render>` line naming which source chose the
+> condition. A repair that does NOT accept keeps the SAME `step N: BATTERY ESCALATE -
+> ...` line and the existing battery re-plan path (`REPLAN (battery #n)`), plus a
+> `condition repair: ... - no acceptance` / `- the existing battery path runs` evidence
+> line; `the one repair for this subtask already ran - no second call` means the
+> per-subtask allowance was already spent on the current plan (a new plan install resets
+> it). THE NO-DATE LAW: the repair planner has no clock and never writes a date/time
+> condition — do not read a repaired condition that copies the page's pre-filled dates;
+> a date-shaped condition that does not match the current screen fails the code check by
+> design. Verify the build's dex marker is `vision-exp-v12` (§0): a run still exporting
+> nine date-focused re-plans with no `call repair` line is a stale build.
 
 * product (PHASE_VEXP3): NO database — the Room layer is retired and no
   `task_terminal` row is ever written (the historical `run-as … task_terminal`

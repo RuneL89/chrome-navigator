@@ -1,0 +1,77 @@
+{
+  "phase": "VEXP7",
+  "title": "The runtime condition-repair turn (run-5 solution 2)",
+  "phaseDoc": ".state/vision-iter/PHASE_VEXP7_condition_repair.md",
+  "branch": "exp/vision-box",
+  "status": "verified",
+  "startedAt": "2026-10-19",
+  "completedAt": "2026-10-19",
+  "verifiedAt": "2026-10-19",
+  "verification": ".state/phase-vexp7-verification.md",
+  "goal": "Implement solution 2 from the run-5 analysis: when the verification battery reports the active subtask's OUTCOME achieved while its code done-condition is unmet, run ONE bounded condition-repair turn (a repair-only planner call + a code fallback), validate/check the repaired condition on the current observation, require the battery's concurrence, and accept/advance (or extract the report) instead of only re-planning. No device/emulator test until the owner explicitly says.",
+  "stoppingCondition": "The repair fires only on OutcomeAchieved, once per subtask; the repaired condition is validated and verified on the current observation; the battery concurs; the normal accept/advance/terminal semantics hold; the report path works; red flags still re-plan; the code fallback is bounded; v12 pins; gates green + APK < 40MB; no installs/device runs.",
+  "gatesPassed": [
+    ":app:testDebugUnitTest --tests \"navigator.app.harness.vision.*\" — 122/122, 0 failures (112 baseline + 8 VisionLoopConditionRepairTest + 2 VisionExperimentTest contract tests)",
+    ":app:testDebugUnitTest — 638/638, 0 failures (628 baseline + 10)",
+    ":core:test --rerun-tasks — 318/318, 0 failures",
+    ":app:assembleDebug — SUCCESS",
+    "aapt2 badging — package navigator.app.visionexp, versionName 0.1.0-visionexp",
+    "APK size — 36,664,695 bytes = 34.97 MiB = 36.66 MB < 40 MB",
+    "dex marker — vision-exp-v12 present in classes13.dex; vision-exp-v11 absent; literals CONDITION REPAIRED / code-derived fallback / the one repair for this subtask already ran present"
+  ],
+  "gatesFailed": [],
+  "gatesPending": [],
+  "workItems": {
+    "WI1-trigger-and-bounded-repair-framework": {
+      "status": "done",
+      "detail": "VisionLoop: the hook is EXACTLY the battery block's BatteryGate.OutcomeAchieved branch; RedFlags and Proceed are untouched. The one-per-(active subtask, plan) allowance lives in the class-field `repairAttempted` set keyed by the subtask pointer, cleared on the accept advance (inside the shared `acceptAdvance`), on every new plan install (the re-plan block) and at run start. A failed/invalid turn falls through to the existing battery re-plan path unchanged (battery budget + held-step guard intact). Acceptance: the repaired condition is checked with DoneConditionChecker.satisfied on the CURRENT observation AND batteryConcurs over THIS step's results. It is an ACCEPT path (no executor call, no gate); the advance/terminal semantics moved into the shared local `acceptAdvance` used BY THE NORMAL ACCEPT TOO (same pointer/consecutiveFailures/recentHashes/stepsOnSubtask/subtaskStartHash/actionHistory/verbHistory/batteryReplans/lastBatteryResults/lastBatteryHash/step resets; the final subtask extracts when the ladder carries answerExtracted, then GOAL_ACHIEVED). The weak-at-start gate is deliberately bypassed ONLY for the repaired-condition acceptance (documented loudly in code): the battery saw the outcome after the subtask's own actions and is the arrival evidence. Step line emitted exactly `step N: CONDITION REPAIRED - '<old render>' -> '<new render>' (the outcome was visible)` into outcomes + events.log + the corner log, plus `subtask N/M DONE (condition repaired)`."
+    },
+    "WI2-repair-source": {
+      "status": "done",
+      "detail": "VisionPrompts: `REPAIR_SYSTEM` (repair-only; the OUTCOME law, the six whitelisted shapes, the no-clock/no-date law, the never-a-mention law, the untrusted-page law) + `repairUser(instruction, doneText, pageDigest, outcomeEvidence)` + `parseRepairedCondition` reusing LadderSchema.parseDoneConditionText; `VISION_PROMPT_VERSION` v11 -> v12. VisionLoop.conditionRepairTurn: ONE VisionHaiku.chat with the current screenshot, `call repair` raw req/res evidence; the user message carries the page digest, the active subtask, the old done condition and the code-assembled <jev-evidence> block (escalation pinned to OUTCOME-ACHIEVED-WHILE-CONDITION-UNMET). Invalid shape or a valid-but-non-matching condition -> NoAccept -> the existing re-plan path. Code fallback ONLY when the planner CALL fails: the current readable URL host under the checker's normalization, else the longest visible page line as markerText; checked on the current evidence and recorded `condition repair: code-derived fallback -> <render>`. No date is ever derived or accepted by prompt law; date-shaped conditions that do not match fail the check."
+    },
+    "WI3-tests": {
+      "status": "done",
+      "detail": "NEW VisionLoopConditionRepairTest (8 tests, $0 scripted, fabricated capture, temp-dir evidence): (1) OutcomeAchieved + vague elementPresent + visible-marker repair accepts, advances, exact step line, call-003-repair raw bodies, run reaches the terminal; (2a) invalid repair shape -> no accept, existing battery re-plan path, no fallback; (2b) valid-but-non-matching repair -> no accept, existing re-plan path; (3) failed repair call (maxRetries=0) -> code-derived URL-host fallback accepts; (4) a second OutcomeAchieved on the same subtask/plan never calls the repair again (call repair count 1, the allowance line); (5) the repaired results subtask advances to the final answerExtracted, extracts exactly once, ends GOAL_ACHIEVED with the answer; (6) a red-flag escalation never calls the repair; (7) a marker present only on an earlier page does not accept (current-observation-only check). VisionExperimentTest: v11 -> v12 pin + the repair prompt contract pins + the parseRepairedCondition matrix. One existing scripted test (the battery-re-plan budget case) gained ONE repair response in its script because the OutcomeAchieved trigger now spends that call; its assertions are unchanged (no weakening)."
+    },
+    "WI4-docs": {
+      "status": "done",
+      "detail": "app/AGENTS.md vision bullet (the VEXP7 repair law + v12 pin update + the new JVM gate), root AGENTS.md one compact clause, .state/DEBUGGING.md the VEXP7 repair markers/evidence + no-date law extension, this status file, and the compliance log entry. The run-5 report/evidence were NOT touched."
+    }
+  },
+  "testChanges": {
+    "added": [
+      "app/src/test/kotlin/navigator/app/harness/vision/VisionLoopConditionRepairTest.kt (8 tests)",
+      "VisionExperimentTest: `the repair prompt pins the outcome-only no-clock law and the whitelist`",
+      "VisionExperimentTest: `the repair parser accepts exactly one whitelisted condition and is loud otherwise`"
+    ],
+    "rewritten": [
+      "VisionExperimentTest: `the prompt version is vision-exp-v11` -> `the prompt version is vision-exp-v12` (pin bump)",
+      "VisionExperimentTest: `the battery re-plan budget is per subtask...` — one added repair-turn response in the scripted chat queue (the OutcomeAchieved trigger now spends that call); every assertion unchanged"
+    ],
+    "removed": []
+  },
+  "deviations": [
+    "WI2 says the code fallback runs 'only when the planner call fails or is invalid', while the Parse+validate bullet and WI3-2 pin 'invalid shape or non-matching condition -> NO acceptance -> the existing re-plan path'. Implemented: the fallback runs ONLY on a planner CALL failure (transport/HTTP/malformed response). A parse-invalid shape or a valid-but-non-matching condition takes the existing re-plan path with NO fallback (test 2a deliberately offers a readable URL host, so an unlawful fallback would have accepted). This follows the phase's own acceptance tests and the explicit Parse+validate bullet.",
+    "The one-repair allowance resets on a NEW PLAN INSTALL, so a re-plan-resumed subtask becomes eligible again by law. WI3-4's second-OutcomeAchieved case therefore scripts the same plan: the battery budget is 0, so the fall-through takes the existing battery path's forced-PROCEED arm instead of installing a plan (a successful battery re-plan would reset the allowance). The test still pins the load-bearing fact: exactly ONE `call repair` on the same (subtask, plan), and the second trigger names the spent allowance.",
+    "The repaired accept does NOT call recordedOpinions (no extra Jev noul / Haiku confirm): the acceptance evidence is the repaired code check + the trigger battery's concurrence. The normal accept-line semantics ride as `subtask N/M DONE (condition repaired)` without a model opinion (the old-condition opinion would usually disagree with the repair by construction).",
+    "The code fallback's URL host reuses the public DoneConditionChecker.normalizeUrl (the checker's own normalization) and requires a dotted host, matching DoneConditionChecker.hostOf's rules, rather than widening :core's internal hostOf to public.",
+    "The code-derived markerText is capped at LadderLimits.MAX_CONDITION_TEXT_CHARS (300) for whitelist coherence; the derivation prefers the longest non-blank visible line.",
+    "A failed repair leaves the existing BATTERY ESCALATE line and the re-plan <jev-evidence> block unchanged (the phase's 'probe/evidence unchanged'); it adds one loud `condition repair: ... - the existing battery path runs` evidence event for monitoring.",
+    "The parser reuses LadderSchema's existing behavior for a multi-key blend (the first matching whitelist shape wins) instead of adding a new strictness rule; the test pins that behavior rather than inventing a rejection.",
+    "No device/emulator/adb/install/live calls; no commit (owner hold)."
+  ],
+  "llmCost": 0.0,
+  "blocker": null,
+  "verificationFindings": [
+    "Non-blocking: repairAttempted is keyed by the pointer ordinal; the (subtask, plan) semantics rest on the clear-on-plan-install (one install site today).",
+    "Non-blocking: a pre-existing LadderSchema comment understates the first-shape-wins behavior (out of VEXP7 scope).",
+    "Non-blocking: the repaired accept carries no recordedOpinions (disclosed; the acceptance evidence is the repaired code check + the trigger battery).",
+    "Non-blocking: assembleDebug was incremental; the APK bytes/dex independently confirm the build."
+  ],
+  "nextAction": "VEXP7 is verified and commit-ready. The owner has specified the next on-device goal: 'open verkkokauppa.com and add two cases of lemon lime celsius energy drink to the shopping cart'. Install the VEXP7 APK on the S25+ and run that goal through the real overlay, monitoring per .state/DEBUGGING.md; canon fix loop on any defect.",
+  "notes": [
+    "Cold verification PASS (122/638/318, APK 36,664,695 bytes, dex v12) with no blocking findings; the verifier returned the report and the orchestrator persisted it at .state/phase-vexp7-verification.md.",
+    "The phase's implementation/verification made no device/emulator/adb/install/live calls; the separate owner-directed device test is the next step and uses the new Verkkokauppa goal."
+  ]
+}
