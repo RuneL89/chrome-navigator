@@ -15,9 +15,9 @@ remembers."
   `Implementation Plan/MASTER_IMPLEMENTATION_PROMPT.md` §3: timestamp, changed files, vision
   docs/sections checked, result, checker)
 * `phase-N-verification.md` — Verifier sub-agent's independent per-gate report
-* `preUAT2-emulator/` — the owner-ordered pre-UAT automation pass (2026-10-08): the
-  emulator prepass record + run reports, and `fix-record.md` (the implementer's
-  defect-fix record for the two pre-UAT2 defects)
+* `preUAT2-emulator/` — the `fix-record.md` from the owner-ordered pre-UAT automation
+  pass (2026-10-08, the implementer's defect-fix record); the emulator prepass run
+  reports were removed with the historical run data (owner request 2026-10-19)
 * `preUAT2-fixes.json` — the pre-UAT2 fix status note: defects, fixes, deviations,
   per-fix test evidence, what stays with the verifier/orchestrator
 * `preUAT2-1-follower.json` — the PREUAT2-1 defect-follower status note (2026-10-08:
@@ -80,7 +80,11 @@ remembers."
   three-surface cleanup. Run folders: `hotel-iter/runN/` (product),
   `vision-iter/runN/` (vision experiments), and `vision-iter/vexp5-run/` +
   `vision-iter/vexp5-fixture/` (the PHASE_VEXP5 window-capture fixtures + A/B
-  evidence); reports stay untracked by convention
+  evidence). RETENTION (owner request 2026-10-19): raw run evidence (screenshots,
+  logcat captures, model-call bodies, navcap frames, run-report JSONs) is NOT kept —
+  the REPORT.md analyses stay untracked and the fixture HTML remains; the historical
+  raw run data was deleted on the host (and is removed from the phone when the link
+  allows). The phase status/verification/compliance/eval records are the durable memory.
 
 ## Local Contracts
 
