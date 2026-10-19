@@ -98,6 +98,20 @@ import navigator.core.enumerate.ObservedNode
  * it, so the battery is the arrival evidence (the normal code-first gate is untouched).
  * RED-FLAG escalations are NEVER repaired, and the planner has no clock: a date-shaped
  * condition that does not match the current screen simply fails the check.
+ *
+ * THE MODELS_CONFIRM_DONE FINALITY LAW (PHASE_VEXP8, run 11): the model-driven hatch may
+ * end the task ONLY on the ladder's FINAL subtask, with a CODE-UNVERIFIABLE (WEAK)
+ * done-condition, no pending report answer, the existing Jev-noul + Haiku-confirm pair
+ * agreeing, and ONE goal-level Jev noul agreeing. A STRONG condition the checker calls
+ * false is authoritative; a non-final exhausted subtask never terminates or advances —
+ * it takes the existing informed re-plan path (REPLANS_EXHAUSTED when spent).
+ *
+ * THE PRODUCT-PAGE CTA / SCROLL-CHURN LAW (PHASE_VEXP8, run 7): the proposer prompt
+ * demands that a visible purchase control be TAPPED and that scrolling never churns;
+ * CODE carries a consecutive-ACTED-scroll counter ([Config.scrollChurnHintAfter] soft
+ * hint in the proposer message, [Config.scrollChurnReplanAfter] hard re-plan when a
+ * visible purchase control exists — never a forced click), and the re-plan's evidence
+ * block carries the churn as code-assembled guidance.
  */
 class VisionLoop(
     private val observer: LoopObserver,
@@ -178,7 +192,31 @@ class VisionLoop(
          * product loop's ≤2 bounded re-plans (owner directive 2026-10-19).
          */
         val batteryReplansPerSubtask: Int = 30,
-    )
+        /**
+         * PHASE_VEXP8 — THE PRODUCT-PAGE SCROLL-CHURN LAW (run 7: the Celsius product
+         * page stalled on scroll_down/scroll_up while the sticky add-to-cart CTA was
+         * never targeted). From this many consecutive ACTED scroll proposals on one page
+         * the next proposer call carries the code-generated `<scroll-churn>` guidance
+         * naming the count (and, when detected, that a visible purchase control exists).
+         * The soft hint never blocks the action.
+         */
+        val scrollChurnHintAfter: Int = 3,
+        /**
+         * PHASE_VEXP8 — the HARD backstop: at this many consecutive acted scrolls AND a
+         * detected visible purchase control ([PurchaseControl.hasVisible]), the step's
+         * attempt is SKIPPED, one `SCROLL CHURN` line is recorded, and the existing
+         * informed re-plan path/budget runs. Never a forced click; without a detected
+         * CTA only the soft hint fires (long results pages may legitimately scroll).
+         */
+        val scrollChurnReplanAfter: Int = 4,
+    ) {
+        init {
+            require(scrollChurnReplanAfter >= scrollChurnHintAfter) {
+                "scrollChurnReplanAfter ($scrollChurnReplanAfter) must be >= " +
+                    "scrollChurnHintAfter ($scrollChurnHintAfter)"
+            }
+        }
+    }
 
     enum class Terminal { GOAL_ACHIEVED, MODELS_CONFIRM_DONE, STEPS_EXHAUSTED, BUDGET_EXHAUSTED, REPLANS_EXHAUSTED, CANCELLED, PLAN_REFUSED, GUARD_ABORT }
 
@@ -361,6 +399,23 @@ class VisionLoop(
      */
     private val repairAttempted = mutableSetOf<Int>()
 
+    /**
+     * PHASE_VEXP8 — the CONSECUTIVE ACTED SCROLL counter (both directions). Incremented
+     * ONLY at the end of [attemptStep] for an [Attempted.Acted] scroll proposal; reset on
+     * any acted non-scroll, on a URL change, on a subtask advance and on a new plan
+     * install. The stuck probe's own scroll is NOT an acted proposal and never counts.
+     */
+    private var consecutiveScrolls = 0
+
+    /** Whether the one-per-churn-episode soft-hint evidence line already fired. */
+    private var churnHintLogged = false
+
+    /** This step's visible-purchase-control detection (set once per observation). */
+    private var stepPurchaseControlVisible = false
+
+    /** The last observed URL — the churn counter resets when the page changes. */
+    private var lastObservedUrl: String? = null
+
     /** Whether the one-per-run "exclusion bounds unavailable" evidence note already fired (D2). */
     private var exclusionNoteLogged = false
 
@@ -454,6 +509,11 @@ class VisionLoop(
         sourceNoteLogged = false
         // PHASE_VEXP7: the one-repair allowance never crosses runs/tasks.
         repairAttempted.clear()
+        // PHASE_VEXP8: the scroll-churn counter never crosses runs/tasks.
+        consecutiveScrolls = 0
+        churnHintLogged = false
+        lastObservedUrl = obs.url
+        stepPurchaseControlVisible = PurchaseControl.hasVisible(obs.nodes)
 
         /**
          * PHASE_VEXP7 — the SHARED ACCEPT-advance: the normal code-first accept and the
@@ -485,6 +545,9 @@ class VisionLoop(
             lastBatteryHash = null
             // PHASE_VEXP7: the next subtask gets its own one-repair allowance.
             repairAttempted.clear()
+            // PHASE_VEXP8: a subtask advance resets the scroll-churn counter.
+            consecutiveScrolls = 0
+            churnHintLogged = false
             step += 1
             return null
         }
@@ -507,6 +570,14 @@ class VisionLoop(
 
             obs = observer.observe()
             shot = captureSafely(screenshots++)
+            // PHASE_VEXP8: a URL change is a new page — the scroll-churn counter resets.
+            if (lastObservedUrl != null && obs.url != lastObservedUrl) {
+                consecutiveScrolls = 0
+                churnHintLogged = false
+            }
+            lastObservedUrl = obs.url
+            // The purchase-CTA boolean is computed ONCE per observation (pure, no click).
+            stepPurchaseControlVisible = PurchaseControl.hasVisible(obs.nodes)
 
             val active = ladder.subtasks[pointer]
             val doneText = DoneConditionChecker.render(active.done)
@@ -721,13 +792,54 @@ class VisionLoop(
                 }
             }
 
-            if (escalateCause == null && consecutiveFailures < config.stepFailuresBeforeReplan) {
+            // -- PHASE_VEXP8: the product-page SCROLL-CHURN hard backstop -----------------
+            // Four consecutive ACTED scrolls on one page while a purchase control is
+            // VISIBLE in the accessibility tree: the proposal direction is churning (run
+            // 7), so the step's attempt is skipped and the existing informed re-plan path
+            // runs (the failure counter is set; the main-loop re-plan gate below owns the
+            // budget). NEVER a forced click — the code only refuses to scroll again; a
+            // page with NO detected control keeps the soft hint and may legitimately
+            // scroll (long results pages).
+            val churnStop = escalateCause == null &&
+                consecutiveFailures < config.stepFailuresBeforeReplan &&
+                consecutiveScrolls >= config.scrollChurnReplanAfter &&
+                stepPurchaseControlVisible
+            if (churnStop) {
+                val line = "step $step: SCROLL CHURN - $consecutiveScrolls consecutive scrolls " +
+                    "with a visible purchase control - forcing a re-plan"
+                outcomes.add(line)
+                log("[vision] $line")
+                evidence.event(line)
+                consecutiveFailures = config.stepFailuresBeforeReplan
+                step += 1
+            }
+
+            if (!churnStop && escalateCause == null && consecutiveFailures < config.stepFailuresBeforeReplan) {
                 // -- PROPOSE -> GROUND -> MATCH -> ACT ----------------------------------
+                // The soft hint (PHASE_VEXP8): at/after the hint threshold the proposer
+                // message carries the code-generated <scroll-churn> block naming the
+                // count (and the visible control, when detected) — guidance, never a
+                // block. The evidence marker fires ONCE per churn episode.
+                val scrollChurn = if (consecutiveScrolls >= config.scrollChurnHintAfter) {
+                    VisionPrompts.ScrollChurn(consecutiveScrolls, stepPurchaseControlVisible)
+                        .also { churn ->
+                            if (!churnHintLogged) {
+                                churnHintLogged = true
+                                val hint = "scroll churn: ${churn.count} consecutive scrolls on this page" +
+                                    (if (churn.purchaseControlVisible) " with a visible purchase control" else "")
+                                outcomes.add(hint)
+                                log("[vision] $hint")
+                                evidence.event(hint)
+                            }
+                        }
+                } else {
+                    null
+                }
                 var actedNodeId: String? = null
                 var stepLine = "step $step: "
                 val attempted = attemptStep(
                     active, doneText, obs, shot, counters, actedNodeIds, typedSoFar,
-                    enterTexts[pointer].orEmpty(),
+                    enterTexts[pointer].orEmpty(), scrollChurn,
                 )
                 // ANY action attempt (acted or failed) clears the escalation guard —
                 // the battery re-arms from the following step.
@@ -776,18 +888,79 @@ class VisionLoop(
                 // terminal is DISTINCTLY FLAGGED: code-unverified completion, the exact
                 // quantity this experiment measures. On a browser whose text layer
                 // carries page content, the code check fires first and this stays shut.
+                //
+                // PHASE_VEXP8 — THE FINALITY LAW (run 11: a 4-subtask Verkkokauppa plan
+                // was falsely completed at its FIRST subtask). The hatch may end the task
+                // only when ALL hold: (1) the active subtask is the ladder's FINAL one;
+                // (2) its done-condition is CODE-UNVERIFIABLE (WEAK: markerText/
+                // elementPresent) — a STRONG condition (urlHost/urlContains/count/
+                // answerExtracted) the code checker says is false is authoritative;
+                // (3) no report answer is pending (the deliverable is code-owned);
+                // (4) the existing pair agrees; (5) ONE goal-level Jev noul agrees.
+                // Checks 1-3 run BEFORE recordedOpinions, so a SHUT hatch costs ZERO
+                // confirm/noul calls. A non-final exhausted subtask never terminates and
+                // never advances — it takes the existing informed re-plan path below
+                // (REPLANS_EXHAUSTED when that budget is spent).
                 val proposerExhausted = proposerExhaustedLast
                 if (proposerExhausted) {
-                    val op = recordedOpinions(active, obs, shot)
-                    if (op.confirm == true && (op.noul ?: 0.0) >= config.noulAgreeAbove) {
-                        outcomes.add(
-                            "MODELS_CONFIRM_DONE (code-unverifiable on this page) ${op.render}",
-                        )
-                        evidence.event("MODELS_CONFIRM_DONE: noul=${op.noul} confirm=${op.confirm}")
-                        log("[vision] MODELS_CONFIRM_DONE ${op.render}")
-                        return terminal(Terminal.MODELS_CONFIRM_DONE, ladder)
+                    val suppressed = when {
+                        pointer != ladder.subtasks.lastIndex -> {
+                            val line = "MODELS_CONFIRM_DONE suppressed: subtask " +
+                                "${pointer + 1}/${ladder.subtasks.size} is not final - the hatch " +
+                                "never terminates a non-final subtask"
+                            outcomes.add(line)
+                            log("[vision] $line")
+                            evidence.event(line)
+                            true
+                        }
+                        DoneConditionChecker.guardStrength(active.done) !=
+                            DoneConditionChecker.GuardStrength.WEAK -> {
+                            val line = "MODELS_CONFIRM_DONE suppressed: the final condition is " +
+                                "code-verifiable (STRONG) and unmet - the code checker is authoritative"
+                            outcomes.add(line)
+                            log("[vision] $line")
+                            evidence.event(line)
+                            true
+                        }
+                        ladder.subtasks.any { it.done is DoneCondition.AnswerExtracted } &&
+                            answer == null -> {
+                            val line = "MODELS_CONFIRM_DONE suppressed: a report answer is still pending"
+                            outcomes.add(line)
+                            log("[vision] $line")
+                            evidence.event(line)
+                            true
+                        }
+                        else -> false
                     }
-                    evidence.event("models did NOT confirm (noul=${op.noul} confirm=${op.confirm}) — re-planning")
+                    if (!suppressed) {
+                        val op = recordedOpinions(active, obs, shot)
+                        if (op.confirm == true && (op.noul ?: 0.0) >= config.noulAgreeAbove) {
+                            // Check 5 (only after the pair agrees): ONE goal-level noul.
+                            // A refused goal noul is a suppression too — null never passes.
+                            val goalNoul = goalOpinion(goal, active, obs)
+                            if (goalNoul != null && goalNoul >= config.noulAgreeAbove) {
+                                val goalMark = "goal=AGREE(%.2f)".format(goalNoul)
+                                outcomes.add(
+                                    "MODELS_CONFIRM_DONE (code-unverifiable on this page) ${op.render} $goalMark",
+                                )
+                                evidence.event(
+                                    "MODELS_CONFIRM_DONE: noul=${op.noul} confirm=${op.confirm} " +
+                                        "goalNoul=$goalNoul",
+                                )
+                                log("[vision] MODELS_CONFIRM_DONE ${op.render} $goalMark")
+                                return terminal(Terminal.MODELS_CONFIRM_DONE, ladder)
+                            }
+                            val line = "MODELS_CONFIRM_DONE suppressed: the goal-level noul did " +
+                                "not agree (goalNoul=${goalNoul ?: "null"})"
+                            outcomes.add(line)
+                            log("[vision] $line")
+                            evidence.event(line)
+                        } else {
+                            evidence.event(
+                                "models did NOT confirm (noul=${op.noul} confirm=${op.confirm}) — re-planning",
+                            )
+                        }
+                    }
                 }
                 // The budget follows the ENTRY: a battery-escalation re-plan spends the
                 // per-subtask battery budget (checked when the escalation was queued);
@@ -832,6 +1005,9 @@ class VisionLoop(
                 // PHASE_VEXP7: a new plan (re-plan generation) gets its own one-repair
                 // allowance per subtask — the pointer may resume at the same ordinal.
                 repairAttempted.clear()
+                // PHASE_VEXP8: a new plan install resets the scroll-churn counter.
+                consecutiveScrolls = 0
+                churnHintLogged = false
                 // A battery-escalation re-plan must be given an action attempt before
                 // the battery re-fires (the live-run starvation defect): arm the guard.
                 if (stepEscalation != null) batteryEscalatedWithoutAction = true
@@ -849,7 +1025,18 @@ class VisionLoop(
     // -- one step's model round-trip: propose, ground, match, act ---------------------------
 
     private sealed interface Attempted {
-        data class Acted(val detail: String, val actedNodeId: String?, val typed: String?, val progresses: Boolean) : Attempted
+        /**
+         * PHASE_VEXP8: [action] is the EFFECTIVE verb that acted (after the tap-to-type
+         * conversion) — the scroll-churn counter increments only for scroll verbs and
+         * resets on every non-scroll one.
+         */
+        data class Acted(
+            val detail: String,
+            val actedNodeId: String?,
+            val typed: String?,
+            val progresses: Boolean,
+            val action: VisionPrompts.ProposalAction,
+        ) : Attempted
         data class Failed(val reason: String) : Attempted
 
         /**
@@ -869,12 +1056,15 @@ class VisionLoop(
         actedNodeIds: MutableSet<String>,
         typedSoFar: String?,
         planEnterText: String,
+        scrollChurn: VisionPrompts.ScrollChurn?,
     ): Attempted {
         val proposals = try {
             VisionPrompts.parseProposals(
                 haiku.chat(
                     VisionPrompts.PROPOSE_SYSTEM,
-                    VisionPrompts.proposeUser(active.instruction, doneText, digest(obs), typedSoFar),
+                    VisionPrompts.proposeUser(
+                        active.instruction, doneText, digest(obs), typedSoFar, scrollChurn,
+                    ),
                     shot?.base64,
                     "propose",
                 ),
@@ -1528,7 +1718,19 @@ class VisionLoop(
         ) {
             counters.merge(DoneConditionChecker.WORKING_MEMORY_KEY, 1, Int::plus)
         }
-        return Attempted.Acted(detail, target?.node?.id, typed, progresses)
+        // PHASE_VEXP8: the scroll-churn counter follows ACTED proposals only (both scroll
+        // directions), and ANY acted non-scroll resets it — a new action shape is
+        // progress even before the next observation. A Failed proposal never touches it.
+        when (effectiveAction) {
+            VisionPrompts.ProposalAction.SCROLL_DOWN,
+            VisionPrompts.ProposalAction.SCROLL_UP,
+            -> consecutiveScrolls += 1
+            else -> {
+                consecutiveScrolls = 0
+                churnHintLogged = false
+            }
+        }
+        return Attempted.Acted(detail, target?.node?.id, typed, progresses, effectiveAction)
     }
 
     // -- helpers ---------------------------------------------------------------------------
@@ -1624,7 +1826,21 @@ class VisionLoop(
         },
         actions = actionHistory.toList(),
         routeRepeated = VisionPrompts.routeStreak(verbHistory.toList()).takeIf { it >= 3 },
+        scrollChurn = scrollChurnEvidence(),
     )
+
+    /**
+     * PHASE_VEXP8 — the churn the re-plan's evidence block carries: the consecutive
+     * ACTED-scroll count at/after the hint threshold plus whether a visible purchase
+     * control was detected on the current observation. Null below the threshold (no
+     * churn to report). Pure assembly over class state — ZERO extra model calls.
+     */
+    private fun scrollChurnEvidence(): VisionPrompts.ScrollChurn? =
+        if (consecutiveScrolls >= config.scrollChurnHintAfter) {
+            VisionPrompts.ScrollChurn(consecutiveScrolls, stepPurchaseControlVisible)
+        } else {
+            null
+        }
 
     /** The GROUND request's state: the subtask and the code-readable page, plus the screenshot reference when the image rides. */
     private fun groundState(active: Subtask, doneText: String, obs: StepObservation, imageRef: String?): String =
@@ -1698,6 +1914,9 @@ class VisionLoop(
         val outcomeEvidence = VisionPrompts.jevEvidenceBlock(
             currentEvidence(doneText).copy(
                 escalation = VisionPrompts.EscalationKind.OUTCOME_ACHIEVED_WHILE_CONDITION_UNMET,
+                // PHASE_VEXP8: the repair turn is a battery-outcome turn, not a
+                // scroll-churn turn — the churn rides the RE-PLAN evidence only.
+                scrollChurn = null,
             ),
         )
         val content = try {
@@ -1875,6 +2094,33 @@ class VisionLoop(
 
     /** The recorded (never-deciding) opinions: Jev noul + Haiku confirm. */
     private data class Opinions(val noul: Double?, val confirm: Boolean?, val render: String)
+
+    /**
+     * PHASE_VEXP8 — the hatch's GOAL-LEVEL Jev noul (check 5): ONE extra noul over the
+     * run's goal text and the final subtask's done-condition, asked ONLY after the
+     * subtask-level pair (noul + confirm) agrees. Null = the channel refused (a refused
+     * goal noul never passes). Text state only — the pair already carries the image.
+     */
+    private suspend fun goalOpinion(goal: String, active: Subtask, obs: StepObservation): Double? {
+        val doneText = DoneConditionChecker.render(active.done)
+        return try {
+            (jev.ask(
+                digest(obs),
+                listOf(
+                    VisionJev.Question.Noul(
+                        "goal",
+                        "The goal \"${goal.take(200)}\" is achieved on this page: the task's final " +
+                            "subtask \"${active.instruction.take(160)}\" is fulfilled (its done " +
+                            "condition holds: $doneText). Judge whether the page shows the goal fulfilled.",
+                    ),
+                ),
+                null, VisionJev.newImageRef(), "verify-goal",
+            )["goal"] as? VisionJev.Answer.Noul)?.pTrue
+        } catch (e: Exception) {
+            evidence.event("goal noul refused: ${e.message?.take(120)}")
+            null
+        }
+    }
 
     private suspend fun recordedOpinions(active: Subtask, obs: StepObservation, shot: VisionCapture.ScreenShot?): Opinions {
         val doneText = DoneConditionChecker.render(active.done)

@@ -849,7 +849,7 @@ legacy-engine fallback.
     prompt gains `REPLAN_SKILL` (`VisionPrompts.planSystem`: match conditions to the
     evidence universe, never point a condition past an achieved outcome, act on the
     located box, author batteries Jev can answer, vary the route, cascade framing);
-    `VISION_PROMPT_VERSION` = `vision-exp-v12` (v6 added the evidence block +
+    `VISION_PROMPT_VERSION` = `vision-exp-v13` (v6 added the evidence block +
     REPLAN_SKILL; v7 added the final-subtask battery law; v8 the taskClass honesty
     sentence — "Claim 'multi' ONLY when a count-shaped done condition exists;
     otherwise use read or action", after the writer repeatedly claimed MULTI without
@@ -885,7 +885,13 @@ legacy-engine fallback.
     battery's OutcomeAchieved turn (see the VEXP7 passage below), naming the OUTCOME
     and carrying the owner's no-clock law — the planner has no clock and NEVER writes
     a date/time condition; a date-shaped condition that does not match the current
-    screen simply fails the code check). THE EDITABLE RESOLUTION (the sixth
+    screen simply fails the code check; v13 THE PRODUCT-PAGE CTA + SCROLL-CHURN LAW
+    (PHASE_VEXP8, run 7): `PROPOSE_SYSTEM` TAPS a visible purchase control (sticky/fixed
+    bars included) and never scrolls while the needed control is visible (at most 3
+    repeats of one scroll); `PLAN_SYSTEM` authors purchase subtasks around the VISIBLE
+    control with a cart-state final check; `REPLAN_SKILL` reads a product-page scroll
+    streak as "the control is visible — TAP it"; the `<scroll-churn>` block is
+    code-generated guidance, never page text). THE EDITABLE RESOLUTION (the sixth
     actual-app live-test repair, run `task-1792398381736`; JVM gates in
     `VisionLoopTypeEditableTest`): a TYPE (native or tap-converted) whose grounded node
     is NOT editable resolves the real field first — `VisionMath.editableNodeAt` at the
@@ -918,7 +924,9 @@ legacy-engine fallback.
     habit: a WEAK content condition cannot complete a subtask that has not acted); the
     one model-driven terminal is `MODELS_CONFIRM_DONE` — proposer-exhausted + noul +
     confirm all agreeing, DISTINCTLY FLAGGED code-unverified (it fired only on the
-    webview-shell emulator whose a11y depth filter hides body prose). 100x product
+    webview-shell emulator whose a11y depth filter hides body prose). PHASE_VEXP8 gates
+    it to the FINAL subtask, a WEAK condition, no pending report answer, and a goal-level
+    noul (see the VEXP8 passage below). 100x product
     budget ceilings (owner directive 2026-10-19, PHASE_VEXP2: ALL budgets to 100x
     product values — "models are dirt cheap — runs may span days"; supersedes the
     2026-10-17 10x directive): `ExpBudget` steps 4000/6000, time 500/1000 min, spend
@@ -1103,12 +1111,47 @@ legacy-engine fallback.
     line `step N: CONDITION REPAIRED - '<old render>' -> '<new render>' (the outcome was
     visible)` rides outcomes + events.log, the source/no-accept lines ride the evidence,
     and the repaired accept adds the normal `subtask N/M DONE (condition repaired)`.
+    PHASE_VEXP8 (2026-10-19 — THE MODELS_CONFIRM_DONE FINALITY LAW + THE PRODUCT-PAGE
+    CTA/SCROLL-CHURN LAW; phase doc
+    `.state/vision-iter/PHASE_VEXP8_hatch_and_cta_law.md`, the owner's approval of
+    recommendations 1+2 of the run-11 final report; NO device/emulator run): run 11
+    falsely completed a 4-subtask Verkkokauppa plan at its FIRST subtask, and run 7
+    stalled a product page on scroll_down/scroll_up while the sticky CTA was visible.
+    THE HATCH LAW: `MODELS_CONFIRM_DONE` may fire only when the active subtask is the
+    ladder's FINAL one, its condition is code-unverifiable (`guardStrength == WEAK` — a
+    STRONG false condition is authoritative), no report answer is pending
+    (`answerExtracted` present while `answer == null` shuts it), the existing Jev-noul +
+    Haiku-confirm pair agrees, and ONE goal-level Jev noul (`Noul("goal", …)`, threshold
+    `noulAgreeAbove`) agrees. Checks 1-3 run BEFORE `recordedOpinions`, so a shut hatch
+    costs ZERO calls; every refusal records `MODELS_CONFIRM_DONE suppressed: …`
+    (not-final / STRONG / report-pending / goal-disagree, incl. a refused noul). A
+    non-final exhausted subtask never terminates and never advances — it takes the
+    existing informed re-plan path (`REPLANS_EXHAUSTED` when spent). THE CTA/CHURN LAW:
+    prompt v13; `Config` `scrollChurnHintAfter = 3` / `scrollChurnReplanAfter = 4`
+    (require replan >= hint); the class-field `consecutiveScrolls` increments ONLY on an
+    `Attempted.Acted` scroll proposal (the verb added to `Attempted.Acted`) and resets on
+    any acted non-scroll, a URL change, a subtask advance and a new plan install; the
+    pure boolean `PurchaseControl.hasVisible(nodes)` (clickable + non-browser-chrome + a
+    CTA phrase as a normalized token run: add to cart/basket/bag, lisää
+    ostoskoriin/koriin, ostoskoriin, in den warenkorb, ajouter au panier, añadir al
+    carrito, lägg i varukorgen, buy now — NEVER clicks); at >= 3 the next `proposeUser`
+    carries the code-generated `<scroll-churn>` block (count + the visible-control
+    sentence, no page label injected; one `scroll churn: …` evidence marker per
+    episode); at >= 4 AND a detected CTA the attempt is SKIPPED with `step N: SCROLL
+    CHURN - <n> consecutive scrolls with a visible purchase control - forcing a
+    re-plan`, the failure counter is set and the existing re-plan path/budget runs
+    (never a forced click; without a CTA only the soft hint fires); the re-plan evidence
+    block (`JevEvidence.scrollChurn`) renders `scroll churn: <n> consecutive scrolls on
+    this page with no progress` + `visible purchase control: YES (accessibility tree) -
+    TAP it; do not scroll again` (the repair call carries null). The stuck detector and
+    every VEXP5 capture/covered-point path are unchanged.
     JVM gates:
     `VisionExperimentTest` (the prompt JSON contracts + deterministic parsers — incl.
     `parseEnterTexts` and the PHASE_VEXP7 `parseRepairedCondition` — the evidence block,
     the vendor-route request shapes, the v11 search-submit contract pins, the v12
-    repair surface pins (outcome-only + no-clock/no-date law), and the prompt-version
-    pin),
+    repair surface pins (outcome-only + no-clock/no-date law), the v13 CTA/scroll-churn
+    pins (the three prompt laws + `proposeUser` block + `jevEvidenceBlock` churn + the
+    Config 3/4 thresholds), and the prompt-version pin),
     `VisionLoopGroundingTest` (the grounding-quality ladder over scripted transports:
     Jev box / Haiku-box fallback / label match / the loud TYPE refusal),
     `VisionLoopEnterTextTest` (the plan-`enterText` TAP→TYPE conversion over scripted
@@ -1134,6 +1177,22 @@ legacy-engine fallback.
     results subtask advances to the final `answerExtracted`, extracts once and ends
     GOAL_ACHIEVED; a red-flag escalation never calls the repair; a marker present only
     on an earlier page does not accept — the check reads the CURRENT observation only),
+    PHASE_VEXP8's JVM gates: `VisionLoopEscapeHatchTest` (5 real-loop scripted cases,
+    $0: the run-11 4-subtask regression — a non-final exhausted subtask never hatches,
+    the exact not-final suppression rides outcomes + events.log, the terminal is
+    `REPLANS_EXHAUSTED`, and the transport counters prove ZERO confirm/Jev hatch calls;
+    final WEAK + pair + goal agree -> `MODELS_CONFIRM_DONE` with `goal=AGREE(…)` and
+    exactly ONE goal noul; a goal noul 0.40 and a REFUSED goal noul each suppress with
+    `goalNoul=…`; a STRONG false condition suppresses with ZERO confirm calls),
+    `PurchaseControlTest` (the pure boolean: a clickable "Lisää ostoskoriin" matches,
+    non-clickable/browser-chrome never do, "Add a note"/"Edit cart" do not, the sticky
+    bottom bar is found among other nodes), `VisionLoopScrollChurnTest` (5 real-loop
+    scripted cases, $0, distinct observation lines per step so the stuck probe stays
+    quiet: 3 consecutive scrolls -> the 4th proposer request body carries
+    `<scroll-churn>` + ONE evidence marker; 4 scrolls + a visible CTA -> the exact
+    `SCROLL CHURN` line + the existing re-plan whose request body carries both churn
+    lines, NO fifth scroll; an acted non-scroll resets the counter; a URL change
+    resets it; without a detected CTA only the soft hint fires),
     `VisionLoopGateTest` (the WI1 battery: approve/deny/timeout/credential-swap/
     double-refusal-abort/ungated-null/scroll-back-never + the wrong-source failures +
     per-task trust),

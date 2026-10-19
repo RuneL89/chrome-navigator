@@ -1,0 +1,78 @@
+{
+  "phase": "VEXP8",
+  "title": "The MODELS_CONFIRM_DONE finality law + the product-page CTA/scroll-churn law",
+  "phaseDoc": ".state/vision-iter/PHASE_VEXP8_hatch_and_cta_law.md",
+  "branch": "exp/vision-box",
+  "status": "verified",
+  "startedAt": "2026-10-19",
+  "completedAt": "2026-10-19",
+  "verifiedAt": "2026-10-19",
+  "verification": ".state/phase-vexp8-verification.md",
+  "goal": "Implement the owner's approved recommendations 1+2 from the run-11 final report: (WI1) gate MODELS_CONFIRM_DONE to the ladder's FINAL subtask, a code-unverifiable WEAK condition, no pending report answer, the existing noul+confirm pair AND a goal-level Jev noul — checks 1-3 before any model call; non-final exhausted subtasks re-plan, never terminate or advance. (WI2) the product-page CTA/scroll-churn law: prompt v13, Config 3/4 thresholds, the pure PurchaseControl.hasVisible boolean, the consecutive-ACTED-scroll counter with all resets, the <scroll-churn> proposer block at >=3, the hard re-plan at >=4 with a detected CTA (never a forced click), and the churn carried in the re-plan evidence. No device/emulator/adb/install/live model call.",
+  "stoppingCondition": "The hatch can fire only on the final WEAK subtask with no pending report and the pair + goal noul agreeing; a shut hatch costs zero confirm/noul calls; a non-final exhausted subtask reaches REPLANS_EXHAUSTED without terminating or advancing; the run-11 4-subtask regression is pinned with zero hatch calls. The churn hint fires at 3, the hard re-plan at 4 only with a detected visible purchase control, the detector is boolean/clickable/non-chrome and never clicks, the counter is only acted scrolls with all four resets, and the re-plan request body carries both churn lines. v13 pinned; gates green; APK < 40 MB with vision-exp-v13 present and v12 absent; no device action.",
+  "gatesPassed": [
+    ":app:testDebugUnitTest --tests \"navigator.app.harness.vision.*\" — 138/138, 0 failures, 0 errors, 0 skipped (122 baseline + 16: VisionLoopEscapeHatchTest 5 + PurchaseControlTest 5 + VisionLoopScrollChurnTest 5 + VisionExperimentTest 1)",
+    ":app:testDebugUnitTest — 654/654, 0 failures, 0 errors, 0 skipped (638 baseline + 16)",
+    ":core:test --rerun-tasks — 318/318, 0 failures, 0 errors",
+    ":app:assembleDebug — SUCCESS",
+    "aapt2 badging — package navigator.app.visionexp, versionName 0.1.0-visionexp",
+    "APK size — 36,664,695 bytes = 34.97 MiB = 36.66 MB < 40 MB",
+    "dex marker — vision-exp-v13 present in classes13.dex; vision-exp-v12 absent everywhere; literals MODELS_CONFIRM_DONE suppressed / SCROLL CHURN / scroll churn present"
+  ],
+  "gatesFailed": [],
+  "gatesPending": [],
+  "workItems": {
+    "WI1-hatch-finality-law": {
+      "status": "done",
+      "detail": "VisionLoop.runLoop's existing failure -> re-plan gate evaluates the hatch conditions IN ORDER before recordedOpinions: (1) pointer != lastIndex -> `MODELS_CONFIRM_DONE suppressed: subtask <i>/<n> is not final - the hatch never terminates a non-final subtask`; (2) guardStrength(active.done) != WEAK -> `... the final condition is code-verifiable (STRONG) and unmet - the code checker is authoritative`; (3) the ladder carries any AnswerExtracted while answer == null -> `... a report answer is still pending`. A suppressed hatch falls through to the unchanged re-plan budget (REPLANS_EXHAUSTED when spent); the pointer is never advanced by a model-only confirmation. Only when 1-3 pass does recordedOpinions run; only when the pair agrees (noul >= noulAgreeAbove AND confirm true) does the ONE goal-level Jev Noul('goal', goal + final subtask + done condition) run. A null/refused or sub-threshold goal noul records `... the goal-level noul did not agree (goalNoul=<...|null>)`. A successful hatch keeps the existing outcome/evidence/log lines and adds `goal=AGREE(<...>)` to the outcome/log render and `goalNoul=<...>` to the evidence event. All suppression lines also ride outcomes + the corner log (the phase doc's 'evidence' surface)."
+    },
+    "WI2-product-page-cta-scroll-churn": {
+      "status": "done",
+      "detail": "VisionPrompts v12 -> v13: PROPOSE_SYSTEM adds the product-page CTA law (visible purchase control tapped, sticky/fixed bars included; never scroll while the needed control is visible; one scroll repeated at most 3 times; the <scroll-churn> block is code-generated guidance), PLAN_SYSTEM adds the purchase-subtask law (author around the VISIBLE control, never a scroll; final verifies the cart item + requested quantity), REPLAN_SKILL adds the product-page scroll-streak law; the version doc comment names v13. VisionLoop.Config gains scrollChurnHintAfter=3 / scrollChurnReplanAfter=4 with require(replan >= hint). The class-field consecutiveScrolls increments only at the end of attemptStep for an Attempted.Acted scroll (Attempted.Acted gained the effective action verb; one construction site) and resets on any acted non-scroll, on an observed URL change, in acceptAdvance and on every new plan install (and at run start). New pure PurchaseControl.hasVisible(nodes): clickable, non-browser-chrome nodes whose text/desc/hint contains a CTA phrase as a normalized token run (add to cart/basket/bag, lisää ostoskoriin/koriin, ostoskoriin, in den warenkorb, ajouter au panier, añadir al carrito, lägg i varukorgen, buy now); boolean only, never clicks. At consecutiveScrolls >= 3 the attempt block builds a VisionPrompts.ScrollChurn(count, stepPurchaseControlVisible), emits ONE `scroll churn: <n> consecutive scrolls on this page[ with a visible purchase control]` marker per episode, and passes it to proposeUser, which renders a <scroll-churn> block naming the count and (when detected) the visible control — no page label injected. At >= 4 AND a detected CTA (and no battery escalation, failure counter below threshold) the attempt is skipped: `step N: SCROLL CHURN - <n> consecutive scrolls with a visible purchase control - forcing a re-plan`, consecutiveFailures = stepFailuresBeforeReplan, step += 1, then the existing re-plan gate/budget runs. Never a forced click; without a CTA only the soft hint fires. The re-plan failure context carries VisionPrompts.JevEvidence.scrollChurn via currentEvidence/failureContext, rendering `scroll churn: <n> consecutive scrolls on this page with no progress` plus `visible purchase control: YES (accessibility tree) - TAP it; do not scroll again` when true; the repair call explicitly copies scrollChurn = null. The stuck detector and every VEXP5 capture/covered-point path are unchanged."
+    },
+    "WI3-tests-and-docs": {
+      "status": "done",
+      "detail": "NEW VisionLoopEscapeHatchTest (5, real loop, scripted transports, text-only capture, temp-dir evidence): (1) the run-11 4-subtask regression — first subtask WEAK and already holding (weak-at-start), empty proposals, confirm/noul scripted but never called, maxReplans 0 -> REPLANS_EXHAUSTED + the exact not-final suppression + chat=2 / jev=0; (2) final WEAK + pair 0.96 + goal 0.92 -> MODELS_CONFIRM_DONE, exactly one goal noul, goal=AGREE(0.92)/goalNoul=0.92; (3) goal 0.40 -> the goal-disagree suppression + REPLANS_EXHAUSTED; (4) STRONG urlHost unmet -> the STRONG suppression with chat=2 / jev=0; (5) a refused goal noul (transport failure, maxRetries 0) -> goalNoul=null suppression. NEW PurchaseControlTest (5): clickable Lisää ostoskoriin matches; non-clickable does not; browser chrome does not; Add a note/Edit cart/unrelated do not; the sticky bottom bar is found among other nodes. NEW VisionLoopScrollChurnTest (5, real loop, scripted chat, fabricated capture, distinct observation lines): 3 scrolls -> the 4th proposer body carries <scroll-churn> + ONE marker; 4 scrolls + CTA -> the exact SCROLL CHURN line, no fifth scroll, the re-plan request body carries both churn lines (checked via the raw call-NNN-replan.req.json); an acted non-scroll resets; a URL change resets; no CTA -> the soft hint only. VisionExperimentTest: the version pin v12 -> v13 and a new v13 contract test (the three prompt laws, proposeUser with/without churn, jevEvidenceBlock churn rendering, Config 3/4 + the ordering require). The battery-escalation script lost its two confirm/noul pairs (the STRONG finality guard shuts the hatch before any opinion) and its counters moved 8->6 chat / 4->2 Jev; every battery-budget assertion is unchanged. Docs: app/AGENTS.md (version history v13, the VEXP8 passage, the amended MODELS_CONFIRM_DONE sentence, the three new JVM gates), root AGENTS.md (one compact VEXP8 clause), .state/DEBUGGING.md (the VEXP8 evidence markers + the v13 dex marker), the compliance log, this status file."
+    }
+  },
+  "testChanges": {
+    "added": [
+      "app/src/test/kotlin/navigator/app/harness/vision/VisionLoopEscapeHatchTest.kt (5 tests)",
+      "app/src/test/kotlin/navigator/app/harness/vision/PurchaseControlTest.kt (5 tests)",
+      "app/src/test/kotlin/navigator/app/harness/vision/VisionLoopScrollChurnTest.kt (5 tests)",
+      "VisionExperimentTest: `the product-page CTA and scroll-churn law pins v13`"
+    ],
+    "rewritten": [
+      "VisionExperimentTest: `the prompt version is vision-exp-v12` -> `the prompt version is vision-exp-v13` (pin bump)",
+      "VisionExperimentTest: `a battery-escalation replan gets its action attempt...` — the two confirm/noul response pairs removed (the STRONG finality guard suppresses before recordedOpinions) and the expected counters moved 8->6 chat / 4->2 Jev; all battery-budget assertions unchanged"
+    ],
+    "removed": []
+  },
+  "deviations": [
+    "The hatch suppression lines ride outcomes + the corner log + events.log; the phase doc says 'evidence', and outcomes is the run result's monitoring surface (the same pattern as BATTERY ESCALATE).",
+    "The <scroll-churn> proposer block rides every proposer call while consecutiveScrolls stays at/above the hint threshold (the first such call is 'the next proposer call' the doc names); the evidence marker still fires exactly once per churn episode (churnHintLogged, reset with the counter).",
+    "The churn hard stop pre-empts only a PROPOSE attempt (escalateCause == null and consecutiveFailures < stepFailuresBeforeReplan); a battery escalation already queued keeps its own re-plan path instead of being double-triggered.",
+    "consecutiveScrolls counts an Attempted.Acted scroll even when the executor's boolean is false (the doc's 'only ACTED scroll proposals'); a Failed propose/ground/refusal never touches the counter.",
+    "The goal-level noul is a TEXT-ONLY Jev request (the pair already carries the image channel) whose proposition names the goal, the final subtask and its done-condition; null (a refused channel) never passes and renders goalNoul=null.",
+    "The finality check is guardStrength != WEAK rather than an explicit 'satisfied' test: reaching the hatch means the code condition was not accepted, so the 'STRONG and unmet' evidence wording is truthful by construction.",
+    "The battery-escalation VisionExperimentTest script/counters changed as described in testChanges (no battery-budget assertion weakened; only the now-suppressed hatch calls were removed).",
+    "A URL read of 'hidden'/'unavailable' counts as a URL change and resets the churn counter (conservative — a hidden URL is treated as a possibly different page).",
+    "No device/emulator/adb/install/live model call; no commit (orchestrator commits after the verifier)."
+  ],
+  "llmCost": 0.0,
+  "blocker": null,
+  "verificationFindings": [
+    "Non-blocking: consecutiveScrolls counts an Attempted.Acted scroll even when the executor boolean is false (literal type compliance; a Failed proposal never counts).",
+    "Non-blocking: the STRONG suppression string says 'unmet'; one edge (a STRONG code condition satisfied with the accept-side battery refusing) reaches the same suppression. Wording imprecision only; no false accept.",
+    "Non-blocking: the churn hard stop pre-empts only a PROPOSE attempt; a queued battery escalation keeps its own re-plan path.",
+    "Non-blocking: a URL read of hidden/unavailable resets the churn counter (conservative).",
+    "Non-blocking: .state/DEBUGGING.md:291 still names vision-exp-v12 inside the historical VEXP7 section; the VEXP8 section correctly names v13.",
+    "Non-blocking: assembleDebug reported UP-TO-DATE; the APK on disk badges correctly and its dex contains v13 with v12 absent."
+  ],
+  "nextAction": "VEXP8 is verified and commit-ready (cold verifier PASS, no blocking findings). Commit on exp/vision-box. The next on-device Verkkokauppa run stays DEFERRED until the owner explicitly requests it; then rebuild/install/monitor per .state/DEBUGGING.md and write run12/REPORT.md.",
+  "notes": [
+    "Baseline at HEAD c467827: 122 vision / 638 app / 318 core. Post-phase: 138 / 654 / 318, zero failures.",
+    "The untracked .state/vision-iter/run7/ and .state/vision-iter/vexp5-fixture/ evidence dirs and the run-7/10/11 reports were not touched.",
+    "Cold verification PASS (138/654/318, APK 36,664,695 bytes, dex v13) with no blocking findings; the six non-blocking notes are in verificationFindings. The verifier's report is persisted at .state/phase-vexp8-verification.md."
+  ]
+}

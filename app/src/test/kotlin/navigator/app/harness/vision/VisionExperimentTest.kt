@@ -607,8 +607,119 @@ class VisionExperimentTest {
     }
 
     @Test
-    fun `the prompt version is vision-exp-v12`() {
-        assertEquals("vision-exp-v12", VisionPrompts.VISION_PROMPT_VERSION)
+    fun `the prompt version is vision-exp-v13`() {
+        assertEquals("vision-exp-v13", VisionPrompts.VISION_PROMPT_VERSION)
+    }
+
+    @Test
+    fun `the product-page CTA and scroll-churn law pins v13`() {
+        // PHASE_VEXP8 WI2 — the run-7 product-page stall: the Celsius page scrolled for
+        // steps 11-23 while the sticky add-to-cart CTA was visible. The three prompt
+        // surfaces carry the CTA law; code carries the churn thresholds and the block.
+        assertTrue(
+            VisionPrompts.PROPOSE_SYSTEM.contains("On a PRODUCT page, a VISIBLE purchase control"),
+            "the proposer's purchase-control law",
+        )
+        assertTrue(
+            VisionPrompts.PROPOSE_SYSTEM.contains("\"Add to cart\", \"Lisää ostoskoriin\", \"Buy\""),
+            "the CTA vocabulary examples",
+        )
+        assertTrue(
+            VisionPrompts.PROPOSE_SYSTEM.contains("sticky/fixed bar pinned to the bottom of the screen"),
+            "the sticky bar is explicitly a purchase control",
+        )
+        assertTrue(
+            VisionPrompts.PROPOSE_SYSTEM.contains(
+                "Never scroll while the control the\n  subtask needs is already visible",
+            ),
+            "never scroll while the needed control is visible",
+        )
+        assertTrue(
+            VisionPrompts.PROPOSE_SYSTEM.contains("Do not repeat the same scroll more than 3 times on one page"),
+            "the scroll-repeat cap",
+        )
+        assertTrue(
+            VisionPrompts.PROPOSE_SYSTEM.contains(
+                "A <scroll-churn> block in the user message is CODE-GENERATED guidance",
+            ),
+            "the block is code guidance, page text stays untrusted",
+        )
+        assertTrue(
+            VisionPrompts.PLAN_SYSTEM.contains(
+                "For a PRODUCT-page purchase action, author the subtask around the VISIBLE purchase control",
+            ),
+            "the planner's purchase-subtask law",
+        )
+        assertTrue(
+            VisionPrompts.PLAN_SYSTEM.contains("never a\nscroll to find it"),
+            "never a scroll to find the control",
+        )
+        assertTrue(
+            VisionPrompts.PLAN_SYSTEM.contains("verify\nthe resulting cart state"),
+            "the final verifies the cart state (item + quantity)",
+        )
+        assertTrue(
+            VisionPrompts.REPLAN_SKILL.contains(
+                "A scroll streak on a product page means the purchase control is VISIBLE — TAP it; never scroll again.",
+            ),
+            "the re-plan's scroll-streak law",
+        )
+
+        // proposeUser renders the block ONLY when passed, names the count, and never
+        // injects a page label.
+        val plain = VisionPrompts.proposeUser("instruction", "done", "TITLE: t", null)
+        assertFalse(plain.contains("<scroll-churn>"), "no churn passed -> no block")
+        val withCta = VisionPrompts.proposeUser(
+            "instruction", "done", "TITLE: t", null, VisionPrompts.ScrollChurn(3, true),
+        )
+        assertTrue(withCta.contains("<scroll-churn>"))
+        assertTrue(withCta.contains("You have made 3 consecutive scrolls on this page without progress."))
+        assertTrue(withCta.contains("A visible purchase control is present in the accessibility tree"))
+        assertTrue(withCta.contains("TAP it; do not scroll again."))
+        val noCta = VisionPrompts.proposeUser(
+            "instruction", "done", "TITLE: t", null, VisionPrompts.ScrollChurn(4, false),
+        )
+        assertTrue(noCta.contains("<scroll-churn>"))
+        assertTrue(noCta.contains("Change the action shape"))
+        assertFalse(noCta.contains("A visible purchase control is present"))
+
+        // The re-plan evidence block renders the two phase-doc lines.
+        val block = VisionPrompts.jevEvidenceBlock(
+            VisionPrompts.JevEvidence(
+                battery = emptyList(),
+                conditionRender = "the URL host is done.test",
+                conditionSatisfied = false,
+                escalation = VisionPrompts.EscalationKind.EXHAUSTED,
+                grounding = null,
+                actions = listOf("scroll down", "scroll down"),
+                scrollChurn = VisionPrompts.ScrollChurn(4, true),
+            ),
+        )
+        assertTrue(block.contains("scroll churn: 4 consecutive scrolls on this page with no progress"))
+        assertTrue(
+            block.contains("visible purchase control: YES (accessibility tree) - TAP it; do not scroll again"),
+        )
+        val noCtaBlock = VisionPrompts.jevEvidenceBlock(
+            VisionPrompts.JevEvidence(
+                battery = emptyList(),
+                conditionRender = "c",
+                conditionSatisfied = false,
+                escalation = VisionPrompts.EscalationKind.EXHAUSTED,
+                grounding = null,
+                actions = emptyList(),
+                scrollChurn = VisionPrompts.ScrollChurn(3, false),
+            ),
+        )
+        assertTrue(noCtaBlock.contains("scroll churn: 3 consecutive scrolls"))
+        assertFalse(noCtaBlock.contains("visible purchase control: YES"))
+
+        // The Config thresholds (3/4) and the ordering invariant.
+        val config = VisionLoop.Config()
+        assertEquals(3, config.scrollChurnHintAfter)
+        assertEquals(4, config.scrollChurnReplanAfter)
+        assertFailsWith<IllegalArgumentException> {
+            VisionLoop.Config(scrollChurnHintAfter = 4, scrollChurnReplanAfter = 3)
+        }
     }
 
     @Test
@@ -1030,28 +1141,26 @@ class VisionExperimentTest {
         val confirmFalse = """{"complete":false,"reason":"no results list is visible"}"""
         val transport = ScriptedVisionTransport(
             // plan, battery re-plan, propose(tap), propose(empty) after the forced
-            // PROCEED, confirm(false) at the failure re-plan gate, failure re-plan,
-            // propose(empty), confirm(false) at the exhausted-failure-budget gate
+            // PROCEED, failure re-plan, propose(empty) at the exhausted-failure-budget
+            // gate. PHASE_VEXP8: the run's condition is STRONG (urlHost), so the
+            // MODELS_CONFIRM_DONE hatch is suppressed BEFORE recordedOpinions — the two
+            // old confirm(false) + noul pairs are gone (zero hatch calls).
             chatResponses = ArrayDeque(
                 listOf(
                     chatContent(plan),
                     chatContent(plan),
                     chatContent(propose),
                     chatContent(proposeEmpty),
-                    chatContent(confirmFalse),
                     chatContent(plan),
                     chatContent(proposeEmpty),
-                    chatContent(confirmFalse),
                 ),
             ),
-            // battery (escalate), battery (escalate -> forced PROCEED), the MODELS-check
-            // noul, the second MODELS-check noul (the held step fires no battery)
+            // battery (escalate), battery (escalate -> forced PROCEED): no MODELS-check
+            // noul is spent (the STRONG finality guard shuts the hatch first)
             jevResponses = ArrayDeque(
                 listOf(
                     jevBatteryAnswer(0.95),
                     jevBatteryAnswer(0.95),
-                    jevAnswer("done", 0.1),
-                    jevAnswer("done", 0.1),
                 ),
             ),
         )
@@ -1090,9 +1199,10 @@ class VisionExperimentTest {
         // The held step RAN its action attempt exactly once (the defect produced zero).
         assertEquals(1, executor.taps.size)
         // The battery fired on the escalating steps only — the held step fired none, and
-        // the forced-PROCEED steps reused/ran their batteries without re-planning.
-        assertEquals(4, transport.jevCalls)
-        assertEquals(8, transport.chatCalls)
+        // the forced-PROCEED steps reused/ran their batteries without re-planning. The
+        // STRONG finality guard spends ZERO hatch calls (PHASE_VEXP8).
+        assertEquals(2, transport.jevCalls)
+        assertEquals(6, transport.chatCalls)
         val escalations = result.subtaskOutcomes.indices.filter {
             result.subtaskOutcomes[it].contains("BATTERY ESCALATE")
         }

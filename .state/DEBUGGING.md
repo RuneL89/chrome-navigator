@@ -290,6 +290,28 @@ AUTHORITATIVE terminal signal per app:
 > a date-shaped condition that does not match the current screen fails the code check by
 > design. Verify the build's dex marker is `vision-exp-v12` (§0): a run still exporting
 > nine date-focused re-plans with no `call repair` line is a stale build.
+>
+> **EXTENSION (2026-10-19, PHASE_VEXP8 — THE HATCH FINALITY LAW + THE PRODUCT-PAGE
+> CTA/SCROLL-CHURN LAW):** the escape hatch can no longer complete a task early: it
+> fires only on the ladder's FINAL subtask with a WEAK (content) done-condition, no
+> pending report answer, the noul+confirm pair AND a goal-level noul agreeing. Monitor:
+> `MODELS_CONFIRM_DONE suppressed: subtask <i>/<n> is not final - ...` means a run-11
+> shape false completion was refused; `... the final condition is code-verifiable
+> (STRONG) and unmet ...`, `... a report answer is still pending`, and `... the
+> goal-level noul did not agree (goalNoul=…)` (a refused noul renders `goalNoul=null`)
+> are the other shut reasons. A successful hatch's outcome/evidence line now carries
+> `goal=AGREE(…)` / `goalNoul=…`. THE PRODUCT-PAGE CHURN: at 3 consecutive ACTED scroll
+> proposals the proposer message carries the code-generated `<scroll-churn>` block and
+> the evidence records ONE `scroll churn: 3 consecutive scrolls on this page …` marker;
+> at 4 with a visible purchase control (clickable, non-chrome CTA text — detected,
+> NEVER clicked) the step line `step N: SCROLL CHURN - 4 consecutive scrolls with a
+> visible purchase control - forcing a re-plan` fires and the re-plan evidence (the
+> `call-NNN-replan.req.json` body) carries `scroll churn: …` +
+> `visible purchase control: YES (accessibility tree) - TAP it; do not scroll again`.
+> A churn line with NO control sentence means the accessibility tree offered no CTA —
+> only the soft hint lawfully fires (long results pages may scroll). Verify the dex
+> marker is `vision-exp-v13` (§0): a run that still scroll-churns a product page with a
+> visible add-to-cart and shows no `scroll churn` line is a stale build.
 
 * product (PHASE_VEXP3): NO database — the Room layer is retired and no
   `task_terminal` row is ever written (the historical `run-as … task_terminal`

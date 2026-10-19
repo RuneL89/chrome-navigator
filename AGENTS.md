@@ -248,7 +248,11 @@ When the user requests a durable behavior change, record it here or in the relev
   code-checked on the current observation and concurred by the same battery; the
   accept mirrors the normal advance through the shared helper (weak-at-start bypassed
   ONLY for this acceptance, documented); red flags and failed repairs keep the
-  existing re-plan path. See `app/AGENTS.md`
+  existing re-plan path. PHASE_VEXP8 (2026-10-19) gates `MODELS_CONFIRM_DONE` to the
+  ladder's FINAL subtask with a code-unverifiable (WEAK) condition, no pending report
+  and a goal-level noul, and adds the product-page CTA/scroll-churn law (v13: a visible
+  purchase control is tapped, 3 acted scrolls carry the soft `<scroll-churn>` hint,
+  4 + a detected CTA force the existing re-plan — never a forced click). See `app/AGENTS.md`
 * `tools/` — RETIRED folder (owner directive 2026-10-19, PHASE_VEXP3): the Phase-8/8C
   model-acquisition + reference-vector scripts are deleted; no live scripts, no build
   step. See `tools/AGENTS.md`
