@@ -191,6 +191,9 @@ class VisionLoop(
         /** The covered-point guard's margin (PHASE_VEXP5 WI3): a touch this near an occluder is covered. */
         const val OCCLUSION_MARGIN_PX = 16
 
+        /** The terminal evidence line's answer bound (PHASE_VEXP6 WI4). */
+        private const val TERMINAL_ANSWER_CHARS = 120
+
         /**
          * The image-in-state law (PHASE_VEXP1 WI4): the TEXT state with the screenshot
          * reference embedded (backticks) where the image belongs — the images API's
@@ -336,7 +339,29 @@ class VisionLoop(
      */
     private var taskGate: TaskGate = TaskGate()
 
+    /**
+     * PHASE_VEXP6 WI4 — the TERMINAL EVIDENCE wrapper: every return path of [runLoop]
+     * (goal achieved, every terminal, the owner's cancel) writes ONE final events.log
+     * line `terminal=<TERMINAL> steps=<n> replans=<n>` (+ the answer, flattened and
+     * bounded to [TERMINAL_ANSWER_CHARS], when the run produced one). The evidence dir
+     * is the pullable record, so a run that ended after the corner log was closed (the
+     * run-4 monitoring gap) still names its terminal. The return value is unchanged.
+     */
     suspend fun run(goal: String, goalId: String, isCancelled: () -> Boolean): Result {
+        val result = runLoop(goal, goalId, isCancelled)
+        val answer = result.answer
+            ?.replace(Regex("\\s+"), " ")
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+            ?.take(TERMINAL_ANSWER_CHARS)
+        evidence.event(
+            "terminal=${result.terminal.name} steps=${result.stepsUsed} replans=${result.replans}" +
+                (answer?.let { " answer=$it" } ?: ""),
+        )
+        return result
+    }
+
+    private suspend fun runLoop(goal: String, goalId: String, isCancelled: () -> Boolean): Result {
         val outcomes = mutableListOf<String>()
         val counters = mutableMapOf<String, Int>()
         val actedNodeIds = mutableSetOf<String>()
@@ -991,7 +1016,22 @@ class VisionLoop(
             convertedText != null && target?.node?.editable == true
         val effectiveAction =
             if (tapConverted) VisionPrompts.ProposalAction.TYPE else proposal.action
-        val effectiveText = if (tapConverted) convertedText else proposal.text
+        // -- PHASE_VEXP6 WI2: the PLAN TEXT's authority over a native TYPE --------------
+        // The plan's authored enterText is the query/fill value (the run-4 live defect:
+        // the plan carried "hotels in Riga next weekend" and the proposer's shortened
+        // "hotels in Riga" won, dropping the dates). When the effective action is TYPE
+        // and the active subtask carries a non-blank enterText, the TEXT TYPED and the
+        // TEXT THE GATE CLASSIFIES is the plan's value; a divergent proposal text is
+        // overridden (marker `(plan text)` on the step line only when it differed). The
+        // tap-conversion path already types it. A credential card's secretSwap is never
+        // overridden — it replaces the text at EXECUTION (`secretSwap ?: effectiveText`).
+        val planTextOverride = effectiveAction == VisionPrompts.ProposalAction.TYPE &&
+            !tapConverted && convertedText != null && proposal.text != convertedText
+        val effectiveText = when {
+            tapConverted -> convertedText
+            planTextOverride -> convertedText
+            else -> proposal.text
+        }
 
         // -- THE EDITABLE RESOLUTION (the sixth actual-app live-test repair, 2026-10-19, --
         // task-1792398381736): the label arm grounded the address bar's CONTAINER (node n3)
@@ -1265,12 +1305,52 @@ class VisionLoop(
                 // container's inert point.
                 if (tapConverted && !focusCovered) executor.tap(x, y)
                 executed = executor.enterText(actX, actY, text) { causes.add(it) }
+                // -- PHASE_VEXP6 WI1: the deterministic post-type submit ------------------
+                // The run-4 live defect (task-1792411667614): after typing the query into
+                // the omnibox the loop left the next action to the proposer, which tapped
+                // Chrome's suggestion rows (ACTION_CLICK accepted but inert) and the
+                // clear-X, never submitting — nine re-plans and no search. When the typed
+                // field is BROWSER CHROME and the text is the plan's authored query, the
+                // keyboard's Search/Go/Done key fires IMMEDIATELY in the same step. GATE
+                // LAW FIRST: the SUBMIT is classified with the SAME candidate helper; the
+                // auto-submit fires ONLY when the classifier is null (an ordinary search)
+                // or the presenter is null (the pre-existing ungated adb path). A
+                // classified submit stays with the normal gated flow; a card secret is
+                // never auto-submitted.
+                val searchSubmitMark: String = if (
+                    executed && !secretTyped && convertedText != null && text == convertedText
+                ) {
+                    val typedField = typeField ?: VisionMath.editableNodeAt(obs.nodes, actX, actY)
+                    if (typedField != null && typedField.browserChrome) {
+                        val submitCandidate =
+                            gateCandidate(proposal, ActionKind.SUBMIT, actTarget, actX, actY, obs)
+                        val submitClass = RiskGate.classify(
+                            GateAction(submitCandidate, ActionKind.SUBMIT, text),
+                            PageContext(obs.url, FieldDescriptor.fromNodes(obs.nodes)),
+                        )
+                        if (submitClass == null || gatePresenter == null) {
+                            val submitted = executor.submit()
+                            evidence.event(
+                                "search submit: ${if (submitted) "ok" else "failed"} node=${typedField.id}",
+                            )
+                            if (submitted) " (search submitted)" else " (search submit failed)"
+                        } else {
+                            "" // classified: the normal gated proposer flow owns the submit
+                        }
+                    } else {
+                        ""
+                    }
+                } else {
+                    ""
+                }
                 typed = if (secretTyped) TextSource.REDACTED else text
                 detail = "type \"${if (secretTyped) TextSource.REDACTED else text}\" into " +
                     "[$where conf=${"%.2f".format(proposal.confidence)}]$editableMark" +
                     (if (executed) "" else " causes=$causes") + lowConfMark +
+                    (if (planTextOverride && !secretTyped) " (plan text)" else "") +
                     (if (tapConverted) " (tap-converted)" else "") +
-                    (if (focusCovered) " (focus tap skipped: behind-log)" else "")
+                    (if (focusCovered) " (focus tap skipped: behind-log)" else "") +
+                    searchSubmitMark
             }
             VisionPrompts.ProposalAction.SUBMIT -> {
                 executed = executor.submit()

@@ -251,6 +251,24 @@ AUTHORITATIVE terminal signal per app:
 > re-plan path follows), and a covered point with no actionable node FAILS loudly
 > (`... covered by the live log or keyboard and no actionable page node exists there;
 > refusing a touch that would land on the overlay`) instead of pressing the overlay.
+>
+> **EXTENSION (2026-10-19, PHASE_VEXP6 — THE RUN-4 SEARCH-SUBMIT REPAIR + MONITORING):**
+> the product overlay's logcat is SILENT for vision runs: the `NavigatorVision` filter
+> is the ADB-ACTIVITY channel (`VisionExperimentActivity`), not the service path — an
+> overlay-submitted goal narrates in the CORNER LOG and, now, in the evidence dir, whose
+> `events.log` ends with ONE final `terminal=<TERMINAL> steps=<n> replans=<n>` line
+> (answer appended, flattened, bounded) on EVERY return. Pull it to read a run's
+> outcome after the log was closed — the run-4 gap: the owner's `CANCELLED — by owner`
+> existed only in the corner log and a navcap frame. While WORKING the persistent
+> notification now carries a standard "Stop task" action: tap = `ACTION_STOP_TASK` →
+> the SAME `TaskCancelFlag` the ⏹ control drives, and the corner log appends
+> "stop requested — ending at the next step" (the lawful stop when the corner log, and
+> its ⏹, was closed with ✕). The search repair's monitor signals: a browser-chrome
+> plan-`enterText` TYPE step now carries `(plan text)` (when the proposal's text
+> differed) and `(search submitted)` / `(search submit failed)`; the evidence carries
+> `search submit: <ok|failed> node=<id>`. A search that still taps omnibox suggestion
+> rows / the clear-X means a stale build — re-check the dex marker
+> (`vision-exp-v11`, §0).
 
 * product (PHASE_VEXP3): NO database — the Room layer is retired and no
   `task_terminal` row is ever written (the historical `run-as … task_terminal`

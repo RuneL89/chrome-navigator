@@ -113,6 +113,17 @@ class NavigatorService : Service() {
         when (intent?.action) {
             ACTION_SHOW_GOAL_INPUT -> showGoalInputWithSubmission()
             ACTION_DEBUG_STUB_RUN -> runDebugStubTask(intent.getStringExtra(EXTRA_GOAL_ID))
+            // PHASE_VEXP6 WI4: the notification's "Stop task" action (working state only)
+            // — the lawful stop when the corner log was closed (the run-4 monitoring gap
+            // was that the ✕ hid the only Stop control). It cancels through the SAME
+            // flag the ⏹ control drives; the loop exits USER_CANCEL at its next step
+            // boundary and the usual terminal funnel takes over.
+            ACTION_STOP_TASK -> {
+                taskCancelFlag.cancelActive()
+                NavigatorAccessibilityService.instance?.overlayManager?.appendLogLine(
+                    "stop requested — ending at the next step",
+                )
+            }
             else -> startGoalPump()
         }
         return START_STICKY
@@ -585,7 +596,11 @@ class NavigatorService : Service() {
     /**
      * The persistent notification: "Navigator ready / working / idle" state line; tap →
      * SetupActivity (the phase doc's link); a "New task" action → the wizard activity
-     * (foreground) which then triggers the goal-input overlay.
+     * (foreground) which then triggers the goal-input overlay. PHASE_VEXP6 WI4: WHILE
+     * WORKING it also carries a standard "Stop task" action (a PendingIntent.getService
+     * with [ACTION_STOP_TASK]) — the lawful stop when the corner log (and its ⏹ control)
+     * is closed. No other notification change; READY keeps exactly the "New task"
+     * action.
      */
     private fun buildNotification(state: Int = NOTIFICATION_READY, text: String = ""): Notification {
         val openSetup = PendingIntent.getActivity(
@@ -606,7 +621,7 @@ class NavigatorService : Service() {
             NOTIFICATION_WORKING -> "Navigator working"
             else -> "Navigator ready"
         }
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_menu_manage)
             .setContentTitle(title)
             .setContentText(text.ifBlank { "Tap to open setup. New task starts the goal overlay." })
@@ -614,7 +629,16 @@ class NavigatorService : Service() {
             .setOnlyAlertOnce(true)
             .setContentIntent(openSetup)
             .addAction(0, "New task", newTask)
-            .build()
+        if (state == NOTIFICATION_WORKING) {
+            val stopTask = PendingIntent.getService(
+                this,
+                2,
+                Intent(this, NavigatorService::class.java).setAction(ACTION_STOP_TASK),
+                PendingIntent.FLAG_IMMUTABLE,
+            )
+            builder.addAction(0, "Stop task", stopTask)
+        }
+        return builder.build()
     }
 
     /**
@@ -658,6 +682,13 @@ class NavigatorService : Service() {
 
         const val ACTION_SHOW_GOAL_INPUT = "navigator.app.action.SHOW_GOAL_INPUT"
         const val ACTION_DEBUG_STUB_RUN = "navigator.app.action.DEBUG_STUB_RUN"
+
+        /**
+         * PHASE_VEXP6 WI4: the working notification's "Stop task" action — fires the
+         * service, which cancels the active run through the SAME [TaskCancelFlag] the
+         * corner log's ⏹ control drives.
+         */
+        const val ACTION_STOP_TASK = "navigator.app.action.STOP_TASK"
         const val EXTRA_GOAL_ID = "goalId"
 
         private const val DEBUG_GOALS_ASSET = "harness/goals.json"

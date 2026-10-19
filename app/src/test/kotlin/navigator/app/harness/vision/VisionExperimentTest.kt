@@ -607,8 +607,61 @@ class VisionExperimentTest {
     }
 
     @Test
-    fun `the prompt version is vision-exp-v10`() {
-        assertEquals("vision-exp-v10", VisionPrompts.VISION_PROMPT_VERSION)
+    fun `the prompt version is vision-exp-v11`() {
+        assertEquals("vision-exp-v11", VisionPrompts.VISION_PROMPT_VERSION)
+    }
+
+    @Test
+    fun `the search-submit law pins type-then-submit and never tapping suggestions`() {
+        // PHASE_VEXP6 WI3 — the run-4 search-submit repair (task-1792411667614): the
+        // loop typed into the omnibox, then tapped Chrome's suggestion rows (accepted but
+        // inert) and the clear-X, never submitting. PLAN_SYSTEM now authors the
+        // type-then-submit sequence, the COMPLETE query and a results-shaped condition;
+        // PROPOSE_SYSTEM names submit as the next action and forbids suggestion/clear-X
+        // taps.
+        assertTrue(
+            VisionPrompts.PLAN_SYSTEM.contains("The search sequence is TYPE-THEN-SUBMIT"),
+            "the plan's type-then-submit law",
+        )
+        assertTrue(
+            VisionPrompts.PLAN_SYSTEM.contains("Search/Go/Done key with the submit action"),
+            "the IME submit key named",
+        )
+        assertTrue(
+            VisionPrompts.PLAN_SYSTEM.contains("COMPLETE query with every"),
+            "the complete-query law",
+        )
+        assertTrue(
+            VisionPrompts.PLAN_SYSTEM.contains("constraint the goal names (dates, location, filters)"),
+            "every constraint must ride the query",
+        )
+        assertTrue(
+            VisionPrompts.PLAN_SYSTEM.contains("a results-only marker"),
+            "the results-shaped condition",
+        )
+        assertTrue(
+            VisionPrompts.PLAN_SYSTEM.contains(
+                "never a condition the query text or the omnibox suggestion list can satisfy",
+            ),
+            "the suggestion-text trap named",
+        )
+
+        assertTrue(
+            VisionPrompts.PROPOSE_SYSTEM.contains("the next action is `submit`"),
+            "submit is the proposer's post-type action",
+        )
+        assertTrue(
+            VisionPrompts.PROPOSE_SYSTEM.contains("Never tap an omnibox suggestion row or the clear-X"),
+            "the run-4 inert controls are forbidden",
+        )
+        assertTrue(
+            VisionPrompts.PROPOSE_SYSTEM.contains("shows the typed query, submit it"),
+            "a matching suggestion is submitted, never tapped",
+        )
+        assertTrue(
+            VisionPrompts.PROPOSE_SYSTEM.contains("When the subtask carries `enterText`, type exactly that text."),
+            "the plan text is authoritative in the prompt too",
+        )
     }
 
     @Test

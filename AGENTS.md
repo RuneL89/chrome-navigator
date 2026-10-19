@@ -233,7 +233,14 @@ When the user requests a durable behavior change, record it here or in the relev
   log actionable through a11y node actions (ACTION_CLICK / focus+SET_TEXT / IME
   enter; covered scrolls move to an uncovered point or fail loudly when none exists —
   the stuck probe included; no raw touch on the overlay — a covered point with no
-  actionable node fails loudly). See `app/AGENTS.md`
+  actionable node fails loudly). PHASE_VEXP6 (2026-10-19) fixes run 4's search stall:
+  a plan-`enterText` TYPE into browser chrome submits deterministically in the same
+  step (only when the SUBMIT classifier is null or the pre-existing ungated seam —
+  a classified submit stays gated, a card-supplied secret is never auto-submitted),
+  the plan text governs a native TYPE (divergent proposals overridden), prompt v11
+  (type-then-submit, complete query, results-shaped search conditions), every run
+  writes a final `terminal=…` evidence line, and the WORKING notification carries a
+  "Stop task" action riding the same cancel flag. See `app/AGENTS.md`
 * `tools/` — RETIRED folder (owner directive 2026-10-19, PHASE_VEXP3): the Phase-8/8C
   model-acquisition + reference-vector scripts are deleted; no live scripts, no build
   step. See `tools/AGENTS.md`

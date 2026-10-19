@@ -1,0 +1,61 @@
+{
+  "phase": "VEXP6",
+  "title": "The run-4 search-submit repair",
+  "phaseDoc": ".state/vision-iter/PHASE_VEXP6_search_submit.md",
+  "branch": "exp/vision-box",
+  "status": "verified",
+  "startedAt": "2026-10-19",
+  "verifiedAt": "2026-10-19",
+  "verification": ".state/phase-vexp6-verification.md",
+  "goal": "Fix the run-4 search stall (owner-approved recommendation): deterministic post-type submit for plan-enterText browser-chrome types (gate-null/ungated only), plan-enterText authority for native TYPE, prompt v11 (type-then-submit, full query, results-shaped done conditions), the terminal event in the evidence dir, and a notification Stop task action. NO device or emulator test until the owner explicitly says.",
+  "stoppingCondition": "The search submit fires deterministically in JVM scripted tests without bypassing the gate or a credential secret; the typed and gate-classified text is the plan enterText; v11 pins; every VisionLoop return writes a terminal evidence line; the notification Stop task cancels via the existing flag; gates green + APK < 40MB; docs/status/compliance updated; no installs/device runs.",
+  "gatesPassed": [
+    ":app:testDebugUnitTest --tests \"navigator.app.harness.vision.*\" = 112 tests, 0 failures, 0 errors, 0 skipped (99 baseline + 13 new: VisionLoopSearchSubmitTest 10 + VisionTerminalEvidenceTest 2 + the VisionExperimentTest v11 contract test)",
+    ":app:testDebugUnitTest = 628 tests, 0 failures, 0 errors, 0 skipped (613 baseline + 15 new: SearchSubmit 10 + TerminalEvidence 2 + Notification 2 + the Experiment contract test)",
+    ":core:test --rerun-tasks = 318 tests, 0 failures, 0 errors, 0 skipped",
+    ":app:assembleDebug = BUILD SUCCESSFUL",
+    "badge: package navigator.app.visionexp, versionName 0.1.0-visionexp; APK 36,664,695 bytes = 34.96 MiB < 40 MB; dex marker vision-exp-v11 present in classes13.dex (vision-exp-v10 absent); new literals present (search submitted in classes13.dex, stop requested — ending at the next step in classes14.dex). NO install, NO adb, NO emulator, NO live model call."
+  ],
+  "gatesFailed": [],
+  "gatesPending": [],
+  "workItems": {
+    "WI1_DETERMINISTIC_POST_TYPE_SUBMIT": "VisionLoop.attemptStep TYPE branch: after a successful TYPE (native or tap-converted) with secretSwap == null, the plan enterText non-blank and the typed text equal to it, and a typed field whose a11y node is browserChrome (typeField?.browserChrome == true, or the raw arm's VisionMath.editableNodeAt(obs.nodes, actX, actY)?.browserChrome == true), the loop gate-classifies a SUBMIT with the SAME gateCandidate(..., ActionKind.SUBMIT) + GateAction(candidate, SUBMIT, typedText) + PageContext(obs.url, FieldDescriptor.fromNodes(obs.nodes)) and calls executor.submit() IMMEDIATELY after enterText in the same step ONLY when the classifier is null or gatePresenter == null. A classified submit is left to the normal gated flow; a failed submit never throws; executed stays the type's boolean. Evidence `search submit: <ok|failed> node=<id>`; step markers `(search submitted)` / `(search submit failed)`.",
+    "WI2_PLAN_TEXT_AUTHORITY": "VisionLoop.attemptStep: for an effective TYPE with a non-blank plan enterText (and not the already-converting tap path), effectiveText = the plan enterText, so BOTH the gate classification and the typed text use it; a divergent proposal text is overridden and the step line gains `(plan text)` only when it differed. A credential card's secretSwap still replaces the text at execution (never overridden); the marker is suppressed on the secret path because the plan text was not the typed value.",
+    "WI3_PROMPT_V11": "VisionPrompts: PLAN_SYSTEM gains the TYPE-THEN-SUBMIT sequence (IME Search/Go/Done key), the COMPLETE-query enterText law (dates/location/filters) and the results-page/results-only-marker search condition; PROPOSE_SYSTEM gains submit-after-typing, never-tap-omnibox-suggestions-or-clear-X, submit-a-suggestion-showing-the-typed-query and type-exactly-the-subtask-enterText. VISION_PROMPT_VERSION vision-exp-v10 -> vision-exp-v11; VisionExperimentTest's version pin updated and a new contract test pins all new sentences.",
+    "WI4_TERMINAL_EVIDENCE": "VisionLoop.run is now a public wrapper over the renamed private runLoop: every return writes ONE final evidence event `terminal=<TERMINAL> steps=<n> replans=<n>` (answer optional, whitespace-flattened, <=120 chars) and returns the same Result. VisionTerminalEvidenceTest (temp-dir VisionEvidence) asserts exactly one terminal line for GOAL_ACHIEVED and for CANCELLED.",
+    "WI4_NOTIFICATION_STOP": "NavigatorService.buildNotification adds a standard 'Stop task' action ONLY when state == NOTIFICATION_WORKING (PendingIntent.getService + the new ACTION_STOP_TASK const); onStartCommand's ACTION_STOP_TASK calls taskCancelFlag.cancelActive() and appends one corner-log line 'stop requested — ending at the next step'. READY keeps exactly the 'New task' action; no other notification/UI change. NavigatorServiceNotificationTest (Robolectric) pins both.",
+    "WI5_DOCS": "app/AGENTS.md vision bullet (prompt v11 + the VEXP6 WI1/WI2/WI4 laws + the new JVM gates), root AGENTS.md one compact VEXP6 clause, .state/DEBUGGING.md VEXP6 extension (silent product logcat, terminal event in the evidence, notification Stop task is the lawful stop), .state/phase-vexp6-status.json, .state/compliance-log.md entry. The run-4 report/evidence were NOT touched."
+  },
+  "testChanges": {
+    "added": [
+      "app/src/test/kotlin/navigator/app/harness/vision/VisionLoopSearchSubmitTest.kt (10: ungated chrome plan-text auto-submit + evidence/markers; product-path null-classification auto-submit; classified H4 submit NOT auto-submitted; non-chrome field types plan text without submit; failed submit is a marker, not a throw; credential card secret never auto-submitted; identical proposal text has no (plan text) marker; no plan enterText = pre-VEXP6 behavior; the gate classifies the PLAN text in both directions — a card-shaped plan value gates H1 while the proposal differs, and a card-shaped proposal never reaches the gate when the plan text differs)",
+      "app/src/test/kotlin/navigator/app/harness/vision/VisionTerminalEvidenceTest.kt (2: GOAL_ACHIEVED and CANCELLED each write exactly one `terminal=...` events.log line in a temp-dir VisionEvidence)",
+      "app/src/test/kotlin/navigator/app/overlay/NavigatorServiceNotificationTest.kt (2 Robolectric: Stop task rides only the WORKING notification after New task; ACTION_STOP_TASK cancels the shared TaskCancelFlag)"
+    ],
+    "rewritten": [
+      "app/src/test/kotlin/navigator/app/harness/vision/VisionExperimentTest.kt (the prompt-version pin moved vision-exp-v10 -> vision-exp-v11; a new test pins the PLAN/PROPOSE search-submit sentences)"
+    ],
+    "removed": []
+  },
+  "deviations": [
+    "The `(plan text)` step marker is suppressed when a credential card's secretSwap replaces the text: the marker would falsely claim the plan text was typed; the plan text still governs the pre-gate classification per WI2.",
+    "On the raw grounding arm the SUBMIT classification candidate is built from the SAME gateCandidate(proposal, SUBMIT, actTarget=null, ...) as the acting step (per the phase doc), so its browserChrome flag is false; the browser-chrome condition itself is checked on the TYPED field (editableNodeAt) as specified. Consequence: a page whose form context makes SUBMIT classify (e.g. an identifier+password pair) withholds the auto-submit.",
+    "The terminal evidence answer is whitespace-flattened before the 120-char bound so the events.log line stays a single line (the phase doc says 'answer optional, bounded').",
+    "NavigatorServiceNotificationTest reaches the private buildNotification/state constants/taskCancelFlag via reflection rather than widening production visibility (no production API change).",
+    "No notification/UI surface beyond the standard 'Stop task' action; no budget, live-log UI, or legacy-loop change."
+  ],
+  "llmCost": 0.0,
+  "blocker": null,
+  "verificationFindings": [
+    "Non-blocking: the terminal answer flattening/bounding is code-correct but has no non-null-answer test.",
+    "Non-blocking: the notification overlay log line is code-correct but not asserted by the Robolectric test.",
+    "Non-blocking: the classified-submit test forces withholding via a credential-pair H4 context (the gate law, not a search-specific H-class).",
+    "Non-blocking: `(plan text)` suppression on the secret path truthfully narrows the phase-doc marker wording.",
+    "Non-blocking: assembleDebug was UP-TO-DATE, not a clean rebuild; the APK bytes/dex independently confirm the build."
+  ],
+  "nextAction": "VEXP6 is verified and commit-ready. The owner's on-device test is DEFERRED until they explicitly ask; no code work is pending.",
+  "notes": [
+    "Cold verification PASS (112/628/318, APK 34.97 MiB, v11) with no blocking findings; the verifier returned the report and the orchestrator persisted it at .state/phase-vexp6-verification.md.",
+    "The device test was not run; this phase's evidence is the JVM scripted/ Robolectric gates and the diff read only."
+  ]
+}

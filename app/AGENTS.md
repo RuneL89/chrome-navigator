@@ -849,7 +849,7 @@ legacy-engine fallback.
     prompt gains `REPLAN_SKILL` (`VisionPrompts.planSystem`: match conditions to the
     evidence universe, never point a condition past an achieved outcome, act on the
     located box, author batteries Jev can answer, vary the route, cascade framing);
-    `VISION_PROMPT_VERSION` = `vision-exp-v10` (v6 added the evidence block +
+    `VISION_PROMPT_VERSION` = `vision-exp-v11` (v6 added the evidence block +
     REPLAN_SKILL; v7 added the final-subtask battery law; v8 the taskClass honesty
     sentence — "Claim 'multi' ONLY when a count-shaped done condition exists;
     otherwise use read or action", after the writer repeatedly claimed MULTI without
@@ -875,7 +875,12 @@ legacy-engine fallback.
     a chosen TAP into a TYPE with that text when the grounded target node is EDITABLE:
     the tap executes first to focus the field, then `enterText` at the node centre,
     with "(tap-converted)" on the step line; a non-editable target or an absent
-    enterText keeps today's behavior byte-identical). THE EDITABLE RESOLUTION (the sixth
+    enterText keeps today's behavior byte-identical; v11 THE RUN-4 SEARCH-SUBMIT LAW —
+    `PLAN_SYSTEM` authors TYPE-THEN-SUBMIT, the COMPLETE query enterText and a
+    results-page/results-only-marker search condition; `PROPOSE_SYSTEM` names `submit`
+    as the post-typing action, forbids omnibox-suggestion/clear-X taps, submits a
+    suggestion list showing the typed query, and types exactly the subtask's
+    `enterText`). THE EDITABLE RESOLUTION (the sixth
     actual-app live-test repair, run `task-1792398381736`; JVM gates in
     `VisionLoopTypeEditableTest`): a TYPE (native or tap-converted) whose grounded node
     is NOT editable resolves the real field first — `VisionMath.editableNodeAt` at the
@@ -884,7 +889,8 @@ legacy-engine fallback.
     resolved CHILD's centre with `(editable: n<id>)` on the step line; no resolution =
     the existing loud NO_FIELD_AT_POINT refusal naming the ground node, never a doomed
     enterText; a grounded editable node is byte-identical, the gate classifies the
-    resolved field, and the prompt stays `vision-exp-v10` (no prompt change). THE
+    resolved field, and that repair left the prompt at `vision-exp-v10` (no prompt
+    change then). THE
     ROUND-1 LIVE DEFECT
     (run vision-loop-1792356890231: a battery escalation skips attemptStep, so a frozen
     screen re-fired the identical verdict and two re-plans burned with zero actions):
@@ -1022,14 +1028,57 @@ legacy-engine fallback.
     wording style) — NEVER a silent fallback to the legacy loop; a
     thrown vision run = the pump's existing loud-but-polite catch; the owner's
     explicit toggle OFF = the legacy block BYTE-IDENTICAL, without reading the second
-    key store. JVM gates:
+    key store. PHASE_VEXP6 (2026-10-19 — THE RUN-4 SEARCH-SUBMIT REPAIR; phase doc
+    `.state/vision-iter/PHASE_VEXP6_search_submit.md`, the owner-approved
+    recommendation 1+2+3+4 of `.state/vision-iter/run4/REPORT.md`; NO device/emulator
+    run in the phase): run `task-1792411667614` typed "hotels in Riga" (not the plan's
+    "hotels in Riga next weekend"), tapped Chrome's omnibox suggestion rows
+    (ACTION_CLICK accepted but inert) and the clear-X, and never submitted — nine
+    re-plans, no search. WI2 THE PLAN TEXT'S AUTHORITY: when the effective action is
+    TYPE and the active subtask's plan `enterText` is non-blank, the text TYPED and the
+    text the GATE CLASSIFIES is the plan's value; a divergent proposal text is
+    overridden (step marker `(plan text)` only when it differed, suppressed on the
+    credential path); the tap-conversion already used it, and a credential card's
+    `secretSwap` is never overridden (it replaces the text at execution). WI1 THE
+    DETERMINISTIC POST-TYPE SUBMIT: after a successful TYPE (native or tap-converted)
+    where the text is the plan text, `secretSwap == null`, and the typed field is
+    BROWSER CHROME (`typeField?.browserChrome == true`, or the raw arm's
+    `VisionMath.editableNodeAt(obs.nodes, actX, actY)?.browserChrome == true`),
+    `attemptStep` calls `executor.submit()` (ACTION_IME_ENTER on the focused field)
+    IMMEDIATELY after `enterText`, in the same step — but ONLY when the SUBMIT's
+    `RiskGate.classify(gateCandidate(…, ActionKind.SUBMIT), PageContext(obs.url,
+    FieldDescriptor.fromNodes(obs.nodes)))` is null (an ordinary search) or
+    `gatePresenter == null` (the pre-existing ungated adb path); a CLASSIFIED submit is
+    left to the normal gated proposer flow, and a card-supplied credential is never
+    auto-submitted. Evidence `search submit: <ok|failed> node=<id>`; step markers
+    `(search submitted)` / `(search submit failed)`; `executed` stays the type's
+    boolean and a failed submit never throws. WI4 MONITORING: `VisionLoop.run` is a
+    wrapper over the renamed private `runLoop` that writes ONE final
+    `terminal=<TERMINAL> steps=<n> replans=<n>` evidence event (answer optional,
+    flattened, ≤120 chars) on EVERY return — the run-4 terminal existed only in the
+    corner log — and `NavigatorService.buildNotification` adds a standard "Stop task"
+    action ONLY while WORKING (`PendingIntent.getService` + `ACTION_STOP_TASK`) that
+    cancels through the SAME `TaskCancelFlag` and appends one corner-log line
+    "stop requested — ending at the next step" (READY keeps exactly "New task"; no
+    other notification/UI change). JVM gates:
     `VisionExperimentTest` (the prompt JSON contracts + deterministic parsers — incl.
-    `parseEnterTexts` — the evidence block, the vendor-route request shapes, and the
-    prompt-version pin),
+    `parseEnterTexts` — the evidence block, the vendor-route request shapes, the v11
+    search-submit contract pins, and the prompt-version pin),
     `VisionLoopGroundingTest` (the grounding-quality ladder over scripted transports:
     Jev box / Haiku-box fallback / label match / the loud TYPE refusal),
     `VisionLoopEnterTextTest` (the plan-`enterText` TAP→TYPE conversion over scripted
     transports: converted / non-editable / absent, all $0),
+    PHASE_VEXP6's JVM gates: `VisionLoopSearchSubmitTest` (the REAL loop, $0 scripted:
+    the chrome plan-text type auto-submits once with `(plan text)` + `(search
+    submitted)` + the evidence line; the product path auto-submits on a null submit
+    classification; a classified (H4) submit is NEVER auto-submitted; a non-chrome
+    field types the plan text without a submit; a failed submit is a truthful marker,
+    never a throw; a card secret is never auto-submitted; identical proposal text has
+    no marker; no plan text = pre-VEXP6 behavior byte-identical) + `VisionEvidence`
+    terminal lines via `VisionTerminalEvidenceTest` (temp-dir evidence: GOAL_ACHIEVED
+    and CANCELLED each write exactly one `terminal=…` events.log line) +
+    `NavigatorServiceNotificationTest` (Robolectric: "Stop task" rides only the WORKING
+    notification after "New task"; `ACTION_STOP_TASK` cancels the shared flag),
     `VisionLoopGateTest` (the WI1 battery: approve/deny/timeout/credential-swap/
     double-refusal-abort/ungated-null/scroll-back-never + the wrong-source failures +
     per-task trust),
