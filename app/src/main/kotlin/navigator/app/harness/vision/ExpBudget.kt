@@ -2,13 +2,14 @@ package navigator.app.harness.vision
 
 /**
  * The EXPERIMENT's spend/step/time ledger (branch-only try-out — no product law lives
- * here). Every ceiling is EXACTLY 10x the product value it mirrors (owner directive,
- * 2026-10-17: "10x budget for everything"):
+ * here). Every ceiling is EXACTLY 100x the product value it mirrors (owner directive,
+ * 2026-10-19: ALL budgets to 100x product values — "models are dirt cheap — runs may
+ * span days"; supersedes the 2026-10-17 10x directive):
  *
  * - steps/time/spend mirror the Standard [navigator.app.loop.BudgetProfile]
- *   (40/60 steps, 5/10 min, \$0.20/\$0.25 -> 400/600, 50/100 min, \$2.00/\$2.50);
+ *   (40/60 steps, 5/10 min, \$0.20/\$0.25 -> 4000/6000, 500/1000 min, \$20.00/\$25.00);
  * - the writer sub-ledger mirrors [navigator.app.loop.WriterBudget]
- *   (\$0.05/\$0.10 -> \$0.50/\$1.00).
+ *   (\$0.05/\$0.10 -> \$5.00/\$10.00).
  *
  * Every model call (Haiku and Jev alike) records its provider-reported usage into the
  * ONE task ledger; writer-surface calls also record into the writer sub-ledger. Soft
@@ -76,20 +77,20 @@ class ExpBudget(private val nowMs: () -> Long = System::currentTimeMillis) {
     }
 
     companion object {
-        /** 10x the Standard profile's 40/60 steps. */
-        const val STEPS_SOFT = 400
-        const val STEPS_HARD = 600
+        /** 100x the Standard profile's 40/60 steps (owner directive 2026-10-19). */
+        const val STEPS_SOFT = 4_000
+        const val STEPS_HARD = 6_000
 
-        /** 10x the Standard profile's 5/10 minutes. */
-        const val TIME_SOFT_MS: Long = 50 * 60_000L
-        const val TIME_HARD_MS: Long = 100 * 60_000L
+        /** 100x the Standard profile's 5/10 minutes. */
+        const val TIME_SOFT_MS: Long = 500 * 60_000L
+        const val TIME_HARD_MS: Long = 1_000 * 60_000L
 
-        /** 10x the Standard profile's $0.20/$0.25. */
-        const val SPEND_SOFT_MICRO_USD = 2_000_000L
-        const val SPEND_HARD_MICRO_USD = 2_500_000L
+        /** 100x the Standard profile's $0.20/$0.25. */
+        const val SPEND_SOFT_MICRO_USD = 20_000_000L
+        const val SPEND_HARD_MICRO_USD = 25_000_000L
 
-        /** 10x WriterBudget's $0.05/$0.10. */
-        const val WRITER_SOFT_MICRO_USD = 500_000L
-        const val WRITER_HARD_MICRO_USD = 1_000_000L
+        /** 100x WriterBudget's $0.05/$0.10. */
+        const val WRITER_SOFT_MICRO_USD = 5_000_000L
+        const val WRITER_HARD_MICRO_USD = 10_000_000L
     }
 }

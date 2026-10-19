@@ -25,8 +25,10 @@ import navigator.core.wire.WireTransportException
  *
  * [ablateVision] = the text-only ABLATION arm: identical calls, the image part never
  * attached — so a before/after pair attributes gains to VISION rather than to "another
- * model looked". Retry law mirrors the production writer (transport only, <=2); usage is
- * priced with the same pinned conservative table ([GenClient.writerCostMicroUsd]).
+ * model looked". Retry law mirrors the production writer (transport only); the retry
+ * ceiling rides the 100x budget directive (owner, 2026-10-19): [maxRetries] defaults
+ * to 20. Usage is priced with the same pinned conservative table
+ * ([GenClient.writerCostMicroUsd]).
  */
 class VisionHaiku(
     private val transport: WireTransport,
@@ -34,7 +36,8 @@ class VisionHaiku(
     private val model: String = GenEngineConfigs.GENERATIVE_MODEL,
     val ablateVision: Boolean = false,
     private val onUsage: (VisionJev.VisionUsage) -> Unit = {},
-    private val maxRetries: Int = 2,
+    /** Public read-only so the JVM tests pin the 100x directive's ceiling. */
+    val maxRetries: Int = 20,
     private val backoffBaseMs: Long = 200L,
     private val retryDelay: suspend (Long) -> Unit = { delay(it) },
 ) {

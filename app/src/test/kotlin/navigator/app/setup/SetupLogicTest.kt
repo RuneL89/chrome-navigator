@@ -315,4 +315,38 @@ class SetupLogicTest {
         }
         assertFalse(SetupLogic.allRequiredGreen(noTypesafe), "a missing TypeSafe key DOES block")
     }
+
+    // -- PHASE_VEXP2: the vision-loop toggle (the engine switch) -----------------------------
+
+    @Test
+    fun `the vision-loop toggle is interactive only with both keys and follows the persisted value`() {
+        // Both keys + saved ON -> on.
+        val on = SetupLogic.visionLoopToggleState(storedOn = true, openRouterPresent = true, typesafePresent = true)
+        assertTrue(on.interactive)
+        assertTrue(on.on)
+        // Both keys + saved OFF -> available but off.
+        val off = SetupLogic.visionLoopToggleState(false, true, true)
+        assertTrue(off.interactive)
+        assertFalse(off.on)
+        // A missing key leaves the card inert and the effective state OFF (even saved ON) —
+        // the run needs both channels; the service re-checks the stores at run time.
+        val noTypesafe = SetupLogic.visionLoopToggleState(true, true, false)
+        assertFalse(noTypesafe.interactive)
+        assertFalse(noTypesafe.on)
+        val noOpenRouter = SetupLogic.visionLoopToggleState(true, false, true)
+        assertFalse(noOpenRouter.interactive)
+        assertFalse(noOpenRouter.on)
+        val none = SetupLogic.visionLoopToggleState(true, false, false)
+        assertFalse(none.interactive)
+        assertFalse(none.on)
+    }
+
+    @Test
+    fun `the vision-loop persistence contract rides the plain battery-ack prefs file`() {
+        // The battery-ack precedent verbatim: same file, a dedicated key, default OFF
+        // (the default itself is the reader's `false` fallback — pinned by the key name).
+        assertEquals("navigator-setup", SetupLogic.VISION_LOOP_PREFS_FILE)
+        assertEquals(SetupLogic.BATTERY_ACK_PREFS_FILE, SetupLogic.VISION_LOOP_PREFS_FILE)
+        assertEquals("use-vision-loop", SetupLogic.VISION_LOOP_PREF_KEY)
+    }
 }

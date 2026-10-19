@@ -152,6 +152,21 @@ class SetupActivity : ComponentActivity() {
             .apply()
     }
 
+    /**
+     * PHASE_VEXP2: the "Use vision loop (experimental engine)" preference (plain prefs,
+     * the battery-ack precedent) — read on every refresh (R3), written on every flip.
+     */
+    private fun readVisionLoopPref(): Boolean =
+        getSharedPreferences(SetupLogic.VISION_LOOP_PREFS_FILE, MODE_PRIVATE)
+            .getBoolean(SetupLogic.VISION_LOOP_PREF_KEY, false)
+
+    private fun writeVisionLoopPref(on: Boolean) {
+        getSharedPreferences(SetupLogic.VISION_LOOP_PREFS_FILE, MODE_PRIVATE)
+            .edit()
+            .putBoolean(SetupLogic.VISION_LOOP_PREF_KEY, on)
+            .apply()
+    }
+
     /** FOREGROUND-context FGS start (the activity is visible) + optional goal input. */
     private fun startNavigatorService(showGoalInput: Boolean) {
         val service = Intent(this, NavigatorService::class.java).apply {
@@ -185,6 +200,9 @@ class SetupActivity : ComponentActivity() {
         var typesafeTestDetail by remember {
             mutableStateOf(UNTESTED_DETAIL)
         }
+        // PHASE_VEXP2: the vision-loop toggle's persisted value — re-read on every
+        // refresh (R3: resume/focus re-evaluates it like every other check).
+        var visionLoopOn by remember { mutableStateOf(readVisionLoopPref()) }
         val scope = rememberCoroutineScope()
 
         fun refresh() {
@@ -212,6 +230,7 @@ class SetupActivity : ComponentActivity() {
             checks.add(SetupLogic.modelCheck(modelPresent))
             keyPresent = keyStored
             typesafePresent = typesafeStored
+            visionLoopOn = readVisionLoopPref()
         }
 
         // R3: the tick re-runs every check on resume/window-focus (returning from a
@@ -487,6 +506,72 @@ class SetupActivity : ComponentActivity() {
                                 // detail lines already point at the save cards.
                             }
                         }
+                    }
+                }
+
+                // PHASE_VEXP2 (the engine switch): the vision-loop toggle card, beside
+                // the key cards. NOT a wizard check — it never gates the summary; the
+                // pure derivation (SetupLogic.visionLoopToggleState) makes the control
+                // interactive only when BOTH keys are stored, and every flip persists
+                // immediately (plain prefs, the battery-ack precedent).
+                val visionToggle = SetupLogic.visionLoopToggleState(
+                    storedOn = visionLoopOn,
+                    openRouterPresent = keyPresent,
+                    typesafePresent = typesafePresent,
+                )
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    color = NavigatorColors.Card,
+                    border = BorderStroke(1.dp, NavigatorColors.Border),
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .toggleable(
+                                    value = visionToggle.on,
+                                    enabled = visionToggle.interactive,
+                                    role = Role.Checkbox,
+                                    onValueChange = { checked ->
+                                        writeVisionLoopPref(checked)
+                                        visionLoopOn = checked
+                                    },
+                                ),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Checkbox(
+                                checked = visionToggle.on,
+                                onCheckedChange = null,
+                                enabled = visionToggle.interactive,
+                            )
+                            Text(
+                                text = "Use vision loop (experimental engine)",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        Text(
+                            text = when {
+                                !visionToggle.interactive ->
+                                    "Needs both keys saved (OpenRouter + TypeSafe) before it " +
+                                        "can be switched on. Save them above."
+                                visionToggle.on ->
+                                    "On — typed goals run the experimental vision engine " +
+                                        "(screenshots + both AI channels). Turn off to return " +
+                                        "to the standard engine."
+                                else ->
+                                    "Off — typed goals run the standard engine. Flip it on to " +
+                                        "experiment."
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
 

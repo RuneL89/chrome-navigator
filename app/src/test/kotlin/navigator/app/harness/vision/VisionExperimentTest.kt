@@ -413,20 +413,43 @@ class VisionExperimentTest {
         assertTrue(refuted is VisionLoop.BatteryGate.Proceed)
     }
 
-    // -- ExpBudget (10x ceilings) --------------------------------------------------------
+    // -- ExpBudget (100x ceilings, owner directive 2026-10-19) ----------------------------
 
     @Test
     fun `budget warns at soft and stops at hard`() {
         var now = 0L
         val budget = ExpBudget(nowMs = { now })
         assertEquals(ExpBudget.Check.Ok, budget.stepCheck(100))
-        assertEquals(ExpBudget.Check.Ok, budget.stepCheck(300))
-        assertTrue(budget.stepCheck(500) is ExpBudget.Check.Soft)
-        assertTrue(budget.stepCheck(601) is ExpBudget.Check.Hard)
+        assertEquals(ExpBudget.Check.Ok, budget.stepCheck(4_000))
+        assertTrue(budget.stepCheck(4_001) is ExpBudget.Check.Soft)
+        assertTrue(budget.stepCheck(6_001) is ExpBudget.Check.Hard)
         budget.recordSpend(ExpBudget.SPEND_HARD_MICRO_USD + 1, writerSurface = false)
         assertTrue(budget.stepCheck(10) is ExpBudget.Check.Hard)
         now = ExpBudget.TIME_HARD_MS + 1
         assertTrue(budget.stepCheck(1) is ExpBudget.Check.Hard)
+    }
+
+    @Test
+    fun `the budgets are pinned at the 100x product ceilings`() {
+        // PHASE_VEXP2: ALL budgets to 100x product values ("models are dirt cheap —
+        // runs may span days", owner directive 2026-10-19).
+        assertEquals(4_000, ExpBudget.STEPS_SOFT)
+        assertEquals(6_000, ExpBudget.STEPS_HARD)
+        assertEquals(500 * 60_000L, ExpBudget.TIME_SOFT_MS)
+        assertEquals(1_000 * 60_000L, ExpBudget.TIME_HARD_MS)
+        assertEquals(20_000_000L, ExpBudget.SPEND_SOFT_MICRO_USD)
+        assertEquals(25_000_000L, ExpBudget.SPEND_HARD_MICRO_USD)
+        assertEquals(5_000_000L, ExpBudget.WRITER_SOFT_MICRO_USD)
+        assertEquals(10_000_000L, ExpBudget.WRITER_HARD_MICRO_USD)
+        val config = VisionLoop.Config()
+        assertEquals(20, config.maxReplans)
+        assertEquals(30, config.batteryReplansPerSubtask)
+        assertEquals(20, config.planAttempts)
+        val transport = CapturingTransport("{}")
+        assertEquals(20, VisionJev(
+            transport, VisionJev.DEFAULT_VISION_BASE_URL, VisionJev.DEFAULT_VISION_MODEL, "fixture",
+        ).maxRetries)
+        assertEquals(20, VisionHaiku(transport, "fixture").maxRetries)
     }
 
     @Test

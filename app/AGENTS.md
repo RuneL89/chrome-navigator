@@ -171,7 +171,11 @@ setup wizard (`setup/`).
     Jev primary keyed by the Setup-stored key (no key → a POLITE loud refusal, never a
     silent no-op) + product presenters + the ADDITIVE `LoopUiListener` streaming
     (onThinking→spinner, onPlan→PLAN display, onStep→measured live-log line,
-    onTaskState→log line + notification); the goal submit hands over via the
+    onTaskState→log line + notification); PHASE_VEXP2 THE ENGINE SWITCH: the
+    loop-construction block consults the PURE `ProductRunRoute.decide` seam (the
+    `vision/` bullet's ENGINE SWITCH law — toggle OFF default = the legacy block
+    byte-identical; ON = `runVisionLoopTask` streams VisionLoop through the corner
+    log and the existing terminal funnel); the goal submit hands over via the
     IN-PROCESS channel (no background FGS start ever — foreground starts only, from
     the wizard / the notification action); UAT close-out: every run wires the ⏹
     control — `manager.onStopTask` → the service's `TaskCancelFlag`, `beginTask` at
@@ -276,7 +280,12 @@ setup wizard (`setup/`).
     length; 2026-10-17 hotel iteration: `keyLiveCheck`/`KeyTestState`/`KeyTestOutcome`
     — the on-demand "key is live" states (tap-to-test; never auto-runs,
     never gates), because key presence says nothing about validity and that day's run
-    died on a stored-but-dead key at its first paid call),
+    died on a stored-but-dead key at its first paid call; PHASE_VEXP2: the vision-loop
+    toggle's derivation `visionLoopToggleState` (interactive only with BOTH keys
+    stored; effective ON = the persisted value AND both keys) + the
+    `VISION_LOOP_PREFS_FILE`/`VISION_LOOP_PREF_KEY` (`"use-vision-loop"`, the
+    battery-ack plain-prefs file, default OFF — read by `NavigatorService` at every
+    product run, written by the wizard on every flip)),
     `SetupActivity` (the re-runnable six-check Compose wizard: a11y enable
     deep-links with the Android 13+ "Allow restricted settings" path explained, the
     TEXT-GUIDED Samsung battery whitelist (no programmatic whitelist on stock Android
@@ -293,7 +302,11 @@ setup wizard (`setup/`).
     `Dispatchers.IO`, rendering TWO independent verdict lines (green accepted / red
     with the recovery path / honest error; keys ride Authorization headers only, never
     logged; saving either key resets ITS verdict; the state lives OUTSIDE the
-    refresh cycle so no resume/focus ever pings either provider); STARTS the
+    refresh cycle so no resume/focus ever pings either provider); PHASE_VEXP2: the
+    "Use vision loop (experimental engine)" TOGGLE CARD beside the key cards (never a
+    wizard check — never gates; the control is interactive only when BOTH keys are
+    stored, every flip persists immediately to the plain prefs, and the card
+    re-evaluates on resume/focus like every other check); STARTS the
     foreground service from the foreground (the FGS background-start law) and triggers
     the goal overlay for the notification's "New task" action),
     the 2026-10-09 owner design pass (ai-ui-design-skills interview: warm
@@ -855,7 +868,8 @@ setup wizard (`setup/`).
     BUDGET SPLIT (round 3, budget coalescing — the live loop then ACTED and the battery
     steered, but keep-acting red-flag escalations drained the task budget so the useful
     mis-shaped-condition re-plan never fired): battery-driven re-plans count against
-    `Config.batteryReplansPerSubtask` (3; reset on subtask advance and on a
+    `Config.batteryReplansPerSubtask` (30 since the 2026-10-19 100x directive; reset
+    on subtask advance and on a
     failure-driven re-plan), a spent budget degrades an escalation to a forced PROCEED
     ("battery budget exhausted for this subtask - acting per cascade" — act, no
     re-plan, no step burned); stuck/step-failure re-plans keep `maxReplans` per task;
@@ -893,12 +907,39 @@ setup wizard (`setup/`).
     habit: a WEAK content condition cannot complete a subtask that has not acted); the
     one model-driven terminal is `MODELS_CONFIRM_DONE` — proposer-exhausted + noul +
     confirm all agreeing, DISTINCTLY FLAGGED code-unverified (it fired only on the
-    webview-shell emulator whose a11y depth filter hides body prose). 10x product
-    budget ceilings (`ExpBudget`, owner directive); evidence (screenshots + raw
+    webview-shell emulator whose a11y depth filter hides body prose). 100x product
+    budget ceilings (owner directive 2026-10-19, PHASE_VEXP2: ALL budgets to 100x
+    product values — "models are dirt cheap — runs may span days"; supersedes the
+    2026-10-17 10x directive): `ExpBudget` steps 4000/6000, time 500/1000 min, spend
+    $20/$25, writer $5/$10; `VisionLoop.Config` maxReplans 20 +
+    batteryReplansPerSubtask 30 + planAttempts 20; `VisionJev`/`VisionHaiku` transport
+    maxRetries 20 (all pinned by tests). Evidence (screenshots + raw
     request/response JSON, owner-consented, EXPERIMENT-ONLY — the product ART-8
     memory-only rule is untouched) to `run-reports/vision-exp/<runId>/` (every
     image-carrying Jev call records endpoint+model on its evidence event); reports via
-    `RunReportStore`. Entry: `VisionExperimentActivity` (adb; `--es goal` loop mode /
+    `RunReportStore`.
+    THE ENGINE SWITCH (PHASE_VEXP2, owner directive 2026-10-19): a goal typed in the
+    PRODUCT app can run the vision loop — `NavigatorService.runProductTask` consults
+    the PURE `ProductRunRoute.decide` seam (`vision/NavigatorVisionBridge.kt`, no
+    Android types, JVM-pinned) fed by the wizard's "use-vision-loop" plain-prefs
+    preference (`SetupLogic.VISION_LOOP_PREF_KEY` on the battery-ack file, default
+    OFF): Legacy (untoggled) falls straight through to the legacy block BYTE-IDENTICAL
+    without reading the second key store; Vision (toggled + both keys stored) builds
+    via `NavigatorVisionBridge.newVisionLoop` — VisionLoop over the service's OWN
+    `HarnessObserver`/`GestureExecutor`/`VisionCapture`, keys from the Setup stores,
+    the transport injectable (JVM tests stay hermetic), evidence under the external
+    `run-reports/vision-exp/task-<ts>/`, the vision steps streaming into the CORNER
+    LOG (the bridge's log lambda → `appendLogLine`), cancel riding the SAME
+    `TaskCancelFlag` the ⏹ control drives, and the terminal mapped through the
+    EXISTING funnel (`NavigatorVisionBridge.taskStateLine` → `setTaskStateLine` + the
+    READY notification — NO DB row: the vision loop has no sink; training rows are
+    retired next phase). Toggle ON + a missing key = the polite loud refusal naming
+    the channel (`ProductRunRoute.Refused`, the no-key precedent's wording style); a
+    thrown vision run = the pump's existing loud-but-polite catch. JVM gates:
+    `NavigatorVisionBridgeTest` (routes incl. redacted-key toString; a LIVE scripted
+    VisionLoop through the CALLER's observer/executor; the terminal line),
+    `SetupLogicTest` (toggle derivation + prefs contract),
+    `VisionLoopPrefRoundTripTest` (Robolectric read/write round-trip, default OFF). Entry: `VisionExperimentActivity` (adb; `--es goal` loop mode /
     `--es visionMode probe` = the Phase-A grounding calibration on the REAL transport:
     one screenshot, ONE batched vendor request — a Box per labeled interactive node +
     one noul — IoU scored against real bounds). Emulator-verified end to end:

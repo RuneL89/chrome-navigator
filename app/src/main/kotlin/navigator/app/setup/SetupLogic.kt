@@ -260,6 +260,33 @@ object SetupLogic {
     fun allRequiredGreen(states: List<CheckState>): Boolean =
         states.filter { it.required }.all { it.status == Status.GREEN }
 
+    /**
+     * PHASE_VEXP2 (the engine switch): the vision-loop toggle's pure state. The card
+     * is INTERACTIVE only when BOTH keys are stored (the run needs both channels —
+     * [navigator.app.harness.vision.ProductRunRoute] refuses otherwise), and the
+     * effective ON is the persisted value AND both keys (a key deleted after the
+     * toggle was saved reads honestly as off; the service re-checks the stores at run
+     * time anyway). NOT a wizard check — it never appears in the summary.
+     */
+    data class VisionLoopToggleState(
+        /** Whether the card's control may be flipped right now (both keys stored). */
+        val interactive: Boolean,
+        /** What a product run honors right now: the persisted value AND both keys. */
+        val on: Boolean,
+    )
+
+    fun visionLoopToggleState(
+        storedOn: Boolean,
+        openRouterPresent: Boolean,
+        typesafePresent: Boolean,
+    ): VisionLoopToggleState {
+        val bothKeys = openRouterPresent && typesafePresent
+        return VisionLoopToggleState(
+            interactive = bothKeys,
+            on = storedOn && bothKeys,
+        )
+    }
+
     const val CHECK_ACCESSIBILITY = "accessibility"
     const val CHECK_BATTERY = "battery"
     const val CHECK_KEY = "key"
@@ -275,6 +302,16 @@ object SetupLogic {
      */
     const val BATTERY_ACK_PREFS_FILE = "navigator-setup"
     const val BATTERY_ACK_PREF_KEY = "battery-acknowledged"
+
+    /**
+     * PHASE_VEXP2 — the vision-loop preference ("Use vision loop (experimental
+     * engine)") rides the SAME plain-SharedPreferences file (the battery-ack
+     * precedent: a user preference, not a secret), default OFF. The Setup wizard
+     * writes it on every flip; [navigator.app.overlay.NavigatorService] reads it at
+     * every product run.
+     */
+    const val VISION_LOOP_PREFS_FILE = BATTERY_ACK_PREFS_FILE
+    const val VISION_LOOP_PREF_KEY = "use-vision-loop"
 
     /**
      * UAT 9.2 revision R5 — the saved-key indicator: a FIXED dot string shown while a

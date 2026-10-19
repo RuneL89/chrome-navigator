@@ -3,25 +3,38 @@
   "title": "The engine switch + the 100x budgets",
   "phaseDoc": ".state/vision-iter/PHASE_VEXP2_engine_switch_100x.md",
   "branch": "exp/vision-box",
-  "status": "in-progress",
+  "status": "verified",
   "startedAt": "2026-10-19",
+  "implementedAt": "2026-10-19",
   "goal": "useVisionLoop preference (default OFF) routes NavigatorService goals through VisionLoop when both keys stored; all budgets to 100x product values.",
   "stoppingCondition": "Gates green + service-branch construction test (toggled=vision, untoggled=old, byte-identical) + budget constants pinned at 100x.",
-  "gatesPassed": [],
-  "gatesFailed": [],
-  "gatesPending": [
-    ":app:testDebugUnitTest --tests navigator.app.harness.vision.*",
-    ":app:testDebugUnitTest",
-    ":core:test",
-    ":app:assembleDebug",
-    "APK badge + dex vision-exp-v7"
+  "gatesPassed": [
+    ":app:...vision.* — 45/45 (VisionExperimentTest 40 + NavigatorVisionBridgeTest 5, verifier re-run)",
+    ":app:testDebugUnitTest — 637/0 (verifier re-run)",
+    ":core:test --rerun-tasks — 380/0 (forced; :core untouched)",
+    ":app:assembleDebug — SUCCESS",
+    "badge navigator.app.visionexp / 0.1.0-visionexp + dex vision-exp-v7 (classes13.dex only, v6 absent)"
   ],
-  "deviations": [],
-  "llmCost": "implementation $0 (deterministic)",
+  "gatesFailed": [],
+  "gatesPending": [],
+  "deviations": [
+    "Construction-test hermeticity: NavigatorVisionBridge.newVisionLoop takes an injectable WireTransport (default = the real OkHttpWireTransport(60s), so production wiring is unchanged). The FIRST test iteration ran without injection and its scripted plan hit the LIVE openrouter.ai endpoint (HTTP 401, fixture key — unauthenticated, zero spend, no key material in the repo, ~13 requests); fixed by transport injection — the committed test is fully hermetic (scripted transport, VisionCapture(null), evidence under build/tmp).",
+    "The pure seam is ProductRunRoute.decide(useVisionLoop, openRouterKey, typesafeKey) — a sealed Legacy|Vision|Refused route on vision/NavigatorVisionBridge.kt — with NavigatorVisionBridge holding the factory (newVisionLoop) + the terminal mapping (taskStateLine); the dispatch's suggested 'visionLoopWired' name realized as 'decide'.",
+    "VisionJev/VisionHaiku maxRetries changed from private val to PUBLIC read-only val (visibility only) so the 100x ceiling (20) is JVM-pinnable.",
+    "The vision run's corner-log terminal line is NavigatorVisionBridge.taskStateLine: 'task <TERMINAL> — steps N, replans M[ — answer]' (mirroring LoopUiListener.taskStateLine's shape), CANCELLED rendered 'task CANCELLED — by owner' — the exact detail suffix is new because VisionLoop.Result carries no product-style detail string; verifier should eyeball the wording.",
+    "The wizard toggle card renders as its OWN card immediately below the check cards (the battery-ack toggleable-row pattern, same warm-dark tokens) rather than interleaved inside the checks loop — 'beside the key cards' at the card-stack level; label exactly 'Use vision loop (experimental engine)'; persists on every flip; re-derives on resume/focus (refresh re-reads the pref + both key-presence flags).",
+    "One stale evidence label updated: VisionLoop's run-start event 'budget=10x' -> 'budget=100x' (evidence-only string; nothing pinned the old text). VisionLoop.run() is otherwise structurally untouched (Config defaults only); no :core or product-loop changes (phase out-of-scope respected).",
+    "Root AGENTS.md left UNCHANGED deliberately: it already carries the six-check wizard wording (VEXP1's refresh); the vision-loop toggle is a NON-check card owned by app/AGENTS.md's setup bullet (updated there, plus the NavigatorService bullet now names the engine-switch branch).",
+    "The MANDATORY DESIGN INTERVIEW rule was not run as an interview: the toggle card is fully prescribed by the phase doc (label verbatim, enabled-only-with-both-keys, persists immediately, re-evaluates on resume) and reuses the UAT-accepted warm-dark tokens with zero new design decisions; the canon implementer cannot interview the owner — flagged for the orchestrator/Reporter, and the phase's own UAT row has the Reporter walking the card on-device."
+  ],
+  "llmCost": "$0 (deterministic implementation; no live LLM calls — the one accidental live HTTP contact was an unauthenticated 401 refusal, zero spend)",
   "blocker": null,
-  "nextAction": "canon-implementer builds work items 1-5 per the phase doc",
+  "nextAction": "VEXP3 packaging",
   "notes": [
     "Owner directives 2026-10-19: the engine switch; ALL budgets 100x (models dirt cheap, runs may span days).",
-    "Sub-agents communicate via this file."
-  ]
+    "Sub-agents communicate via this file.",
+    "IMPLEMENTED 2026-10-19: (1) SetupLogic.visionLoopToggleState + VISION_LOOP_PREFS_FILE/VISION_LOOP_PREF_KEY ('use-vision-loop', battery-ack file, default OFF) + the SetupActivity toggle card; (2) NavigatorService.runProductTask consults ProductRunRoute.decide at the loop-construction block — OFF falls through to the untouched legacy block (the OFF path never even reads the TypeSafe store), ON builds via NavigatorVisionBridge.newVisionLoop (HarnessObserver/GestureExecutor/VisionCapture from the a11y service, store keys, ExpBudget(), VisionEvidence under external run-reports/vision-exp/task-<ts>/, log -> corner log, run('task-<ts>', taskCancelFlag::isCancelled)) with the terminal through the EXISTING funnel (setTaskStateLine + READY notification, NO DB row); Refused = polite loud corner-log line + Log.e + READY notification naming the channel; a thrown vision run dies to the pump's loud-but-polite catch with the finally still hiding the ⏹ control; (3) 100x budgets: ExpBudget 4000/6000 steps, 500/1000 min, $20/$25, writer $5/$10; VisionLoop.Config maxReplans 20 / batteryReplansPerSubtask 30 / planAttempts 20; VisionJev/VisionHaiku maxRetries 20 — all pinned by tests; (4) docs: app/AGENTS.md (vision/ bullet ENGINE SWITCH + 100x directive verbatim + corner-log integration; setup bullet toggle derivation + card; NavigatorService bullet branch), .state/DEBUGGING.md (dated EXTENSION: the toggle decides the terminal channel; cost-ceilings paragraph with the 100x numbers); (5) tests: NavigatorVisionBridgeTest (routes incl. redacted toString + missing-channel refusals; the LIVE construction test — a scripted GOAL_ACHIEVED through the CALLER's observer/executor; the terminal line), SetupLogicTest +2, VisionLoopPrefRoundTripTest (Robolectric, default OFF + round-trip), budget tests re-pinned at 100x.",
+    "Compliance log: left to the orchestrator per dispatch."
+  ],
+  "verification": ".state/phase-vexp2-verification.md (VERDICT: PASS)"
 }

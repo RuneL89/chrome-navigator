@@ -26,6 +26,9 @@ import navigator.app.harness.HarnessObserver
 import navigator.app.harness.HarnessPagesServer
 import navigator.app.harness.RoomDecisionLogSink
 import navigator.app.harness.ScriptedGoal
+import navigator.app.harness.vision.NavigatorVisionBridge
+import navigator.app.harness.vision.ProductRunRoute
+import navigator.app.harness.vision.VisionCapture
 import navigator.app.loop.BrowserHomeLauncher
 import navigator.app.loop.BrowserLauncher
 import navigator.app.loop.BrowserProbe
@@ -37,9 +40,11 @@ import navigator.app.loop.TaskCancelFlag
 import navigator.app.observe.CaptureMode
 import navigator.app.observe.NavigatorAccessibilityService
 import navigator.app.setup.OpenRouterKeyStore
+import navigator.app.setup.SetupLogic
 import navigator.app.stub.StubEngine
 import navigator.core.log.EngineIdentity
 import navigator.core.wire.DefaultEngineConfigs
+import java.io.File
 
 /**
  * The product foreground service (phase doc §2.3): the persistent "Navigator" host for
@@ -222,6 +227,38 @@ class NavigatorService : Service() {
                     return
                 }
                 writerKey = key
+
+                // PHASE_VEXP2 — THE ENGINE SWITCH (owner directive 2026-10-19): a goal
+                // typed in the app CAN run the experiment's VisionLoop when the wizard's
+                // "Use vision loop" preference is ON and BOTH keys are stored. Toggle
+                // OFF (the DEFAULT) routes Legacy and falls straight through to the
+                // legacy construction below — untouched, byte-identical. Toggle ON + a
+                // missing key refuses politely (the no-key precedent above); the vision
+                // run itself builds + runs in [runVisionLoopTask].
+                val visionToggled = visionLoopToggled()
+                when (val route = ProductRunRoute.decide(
+                    useVisionLoop = visionToggled,
+                    openRouterKey = key,
+                    typesafeKey = if (visionToggled) {
+                        OpenRouterKeyStore.loadTypesafeKey(this)
+                    } else {
+                        null // the OFF path never even reads the second store
+                    },
+                )) {
+                    is ProductRunRoute.Refused -> {
+                        // The polite loud refusal naming the channel (never a silent no-op).
+                        Log.e(TAG, "product run refused: ${route.detail}")
+                        manager.appendLogLine(route.detail)
+                        notifyState(NOTIFICATION_READY, "Navigator ready — vision loop needs both keys (open setup)")
+                        return
+                    }
+                    is ProductRunRoute.Vision -> {
+                        runVisionLoopTask(manager, a11y, route, goalText)
+                        return
+                    }
+                    ProductRunRoute.Legacy -> {} // the legacy path continues unchanged below
+                }
+
                 // The SAME recorded Jev primary the harness builds (one wiring, one
                 // redaction law — the key's value never surfaces, only its source).
                 val wiredJev = HarnessEngineFactory.jevSpendRecordedEngine(
@@ -309,6 +346,50 @@ class NavigatorService : Service() {
             // the ⏹ control; the log itself STAYS up showing the task-state line.
             manager.setTaskRunning(false)
         }
+    }
+
+    /**
+     * The engine-switch preference (PHASE_VEXP2): plain SharedPreferences, the
+     * battery-ack file + precedent, key `"use-vision-loop"`, default OFF. Written by
+     * the setup wizard's toggle card on every flip.
+     */
+    private fun visionLoopToggled(): Boolean =
+        getSharedPreferences(SetupLogic.VISION_LOOP_PREFS_FILE, MODE_PRIVATE)
+            .getBoolean(SetupLogic.VISION_LOOP_PREF_KEY, false)
+
+    /**
+     * PHASE_VEXP2: the TOGGLED product run — the experiment's VisionLoop over THIS
+     * service's own observation/execution/capture edges (HarnessObserver +
+     * GestureExecutor + VisionCapture, all a11y-backed), keys from the Setup stores
+     * (delivered in by the pure [ProductRunRoute] decision). The vision steps stream
+     * into the corner log (the bridge's log lambda → appendLogLine); cancel rides the
+     * SAME TaskCancelFlag the ⏹ control drives; the terminal maps through the EXISTING
+     * funnel (task-state line + READY notification — NO DB row: the vision loop has no
+     * sink; training rows are retired next phase). Evidence (owner-consented,
+     * experiment-only) lands under the standard external `run-reports/vision-exp/`.
+     * A thrown run propagates to the pump's loud-but-polite catch (the caller's
+     * finally still hides the ⏹ control).
+     */
+    private suspend fun runVisionLoopTask(
+        manager: OverlayManager,
+        a11y: NavigatorAccessibilityService,
+        route: ProductRunRoute.Vision,
+        goalText: String,
+    ) {
+        val runId = "task-${System.currentTimeMillis()}"
+        val loop = NavigatorVisionBridge.newVisionLoop(
+            observer = HarnessObserver(a11y),
+            executor = GestureExecutor(a11y),
+            capture = VisionCapture(a11y),
+            evidenceDir = File(getExternalFilesDir(null), "run-reports/vision-exp"),
+            runId = runId,
+            openRouterKey = route.openRouterKey,
+            typesafeKey = route.typesafeKey,
+            log = { line -> manager.appendLogLine(line) },
+        )
+        val result = loop.run(goalText, runId, taskCancelFlag::isCancelled)
+        manager.setTaskStateLine(NavigatorVisionBridge.taskStateLine(result))
+        notifyState(NOTIFICATION_READY, "Navigator ready")
     }
 
     /** DEBUG-ONLY: the Gate 9.3 $0 emulator flow — a product run over a catalog goal. */

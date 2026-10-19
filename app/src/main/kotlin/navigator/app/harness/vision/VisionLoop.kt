@@ -74,10 +74,12 @@ class VisionLoop(
 
     data class Config(
         val settleMs: Long = 700,
-        val maxReplans: Int = 2,
+        /** 100x the product loop's bounded re-plans (owner directive 2026-10-19). */
+        val maxReplans: Int = 20,
         val stepFailuresBeforeReplan: Int = 2,
         val stuckRepeats: Int = 3,
-        val planAttempts: Int = 2,
+        /** 100x the product loop's ONE bounded content retry per restructure call. */
+        val planAttempts: Int = 20,
         /** Boxes under this confidence with a miss-grade match are refused (the calibration floor). */
         val boxConfidenceFloor: Double =
             VisionEvidence.GroundingMetrics.GROUND_CONFIDENCE,
@@ -97,9 +99,10 @@ class VisionLoop(
          * advance and on a failure-driven re-plan (the new plan gets fresh battery
          * budget for its own subtasks); a battery-driven re-plan does not reset its own
          * counter — that would make the forced-PROCEED arm unreachable. When spent, a
-         * battery escalation degrades to a forced PROCEED (the cascade acts).
+         * battery escalation degrades to a forced PROCEED (the cascade acts). 100x the
+         * product loop's ≤2 bounded re-plans (owner directive 2026-10-19).
          */
-        val batteryReplansPerSubtask: Int = 3,
+        val batteryReplansPerSubtask: Int = 30,
     )
 
     enum class Terminal { GOAL_ACHIEVED, MODELS_CONFIRM_DONE, STEPS_EXHAUSTED, BUDGET_EXHAUSTED, REPLANS_EXHAUSTED, CANCELLED, PLAN_REFUSED }
@@ -282,7 +285,7 @@ class VisionLoop(
             screenshots = screenshots,
         )
 
-        evidence.event("run start goal=<${goal.take(80)}> budget=10x writer=${budget.hasWriterHardRoom()}")
+        evidence.event("run start goal=<${goal.take(80)}> budget=100x writer=${budget.hasWriterHardRoom()}")
         var obs = observer.observe()
         var shot = captureSafely(screenshots++)
         var planned = planLadder(goal, obs, failure = null, shot) ?: run {

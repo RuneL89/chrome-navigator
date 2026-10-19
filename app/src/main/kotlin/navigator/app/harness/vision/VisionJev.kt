@@ -26,8 +26,10 @@ import navigator.core.wire.WireTransportException
  *   (the proposition IS the instructions), `choice` (record criteria keyed by option id).
  *   N boxes + 1 choice ride ONE request (the scoreBatch one-call habit).
  *
- * Retry law mirrors the production client: transport errors only, <=2, exponential
- * backoff; any HTTP status and any malformed 200 are loud content failures. Usage is
+ * Retry law mirrors the production client: transport errors only, exponential
+ * backoff; any HTTP status and any malformed 200 are loud content failures. The retry
+ * ceiling rides the 100x budget directive (owner, 2026-10-19): [maxRetries] defaults
+ * to 20 (the production client keeps <=2). Usage is
  * reported per completed call; images price as text tokens, so the ledger prices tokens
  * at the production decision-engine table.
  *
@@ -56,7 +58,8 @@ class VisionJev(
     val model: String,
     private val apiKey: String,
     private val onUsage: (VisionUsage) -> Unit = {},
-    private val maxRetries: Int = 2,
+    /** Public read-only so the JVM tests pin the 100x directive's ceiling. */
+    val maxRetries: Int = 20,
     private val backoffBaseMs: Long = 200L,
     private val retryDelay: suspend (Long) -> Unit = { delay(it) },
 ) {
