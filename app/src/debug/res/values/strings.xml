@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- EXPERIMENT BRANCH ONLY (exp/vision-box): the debug build's visible identity, so the
-     vision experiment APK is unmistakable next to the product install on the owner's
-     device (distinct applicationId `navigator.app.visionexp` rides build.gradle.kts).
-     The debug sourceSet overrides the main strings; remove with the branch. -->
-<resources>
-    <string name="app_name">Navigator VisionExp</string>
-    <string name="a11y_service_label">Chrome Navigator Observation (VisionExp)</string>
-</resources>

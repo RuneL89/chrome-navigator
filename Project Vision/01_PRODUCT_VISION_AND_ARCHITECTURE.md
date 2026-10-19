@@ -1,8 +1,13 @@
 # Chrome Navigator (working title) — Product Vision and Architecture
 
 **Document ID:** `NAVIGATOR-VISION-001`
-**Version:** 1.6.0 *(amended 2026-10-12 (Phase 10D): the failure-driven re-plan is INFORMED — on a subtask failure the writer re-aims the remaining subtasks from the failure context (what failed and why, the page the agent was standing on and the controls that page actually offers, the recent history, any assist description); verified subtasks are immutable except ONE declared step back carrying its lesson; owner-ratified with the Phase-10D plan. Amended 2026-10-10: the decision cascade — every step's navigation decision becomes a two-stage typed cascade (stage-1 fixed-intent choice + stage-2 batched score-per-candidate) with a bounded LLM uncertainty assist and writer-phrased typed text; owner-ratified after the Phase-10 UAT root-cause analysis showed the flat per-step option list left the engine hedging on hollow criteria)*
-**Status:** Ratified (2026-10-03; amendments 2026-10-03, 2026-10-06)
+**Version:** 2.0.0 *(amended 2026-10-18: the vision-engine promotion — the multimodal
+VisionLoop becomes the product's default engine and the a11y decision engine is retained
+as the explicit second engine; the Road L training program (Laya shadow, RLCD,
+graduation) is retired by owner directive; the owner authorized this amendment in a
+DeepSeek Flash session because the GLM-5.3 credits were exhausted — the exception is
+recorded in `.state/compliance-log.md`)*
+**Status:** Ratified (2026-10-03; vision-engine promotion ratified 2026-10-18)
 **Date:** 2026-10-03
 
 > Working title per locked decision #9 ("naming deferred; 'Navigator' is a placeholder").
@@ -12,153 +17,186 @@
 
 ## 1. Product Vision
 
-Chrome Navigator is a **personal, sideloaded Android app** (no Play Store) that autonomously
-drives Google Chrome on the owner's Samsung Galaxy S25+ (Snapdragon 8 Elite, 12 GB RAM).
-The user summons an overlay, types a natural-language goal ("find a recipe for apple pie"),
-and watches the agent navigate Chrome live until the goal is done.
+Chrome Navigator is a **personal, sideloaded Android app** (no Play Store) that
+autonomously drives Google Chrome on the owner's Samsung Galaxy S25+. The owner summons
+an overlay, types a natural-language goal ("find a recipe for apple pie", "add two cases
+of this drink to the cart and check out with delivery"), and watches the agent navigate
+Chrome live until the goal is done or the task is stopped.
 
-The project's identity is **decision-model-forward**: navigation decisions are made by typed
-decision engines (non-generative models returning calibrated probabilities), never by a
-chat LLM. Per the **Road L strategy** (handoff v2): v1 ships with **Jev** (TypeSafe's hosted
-decision model, accessed via OpenRouter) as the primary decision engine, while **Laya** (an
-open-source ~421M encoder decision model) runs on-device as a silent **shadow student** on
-every decision. Usage logs accumulate RLCD training data; Laya is fine-tuned opportunistically
-and **graduates to primary** when it meets measurable criteria. The endgame is fully on-device
-decision-making.
+The product has **two engines behind one product route**:
 
-**The v1 definition of done** (ratified Round 1; **amended at ratification 2026-10-03** to
-include action goals): *v1 is done when the user can type a goal in the overlay — a research
-goal or an action goal (payment entry, password change, login) — and watch the Jev-driven
-agent work live, with every high-stakes step paused for explicit user acceptance via the
-risk gate, and get a result screen with the replayable decision log, the local-vs-LLM
-counter, and the Laya agreement metric — with the Laya shadow silently logging RLCD
-training data throughout.*
+- **The vision engine (default).** A multimodal loop that reads the page through BOTH
+  the accessibility tree AND a browser-window-scoped screenshot. A generative writer
+  (Haiku over OpenRouter chat) plans the ladder, proposes actions, repairs conditions
+  and extracts the answer; a typed vision model (Jev 1.14 over the TypeSafe vendor
+  route) grounds every tap/type with a Box and answers the verification battery over
+  text+image. Code owns the ladder, the done-condition checker, the verification
+  accept, the risk gate, the budgets, and every numeric decision.
+- **The a11y engine (retained).** The original accessibility-only decision engine: the
+  Jev cascade over the a11y tree, stage-1 intent + stage-2 target scoring, the
+  code-owned gate, and the ladder. It is kept **alive and selectable** (Setup toggle
+  OFF) because the owner intends later iterations to combine a11y speed with image
+  accuracy. It is a supported engine, not a deletion candidate.
 
-**Legibility is a feature:** the architecture must be visible to someone watching a demo —
-live log viewer, replayable decision log, "local decisions: N · cloud: M" counter, and the
-Laya-agreement progress bar ("Laya agreed with the teacher on X% of decisions").
+**The v1 definition of done** (amended 2026-10-18): the owner can type a goal in the
+overlay — a research goal or an action goal (payment entry, login, a purchase) — and
+watch the default vision engine work live: the agent plans a ladder, grounds and
+executes each action, verifies the outcome through the two-channel battery, pauses for
+the owner on every high-stakes action through the risk gate, and ends with a terminal
+in the corner log and a run report with the answer and the evidence. The a11y engine
+must remain runnable through the explicit toggle with its own law intact.
 
-### Road L lifecycle
+**Legibility is a feature:** the corner live log streams every decision in plain
+language; the evidence directory on the device holds the screenshots, the raw model
+calls and the event log for a run; the gate cards show the class, site and consequence
+before a consequential action.
 
-| Phase | Name | Content |
+**The 2026-10-18 promotion evidence.** The owner-observed Verkkokauppa run
+(`task-1792437261071`) completed search → product → cart → checkout → home delivery →
+saved card → order confirmation, ending with order **139769696** (payment pending) in
+55 steps and 2 task-level re-plans. That run is the acceptance evidence for the vision
+engine's product path; its residuals (the blank report answer, the re-plan's
+"without placing the order" wording, and the Finnish checkout's gate miss) are recorded
+in the phase-14 status and the backlog, not hidden.
+
+### The two-engine evolution (replaces the Road L lifecycle)
+
+| Stage | What ships | Why |
 |---|---|---|
-| 1 | Build (v1) | App fully functional on Jev; zero training required. Laya shadow + DecisionLog ship inside v1. |
-| 2 | Accumulate | Normal usage generates labeled decisions per session; agreement % climbs then plateaus at the base model's ceiling (expected, not a bug). |
-| 3 | Fine-tune | Owner-triggered (~2–5k logged decisions minimum **in the current export-eligible format** — doc 05 §4; the accumulation counter restarts at every state-format/view/question-version bump, because older rows cannot train the newer serve shape). Corpus carries both `choose` and `noul` cases; Kaggle free tier (2×T4) per upstream `docs/finetune.md`; export → RLCD → ONNX opset 18 → per-tensor int8 → drop into APK, eval-gated per doc 07 before it drives anything. |
-| 4 | Graduation | Flip condition: shadow agreement with Jev > 85% (top-1 exact match) over 2 consecutive weeks AND eval-harness accuracy ≥ Jev's. Flip = config change; Jev demoted to rescue/fallback. |
+| Now | Vision engine default + a11y engine retained behind the toggle | The vision engine is the working product; the a11y engine preserves the speed/accuracy option |
+| Next | Hybrid work: a11y-first steps with image escalation (and image-first steps with a11y verification) | The owner's stated direction: a11y is fast, images are accurate; the final app should use both |
+| Later | Whichever mixture the live evidence favours | No on-device decision-model graduation requirement; the training program is retired |
+
+The Road L lifecycle (shadow student, RLCD accumulation, fine-tune, graduation) is
+**retired** by owner directive 2026-10-19 ("remove that noise completely"). No phase may
+assume an on-device Laya engine, a shadow, a training corpus, or a graduation flip.
 
 ## 2. Core Principles (the inviolable articles)
 
-Ratified Round 3 (+ article 11). Each article is citable as `ART-n` in compliance checks.
-
 1. **Code owns the gate** — code deterministically detects high-stakes actions (classes
-   H1–H8, doc 06); such actions — typed or submitted — execute only after explicit user
-   acceptance (30s timeout denies; the first approval of a class extends per-task trust to
-   that class). No action class is permanently impossible, and no high-stakes action ever
-   executes silently. *(Amended 2026-10-03 — supersedes the original hard-blocklist
-   article.)*
-2. **One decision gateway** — every decision routes through the `DecisionEngine` interface;
-   no component calls Jev, Laya, Von, or any provider directly; graduation is a config flip.
-3. **Everything logs** — every decision is logged in the RLCD-compatible schema (state,
-   questions, teacher probability distributions, outcome) from day one.
-4. **Page text is untrusted** — state construction labels third-party content; a goal never
-   ends on a model's self-report without code-verifiable evidence.
-5. **Numbers stay in code** — budgets, step counts, timeouts, and comparisons are never
-   delegated to model arithmetic.
-6. **Deterministic candidate order** — enumeration order is produced by code only, and
-   position bias is an eval-harness test.
-7. **Versioned state text** — the state-text format is version-controlled; changes gate on
-   eval-harness results.
-8. **Privacy boundary** — page text leaves the device only to the decision API and the
-   cloud LLM roles; screenshots never leave the device; decision logs never leave except by
-   explicit user-initiated export.
-9. **Bounded tasks** — every task runs under step/time/cost budgets with hard stops.
-10. **Attribution** — PokeClaw/Laya/Von-derived code carries NOTICE files; Apache 2.0
-    obligations are met; the PokeClaw name is not reused.
-11. **The offline endgame** — no phase may build a dependency that precludes fully on-device
-    decisions post-graduation (the decide path must remain expressible as on-device
-    `LayaEngine` calls; cloud rescue/fallback roles are exempt as they are fallbacks).
+   H1–H9, doc 06); such actions execute only after explicit owner acceptance (30s
+   timeout denies; the first approval of a class extends per-task trust). No action
+   class is permanently impossible, and no high-stakes action executes silently.
+2. **Every model call has a declared role.** The vision engine has exactly two model
+   roles — the **writer** (`VisionHaiku`: plan, propose, repair, confirm, extract) and
+   the **judgment engine** (`VisionJev`: battery noul/choice and Box grounding). The
+   a11y engine has one — the `DecisionEngine` gateway (`JevEngine`). No component calls
+   a provider outside these clients; no model chooses an action that code did not
+   ground and gate. *(This replaces the single-gateway article for the vision engine;
+   the gateway law still binds the a11y engine.)*
+3. **Everything a run decides is evidenced.** Every product run writes an evidence
+   record — the event log, every model request/response, every model-bound screenshot,
+   and the terminal line — under `run-reports/vision-exp/<runId>/`; the summary rides
+   the run report. The legacy training program's DecisionLog/RLCD requirement is
+   retired; evidence is for debugging, replay and owner review.
+4. **Page content is untrusted — text and pixels.** Both the a11y text and the
+   screenshot are labeled UNTRUSTED DATA in every prompt; instructions found in page
+   text or rendered writing are never obeyed; completion is code-verified; a model's
+   self-report is never sufficient.
+5. **Numbers stay in code** — budgets, step counts, timeouts, thresholds, IoU floors,
+   confidence bands and comparisons are never delegated to model arithmetic.
+6. **Deterministic candidate order** — the a11y enumeration order is produced by code
+   only; the vision engine's grounding is matched to that deterministic node set.
+7. **Versioned prompts and state** — `VISION_PROMPT_VERSION` (currently
+   `vision-exp-v13`), `STATE_FORMAT_VERSION`, the ladder schema and the question forms
+   are versioned; changes gate on the verification suite (doc 07).
+8. **Privacy and consent boundary** — API keys live only in the app's encrypted store;
+   page text and the window-scoped screenshot travel only to the two configured model
+   providers (OpenRouter for the writer, TypeSafe for the judgment engine); credentials
+   supplied through a gate card never leave the device and never enter a log; raw run
+   evidence stays local and is owner-controlled.
+9. **Bounded tasks** — every task runs under step/time/cost budgets with hard stops and
+   a truthful terminal.
+10. **Attribution** — PokeClaw-derived code carries NOTICE files; the PokeClaw name is
+    not reused; provider terms are respected. The retired Laya/Von code leaves no
+    attribution obligation in the running app.
+11. **The two-engine endgame.** No change may delete or silently bypass the a11y engine
+    while the hybrid direction is open. The vision engine may become the only default,
+    but the a11y engine's code, toggle, tests and law stay alive until an explicit
+    owner amendment retires it.
 
 ## 3. Architecture Overview
 
 ```
-GOAL typed in overlay (a11y-overlay window)
+GOAL typed in the overlay (a11y-overlay window)
    │
    ▼
-GOAL RESTRUCTURE (writer LLM, ONE call; code validates) — free-text goal → task ladder:
-               ordered subtasks (instruction + machine-checkable IS-DONE condition);
-               task class + writer budget derived from the validated ladder
-               (owner-ratified 2026-10-09 — doc 04 §1; outcome-based, task-independent)
-               └─ RE-PLAN on subtask failure (bounded, v1.6.0 — doc 04 §1): the SAME
-                  writer re-aims the REMAINING subtasks from the failure context —
-                  what failed and why, the page the agent stands on and the controls
-                  that page offers; verified subtasks are immutable except ONE
-                  declared step back with its lesson (the `rollback` object)
+PRODUCT RUN ROUTE (Setup toggle + both keys)
+   │  default ON + both keys ─────────────► VISION ENGINE
+   │  ON + missing key ───────────────────► loud refusal (never a silent legacy fallback)
+   │  explicit OFF ───────────────────────► A11Y ENGINE
    ▼
-NAVIGATION LOOP (per step, over the ACTIVE subtask):
-   1. OBSERVE        (code) AccessibilityService reads Chrome a11y tree + URL bar + page title + content excerpt
-   2. ENUMERATE      (code) bucket candidates, ≤20/bucket, deterministic order
-   3. DECIDE         (cascade, doc 02 §3) ShadowRouter → primary: stage-1 INTENT choice
-                     over the 9 fixed action categories on the small intent state view;
-                     stage-2 batched score-per-candidate over one bucket slate when the
-                     intent needs a target; UNCERTAIN → ONE bounded writer assist
-                     re-describes the page → one re-ask (doc 04 §2)
-                                → Laya shadow mirrors both stages (async, logged only)
-   4. GATE           (code) risk-gate check — H1–H9 detection (broad net; engine may ADD
-                     gates, never suppress) → user acceptance; credential secrets typed
-                     locally on the card (doc 06 §2a)
-   5. EXECUTE        (code) gestures / text entry (the writer LLM phrases ordinary typed
-                     text via the fill-field intent — locked decision #4 realized;
-                     gate-supplied secrets are redacted everywhere)
-   6. LOG            DecisionLog row (RLCD-compatible; ladder/progress provenance)
+VISION ENGINE (per step, over the ACTIVE subtask)
+   1. OBSERVE   a11y walk + browser-WINDOW-scoped screenshot (window capture primary;
+                  full-display + live-log black-fill only as the recorded fallback)
+   2. CHECK     code DoneConditionChecker first (the completion decider)
+   3. BATTERY   writer-authored verification checks BEFORE acting: ONE batched Jev
+                  request over text+IMAGE + ONE Haiku image confirmation (max-gate:
+                  one confident red flag escalates; OutcomeAchieved may spend ONE
+                  condition-repair turn)
+   4. PROPOSE   Haiku names 1..3 controls (verb + referential description + text)
+   5. GROUND    ONE batched Jev request: image in state + a Box per proposal + pick.
+                  Grounding ladder: Jev box (IoU >= 0.20) -> Haiku box -> label match
+                  -> raw centre; a TYPE must land in an EDITABLE node or fails loudly
+   6. GATE      code RiskGate classifies TAP/TYPE/SUBMIT before dispatch (scroll/back
+                  never); a gated action shows the owner card; credential cards supply
+                  the secret locally and inject it directly
+   7. ACT       tap / focus-first typed entry / IME submit / back / scroll through the
+                  production GestureExecutor; covered points use a11y node actions
+   8. VERIFY    next iteration's code check + battery; finality is code-owned
    ▼
-SUBTASK IS-DONE (exit law per subtask — doc 04 §3) → advance the ladder pointer
+EXIT: GOAL_ACHIEVED | MODELS_CONFIRM_DONE (final WEAK subtask only, pair + goal noul) |
+      REPLANS_EXHAUSTED | STEPS/BUDGET_EXHAUSTED | CANCELLED | PLAN_REFUSED | GUARD_ABORT
    ▼
-RESULT SCREEN: answer + replayable decision log + local/cloud counter + agreement metric
+EVIDENCE + ANSWER: events.log, raw call JSON, screenshots, terminal line, extracted answer
 ```
 
-**Component split** (the load-bearing table):
+**The a11y engine (retained, explicit toggle OFF):**
+
+```
+GOAL → ladder → per step: OBSERVE (a11y) → ENUMERATE → DECIDE (Jev cascade:
+stage-1 9-intent choice + stage-2 batched score) → GATE (same RiskGate) → EXECUTE →
+LOG (NoOpLogSink; the training store is retired) → ladder pointer advances only on a
+verified IS-DONE
+```
+
+**The product split (the load-bearing table):**
 
 | Component | Owner | Why |
 |---|---|---|
-| A11y observation, URL-bar read, node serialization | Code | Deterministic perception; no model needed |
-| Candidate enumeration + bucketing + ordering | Code | ART-6; the model chooses, code proposes |
-| Navigation decisions (which action) | DecisionEngine cascade (doc 02 §3): stage-1 intent choice over 9 fixed categories, stage-2 score-per-candidate over a bucket slate (Jev primary / Laya shadow mirroring both stages) | The project's core bet |
-| **Decision assist (v1.5.0, 2026-10-10)**: when stage-1 is UNCERTAIN, ONE bounded writer call re-describes the page relative to the active subtask (discrimination-focused facts, ≤4 sentences, NO directives — ART-2: it informs the re-ask, never decides), then one re-ask | Cloud LLM (generative, versioned `assist-v1`) | Owner-ratified cascade decision; the reserved page-compression slot's first job |
-| **Typed-text phrasing realized (locked decision #4, 2026-10-10)**: the `fill-field` intent's content is phrased by the writer (`phrase-v1`, capped) — never the raw goal text; secrets stay gate-card-supplied and redacted (doc 06 §2a) | Cloud LLM (generative, versioned) | Phase-10 UAT evidence: raw-goal typing wasted ~20 steps |
-| Goal-achieved judgment | DecisionEngine `noul` **+ code completion guards** | ART-4: never self-report alone |
-| Stuck detection | Code (5 signals / 8-step window / 3 levels) | Deterministic trigger; engine only picks the recovery |
-| Recovery-strategy choice | DecisionEngine (`choice` over recovery set) | Model chooses within code-defined options |
-| Text phrasing (what to type — ordinary text only; NEVER secrets, doc 06 §2a) | Cloud LLM (generative) | Locked decision #4 |
-| Plan proposal (subgoal drafts for complex goals — context only) | Cloud LLM (generative, versioned); engines decide every step | Owner decision 2026-10-06: LLM proposes, engines execute |
-| **Goal restructuring (v1.4.0, 2026-10-09 — supersedes the plan-proposal row above)**: free-text goal → validated task ladder (ordered subtasks, each with a machine-checkable IS-DONE condition); outcome-based, task-independent; the ACTIVE subtask rides the state, Jev still decides every step, code verifies every IS-DONE (ART-2/ART-4). **v1.6.0 (2026-10-12): the bounded failure re-plan is INFORMED** — the writer receives the failure context and may split or re-aim the REMAINING subtasks, never rewrite the verified ones beyond ONE declared `rollback` step with its lesson | Cloud LLM (generative, versioned) + code schema/done-condition validation | Owner interview 2026-10-09 (12 ratified decisions); cold-start and triage subsumed; Phase-10D re-plan law 2026-10-12 |
-| Page compression (oversized trees) | Cloud LLM (generative) | Perception assist only |
-| Final answer extraction | Cloud LLM (generative) | Reads result page, phrases answer |
-| Rescue coach | Cloud LLM (generative, level-3 stuck only) | Last resort |
-| Per-item semantic judgments ("is X food-related?") | DecisionEngine ladder (primary → fallback engine) — NOT the writer LLM | ART-2: only DecisionEngines decide; the writer only writes |
-| Risk gate (H-class detection + confirmation flow), budgets, numeric logic | Code | ART-1, ART-5, ART-9; the *decision to proceed* is the owner's |
-| Logging + agreement metrics | Code | ART-3 |
+| a11y observation, URL-bar read, node serialization | Code | Deterministic perception; no model needed |
+| Browser-window screenshot capture + live-log exclusion | Code (`VisionCapture`, `CaptureWindowPolicy`) | The image must show the browser surface, never the agent's own UI |
+| Goal → task ladder | Writer (Haiku) + code schema/whitelist validation (`LadderSchema`, `LadderValidator`) | The writer proposes; code owns what a done-condition may say |
+| Verification battery authoring + condition repair | Writer (Haiku) | Judgment design, not action choice |
+| Battery answers | Judgment engine (Jev, text+image) + writer image confirmation | Two independent channels; max-gate |
+| Action proposal | Writer (Haiku) | Describes controls; never executes |
+| Grounding (which node) | Judgment engine Jev Box + `VisionMath` IoU ladder | The image locates; code matches it to the a11y node |
+| Completion | Code `DoneConditionChecker` + battery concurrence + finality law | A model never completes alone |
+| Risk gate | Code (`RiskGate`, `TaskGate`, `OverlayGatePresenter`) | ART-1; the owner decides consequential actions |
+| Budgets, step counts, thresholds, terminals | Code (`ExpBudget`, `VisionLoop.Config`) | ART-5/ART-9 |
+| Evidence + run report | Code (`VisionEvidence`, `RunReportStore`) | Replay/debug/owner review |
+| a11y engine decisions | `DecisionEngine` gateway (Jev) + the retained cascade | The retained speed path |
 
-**Engine landscape** — all Jev-class endpoints speak the same `/v1/systemone`-family wire
-protocol, so one Kotlin wire client serves every config:
+**Model landscape (pinned):**
 
-| Config | baseUrl | model | Role |
+| Role | Transport | Model | Notes |
 |---|---|---|---|
-| Primary | `https://openrouter.ai/api/alpha/decisions` | `typesafe/jev-1.13-20260917` (pinned) | Live decisions |
-| Fallback 1 | `https://api.runware.ai/v1/decisions` | `typesafe:jev@1` | Provider outage |
-| Fallback 2 | self-hosted Von or Laya server | latest pinned | Provider extinction |
-| Future | TypeSafe direct | pinned | If whitelist grant lands |
-| Shadow | on-device ONNX (int8) | `laya` EN 421M | Logging/training only, until graduation |
+| Writer | OpenRouter chat completions | `GenEngineConfigs.GENERATIVE_MODEL` (pinned in `:core`) | Text + image content parts; planning, proposals, repair, confirmation, extraction |
+| Judgment engine (vision) | `https://api.typesafe.ai/v1/systemone` | `jev-1.14.0` | Box grounding + noul/choice battery over text+image; the `TypeSafe-Danger-Zone-Images` header on image calls |
+| a11y engine (retained) | OpenRouter decisions | `typesafe/jev-1.13-20260917` (pinned) | The legacy cascade; text-only |
 
-**Stack (ratified, Round 4):** pure Kotlin; Compose UI; a11y-overlay windows for the live
-log; minSdk 34 / targetSdk 36; Room for the DecisionLog; OkHttp + kotlinx.serialization;
-ONNX Runtime Android AAR (1.30.x, CPU EP). Two modules: `:core` (pure-JVM decision core —
-protocol, wire client, buckets, log schema, agreement math, eval scoring) and `:app`
-(Android — a11y service, overlay UI, guards integration, Room, ONNX, cloud LLM client).
+The OpenRouter decisions route strips image payloads in every documented upload format;
+images therefore ride the TypeSafe vendor route for Jev. The OpenRouter chat route
+carries Haiku's image parts. These are transport facts and are pinned in code.
 
-**Build/test commands:** `./gradlew assembleDebug` (build), `./gradlew test` (fast JVM
-tests incl. all `:core` decision logic), `./gradlew connectedDebugAndroidTest` (on-device
-instrumented tests).
+**Stack:** pure Kotlin; Compose UI; minSdk 34 / targetSdk 36; OkHttp +
+kotlinx.serialization; AndroidX Security crypto for the two encrypted key slots. No
+Room, no ONNX Runtime, no on-device model packaging. Two modules: `:core` (pure-JVM
+decision core — types, wire clients, enumeration, ladder, gate, state) and `:app`
+(Android — a11y service, overlay, capture, vision loop, setup, gateway).
+
+**Build/test commands:** `./gradlew :app:testDebugUnitTest` (app + vision JVM suites),
+`./gradlew :core:test`, `./gradlew :app:assembleDebug`.
 
 ## 4. Repository / Workspace Layout
 
@@ -167,105 +205,93 @@ chrome navigator/
 ├── AGENTS.md                     # DOX framework root
 ├── Project Vision/               # canon law (this doc + 02–07)
 ├── Implementation Plan/          # phase docs + master index
-├── .state/                       # canon memory (status, verification, compliance log)
-├── handoff/                      # source documents + feasibility research (input, not law)
-├── core/                         # :core — pure-JVM decision core
-│   └── src/…                     # protocol, wire client, buckets, log schema, agreement
-└── app/                          # :app — Android application
-    └── src/…                     # a11y service, overlay, guards, Room, ONNX, cloud LLM
-        fixtures in core/src-test resources: recorded a11y dumps + wire transcripts
+├── .state/                       # canon memory (status, verification, compliance, run reports)
+├── handoff/                      # source documents (input, not law)
+├── core/                         # :core — pure-JVM core (types, wire, ladder, gate, state)
+└── app/                          # :app — Android app
+    └── src/main/kotlin/navigator/app/
+        ├── harness/vision/       # the vision engine (default)
+        ├── loop/                 # the a11y engine (retained) + shared ladder/gate
+        ├── observe/              # a11y reader, window titles, browser packages
+        ├── overlay/              # goal input, corner log, gate presenters, service
+        ├── setup/                # five-check wizard + two encrypted key slots
+        └── gen/                  # writer client + ladder schema (shared with the a11y ladder)
 ```
 
 ## 5. Non-Goals
 
 **Permanent (never in any version without explicit vision amendment):**
-- Not a general phone agent: no cross-app navigation, no chat channels (Discord/Telegram/
-  WhatsApp), no skills/KB system, no messaging monitors, no device-data tasks (PokeClaw's
-  ~60% baggage stays out).
-- Chrome only: the observation layer may specialize on `com.android.chrome` (stable); other
-  browsers, Chrome Beta/Canary, WebView, and Custom Tabs are out.
+- Not a general phone agent: no cross-app navigation, no chat channels, no skills/KB
+  system, no messaging monitors, no device-data tasks.
+- Chrome only: the observation layer specializes on `com.android.chrome` (stable).
+  Other browsers, Chrome Beta/Canary, WebView and Custom Tabs are out; the browser
+  allowlist is the single place this is defined.
 - No Play Store distribution; personal sideload via ADB only.
 - No multi-user/multi-device support.
 
 **v1-scoped (later versions may add via roadmap, not creep):**
-- No screenshot/vision fallback — unreadable trees produce graceful refusal ("I can't read
-  this site"); page pixels never leave the device in v1.
-- No model-judged risk gating — the risk gate is deterministic code plus user acceptance
-  (amended 2026-10-03); a Laya `noul` soft-gate layer may later be added only as an extra
-  signal, never as a replacement for the human gate.
-- No fine-tuning infrastructure in the app (Phase 3 happens on Kaggle, outside the repo's
-  runtime path).
-- No offline decision-making until graduation (Jev is primary; ART-11 keeps the path open).
+- No on-device decision model, no shadow, no RLCD/training, no graduation (retired).
+- No site- or scenario-specific product code. Store-specific wording belongs in the
+  gate's illustrative dictionary as a floor, never in navigation logic.
+- No forced code click that bypasses the proposer's authority: the CTA/scroll-churn
+  law re-plans; it never clicks for the model.
+- No raw touch on the overlay: a covered point with no actionable node fails loudly.
+- No silent legacy fallback: a missing key is a loud refusal; the a11y engine is only
+  the owner's explicit toggle.
 
-**In scope for v1 (amended 2026-10-03; redefined 2026-10-06):** action goals — defined as
-a **class**, not a list: *any consequential operation on the user's accounts, content,
-relationships, bookings, or data* (payments and logins are instances, not the definition) —
-each behind the user-acceptance risk gate (doc 06, H1–H9), with per-target semantic
-judgments routed through the DecisionEngine ladder and mass operations enabled by
-per-task class trust. Concrete goal examples (recipe lookups, channel unsubscribes,
-bookings, unfriending) are handled by this general machinery and appear in the repo only
-as fixtures/UAT scripts — **no site- or scenario-specific product code, ever**.
-Eval-harness action cases run exclusively against owner-designated test fixtures with
-dummy credentials; the harness never touches real accounts or real payments (doc 07).
+**In scope for v1:** action goals — *any consequential operation on the owner's
+accounts, content, relationships, bookings, or data* — behind the risk gate, with
+per-task class trust. The vision engine's live acceptance run (Verkkokauppa, order
+139769696) is an instance, not a special case.
 
 ## 6. Glossary
 
-- **Laya** — open-source (~421M, ModernBERT-large) non-generative decision model; Apache 2.0;
-  weights under `convaiinnovations/` on Hugging Face. Primitives: `choice`, `noul`, `score`.
-- **Jev** — TypeSafe AI's hosted typed-decision model ("System One"); accessed via OpenRouter
-  in this project. Same three primitives; ≤255 choice options; text-only state.
-- **Von** — open-source Apache-2.0 Jev-wire-compatible server (`wfzyx/von`); standby fallback.
-- **Wire protocol** — the `/v1/systemone`-family JSON contract (state + typed questions →
-  structured answers with probabilities); shared by Jev, Laya's server, Von, Runware,
-  OpenRouter's Decisions API, and Ollama.
-- **Shadow / teacher** — the shadow (Laya) answers every question in parallel but its answers
-  are logged, never executed; the teacher (the pinned Jev snapshot) is the answer of record
-  and the RLCD label source.
-- **RLCD** — Laya upstream's fine-tuning recipe (`docs/finetune.md`); gold rows carry teacher
-  probability distributions, not just labels.
-- **Graduation** — the config flip making Laya primary once agreement > 85% over 2 weeks and
-  eval accuracy ≥ Jev's.
-- **Agreement** — top-1 exact match between shadow and teacher choices (UI metric); KL
-  divergence between distributions is logged per decision for analysis.
-- **Bucket** — candidate category in the enumeration taxonomy (nav-links, form-fields,
-  buttons, scroll, back, finish; plus recovery: back, scroll, rephrase, give-up); ≤20 options
-  each, deterministic order.
-- **State text** — the single canonical, version-controlled text representation
-  of a navigation step fed to every engine and the RLCD corpus (v2 since 2026-10-06:
-  ≤960 tokens, content excerpt + PLAN + TASK PROGRESS sections — doc 03 §4).
-- **Risk gate** — the code-level pre-execute detector of high-stakes action classes
-  (H1–H9, incl. the general persistent-state-mutation class H9 with additive-only engine
-  triggering) plus the user-acceptance confirmation card, per-task class trust, and the
-  credential-secret local-input law (doc 06).
-- **PLAN** — superseded by the **task ladder** (v1.4.0, doc 04 §1): the writer LLM's
-  validated decomposition of the goal into ordered subtasks, each with a
-  machine-checkable IS-DONE condition; the ACTIVE subtask rides the state text, Jev
-  decides every step, code verifies every IS-DONE.
-- **Task working memory** — the code-owned target/progress tracker for action-multi tasks
-  (doc 04 §1); the guard and TASK PROGRESS section read from it.
-- **StuckDetector** — deterministic 5-signal/8-step-window detector with 3 escalation levels.
-- **TaskBudget** — per-task step/time/cost limits with clean-stop exhaustion behavior.
-- **Golden fixture** — immutable recorded a11y dump or wire transcript; never edited after
-  commit.
-- **Eval harness** — the fixed 10-goal suite + fixture replays gating risky changes.
+- **Vision engine** — the default multimodal loop (`harness/vision/`): a11y + window
+  screenshot, Haiku writer, Jev 1.14 judgment engine, code ladder/battery/gate.
+- **A11y engine** — the retained accessibility-only decision engine (`loop/`): the Jev
+  cascade, the same ladder/gate, `NoOpLogSink`.
+- **Writer** — the generative Haiku role: plan, propose, repair, confirm, extract. It
+  never decides completion and never executes.
+- **Judgment engine** — Jev: answers noul/choice/score/Box questions; the vision
+  engine's battery and grounding; the a11y engine's decision cascade.
+- **Ladder** — the validated plan: 1..8 ordered subtasks, each with an instruction and
+  one machine-checkable IS-DONE condition (doc 04).
+- **Done-condition** — one of `urlHost`, `urlContains`, `markerText`, `elementPresent`,
+  `count`, `answerExtracted`; code checks it; a model never reports it as done alone.
+- **Verification battery** — the writer-authored per-subtask checks (noul + image
+  confirmation); max-gate red flags; OutcomeAchieved triggers the repair turn.
+- **Grounding** — mapping a Box/description to an a11y node through the IoU ladder.
+- **Box** — Jev's fractional rectangle answer; it always returns one, so code applies
+  the confidence/IoU floor and the fallback ladder.
+- **Capture scope** — `window:<pkg>:id=...:bounds=...` (primary), `display`,
+  `display:log-excluded`, `display:fallback=<reason>`.
+- **Corner live log** — the bottom-right product log; excluded from model frames;
+  carries the goal, subtask header, step lines and terminal.
+- **Evidence** — the per-run directory: events.log, raw call JSON, screenshots, summary.
+- **Gate card** — the owner-facing confirmation card for H1–H9 actions; credential
+  variant supplies the secret locally.
+- **Terminal** — the run's final verdict (`GOAL_ACHIEVED`, `MODELS_CONFIRM_DONE`,
+  `REPLANS_EXHAUSTED`, `STEPS_EXHAUSTED`, `BUDGET_EXHAUSTED`, `CANCELLED`,
+  `PLAN_REFUSED`, `GUARD_ABORT`).
+- **CTA / scroll churn** — a visible purchase control is tapped; 3 acted scrolls carry
+  the soft hint; 4 + a visible control force a re-plan; never a forced click.
 
-## 7. Locked-Decision Register (as amended through the vision interview)
+## 7. Locked-Decision Register (as amended through 2026-10-18)
 
-| # | Original (handoff v1) | Status after interview |
+| # | Original (handoff v1) | Status after the promotion |
 |---|---|---|
-| 1 | v1 scope: research + simple interactions; never submit account/payment forms | **AMENDED 2026-10-03 (owner directive):** v1 includes action goals (payment entry, password change, login) behind the user-acceptance risk gate; no action class is permanently blocked |
-| 2 | Cloud LLM hosting | STANDS; generative roles via OpenRouter, one key (Round 4) |
-| 3 | A11y tree + Chrome specialization (URL-bar reading, per-site tweaks) | STANDS; Chrome stable only (Round 2) |
-| 4 | LLM phrases all typed text | STANDS |
-| 5 | Aggressive autonomy: hard-coded blocks only | **AMENDED 2026-10-03:** hard blocks replaced by the risk gate — deterministic H-class detection (doc 06) + explicit user acceptance + per-task class trust; no model judgment in gate triggering |
-| 6 | Overlay UX: blurred input → bottom-right log viewer | STANDS; `TYPE_ACCESSIBILITY_OVERLAY` (research) |
-| 7 | Rich result screen + replayable decision log | STANDS; + agreement metric (Road L) |
-| 8 | Log every decision fine-tuning-compatible from day one | STANDS; extended to teacher distributions (Road L) |
-| 9 | Naming deferred | STANDS; slug `NAVIGATOR` used for doc IDs |
-| — | (Road L, handoff v2) | Jev primary via OpenRouter pinned snapshot; Laya EN shadow; Runware fallback; compact ≤480-token state format; $0.25/task backstop; 2-min median perf law |
+| 1 | v1 scope: research + simple interactions; never submit account/payment forms | **AMENDED 2026-10-03:** action goals are in v1 behind the gate; no class is permanently blocked. **2026-10-18:** the vision engine's live acceptance run placed a real order (owner-intended) — the gate is the non-negotiable condition |
+| 2 | Cloud LLM hosting | **AMENDED 2026-10-18:** two providers — OpenRouter (writer) + TypeSafe (judgment/image); both keys in the encrypted store |
+| 3 | A11y tree + Chrome specialization | STANDS; the a11y engine uses it; the vision engine adds the window screenshot |
+| 4 | LLM phrases all typed text | STANDS (the writer phrases; gate secrets are injected directly) |
+| 5 | Aggressive autonomy: hard-coded blocks only | **AMENDED 2026-10-03:** deterministic H-class gate + owner acceptance + per-task trust; no code veto |
+| 6 | Overlay UX: blurred input → bottom-right log viewer | STANDS; the vision steps stream into the same corner log |
+| 7 | Rich result screen + replayable decision log | **AMENDED 2026-10-18:** the result surfaces are the corner-log terminal + the run report/evidence; a dedicated result screen remains deferred |
+| 8 | Log every decision fine-tuning-compatible from day one | **AMENDED 2026-10-18:** evidence replaces the training corpus; the RLCD requirement is retired |
+| 9 | Naming deferred | STANDS; slug `NAVIGATOR` |
+| — | (Road L, handoff v2) | **RETIRED 2026-10-18:** Laya shadow, RLCD, graduation and the on-device endgame are not v1 requirements; the a11y engine is retained for the hybrid direction |
 
-**Provenance:** amendments and resolutions live in the interview record (2026-10-03) and the
-compliance log. Resolution sequence on the blocked-actions question: an initial
-Contradiction-Protocol exchange restored the blocklist; the owner then explicitly amended
-the law at ratification ("no permanent blocks; user-acceptance gate instead"). The
-amendment is binding law.
+**Provenance:** the 2026-10-03 interview record and the 2026-10-18 promotion
+authorization (owner message; DeepSeek Flash exception) live in the compliance log and
+the phase-14 status. Amendments are deliberate and owner-ratified; drive-by law changes
+are forbidden.

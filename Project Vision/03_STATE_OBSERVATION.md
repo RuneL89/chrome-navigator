@@ -1,186 +1,196 @@
-# State Observation
+# Observation & State
 
 **Document ID:** `NAVIGATOR-VISION-003`
-**Version:** 2.7.0 *(amended 2026-10-17 (hotel iteration run-2 repair; owner pre-ratified with solutions 1+4): §5 — the graceful refusal's message gains the state-truthful no-browser-ever-front variant (the 2026-10-17 run refused "I can't read this site" over the app's own setup screen — no browser was ever front; the truth names the front window instead). Amended 2026-10-13 (post-UAT repair 2): §4 — the INTENT STATE VIEW gains the conditional TYPED FIELD line (a filled-but-unsubmitted field the loop itself typed into) — the 2026-10-13 live battery's Google run re-typed the same query four times for want of that fact. Amended 2026-10-13 (Phase 10D Stage 3): §2/§3 — the candidate label is NEVER blank: the chain is text → description → placeholder → role + container → the role word alone; an exactly doubled platform label ("X X") collapses to one phrase. The measured case: live Chrome enumerated a search input as `""`, unjudgeable by the stage-2 rubric. Amended 2026-10-11 (Phase 10C): §2/§3 — editable fields are detected by ROLE (editable/searchbox) regardless of accessible label, with the placeholder/container supplying the description when unlabeled; text-less controls (icon buttons, consent-wall buttons) are described by role + container relation; browser-chrome exclusion widens to ALL Chrome UI. Amended 2026-10-10: cascade state views v4 — the INTENT STATE VIEW and TARGET STATE VIEW join the dual-view law as per-stage derivations feeding the doc-02 §3 cascade; the taxonomy's role becomes stage-2 slate grouping with browser-chrome excluded from target slates; STATE_FORMAT_VERSION = 4; owner-ratified)*
-**Status:** Ratified (2026-10-03; amendments 2026-10-06, 2026-10-09, 2026-10-17)
+**Version:** 3.0.0 *(amended 2026-10-18: the vision-engine promotion — the observation
+layer now serves two engines: the a11y engine's text-only state law is retained, and
+the vision engine adds the browser-WINDOW-scoped screenshot, the live-log exclusion,
+the behind-log action rules and the prompt-state contract. The old "no screenshots, no
+pixels" non-goal is reversed: model-bound screenshots are a first-class input to the
+vision engine. Owner-authorized DeepSeek Flash amendment; the GLM-5.3 exception is
+recorded in `.state/compliance-log.md`)*
+**Status:** Ratified (2026-10-03; amendments 2026-10-06, 2026-10-09, 2026-10-10,
+2026-10-11, 2026-10-13, 2026-10-17, 2026-10-18)
 **Date:** 2026-10-03
-**Implements:** ART-4 (page text is untrusted), ART-6 (deterministic candidate order),
-ART-7 (versioned state text)
+**Implements:** ART-4 (untrusted page content), ART-6 (deterministic candidate order),
+ART-7 (versioned forms), ART-8 (privacy boundary)
 
 ---
 
-## 1. Reading Chrome
+## 1. Reading Chrome (accessibility tree)
 
-The `AccessibilityService` (in `:app`, patterned after PokeClaw's `ClawAccessibilityService`,
-attributed) observes `com.android.chrome` (stable channel only):
+The `AccessibilityService` (in `:app`) observes `com.android.chrome` (stable channel
+only):
 
-- Service declares `canRetrieveWindowContent` + `canPerformGestures` and subscribes to
-  `typeWindowStateChanged | typeWindowContentChanged | typeViewScrolled` events.
-- The tree is **eventually consistent**: Chrome builds virtual nodes on demand and throttles
-  events (≈100 ms scroll-event cap; content-changed bursts collapse). Therefore: **re-query
-  the root node fresh at every step; never cache nodes across steps.** A `node.refresh()`
-  (or fresh root walk) precedes every read of bounds/text.
-- **URL bar:** read via `findAccessibilityNodeInfosByViewId("com.android.chrome:id/url_bar")`
-  with a version-tolerant fallback (first editable text node in the toolbar subtree). Display
-  mode shows an elided URL (no scheme) — the log records it as-is. If the toolbar is hidden
-  (scrolled), the step records `url=hidden` rather than a stale value.
-- **Text entry** (execute side, listed here for one-home): focus-first sequence
-  (`refresh → ACTION_FOCUS/CLICK → ACTION_SET_TEXT`), with clipboard + `ACTION_PASTE`
-  fallback for fields that reject SET_TEXT.
-- **Content extraction (v2)**: the observation also collects a **bounded excerpt of
-  non-candidate page text** (prose paragraphs, headings' surrounding text — the text a
-  reader would read), deterministic in selection and order. This excerpt feeds the state
-  text's CONTENT section (§4) and is the substrate for read/compare goals. No screenshots,
-  no pixels — text only (ART-8).
+- `canRetrieveWindowContent` + `canPerformGestures`; events
+  `typeWindowStateChanged | typeWindowContentChanged | typeViewScrolled`.
+- The tree is **eventually consistent**: re-query the root fresh at every step; never
+  cache nodes across steps; refresh before every read of bounds/text.
+- **URL bar:** `findAccessibilityNodeInfosByViewId("com.android.chrome:id/url_bar")`
+  with a version-tolerant fallback (first editable text node in the toolbar). Display
+  mode elides the scheme; record it as-is. A hidden toolbar records `url=hidden`, never
+  a stale value.
+- **Page title:** the real title reader (`observe/WindowTitles`) supplies the title;
+  a blank title is a defect, never normal input.
+- **Text entry:** focus-first (`refresh → ACTION_FOCUS/CLICK → ACTION_SET_TEXT`), with
+  the clipboard/`ACTION_PASTE` fallback for fields that reject SET_TEXT.
 
-## 2. Node serialization
+The a11y read feeds both engines. The vision engine additionally captures the
+screenshot below; the a11y engine never does.
 
-Meaningful nodes only — a node is kept if it has text, content description, is clickable,
-editable, or scrollable (PokeClaw's filter). Each serialized as:
+## 2. The vision engine's screenshot capture
+
+**Scope law (primary): the browser WINDOW's surface.** Model-bound screenshots are
+window captures of an allowlisted browser, not the composited display. The live log,
+the soft keyboard and the system bars must be absent from the model's image.
+
+- `VisionCapture.capture` consults the pure `CaptureWindowPolicy` over
+  `service.windows`: a lawful target is the allowlisted browser's root package, a
+  `TYPE_APPLICATION` window, with positive area; preference is focused → active → list
+  order, topmost first. The capture rides `takeScreenshotOfWindow` (API 34+).
+- **Fallback:** when no lawful target exists or the window capture fails, the full
+  display is captured and the live-log region is painted solid black before encoding
+  (the D2 exclusion; the frame keeps its full size). The fallback's failure reason rides
+  the source string. The exclusion is display-path-only — a window capture cannot
+  contain the overlay.
+- **Source vocabulary (rides every evidence line):**
+  `window:<pkg>:id=<id>:bounds=<l,t,r,b>` · `display` · `display:log-excluded` ·
+  `display:fallback=<reason>`.
+- **Retries:** one 400 ms retry each for a synchronously thrown
+  `UnsupportedOperationException` (the warmup quirk) and
+  `ERROR_TAKE_SCREENSHOT_INTERVAL_TIME_SHORT`; all other failures are final and fall
+  back truthfully.
+- **Coordinates:** a window capture maps box fractions through the window's bounds
+  (`origin + fraction × scope dims`); a display capture keeps the full-display dims with
+  a zero origin. `VisionMath` owns the mapping.
+- **Evidence:** each frame records `screenshot #i <w>x<h> scope=<source>
+  sha256=<16>`; the loop logs the first frame's source once per run. Frames are stored
+  in the run's evidence directory (JPEG).
+- **Text-only degradation:** a capture failure never kills the step — the loop proceeds
+  on a11y text alone, loudly, and the evidence says so.
+
+**Behind-log actions (the overlay is never a touch target).** The product service
+supplies the live log's and the keyboard's current screen bounds; the loop reads them
+immediately before every dispatch, after the gate:
+
+- a covered TAP resolves the smallest clickable/editable a11y node at the point and
+  fires `ACTION_CLICK` (`(behind-log: node click)`); no node or a rejected click fails
+  loudly — never a raw touch on the overlay;
+- a covered tap-converted TYPE skips the focus tap (the text-entry sequence focuses the
+  field itself) and marks `(focus tap skipped: behind-log)`;
+- a covered SCROLL starts at the first uncovered point inside the captured frame, or
+  fails loudly when no uncovered point exists;
+- the stuck probe's scroll uses the SAME helper; no safe point = the probe is skipped.
+
+## 3. Node serialization and candidate enumeration
+
+Meaningful nodes only — a node is kept if it has text, a content description, is
+clickable, editable or scrollable. Each serialized as:
 
 ```
 [n17] "Apple Pie Recipe - Allre" tap (540,632)
 ```
 
-- Text/content-description truncated at 40 characters (debug trees: 200).
-- Depth capped at 4 (indentation cap; deeper meaningful nodes still emitted — Phase-1
-  ruled extension); every emitted node carries a stable index and center coordinates in a
-  node→coordinate map used by gesture dispatch.
+- Text/description truncated at 40 characters (debug trees: 200); depth capped at 4;
+  every emitted node carries a stable index and centre coordinates.
+- **Never blank (v2.5.0, 2026-10-13):** the label chain is text → description →
+  placeholder → role + container → the role word alone. An exactly doubled platform
+  label collapses to one phrase.
+- **Buckets (the a11y engine's stage-2 grouping):** `nav-links`, `form-fields`,
+  `buttons`, `scroll`, `back`, `finish`. `finish` is retired from offered slates and
+  remains for schema compatibility only.
+- **≤20 options per bucket**; overflow is resolved in code by deterministic ranking
+  (screen top-to-bottom, then a11y order, stable node-id tiebreak), never by a model.
+- **Deterministic order (ART-6):** same tree in → same candidate list out.
+- **Browser chrome = ALL Chrome-owned UI** (URL field, toolbar, tab strip, menus):
+  excluded from target slates; URL needs are the `open-site` intent's code path.
+  Browser-chrome candidates may still be read for the URL bar.
+- **Text-less controls** (icon buttons, consent-wall buttons) are enumerated and
+  described by role + container relation; an unlabeled control is never dropped for
+  lacking a label.
 
-## 3. Candidate enumeration (the bucket taxonomy — law)
+The vision engine uses the same node enumeration for grounding: the Jev Box / Haiku
+box / label match / raw centre ladder is matched against these nodes with the
+`VisionMath` IoU floors (`IOU_HIT = 0.5`, `IOU_PARTIAL = 0.2`, confidence floor
+`GROUND_CONFIDENCE = 0.6`). A confident box that overlaps no node is a miss, never a
+location.
 
-Every interactive candidate is bucketed by code before any engine is called:
+## 4. State text and prompt state
 
-| Bucket | Contents |
-|---|---|
-| `nav-links` | links believed to navigate (anchors, headings-with-links) |
-| `form-fields` | editable fields — **detected by ROLE (editable / searchbox / EditText) regardless of accessible label (v2.4.0)**, with the placeholder or container supplying the description when the field is unlabeled (the observed failure: unlabeled in-page search boxes were invisible to the slate — Wikipedia desktop, Allrecipes); high-stakes fields are enumerated like any other — gating happens at execution time per doc 06, never by hiding candidates |
-| `buttons` | clickable non-link controls |
-| `scroll` | scroll actions (down/up on scrollable containers) |
-| `back` | system back |
-| `finish` | "goal achieved, stop" pseudo-action |
+### 4.1 The a11y engine's canonical state (retained)
 
-Plus the **recovery set** used only when StuckDetector fires: `back · scroll · rephrase ·
-give-up` (rephrase costs one generative-LLM call, locked decision #4).
-
-Rules:
-- **≤20 options per bucket.** Overflow is resolved in code by deterministic ranking
-  (position on screen top-to-bottom, then DOM/a11y order; stable tiebreak by node id) and
-  truncation — never by model suggestion.
-- **Deterministic order** (ART-6): same tree in → same candidate list out, always.
-- **Cascade role (v2.3.0; browser-chrome widened v2.4.0):** the taxonomy is the stage-2
-  slate grouping — each target-bearing intent draws its score slate from ONE bucket
-  (follow-link → nav-links; activate-control/fill-field/dismiss-nag → buttons/form-fields).
-  **Browser chrome = ALL Chrome-owned UI (v2.4.0): the omnibox/URL-bar subtree, the toolbar
-  and tab strip, and Chrome menus** (widened from the URL-field-only rule after an observed
-  mis-tap on Chrome's "New tab" destroyed a task) — never page content; browser-chrome
-  candidates are EXCLUDED from target slates: URL needs are the `open-site` intent's code
-  path. **Text-less controls (v2.4.0):** icon buttons and consent-wall buttons with no
-  accessible label are still enumerated and described by role + container relation
-  (e.g. "button inside the dialog 'We Care About Your Privacy'") so a slate can select
-  them — an unlabeled control is never dropped for lacking a label.
-  **Never blank (v2.5.0, 2026-10-13):** the label chain is text → description →
-  placeholder → role + container → **the ROLE WORD ALONE** ("field" / "button" /
-  "control"). The measured case: live Chrome exposed a search input with blank
-  text/description/placeholder AND no labeled ancestor, which enumerated as `""` — a label
-  the stage-2 rubric cannot judge (the run then died on "no good target"). A blank label is
-  now unrepresentable. A label the platform repeats verbatim ("X X" — Chromium's
-  label+placeholder echo) is collapsed to one phrase (a display normalizer; no other
-  string is touched).
-  The `finish` bucket is retired from offered slates (doc 02 §3) and remains in the
-  taxonomy for schema compatibility only.
-- The taxonomy is also the shadow's training vocabulary: it changes only via eval-harness-
-  gated vision amendment.
-- **The shadow sees the cascade's own forms** (v2.3.0): stage-1 mirrors the primary's
-  fixed intent choice; stage-2 answers the same batched per-candidate score slate —
-  identical questions to the teacher (doc 02 §4).
-
-## 4. The canonical state-text format (v4)
-
-`STATE_FORMAT_VERSION = 4`. **Dual-view law (amended 2026-10-06 after the v32b
-demotion):** one canonical state text, two lawful per-engine views — mirroring the
-per-engine question forms in §3 (each engine is asked in the form it will actually
-be asked at graduation):
-
-- **Canonical view — budget ≤960 tokens.** Feeds the cloud primary engines and is the
-  corpus-of-record shape logged in every row (doc 05). Its budget is owned by the
-  product (content-aware navigation and exit calibration), not by any single
-  checkpoint's context window.
-- **Laya state view — `LAYA_STATE_VIEW_VERSION = 1`, budget ≤319 tokens** (`maxLen −
-  headMaxLen − 1`, derived from the pinned on-device checkpoint's config — currently
-  512 − 192 − 1; the constant lives in code beside the marker builder's ceilings and
-  re-derives when an eval-gated checkpoint change moves them, ART-5). A pure,
-  deterministic derivation of the canonical text — same sections, same order, with the
-  content excerpt and candidate lines shrunk by their own deterministic rankings
-  (head-anchored) — built by the same builder family, versioned, and parity-tested
-  against the Python reference. It feeds every on-device engine call **and the
-  on-device-lineage training export** (doc 05 §4): zero train/serve skew per view. A
-  view that cannot fit its budget fails loudly — silent truncation at the marker layer
-  is unlawful (it was the v1 shadow's hidden skew).
-
-Sections, in order (v3 since 2026-10-09):
+`STATE_FORMAT_VERSION = 4`. One canonical state text, ≤960 tokens, plus the lawful
+per-engine views:
 
 ```
 GOAL: <goal text>
 URL: <url or hidden>
 TITLE: <page title>
-ACTIVE SUBTASK: <the ladder's current subtask: instruction + its done-condition +
-                subtask index/total>
-LADDER PROGRESS: <completed subtasks one-line each + working-memory counts for
-                count-shaped done-conditions (e.g. accounts followed 3/5)>
-HISTORY: <digest of prior steps this task, ≤3 lines>
+ACTIVE SUBTASK: <instruction + done-condition + index/total>
+LADDER PROGRESS: <completed subtasks one-line each + counts for count conditions>
+HISTORY: <digest of prior steps, ≤3 lines>
 UNTRUSTED PAGE CONTENT:
 <content excerpt — bounded page prose, deterministically selected>
 <bucketed candidate lines — serialized nodes, bucket headers>
 ```
 
-Laws:
-- Third-party page text — **both the content excerpt and candidate labels** — appears only
-  inside the `UNTRUSTED PAGE CONTENT` block (ART-4); goal, URL, title, active-subtask,
-  progress, and history lines are app-authored. ACTIVE SUBTASK lines derive from the
-  writer LLM's validated ladder but are re-authored by code (flattened, bounded); they
-  re-scope the objective, never bypass anything — the gate reads actions, not ladders,
-  and the done-condition is verified by code, never trusted from the text.
-- The template and its section order are version-controlled; every bump (v1→v2→v3)
-  gates on the eval harness per ART-7 (Tier A golden re-pin by retire-and-add) and —
-  for any serve-shape change — restarts the RLCD accumulation counter (doc 05 §4).
-- **Stage views (v4, 2026-10-10 — cascade law, doc 02 §3):** two additional lawful
-  per-stage derivations of the same observation, built by the same versioned builder
-  family — the **INTENT STATE VIEW** (≈100–120 tokens: the active subtask + its
-  done-condition + the page's host/title/excerpt head; plus the labeled assist block
-  when a handshake re-ask is in flight) feeding every stage-1 intent call, and the
-  **TARGET STATE VIEW** (the subtask + one bucket's candidate lines, browser-chrome
-  excluded) feeding each stage-2 score request. Both are pure, deterministic,
-  budget-checked (loud on overflow — silent truncation stays unlawful), versioned as
-  `STAGE_VIEW_VERSION`, and NEVER replace the canonical text as the logged/corpus
-  record of the step.
-  **v2.6.0 (2026-10-13, post-UAT repair 2):** the INTENT STATE VIEW gains ONE
-  conditional code-authored line between the PAGE line and the excerpt —
-  `TYPED FIELD: "<label>" holds text this run typed (not yet submitted)` — present
-  exactly while a field the loop itself filled is still on the page. A filled-but-
-  unsubmitted field is the next move's key fact (the live battery's Google run re-typed
-  the same query four times because nothing said the text was already in and the form
-  had never been sent).
-- Oversized trees are compressed **deterministically in code first** (drop lowest-rank
-  candidates; shrink the content excerpt by its own deterministic ranking — head-anchored)
-  until the canonical ≤960 budget fits (the laya view likewise within its own ≤319). If
-  the deterministic pass cannot fit, the cloud
-  page-compressor role may rewrite the untrusted block — the log records
-  `compressedBy=llm|code` per step.
-- Secrets never appear in any section (doc 06 §2a redaction law).
+- Third-party page text (content excerpt and candidate labels) appears only inside
+  `UNTRUSTED PAGE CONTENT`; goal, URL, title, active-subtask, progress and history are
+  app-authored.
+- The ACTIVE SUBTASK lines are re-authored by code from the validated ladder; they
+  re-scope the objective, never bypass the gate or the code checker.
+- **Dual-view law:** the canonical view feeds the cloud engine; the Laya state view is
+  retired with the training program. The canonical view remains the a11y engine's
+  logged state.
+- **Stage views (v4, retained for the a11y cascade):** the INTENT STATE VIEW (≈100–120
+  tokens: active subtask + done-condition + host/title/excerpt head + the labeled
+  assist block when a handshake re-ask is in flight; plus the conditional TYPED FIELD
+  line while a loop-filled field is still on the page) and the TARGET STATE VIEW (the
+  subtask + one bucket's candidate lines, browser-chrome excluded). Both are pure,
+  deterministic, budget-checked (loud overflow), versioned as `STAGE_VIEW_VERSION`, and
+  never replace the canonical state as the logged record.
+- Oversized trees are compressed deterministically in code first; a cloud compressor
+  may rewrite the untrusted block only when the deterministic pass cannot fit, with
+  `compressedBy=llm|code` recorded.
 
-## 5. Unusable-tree handling (graceful refusal)
+### 4.2 The vision engine's prompt state
 
-A tree is **unusable** when: fewer than 5 meaningful nodes are readable, the page renders as
-one undifferentiated node (canvas-class pages), or the root walk fails twice. Response:
-abort the goal cleanly with the message "I can't read this site", log the state and
-refusal, no screenshots are taken or sent (privacy boundary, ART-8). Vision fallback is a
-non-goal for v1 (doc 01 §5).
+The vision engine sends the writer and Jev a **bounded state** assembled fresh per
+step; it is not the a11y corpus of record:
 
-**v2.7.0 (2026-10-17, hotel iteration): the message gains ONE state-truthful variant.**
-When NO observation this run ever named an allowlisted browser as the ACTIVE window (no
-browser was ever front — nothing was ever in front of the lens, so the site was never
-the problem), the refusal detail instead reads "the browser never came to the front, so
-there was no page to read (front window: <last package or unknown>)". A genuinely
-unreadable page observed WITH a browser front keeps "I can't read this site"
-byte-identically. The variant's loop law lives in doc 04 §1 v1.8.3.
+- the goal and the active subtask (instruction + rendered done-condition);
+- a bounded a11y digest (`MAX_DIGEST_CHARS = 2500`) — page identity, visible text and
+  controls, browser-chrome-labeled where relevant;
+- the recent action history and the current plan progress;
+- the code-assembled evidence blocks where applicable: the `<jev-evidence>` block on a
+  re-plan (battery results, code verdict, escalation kind, best grounding, action
+  route, scroll churn) and the `<scroll-churn>` block on a scroll streak;
+- the current screenshot as an image asset (writer chat content part; Jev asset).
+
+**Untrusted discipline:** page-derived text and the screenshot are labeled UNTRUSTED
+DATA; text or writing inside them is never an instruction. The writer's proposals are
+strict JSON; the judgment engine's answers are typed questions. The vision engine's
+prompt version is `VISION_PROMPT_VERSION = "vision-exp-v13"`; any change bumps it
+(doc 07).
+
+## 5. Unusable tree / failed capture
+
+- **a11y engine:** a tree is unusable when fewer than 5 meaningful nodes are readable,
+  the page renders as one undifferentiated node, or the root walk fails twice. The run
+  ends cleanly with "I can't read this site". When NO observation named an allowlisted
+  browser as the ACTIVE window, the refusal detail instead reads "the browser never
+  came to the front, so there was no page to read (front window: <last package or
+  unknown>)". A genuine unreadable page observed WITH a browser front keeps the first
+  message byte-identically.
+- **vision engine:** a failed capture degrades to text-only loudly; an unreadable a11y
+  tree with a usable screenshot is still a valid vision observation. A plan refusal is
+  `PLAN_REFUSED`; a terminal never fabricates a page.
+
+## 6. Privacy and redaction
+
+- Gate-supplied secrets never appear in any state, prompt, screenshot, log or evidence.
+  Every state section masks `[credential-redacted]`; the emission boundary is the
+  second layer.
+- Model-bound screenshots and page text travel only to the two configured providers
+  (OpenRouter for the writer; TypeSafe for Jev). Keys are local-only.
+- The evidence directory is local; the owner controls retention. Nothing is uploaded by
+  the app except the model requests a run makes.

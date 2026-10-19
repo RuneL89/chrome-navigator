@@ -26,25 +26,10 @@ android {
     }
 
     buildTypes {
-        debug {
-            // EXPERIMENT BRANCH ONLY (exp/vision-box, 2026-10-17): the debug APK installs
-            // ALONGSIDE the product app instead of replacing it — the owner's device runs
-            // the phase-10d build under `navigator.app`, and the vision experiment must
-            // not touch it. The FILE is also renamed: both branches used to write the
-            // same `app-debug.apk`, and a parallel phase-10d build clobbered the output
-            // dir mid-session (measured 2026-10-17 — the wrong APK got installed).
-            // Remove this block when the branch merges or dies.
-            applicationIdSuffix = ".visionexp"
-            versionNameSuffix = "-visionexp"
-            applicationVariants.all {
-                if (buildType.name == "debug") {
-                    outputs.all {
-                        (this as? com.android.build.gradle.internal.api.BaseVariantOutputImpl)
-                            ?.outputFileName = "navigator-visionexp-debug.apk"
-                    }
-                }
-            }
-        }
+        // PHASE_14 (the vision-engine promotion, 2026-10-18): the debug build uses the
+        // PRODUCT identity — no applicationIdSuffix, no versionNameSuffix, no renamed
+        // APK. The experiment's `.visionexp` co-install is retired; the owner's device
+        // installs `app-debug.apk` over `navigator.app`.
         release {
             isMinifyEnabled = false
         }

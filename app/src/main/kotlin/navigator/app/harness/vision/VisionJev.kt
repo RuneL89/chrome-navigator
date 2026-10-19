@@ -14,8 +14,8 @@ import navigator.core.wire.WireTransport
 import navigator.core.wire.WireTransportException
 
 /**
- * The EXPERIMENT's multimodal systemone client (branch-only try-out; the production
- * wire law lives untouched in [navigator.core.wire.SystemOneClient]). Speaks the
+ * The vision engine's multimodal systemone client (the shared wire law lives in
+ * [navigator.core.wire.SystemOneClient]). Speaks the
  * Typesafe images API shapes (docs.typesafe.ai/images, primitives/box):
  *
  * - request `{state, model, assets?, questions}` where [state] is the usual TEXT state
@@ -167,7 +167,7 @@ class VisionJev(
         const val DEFAULT_VISION_BASE_URL = "https://api.typesafe.ai/v1/systemone"
 
         /**
-         * The experiment's default Jev snapshot for vision (Box requires Jev 1.14). The
+         * The vision engine's default Jev snapshot (Box requires Jev 1.14). The
          * VENDOR endpoint takes the dated vendor slug `jev-1.14.0`; the OpenRouter alpha
          * endpoint resolves the ALIAS `typesafe/jev-1.14` instead (`typesafe/jev-1.14-20261014`,
          * live-verified 2026-10-17; the vendor-style slugs 400 on the proxy).

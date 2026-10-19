@@ -108,3 +108,65 @@ emulator webview and was reverted before any phone install; `isAccessibilityTool
 (2026-10-08 21:37) registered with Chrome but did not unlock the phone — both kept out of the
 hypothesis list by evidence. The service XML retains `isAccessibilityTool="true"` (harmless,
 arguably accurate) and `canRequestEnhancedWebAccessibility` (webview-shell-only).
+
+## KD-8 · DEFERRED — the vision engine's report answer came back blank on the successful order run
+
+**Evidence:** `task-1792437261071` (2026-10-18), `events.log`: at 310.4 s
+`report extraction ran (answer I could not find the answer on the page.)`; the final
+report subtask was accepted with `noul=0.23` and confirm=true (DISAGREE); the terminal
+line carries the same failure text. The order itself (139769696) was placed later.
+**Impact:** a successful action run ends with a useless answer; the owner cannot read the
+order number/product/quantity from the result surface.
+**Recovery candidates:** inspect the extraction prompt/state on the order-confirmation
+page; the one-call law and the report subtask must produce the deliverable; a low-noul
+DISAGREE must not be presented as a good answer. Add a live report-goal acceptance case.
+
+## KD-9 · DEFERRED — the plan and re-plans dropped the goal's order intent
+
+**Evidence:** the same run: the initial plan's final subtask said "continue to the order
+summary without paying"; battery re-plans #1–#5 said "without placing the order" / "stop
+at the unplaced checkout"; the engine placed the order anyway (the owner intended it).
+**Impact:** the writer's plan and the engine's behavior diverge; a goal whose intent is
+"complete the purchase" can be planned as "stop before purchase", and the reverse
+interpretation is possible on another site.
+**Recovery candidates:** carry the full goal and the owner's transaction-completion
+intent into the plan/re-plan prompt; explicitly forbid "without placing the order" when
+the goal says to order; add an ambiguous-"check out" test (the owner's stated end state
+is the tiebreaker).
+
+## KD-10 · DEFERRED — the vision engine's re-plan does not freeze the verified prefix
+
+**Evidence:** `VisionLoop` installs `rePlan.ladder` and resumes at
+`min(pointer, lastIndex)`; the a11y engine's `ReplanRule` freezes the verified prefix
+and allows one declared rollback. The 2026-10-18 run re-planned at subtask 2/3 several
+times.
+**Impact:** a re-plan can rewrite or reorder already-verified work; the a11y engine's
+stricter integrity law does not protect the vision engine.
+**Recovery candidates:** apply `ReplanRule` to the vision ladder (or an equivalent
+code check), or amend the law to state the divergence explicitly. Do this after KD-9
+(goal preservation), because a prefix freeze without the goal intent can trap a
+mis-shaped plan.
+
+## KD-11 · COVERAGE — the run-start goal digest hides the goal tail
+
+**Evidence:** `VisionLoop` writes `run start goal=<goal.take(80)>`; the full goal is in
+`call-000-plan.req.json`. The 2026-10-18 analysis initially misread the goal from the
+digest.
+**Impact:** monitoring and reports can misattribute the goal; the full goal is one file
+away but not in the event stream.
+**Recovery candidates:** write a full-goal event (or the full goal in the run report
+header); keep the digest as a convenience only. The evidence law (doc 05 §2) already
+requires the full goal in the report.
+
+## KD-12 · HARDENING — the spend ledger records zero usage/cost
+
+**Evidence:** every `call` line in `task-1792437261071`'s `events.log` reads
+`in=0 out=0 cost=0µ$`, including the Haiku plan/repair/replan calls and the Jev
+battery/ground calls. The step/time caps applied; the $20/$25 decision and $5/$10
+writer caps did not meter.
+**Impact:** the 100× budget law is not enforceable on spend; a long run can exceed the
+intended dollar ceiling without a hard stop.
+**Recovery candidates:** parse and pass through the providers' usage (token counts and
+the price table) on every call; pin the metering with a JVM test; re-check the run's
+actual spend from the raw response usage.
+

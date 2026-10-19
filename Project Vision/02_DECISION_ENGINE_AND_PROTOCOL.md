@@ -1,18 +1,102 @@
-# Decision Engine & Protocol
+# Decision Engines & Model Protocol
 
 **Document ID:** `NAVIGATOR-VISION-002`
-**Version:** 1.4.1 *(amended 2026-10-13 (post-UAT repair 2): §3's stage-2 target note — `submit` needs a target only while the page offers a submit-shaped control; with none, the intent executes control-less via the platform IME action on the field this run filled (doc 04 §2 v1.8.2). Amended 2026-10-11 (Phase 10C): §2 gains the stage-1 intent-banding rule (route on the chosen option's probability + a top-vs-second margin, not the self-reported confidence); §3's stage-2 rubric is framed per intent and a no-good-target now triggers a bounded stage-1 re-ask; the browser-chrome exclusion covers ALL Chrome UI (URL field, toolbar, tab strip, menus), not only the URL field. Amended 2026-10-11: §2 wire rule — the noul question rides the wire `instructions` field; the Phase-3 `proposition` field is retired after live proof that the model ignores it (the exit-hedging root cause). Amended 2026-10-10: the decision cascade — §3 gains the stage-1 fixed-intent vocabulary + stage-2 batched score-per-candidate law and per-question instructions (reversing the Phase-3 shared-instructions decision, owner-ratified after the UAT root-cause analysis); §4 the shadow mirrors both cascade stages)*
-**Status:** Ratified (2026-10-03; amendment ratified 2026-10-04)
+**Version:** 2.0.0 *(amended 2026-10-18: the vision-engine promotion — the product now
+has two engines with declared model roles: the vision engine's writer (Haiku over
+OpenRouter chat) and judgment engine (Jev 1.14 over the TypeSafe vendor route), and
+the retained a11y engine's `DecisionEngine` cascade (Jev over OpenRouter decisions).
+The Laya shadow, the agreement/graduation program and the fallback composition are
+retired; the wire laws, question primitives and pinning law survive for both engines.
+Owner-authorized DeepSeek Flash amendment; the GLM-5.3 exception is recorded in
+`.state/compliance-log.md`)*
+**Status:** Ratified (2026-10-03; amendments 2026-10-04, 2026-10-06, 2026-10-10,
+2026-10-11, 2026-10-13, 2026-10-18)
 **Date:** 2026-10-03
-**Implements:** ART-2 (one decision gateway), ART-11 (offline endgame)
+**Implements:** ART-2 (declared model roles), ART-5 (numbers in code), ART-7 (versioned
+forms), ART-8 (privacy boundary)
 
 ---
 
-## 1. The DecisionEngine interface
+## 1. Two engines, one protocol family
 
-Every navigation-related decision in the system — task triage, action choice, goal-achieved
-judgment, recovery-strategy choice — is expressed as one of three typed question primitives
-answered through this interface (defined in `:core`):
+The product runs one engine at a time, chosen by the product route (doc 01 §3):
+
+| Engine | Model roles | Transport | Decision authority |
+|---|---|---|---|
+| **Vision** (default) | Writer (Haiku) + judgment engine (Jev 1.14) | OpenRouter chat completions + TypeSafe `/v1/systemone` | Code owns the ladder, battery accept, gate and completion; the writer proposes; Jev grounds and judges |
+| **A11y** (retained, toggle OFF) | `DecisionEngine` gateway (Jev) | OpenRouter decisions | The cascade chooses; code owns the gate, guards and ladder advance |
+
+Both engines share the same ladder types (`:core/ladder`), the same done-condition
+checker, the same risk gate and the same product surfaces (overlay, corner log,
+notification). They differ in perception (a11y only vs a11y + screenshot) and in the
+model protocol below. A run never mixes the two engines' model roles.
+
+## 2. The vision engine's model protocol
+
+### 2.1 The writer (Haiku)
+
+- **Transport:** OpenRouter chat completions with IMAGE CONTENT PARTS. The writer model
+  is the pinned generative model (`GenEngineConfigs.GENERATIVE_MODEL`); the exact ID
+  lives only in the config. The request carries a system prompt and a user message
+  containing the labeled a11y digest and (when applicable) the current screenshot.
+- **Roles (exactly these):**
+  - **plan** — decompose the goal into the ladder (1..8 subtasks, each with one
+    whitelisted done-condition and an optional `enterText`);
+  - **propose** — name 1..3 controls (verb, referential description, optional text) for
+    the active subtask;
+  - **repair** — when the battery reports OUTCOME-ACHIEVED-WHILE-CONDITION-UNMET, spend
+    ONE bounded turn to return a valid repaired condition;
+  - **confirm** — answer the final-subtask opinion (confirm true/false) that rides the
+    `MODELS_CONFIRM_DONE` hatch;
+  - **extract** — produce the report answer from the freshest observation.
+- **Discipline:** every output is strict JSON extracted deterministically
+  (`extractJson`, `parseProposals`, `parseRepairedCondition`, `LadderSchema`); a
+  malformed answer is a failed step, never a default. Page material is labeled
+  UNTRUSTED DATA. The writer never chooses an action directly: its proposals are
+  grounded and gated by code.
+- **Prompt surface:** versioned by `VISION_PROMPT_VERSION` (currently
+  `vision-exp-v13`). The version covers the plan, propose, repair and extraction
+  prompts, the `<jev-evidence>` re-plan block, the `<scroll-churn>` block and the
+  ladder/purchase/CTA laws. A prompt change bumps the version and triggers doc 07's
+  gate rule.
+
+### 2.2 The judgment engine (Jev 1.14)
+
+- **Transport:** `https://api.typesafe.ai/v1/systemone`, model `jev-1.14.0`, TypeSafe
+  key, the `TypeSafe-Danger-Zone-Images: true` header on image calls, base64 assets in
+  the request. This is the only live-proven transport that carries images to Jev; the
+  OpenRouter decisions route strips image payloads in every documented format and is
+  not an image route.
+- **Request shape:** `{state, model, assets?, questions}` where `state` is the text
+  state (a11y digest + references) and the screenshot rides as an asset when the call
+  is image-bearing.
+- **Roles (exactly these):**
+  - **battery** — answer the writer-authored verification questions. ONE batched
+    request carries the nouls for the active subtask's checks over text+IMAGE; the
+    writer independently answers the same questions over its own image channel.
+  - **ground** — ONE batched request carrying the image in state, a `box` question per
+    tap/type proposal and the pick `choice`. The box is the primary locator; the
+    Haiku proposal box, the label match and the raw centre are fallbacks in that
+    order.
+- **Ordering law:** the battery runs BEFORE acting (escalation precedes action); the
+  grounding runs AT the action. Two Jev requests per step are deliberate — one judges
+  the outcome, one locates the control.
+- **Box honesty:** a Box answer always returns a rectangle; it cannot say "not found".
+  Code therefore applies the confidence floor and the IoU ladder (`VisionMath`); a
+  confident box that overlaps no a11y node is a miss, not a location.
+
+### 2.3 The division of labor
+
+> The models describe; the code decides and acts.
+
+The writer describes the page and proposes; Jev judges and locates; code validates the
+ladder, checks the done-condition, runs the battery accept, applies the gate, executes
+the gesture, and owns every number and terminal. No model's self-report completes a
+task (ART-4).
+
+## 3. The a11y engine's DecisionEngine protocol (retained)
+
+The retained engine keeps the Phase-0..10D contract:
 
 ```kotlin
 interface DecisionEngine {
@@ -22,178 +106,69 @@ interface DecisionEngine {
 }
 ```
 
-Law:
-- No component outside this interface constructs provider HTTP requests (ART-2).
-- The interface is engine-agnostic: `JevEngine`, `LayaEngine`, `VonEngine`, `RunwareEngine`
-  are all implementations or configs of it; nothing names a provider except the config.
-- Graduation is a config flip (`primary = LAYA`) with no code change anywhere else.
+- **Law:** no component outside this interface constructs provider HTTP requests for
+  the a11y engine; `JevEngine` is the implementation; the product config names the
+  provider.
+- **The cascade:** stage-1 fixed 9-intent choice (`open-site`, `follow-link`,
+  `activate-control`, `fill-field`, `submit`, `go-back`, `scroll`, `dismiss-nag`,
+  `verify-done`) over the small intent state view; stage-2 batched score-per-candidate
+  over one bucket slate when the intent needs a target; code computes the argmax. The
+  banding, no-good-target re-ask, uncertainty handshake and per-question instructions
+  remain the a11y engine's law (doc 04 §3).
+- **Retired:** the `finish` pseudo-action; the shadow; the fallback composition; the
+  graduation flip. The a11y engine runs Jev alone.
 
-## 2. Wire protocol and engine configs
-
-All cloud engines speak the `/v1/systemone`-family JSON contract: a `state` string plus a
-map of typed questions; answers return structured results with probability distributions.
-**One wire client implementation** in `:core` serves every config; engines differ only by
-`baseUrl` + `apiKey` + `model` (+ minor adapter fields).
-
-| Config | baseUrl | model (pinned) | Role |
-|---|---|---|---|
-| primary | `https://openrouter.ai/api/alpha/decisions` | `typesafe/jev-1.13-20260917` | Live decisions |
-| fallback-1 | `https://api.runware.ai/v1/decisions` | `typesafe:jev@1` | Provider outage |
-| fallback-2 | self-hosted Von/Laya server (owner-operated) | pinned at deploy | Provider extinction |
-| future | `https://api.typesafe.ai/v1/systemone` | pinned | If whitelist granted |
-| shadow | on-device ONNX int8 | `laya` (EN, 421M, `convaiinnovations/laya`) | Logging only until graduation |
-
-Wire-client rules (from documented provider caveats — these are law):
-- Index probability maps by question/option **name**, never by position (key order shifts).
-- Probabilities vary between calls: branch on **bands** — low `< 0.30`, uncertain
-  `[0.30, 0.70]`, high `> 0.70` — never on exact values.
-- `noul` has no separate confidence field; values in the uncertain band mean "don't know".
-- **Stage-1 intent banding (v1.4.0, Phase 10C):** the cascade's HIGH/UNCERTAIN/LOW routing
-  for the fixed 9-intent choice is computed from the chosen option's **probability** plus a
-  top-vs-second margin (code constants, ART-5, calibrated with live evidence) — never from
-  the model's optional self-reported `confidence` alone (the observed trap: chosen p 0.62–0.70
-  with confidence 0.38–0.66 routed UNCERTAIN, so the correct intent never executed). The
-  handshake thresholds follow the same band.
-- **The noul question rides the wire `instructions` field** (v1.3.0, corrected
-  2026-10-11 after live proof): `{"type":"noul","instructions":"<the anchored
-  proposition>"}` — the SDK-documented shape. The Phase-3 `proposition` wire field is
-  retired: the model ignores unknown fields, so that shape made every noul answer
-  boilerplate with a state-dependent constant and no proposition discrimination (the
-  root cause of the exit-hedging failures from the first UAT; with the question in
-  `instructions` the pinned snapshot scores true conditions 0.98–0.99 and false 0.01).
-- A request is retried only on transport errors (max 2, exponential backoff), never on an
-  answer the caller dislikes (no answer-shopping).
-
-## 3. Question primitives
+## 4. Question primitives
 
 | Primitive | Input | Output | Constraints |
 |---|---|---|---|
-| `choice` | state + options (id + criteria description each) | chosen option + full probability distribution + confidence | Cascade stage-1: the FIXED 9-intent vocabulary (below). Legacy flat ≤255 lists remain lawful for non-cascade questions (triage, recovery). |
-| `noul` | state + proposition | P(true) ∈ [0,1] | Used for done-checks (engine-chosen or code-triggered); always paired with code completion guards (ART-4, doc 04 §3). |
-| `score` | state + ordered rubric levels (2–10) | expected value over levels + per-level probabilities | Cascade stage-2: ONE request carries N per-candidate score questions over the same relevance rubric; `:core` computes expected levels and takes the argmax (ART-5). Rubric is ordinal levels, **not** numeric. |
+| `choice` | state + options (id + criteria each) | chosen option + full distribution + confidence | Vision: the pick among grounded proposals. A11y: the fixed 9-intent stage-1 form. |
+| `noul` | state + proposition | P(true) ∈ [0,1] | Battery checks, confirmations, finality. The proposition rides the wire `instructions` field; the retired `proposition` field is never used. |
+| `score` | state + ordered rubric levels (2–10) | expected value + per-level probabilities | A11y stage-2 only. Code computes the argmax; a flat spread is no-good-target. |
+| `box` | state + image + target description | fractional rectangle + confidence | Vision grounding only. Code applies the IoU/confidence floor. |
 
-**The decision cascade (v1.3.0, 2026-10-10 — owner-ratified; supersedes the flat
-per-step action list):** every step's navigation decision is a two-stage cascade of
-typed questions:
+**Wire laws (both engines):**
+- Index probability maps by question/option **name**, never by position.
+- Branch on **bands** — low `< 0.30`, uncertain `[0.30, 0.70]`, high `> 0.70` — never
+  on exact values; thresholds are code config.
+- A `noul` in the uncertain band means "don't know"; a `box` below the floor means
+  "not located".
+- Every question carries its own complete `instructions`; shared per-primitive
+  instruction constants are retired.
+- A request is retried only on transport errors (bounded, exponential backoff), never
+  on an answer the caller dislikes (no answer-shopping).
+- Gate-supplied secrets are masked out of every state and question (doc 06 §2a).
 
-- **Stage 1 — intent.** ONE `choice` over the FIXED intent vocabulary — 9 categories:
-  `open-site, follow-link, activate-control, fill-field, submit, go-back, scroll,
-  dismiss-nag, verify-done` — each option carrying a stable one-sentence criteria
-  description; judged against the small INTENT STATE VIEW (doc 03 §4), never the full
-  canonical state. The option set is identical on every call and every task: a stable,
-  learnable prior (the Phase-10 UAT proved per-page dynamic lists with hollow criteria
-  produce hedged, low-confidence answers).
-- **Stage 2 — target (only when the intent needs one: follow-link, activate-control,
-  fill-field, dismiss-nag, submit — the last only while the page OFFERS a submit-shaped
-  control; when none exists the `submit` intent executes control-less through the
-  platform IME action on the field this run filled, doc 04 §2 v1.8.2, no stage-2 call at
-  all).** ONE wire request carrying N `score` questions (one per
-  candidate of the intent's bucket slate; **ALL Chrome UI excluded as browser chrome
-  (v1.4.0) — the URL field, toolbar, tab strip and menus** (widened from the URL-field-only
-  rule after a mis-tap on Chrome's "New tab" destroyed an observed task); URL needs are the
-  `open-site` intent's code path), all over the same 5-level relevance rubric, **framed PER
-  INTENT in the question's `instructions`** (v1.4.0 — e.g. for `fill-field`: "is this the
-  field the active subtask's goal needs filled?"): enablement targets must be able to score
-  at or above the floor (the observed failure mode: the correct search box scoring
-  1.56–2.09 against a floor of 3.0); `:core` computes each candidate's expected level and
-  takes the argmax. A flat distribution (spread below a code threshold) **or an empty /
-  unusable slate** is the no-good-target signal — which (v1.4.0) triggers **ONE bounded
-  stage-1 re-ask with that fact attached** (per page-hash), never a silent subtask failure.
-- **Uncertainty handshake.** Stage-1 UNCERTAIN → ONE bounded writer assist
-  re-describes the page relative to the active subtask → ONE re-ask of stage-1 with
-  the assist text riding the state as labeled untrusted context; still UNCERTAIN →
-  code fallback (recovery / re-plan / owner card). LOW → wrong-page signal. Bounds
-  are code constants (ART-5); law detail in doc 04 §2.
-- **Per-question instructions.** Every question carries its own complete
-  `instructions` text — the judgment, phrased for a knowledgeable person answering in
-  a second, never the answer format (the typed API already fixes the format). The
-  shared per-primitive instruction constants are retired. *(This reverses the
-  Phase-3 recorded decision to share one instruction string per primitive; reversed
-  by the owner on 2026-10-10.)*
+## 5. Pinning and upgrades
 
-The `finish` pseudo-action is RETIRED from decision slates — the `verify-done` intent
-and the code-triggered IS-DONE checks own completion (doc 04 §3); the finish bucket
-remains in the taxonomy (doc 03 §3) for schema compatibility only.
+- All model IDs and prompt versions are **pinned**; config is the only place IDs
+  appear. The vision engine's model identities ride the run report/evidence
+  (`endpoint=... model=...` on image calls).
+- Upgrading a pinned model, changing `VISION_PROMPT_VERSION`, the ladder schema, the
+  capture law or a question form requires the doc 07 gate: the JVM suites green plus a
+  live-run review. Silent drift is a compliance violation.
+- The writer and judgment engine are independent pins: changing one does not license
+  changing the other.
 
-## 4. ShadowRouter semantics
+## 6. Keys, refusals and keys hygiene
 
-`ShadowRouter` is the only `DecisionEngine` the navigation loop sees:
+- Two encrypted slots: the OpenRouter key (writer channel) and the TypeSafe key
+  (image/judgment channel). Both live in `EncryptedSharedPreferences`; the store is
+  local-only, never logged, and renders presence only.
+- A vision run resolves each channel symmetrically: intent extra > the Setup store >
+  environment > the local keys file. A run missing either key refuses loudly, naming
+  the channel and the Setup recovery; it NEVER falls back to the a11y engine silently.
+- The Setup "Test keys" button validates both on demand (the free OpenRouter key GET +
+  a minimal one-noul TypeSafe probe); it never auto-runs and never pings on resume.
+- The a11y engine's explicit toggle OFF is the only path that does not read the
+  TypeSafe key.
+- A key is never written to a command, a log, a run report or git.
 
-1. Calls the **primary** synchronously; returns its answer to the loop. Under the
-   cascade (§3) the primary's stage-1 intent choice is the step's decision of record,
-   and its stage-2 argmax target is the executed candidate.
-2. Fires the **shadow** (Laya, on-device) asynchronously — fire-and-forget; the loop never
-   waits for it. The shadow **mirrors both cascade stages** (v1.3.0): its stage-1 is the
-   same fixed-intent choice; its stage-2 answers the same batched per-candidate score
-   form (teacher and student now answer identical questions — the graduation metric
-   measures the real serve shape). If the shadow answer isn't ready before the next
-   step, the log row records `shadowMiss=true`.
-3. Under thermal/battery pressure the shadow samples **every 3rd step** instead of every
-   step (deterministic toggle, logged per row) — shadow execution must never block or slow
-   the primary loop (perf law, doc 01 §1).
-4. Writes the DecisionLog row (both answers, both distributions, agreement fields — doc 05).
-   If the shadow completes **after** the decision row freezes, the router inserts a
-   companion `ShadowResultRow` keyed `(taskId, stepIndex)` when the answer lands — still
-   insert-only, never an update (doc 05 §2 amendment 2026-10-04; owner-ratified).
+## 7. Retired protocol elements
 
-## 5. Version pinning and upgrades
-
-- All engine model IDs are **pinned snapshots** (e.g. `typesafe/jev-1.13-20260917`), never
-  floating aliases. Config is the only place IDs appear.
-- Upgrading any pinned ID requires: a full eval-harness run (doc 07) + an explicit bump
-  commit. Silent drift is a compliance violation.
-- The pinned Jev snapshot is **the teacher of record**: the RLCD corpus's gold labels come
-  from it. Bumping the teacher mid-accumulation makes the corpus mixed-teacher and must be
-  called out in the bump commit message (it weakens training signal — an accepted, explicit
-  cost, not an accident).
-
-## 6. Graduation
-
-- **Criteria (initial, tunable by amendment):** shadow top-1 agreement with the teacher
-  > 85% sustained over 2 consecutive weeks **and** eval-harness goal-suite accuracy ≥ the
-  teacher's on the same run **and** the exit-calibration family (doc 07 §3a) no worse
-  than the teacher — terminal fixtures finish within budget, decoy fixtures never
-  finish. (Added 2026-10-06: the UAT proved choice accuracy and exit calibration are
-  independent axes — v32b agreed on choices while never exiting achieved goals, and the
-  421M base false-exited on a mention. A checkpoint that agrees on choices but
-  mis-judges noul must not graduate.)
-- The flip is a config change (`primary = LAYA`); Jev moves to the rescue/fallback tier.
-- Post-graduation the UI counter reads "100% on-device decisions".
-- If Laya never graduates: accepted outcome (Road L risk #7) — the app remains Jev-driven;
-  the corpus and agreement data still exist and cost nothing to maintain.
-
-## 7. Fallback composition & engine modes (amended 2026-10-06, owner-directed)
-
-The gateway may compose two engines into one `DecisionEngine` — a **primary** and a
-**fallback** — without violating ART-2 (both are called through the interface; no direct
-provider access anywhere else).
-
-**Composition law:**
-- **Primary:** the on-device Laya **checkpoint of record** — the best eval-gated
-  checkpoint, pinned in config per §5 (currently the 421M base, `convaiinnovations/laya`;
-  the `laya-browser-v32b` import was demoted to eval-only packaging on 2026-10-06 after
-  its UAT disqualification. Road L Phase 3 fine-tunes enter through the same doc 07 gate
-  and become the checkpoint of record only by passing it).
-- **Fallback:** Jev via OpenRouter (existing pinned config).
-- **Escalation policy — confidence-band:** for `choose`, consult the fallback when the
-  primary's confidence is **not HIGH** (≤ 0.70); for `noul`, when the primary lands in the
-  uncertain band. The fallback's answer is executed and both answers are logged.
-- **Hard-failure escalation:** primary load/inference failure always escalates (graceful
-  degradation, never a dead task).
-- `score` follows the primary (unused in the v1 loop).
-- No answer-shopping: the fallback is consulted at most once per decision; its answer is
-  final for that step.
-
-**Engine-mode register (UAT + product):**
-
-| Mode | Primary | Fallback | Notes |
-|---|---|---|---|
-| `jev` | Jev (OpenRouter, pinned) | — | current product default |
-| `laya` | on-device fine-tuned Laya | — | pure phone-only; escalation statistics N/A |
-| `laya-fb-jev` | on-device fine-tuned Laya | Jev (confidence-band) | the phone-only setup with a safety net |
-
-These modes exist for measurement and owner choice; the product default after the UAT
-comparison is an explicit owner decision. All modes log primary identity per doc 05
-(`teacher` = primary of record); `escalated` + `fallback` fields record fallback usage.
-Text phrasing (locked decision #4) remains a generative-LLM role in all modes — typed
-secrets stay code-gated (doc 06 H8) regardless of which engine chose to type.
+The following are retired and must not be reintroduced without a vision amendment:
+LayaEngine, ShadowRouter, the shadow/companion rows, agreement/KL metrics, the
+graduation criteria, the FallbackEngine composition, the `laya`/`laya-fb-jev` engine
+modes, the Runware/Von configs (no runtime path), and the RLCD question-schema
+versions. The `:core` tokenizer remains only where the retained a11y state builder
+uses it for budget enforcement; it is not a model.

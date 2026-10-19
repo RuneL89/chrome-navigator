@@ -15,8 +15,8 @@ import navigator.core.wire.WireTransport
 import navigator.core.wire.WireTransportException
 
 /**
- * The EXPERIMENT's multimodal writer client (branch-only try-out; the production writer
- * stays [navigator.app.gen.GenClient], whose request body is string-content only). Speaks
+ * The vision engine's multimodal writer client (the a11y writer stays
+ * [navigator.app.gen.GenClient], whose request body is string-content only). Speaks
  * OpenRouter chat-completions with IMAGE CONTENT PARTS — the pinned writer model
  * `anthropic/claude-haiku-5.5` is text+image->text (verified against the OpenRouter
  * model registry 2026-10-17):

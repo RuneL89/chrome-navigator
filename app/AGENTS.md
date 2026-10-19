@@ -10,12 +10,15 @@ Phase 9 the product overlay UX (`overlay/`) and the setup wizard (`setup/`).
 PHASE_VEXP3 (owner directive 2026-10-19, verbatim: the training-data program is
 RETIRED — "remove that noise completely"): the on-device laya engine (`laya/`), the
 `ShadowRouter`, the Room DecisionLog persistence (`log/`), and the RLCD/eval machinery
-are DELETED; the legacy loop logs through `NoOpLogSink` (nothing persists).
-PHASE_VEXP4 (the default flip, 2026-10-19): THE VISION LOOP IS THE APP'S ENGINE on
-this branch — the wizard's vision-loop preference defaults ON, so every goal typed in
-the app runs the VisionLoop; a missing key refuses LOUDLY naming the channel + the
-wizard (NEVER a silent legacy fallback), and the owner's explicit toggle OFF is the
-legacy-engine fallback.
+are DELETED; the a11y engine logs through `NoOpLogSink` (nothing persists).
+PHASE_14 (THE VISION-ENGINE PROMOTION, 2026-10-18): THE VISION ENGINE IS THE APP'S
+DEFAULT ENGINE and `master` is the product branch — the wizard's vision-loop
+preference defaults ON, so every goal typed in the app runs the VisionLoop; a missing
+key refuses LOUDLY naming the channel + the wizard (NEVER a silent legacy fallback),
+and the owner's explicit toggle OFF runs the retained A11Y ENGINE. The app identity
+is `navigator.app` (no `.visionexp` suffix); the vision docs 01–07 legislate both
+engines. The a11y engine is retained for the hybrid direction (a11y speed + image
+accuracy) and is NOT a deletion candidate.
 
 ## Ownership
 
@@ -791,9 +794,9 @@ legacy-engine fallback.
     use the GenClient adapters)
   * `src/main/kotlin/navigator/app/harness/` — the headless debug harness (Phase 6,
     NOT product UI):
-    `vision/` (EXPERIMENT BRANCH ONLY — `exp/vision-box`, 2026-10-17, owner-directed
-    pure try-out that deliberately ignores the Project Vision law; delete with the
-    branch): the STANDALONE multimodal loop — per step it feeds BOTH the a11y read AND
+    `vision/` (THE PRODUCT ENGINE since PHASE_14, 2026-10-18 — the vision engine,
+    default ON; the adb activity is a debug harness, not product UI): the multimodal
+    loop — per step it feeds BOTH the a11y read AND
     a screenshot to the writer (Haiku: plan/propose/confirm/extract via `VisionHaiku`
     content-parts chat) and to Jev 1.14 on the TYPESAFE VENDOR ROUTE (PHASE_VEXP1 v6:
     `VisionJev` defaults to `https://api.typesafe.ai/v1/systemone` + model `jev-1.14.0`
@@ -933,12 +936,13 @@ legacy-engine fallback.
     $20/$25, writer $5/$10; `VisionLoop.Config` maxReplans 20 +
     batteryReplansPerSubtask 30 + planAttempts 20; `VisionJev`/`VisionHaiku` transport
     maxRetries 20 (all pinned by tests). Evidence (screenshots + raw
-    request/response JSON, owner-consented, EXPERIMENT-ONLY — the product ART-8
-    memory-only rule is untouched) to `run-reports/vision-exp/<runId>/` (every
-    image-carrying Jev call records endpoint+model on its evidence event); reports via
+    request/response JSON, owner-consented; the promotion makes this the product
+    evidence law — doc 05) to `run-reports/vision-exp/<runId>/` (every image-carrying
+    Jev call records endpoint+model on its evidence event); reports via
     `RunReportStore`.
-    THE ENGINE SWITCH (PHASE_VEXP2, owner directive 2026-10-19; PHASE_VEXP4 THE
-    DEFAULT FLIP): a goal typed in the
+    THE ENGINE SWITCH (PHASE_VEXP2, owner directive 2026-10-19; PHASE_14 THE
+    PROMOTION, 2026-10-18: the product id `navigator.app`; the a11y engine retained):
+    a goal typed in the
     PRODUCT app runs the vision loop — `NavigatorService.runProductTask` consults
     the PURE `ProductRunRoute.decide` seam (`vision/NavigatorVisionBridge.kt`, no
     Android types, JVM-pinned) fed by the wizard's "use-vision-loop" plain-prefs
@@ -1234,11 +1238,10 @@ legacy-engine fallback.
     one screenshot, ONE batched vendor request — a Box per labeled interactive node +
     one noul — IoU scored against real bounds). Emulator-verified end to end:
     GOAL_ACHIEVED (report goal) and MODELS_CONFIRM_DONE (navigation goal, tap at IoU
-    0.86). The debug build
-    carries a DISTINCT identity (`navigator.app.visionexp` + versionNameSuffix + the
-    debug-sourceSet app/a11y labels) so it installs ALONGSIDE the product app (owner
-    directive 2026-10-17); remove the build.gradle.kts debug block, `src/debug/res`,
-    the manifest activity, and this bullet with the branch.
+    0.86). PHASE_14: the debug build carries the PRODUCT identity
+    (`navigator.app` / `0.1.0` / `app-debug.apk`); the `.visionexp` suffix and the
+    debug-sourceSet overrides are removed. The activity remains an exported DEBUG
+    harness (adb), never product UI; the product path is the overlay/service route.
     `HarnessActivity` (engine picker — STUB | LIVE(jev) via `--es engine`
     (the UI switch covers STUB↔LIVE; the retired `laya`/`laya-fb-jev` names parse to
     STUB since PHASE_VEXP3 deleted the modes with the training program); custom goals

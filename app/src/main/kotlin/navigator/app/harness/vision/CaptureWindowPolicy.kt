@@ -7,7 +7,7 @@ import navigator.app.observe.BrowserPackages
  * [VisionCapture]'s window selection, JVM-testable without Android types (the
  * `BrowserPackages`/`LiveLogRecovery` precedent).
  *
- * The experiment's screenshots are the BROWSER WINDOW's surface, not the composited
+ * The vision engine's screenshots are the BROWSER WINDOW's surface, not the composited
  * display: the owner's corner live log, the soft keyboard and the system bars never
  * reach Haiku/Jev. The service enumerates its `windows` list (topmost-first), reads each
  * window's id/type/focus/activity/bounds and the root package, and this policy picks the

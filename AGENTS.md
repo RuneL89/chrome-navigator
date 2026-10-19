@@ -5,7 +5,7 @@
 
 ## Project
 
-* This folder is the project root for **Chrome Navigator (working title; doc slug `NAVIGATOR`)** — a personal, sideloaded Android app that autonomously drives Chrome via typed decision engines (Jev primary, on-device Laya shadow), per the Road L strategy
+* This folder is the project root for **Chrome Navigator (working title; doc slug `NAVIGATOR`)** — a personal, sideloaded Android app that autonomously drives Chrome. The default engine is the multimodal vision loop (a11y + browser-window screenshot; Haiku writer + Jev 1.14 judgment engine); the a11y decision engine is retained as the explicit second engine for the hybrid speed/accuracy direction
 * Canonical vision documents live in `Project Vision/`; the phased implementation plan lives in `Implementation Plan/`
 * All implementation artifacts are created directly in this project root. Never create a separate project directory here or elsewhere
 
@@ -91,168 +91,22 @@ When the user requests a durable behavior change, record it here or in the relev
   established by the request, project docs, or prior UAT. Skipping it once triggered this
   rule; do not rationalize a skip again. Capture the answers, then route to the selected
   skills and carry the captured vision into every downstream decision.
+* VISION-ENGINE PROMOTION (owner, 2026-10-18): the multimodal vision loop is the
+  product's default engine; the a11y decision engine is retained behind the explicit
+  Setup toggle as a supported second engine for the future a11y+image hybrid. Neither
+  the default nor the retention is to be reversed without an owner amendment.
+* MODEL-GATE EXCEPTION (owner, 2026-10-18): DeepSeek Flash was explicitly authorized
+  for the vision-promotion amendment because the GLM-5.3 credits were exhausted; the
+  GLM-5.3 default for vision law remains. The one-time exception is recorded in
+  `.state/compliance-log.md` and `Project Vision/AGENTS.md`.
 
 ## Child DOX Index
 
 * `BACKLOG_AND_KNOWN_DEFECTS.md` — the durable backlog of known-but-deferred defects, environment limitations, and parked owner-UAT items (KD-1…KD-n), each with evidence, impact, and recovery candidates; pick up from here before re-deriving. Owner-owned triage.
-* `Project Vision/` — canonical vision and specification documents (01–07, ratified 2026-10-03); the source of truth for implementation compliance. See `Project Vision/AGENTS.md`
-* `Implementation Plan/` — phased implementation plan (Phases 0–13 to v1), master index, and agent prompts. See `Implementation Plan/AGENTS.md`
+* `Project Vision/` — canonical vision and specification documents (01–07; the 2026-10-18 vision-engine promotion amendment is current law); the source of truth for implementation compliance. See `Project Vision/AGENTS.md`
+* `Implementation Plan/` — phased implementation plan (Phases 0–14; Phase 14 is the vision-engine promotion), master index, and agent prompts. See `Implementation Plan/AGENTS.md`
 * `.state/` — phase status files, compliance log, verification reports, eval reports; the project's durable memory. See `.state/AGENTS.md`
-* `handoff/` — source documents (handoff v1, handoff v2 Road L) and feasibility research; input material, not law
-* `core/` — `:core`, the pure-JVM decision core (DecisionEngine + JevEngine + the
-  Phase-8C FallbackEngine composition, types (Phase 10B: every question carries its own
-  `instructions` — the defaults are the retired shared constants, so legacy wire bytes
-  are unchanged) + the Phase-10B cascade constants (`Intents.kt` — the FIXED 9-intent
-  stage-1 vocabulary, intents-v1; `TargetRubric.kt` — the 5-level stage-2 rubric + the
-  `cand-<id>` batch builder + the argmax/no-good-target resolver), banding, the
-  systemone wire client + engine
-  configs, golden-fixture schemas + loaders, candidate enumeration, the state-text
-  builder (Phase 10B bumped STATE_FORMAT_VERSION to 4 — the canonical sections are
-  unchanged from Phase 10's v3 ACTIVE SUBTASK + LADDER PROGRESS form; the bump adds the
-  cascade STAGE VIEWS (`StageViews.kt`: the ≤120-token INTENT view and the ≤200-token
-  TARGET view, browser-chrome excluded, loud overflow)), the
-  Phase-10 task-ladder types (`ladder/`: the Ladder + the ART-4 done-condition whitelist
-  (urlHost / urlContains / markerText / elementPresent / count / answerExtracted) + the
-  code-side IS-DONE checker + the SubtaskPointer that advances only on a verified IS-DONE;
-  Phase 10D: `ReplanRule` — the plan-integrity law (the verified prefix is code-frozen, one
-  declared `Rollback {steps = 1, lesson}` step back is the only exception, growth lawful,
-  violations refused loudly) + `ReplanContext` — the bounded failure-context payload the
-  informed re-plan carries (its `CauseClass` gained `INPUT_MECHANISM` additively,
-  doc 04 v1.8.4: a mechanical fill failure is a planning problem, not a wording
-  problem)),
-  the laya tokenizer port (BOTH checkpoint families — the 421M ByteLevel BPE and the
-  Phase-8C v32b 256k Metaspace BPE), risk gate: H1–H9 classifier (Phase 8E added H9
-  persistent-state mutation: broad code net + the additive-only engine check) + per-task trust state
-  machine + gate card (Phase 8F: the credential-secret card variant per vision 06 §2a),
-  DecisionLog row schema (incl. the Phase-8C escalated/fallback fields, the Phase-8F
-  typedSecret redaction flag — the credential value itself is never stored, and the
-  Phase-10B additive `targetScores`/`targetAgreement` with cascade-aware coherence)
-  fields) + companion shadow-result rows + RLCD export (THREE case kinds since Phase
-  10B: the intent-form choose, the NEW score kind (batched rubric + authoritative
-  slate), and noul; format- AND question-schema-scoped; the Road L accumulation counter
-  restarted at the v4 bump AND the intents-v1 choose-schema bump — both in the
-  manifest) + agreement calculators incl. the
-  joined view, the Tier-A eval harness: the cascade replay (stage-1 intent + stage-2
-  score synthesis with the legend law) + position-bias rotation over the stage-2 slate
-  + measurement reports (re-pinned on v4 + intents-v1, retire-and-add). See `core/AGENTS.md`
-* `app/` — `:app`, the Android application (a11y observation, the Phase-6 navigation
-  loop + budgets/stuck-detector/completion-guards + the fixture-driven stub engine and
-  headless debug harness; **the training-data program (DecisionLog Room persistence,
-  companion shadow rows, RLCD export, the on-device laya shadow engine and its
-  ~0.6 GB artifact, the Tier-A eval consumer surface) is RETIRED by owner directive
-  2026-10-19 — PHASE_VEXP3 deleted it all: APK 572 MB → ~34 MB, no ONNX, no Room;
-  the legacy loop runs on `NoOpLogSink` until the post-acceptance deletion phase**;
-  the surviving `core/laya/Tokenizer` is the state-text budget law, not training);
-  PHASE_VEXP1-4 (the vision promotion): the multimodal loop (`harness/vision/` —
-  Haiku plans/proposes/verifies over text+image; Jev 1.14 on the TypeSafe vendor route
-  grounds every tap with Box and judges with noul/choice over image-in-state;
-  the writer-authored verification battery gates max-style; the accept gate requires
-  codeDone AND battery concurrence; the risk gate + owner cards ride the same
-  `OverlayGatePresenter`), wired into the product path by the PURE
-  `ProductRunRoute.decide` seam (`useVisionLoop`, default ON since PHASE_VEXP4 —
-  missing TypeSafe key = loud refusal, never a silent legacy fallback; the toggle is
-  the owner's explicit legacy escape); ALL experiment budgets at 100x product values
-  (owner directive: steps 4000/6000, $20/$25 spend, replans 20/30/20, retries 20);
-  Phase 8F added the credential-entry path (the loop's
-  `TextSource` + the card's masked-secret variant — the owner-typed secret is injected
-  directly and rendered `[credential-redacted]` everywhere, never stored); Phase 9
-  added the PRODUCT overlay UX (`overlay/` — the `TYPE_ACCESSIBILITY_OVERLAY` goal
-  input with the in-process blurred screenshot (ART-8 memory-only), the bottom-right
-  live log (Gate 9.4 measured; owner ✕ close + ⏹ task-stop controls; IME/system-bar-aware
-  anchoring), the gate/completion product presenters (no auto modes),
-  the `NavigatorService` specialUse foreground service, the DEBUG-ONLY adb command +
-  gate-runner surface (`GateScenarios` — the four gates' assertion bodies in main
-  source, run by adb OUTSIDE instrumentation because the JUnit shell is
-  platform-blocked on the API 35 emulator; evidence = `logcat -s NavigatorGates`)) and
-  the five-row
-  wizard (a11y, Samsung battery, OpenRouter key, TypeSafe key, the dual live-key
-  tester) + the
-  `EncryptedSharedPreferences` TWO-slot key store;
-  `MainActivity` is a thin launcher
-  into it); UAT ACCEPTED 2026-10-09 (owner on-device, two revision rounds); a 2026-10-09
-  owner design pass (warm brand-forward, dark-first compact) restyled the setup wizard
-  (card layout + progress) and the corner live log (amber accent, outcome-colored
-  segments, latest-N slice); Phase 10 added the task ladder: the generative writer layer
-  (`gen/` — the OpenRouter chat-completions `GenClient` with the pinned generative model,
-  the versioned restructure/extract prompts, the whitelist-enforcing `LadderSchema`,
-  `GenLadderSource`), the loop's ladder execution (`LadderSource` seam — default null
-  byte-identical; pointer advances only on engine-HIGH AND the code done-condition
-  checker; outcome-based site entry; ≤2 bounded re-plans + the owner escalation card
-  "Retry / Re-plan / Stop" at 3 consecutive subtask failures; the SEPARATE per-task
-  writer budget $0.05/$0.10; answer extraction rides the run report), the overlay
-  surfaces (`LadderBlock` — the corner log's pinned GOAL + `Sub Task N [x]/[ ]` header;
-  the cards' ACTIVE-SUBTASK display; `EscalationCardWindow`), the harness `--ez ladder`
-  live-ladder mode, and the product path wiring (every product goal restructures first);
-  Phase 10B added the DECISION CASCADE: Round 1 the `:core` cascade layer + the writer
-  surfaces (`gen/`: `assist-v1` — the five-clause handshake assist, `phrase-v1` — the
-  ≤80-char content-only typed-text phrasing; both validated against the directive
-  blocklist with ONE bounded retry then skip) + the exit-family re-keys (AnchoredNoul v3
-  atomic propositions; the streak keyed to the active done-condition + the bounded
-  held-hash re-check API); Round 2 the loop cascade itself (the DECIDE rewrite — stage-1
-  intent on the INTENT STATE VIEW, band routing, the ONE-assist-per-page-hash handshake,
-  stage-2 batched score with code argmax + no-good-target, the verify-done completion
-  path, the fill-field writer phrase routed post-gate, the open-site VIEW intent,
-  writer budgets metering assist/phrase), the SHADOW MIGRATION (the router's structured
-  cascade handoff — it fires only on the fixed intent form, mirrors BOTH stages, and
-  refuses non-cascade questions LOUDLY), the real TITLE READER (`observe/WindowTitles`
-  + `LoopObservation.title`), and the re-authored `goals.json` (cascade intent/score
-  scripts) + stub. Phase 10C added honest conditions + reachable targets + report goals
-  (the `urlContains`/`answerExtracted` shapes, the condition-honesty gate, landing-host
-  reconciliation, the stage-1 band on chosen probability + margin, the bounded stage-1
-  re-ask, the observation fixes, the evidence layer incl. `task_terminal`). PHASE 10D
-  (stages complete; post-UAT repair round 2026-10-13 — doc 04 §3/§6 v1.8.1: the withheld
-  done claim meters the anti-oscillation window, and the answer extraction is exactly ONE
-  call over the freshest observation, fixing the live battery's livelock + blank-state
-  false completion) adds the INFORMED RE-PLAN: the bounded failure re-plan carries
-  the failure context to the writer (`ReplanSupport` — the bounded payload: failing
-  subtask, cause + class, the page and the controls it offers, history, assist text, the
-  verified prefix), the prompt surface becomes `restructure-v4` (both request variants
-  golden-pinned), plan integrity is CODE (`ReplanRule` — verified prefix frozen, ONE
-  declared `rollback` step with its lesson, growth lawful, resume-never-restart), and
-  `plan.rolledBack`/`plan.lesson` ride the rows additively. Hotel-iteration repairs
-  (2026-10-17, doc 04 v1.8.3 / doc 03 v2.7.0): the ladder path gained the code-decided
-  browser-readiness pre-step (readiness, NOT navigation — the engine-free
-  browser-home-launch seam fires once when a non-browser window is front), the
-  state-truthful REFUSED detail (the browser-never-front truth instead of a
-  misattributed "I can't read this site"), and the corner log's one-tap recovery
-  action row ("Open the browser and retry" — browser-fixable refusals only, tap =
-  home launch + auto re-run of the same goal); the run-3 repair (doc 04 v1.8.4): the
-  fill mechanism rotation (a fill never repeats a failed typing mechanism per candidate
-  on an unchanged page — set-text → paste → the tap-and-yield activation leg → a loud
-  mechanical exhaustion), landed-text verification (an action's boolean is not proof),
-  and the exhaustion cause classified `INPUT_MECHANISM` whose informed re-plan hint
-  changes the ROUTE, never the wording (the v4 golden family's third request variant,
-  additive). On this branch (`exp/vision-box`), PHASE_VEXP4 (2026-10-19) made the
-  branch's VisionLoop (VEXP1/2, `harness/vision/`) the app's DEFAULT engine: the
-  wizard's vision-loop preference defaults ON, a missing key refuses loudly naming
-  the channel + the wizard (never a silent legacy fallback), and an explicit toggle
-  OFF is the owner's legacy-engine fallback. PHASE_VEXP5 (2026-10-18) makes
-  model-bound screenshots browser-WINDOW-scoped (window capture primary: the live
-  log, keyboard and system bars absent; full-display + black-fill only as the
-  recorded fallback; `scope=` on every evidence frame) and keeps points under the
-  log actionable through a11y node actions (ACTION_CLICK / focus+SET_TEXT / IME
-  enter; covered scrolls move to an uncovered point or fail loudly when none exists —
-  the stuck probe included; no raw touch on the overlay — a covered point with no
-  actionable node fails loudly). PHASE_VEXP6 (2026-10-19) fixes run 4's search stall:
-  a plan-`enterText` TYPE into browser chrome submits deterministically in the same
-  step (only when the SUBMIT classifier is null or the pre-existing ungated seam —
-  a classified submit stays gated, a card-supplied secret is never auto-submitted),
-  the plan text governs a native TYPE (divergent proposals overridden), prompt v11
-  (type-then-submit, complete query, results-shaped search conditions), every run
-  writes a final `terminal=…` evidence line, and the WORKING notification carries a
-  "Stop task" action riding the same cancel flag. PHASE_VEXP7 (2026-10-19) adds the
-  run-5 RUNTIME CONDITION REPAIR: exactly the battery's OutcomeAchieved escalation
-  spends ONE bounded repair turn per (active subtask, plan) — a v12 repair-only
-  planner call (strict `{"done": <whitelisted shape>}`, outcome-naming, no clock/date)
-  with a code URL-host/line fallback ONLY when the call fails — the repaired condition
-  code-checked on the current observation and concurred by the same battery; the
-  accept mirrors the normal advance through the shared helper (weak-at-start bypassed
-  ONLY for this acceptance, documented); red flags and failed repairs keep the
-  existing re-plan path. PHASE_VEXP8 (2026-10-19) gates `MODELS_CONFIRM_DONE` to the
-  ladder's FINAL subtask with a code-unverifiable (WEAK) condition, no pending report
-  and a goal-level noul, and adds the product-page CTA/scroll-churn law (v13: a visible
-  purchase control is tapped, 3 acted scrolls carry the soft `<scroll-churn>` hint,
-  4 + a detected CTA force the existing re-plan — never a forced click). See `app/AGENTS.md`
-* `tools/` — RETIRED folder (owner directive 2026-10-19, PHASE_VEXP3): the Phase-8/8C
-  model-acquisition + reference-vector scripts are deleted; no live scripts, no build
-  step. See `tools/AGENTS.md`
+* `handoff/` — source documents (handoff v1, handoff v2 Road L) and feasibility research; input material, not law. The Road L program is retired
+* `core/` — `:core`, the pure-JVM decision core: the `DecisionEngine` interface + `JevEngine` (the retained a11y engine's cascade — intents-v1, the stage-2 rubric, banding), the systemone wire client + engine configs, observation/enumeration types, the state-text builder + stage views, the task-ladder types + the code done-condition checker (`urlHost`/`urlContains`/`markerText`/`elementPresent`/`count`/`answerExtracted`), the informed-re-plan types (`ReplanRule`/`ReplanContext`), and the H1–H9 risk gate (the multilingual floor + the additive-only engine check). The training/eval surfaces (Laya shadow, RLCD, shadow rows, Tier-A replay) are RETIRED; the surviving tokenizer resource is the a11y state-budget law, not a model. See `core/AGENTS.md`
+* `app/` — `:app`, the Android application. THE VISION ENGINE IS THE DEFAULT (`harness/vision/`): a11y + browser-window screenshot; Haiku plans/proposes/repairs/confirms/extracts; Jev 1.14 grounds every tap/type with a Box and runs the text+image verification battery; code owns the ladder, the battery accept, the finality law (`MODELS_CONFIRM_DONE` only on the final WEAK subtask with the pair + goal noul), the CTA/scroll-churn backstop, the browser-readiness pre-step, the risk gate + owner cards, and the evidence record. The retained A11Y ENGINE (`loop/`) runs on the explicit Setup toggle OFF: the Jev cascade, the same gate/ladder, `NoOpLogSink` (no database). The product surfaces are the overlay goal input + corner live log + gate/completion cards + the `NavigatorService`; Setup is the five-check wizard with two encrypted key slots and the dual live-key tester. The training program (Room/RLCD/shadow/laya/ONNX/Tier A) is deleted. The app id is `navigator.app` (no `.visionexp`). See `app/AGENTS.md`
+* `tools/` — RETIRED folder (owner directive 2026-10-19, PHASE_VEXP3): the Phase-8/8C model-acquisition + reference-vector scripts are deleted; no live scripts, no build step. See `tools/AGENTS.md`

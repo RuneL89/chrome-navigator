@@ -3,7 +3,7 @@ package navigator.app.harness.vision
 import navigator.core.enumerate.ObservedNode
 
 /**
- * The EXPERIMENT's pure grounding math (branch-only, JVM-tested): Box answers arrive as
+ * The vision engine's pure grounding math (JVM-tested): Box answers arrive as
  * fractions of the image's edges; actions happen in SCREEN pixels; the a11y nodes carry
  * screen-space bounds. Pure functions, no Android types beyond the core node model.
  */
@@ -91,7 +91,7 @@ object VisionMath {
         return if (union <= 0.0) 0.0 else inter / union
     }
 
-    /** The node is actionable from the experiment's perspective: interactive and page content. */
+    /** The node is actionable for grounding: interactive and page content. */
     fun actionable(node: ObservedNode): Boolean =
         !node.browserChrome && (node.clickable || node.editable || node.scrollable)
 

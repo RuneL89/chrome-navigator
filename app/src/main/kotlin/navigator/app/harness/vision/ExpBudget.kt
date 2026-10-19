@@ -1,8 +1,8 @@
 package navigator.app.harness.vision
 
 /**
- * The EXPERIMENT's spend/step/time ledger (branch-only try-out — no product law lives
- * here). Every ceiling is EXACTLY 100x the product value it mirrors (owner directive,
+ * The vision engine's spend/step/time ledger. Every ceiling is EXACTLY 100x the product
+ * value it mirrors (owner directive,
  * 2026-10-19: ALL budgets to 100x product values — "models are dirt cheap — runs may
  * span days"; supersedes the 2026-10-17 10x directive):
  *

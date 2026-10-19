@@ -32,8 +32,8 @@ import navigator.core.enumerate.CandidateSource
 import navigator.core.enumerate.ObservedNode
 
 /**
- * The EXPERIMENT's standalone vision loop (branch-only try-out; the product loop in
- * `navigator.app.loop` is untouched and stays under its own law). Per step it feeds BOTH
+ * The product vision loop (the a11y loop in `navigator.app.loop` stays under its own
+ * law). Per step it feeds BOTH
  * channels — the a11y read (as the product always has) AND a screenshot — to the writer
  * (Haiku: plan/propose/confirm/extract) and to Jev 1.14 (Box grounding + noul second
  * opinion), then acts through the production [ActionExecutor].
@@ -41,8 +41,8 @@ import navigator.core.enumerate.ObservedNode
  * Division of labor ("the models describe, the code acts"):
  * 1. OBSERVE   a11y walk + screenshot (capture failure degrades to text-only, loudly).
  * 2. CODE-CHECK IS-DONE first — [DoneConditionChecker] stays the completion DECIDER;
- *    the Jev noul + Haiku confirm ride along as RECORDED OPINIONS (the experiment
- *    measures whether vision adds signal, it does not hand completion to a model).
+ *    the Jev noul + Haiku confirm ride along as RECORDED OPINIONS (they inform the
+ *    accept; they never hand completion to a model).
  * 3. BATTERY   the writer-authored verification battery BEFORE acting — ONE batched Jev
  *    request over text+IMAGE (the screenshot rides the vendor route in state) + ONE
  *    Haiku call over its own image channel (independence preserved). One confident red
@@ -595,7 +595,7 @@ class VisionLoop(
             }
 
             // -- the code-first IS-DONE check (the decider) + recorded opinions ---------
-            // Condition honesty (the product's 10C gate, experiment-grade): a WEAK
+            // Condition honesty (the product's 10C gate): a WEAK
             // content condition (markerText/elementPresent) that already holds on the
             // subtask's STARTING screen is a mention, not arrival — it may only complete
             // the subtask after the subtask acted (>=1 step) and the screen changed.
@@ -886,7 +886,7 @@ class VisionLoop(
                 // checker cannot read the evidence on this page (e.g. a WebView whose
                 // body prose never reaches the a11y layer — measured 2026-10-17). The
                 // terminal is DISTINCTLY FLAGGED: code-unverified completion, the exact
-                // quantity this experiment measures. On a browser whose text layer
+                // quantity this engine measures. On a browser whose text layer
                 // carries page content, the code check fires first and this stays shut.
                 //
                 // PHASE_VEXP8 — THE FINALITY LAW (run 11: a 4-subtask Verkkokauppa plan

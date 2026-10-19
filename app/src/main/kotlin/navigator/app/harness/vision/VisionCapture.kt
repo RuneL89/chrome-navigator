@@ -19,8 +19,8 @@ import kotlin.coroutines.resumeWithException
 import kotlin.math.roundToInt
 
 /**
- * The EXPERIMENT's screenshot capture (branch-only try-out, owner-consented evidence;
- * the product's memory-only blur capture in the overlay package is untouched). Speaks
+ * The vision engine's screenshot capture (owner-consented evidence; the overlay's
+ * memory-only blur capture is a separate surface). Speaks
  * the a11y service's `takeScreenshot` capability directly and produces the exact payload
  * the images API consumes (docs.typesafe.ai/images):
  *

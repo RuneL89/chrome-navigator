@@ -23,37 +23,36 @@ import kotlinx.serialization.json.putJsonArray
 import java.io.File
 
 /**
- * The EXPERIMENT's adb entry (branch-only try-out on `exp/vision-box`; the product
- * harness in [NavigationLoop] is untouched). The debug build installs under the
- * DISTINCT id `navigator.app.visionexp` (build.gradle.kts) so it coexists with the
- * owner's product install — enable the "(VisionExp)" a11y service, then:
+ * The vision engine's adb entry (PHASE_14: part of the product app; a debug harness,
+ * never product UI — the product path is the overlay/service route in
+ * [navigator.app.overlay.NavigatorService]). The app runs under the product id
+ * `navigator.app`; enable the a11y service, then:
  *
  * Loop mode (the full vision cycle over any free-text goal):
  * ```
- * adb shell am start -n navigator.app.visionexp/navigator.app.harness.vision.VisionExperimentActivity \
+ * adb shell am start -n navigator.app/navigator.app.harness.vision.VisionExperimentActivity \
  *   --es goal "find the cheapest airfryer on a shopping site" [--el startDelayMs 0] \
  *   [--ez ablateVision true] [--ez evidence true] [--es visionJevModel jev-1.14.0] \
  *   [--es visionJevUrl https://api.typesafe.ai/v1/systemone]
  * ```
- * Probe mode (Phase-A grounding calibration; no loop, no goal): captures one screenshot
+ * Probe mode (grounding calibration; no loop, no goal): captures one screenshot
  * and fires ONE batched vendor request — a Box question per labeled interactive node
- * plus one noul — scoring each box against the node's real a11y bounds (the
- * hit-rate/confidence-histogram output that picks the floor, now on the REAL transport):
+ * plus one noul — scoring each box against the node's real a11y bounds:
  * ```
- * adb shell am start -n navigator.app.visionexp/navigator.app.harness.vision.VisionExperimentActivity \
+ * adb shell am start -n navigator.app/navigator.app.harness.vision.VisionExperimentActivity \
  *   --es visionMode probe
  * ```
  *
- * DUAL key resolution (PHASE_VEXP1 work items 2+5), symmetric per channel —
- * `--es openrouterKey` / `--es typesafeKey` > the Setup wizard's saved keys
- * ([OpenRouterKeyStore]) > env `NAVIGATOR_OPENROUTER_KEY` / `NAVIGATOR_TYPESAFE_KEY` >
- * the keys file ([DefaultEngineConfigs.resolveKey], via [VisionKeys]). Missing EITHER
- * key = loud refusal naming the channel ([VisionKeys.refusal]), never a silent run.
+ * DUAL key resolution, symmetric per channel — `--es openrouterKey` /
+ * `--es typesafeKey` > the Setup wizard's saved keys ([OpenRouterKeyStore]) > env
+ * `NAVIGATOR_OPENROUTER_KEY` / `NAVIGATOR_TYPESAFE_KEY` > the keys file
+ * ([DefaultEngineConfigs.resolveKey], via [VisionKeys]). Missing EITHER key = loud
+ * refusal naming the channel ([VisionKeys.refusal]), never a silent run.
  * The OpenRouter key rides the writer (Haiku); the TypeSafe key rides the vendor
  * image+Box route (Jev, defaulted to [VisionJev.DEFAULT_VISION_BASE_URL]). Evidence
- * (owner-consented, experiment-only) lands in the app-external
- * `run-reports/vision-exp/<runId>/` plus a summary JSON in `run-reports/` —
- * adb-pullable. Streaming log: `adb logcat -s NavigatorVision`.
+ * (owner-consented) lands in the app-external `run-reports/vision-exp/<runId>/` plus a
+ * summary JSON in `run-reports/` — adb-pullable. Streaming log:
+ * `adb logcat -s NavigatorVision`.
  */
 class VisionExperimentActivity : Activity() {
 
@@ -359,7 +358,7 @@ class VisionExperimentActivity : Activity() {
         private const val EXTRA_KEY = "openrouterKey"
         private const val EXTRA_TYPESAFE_KEY = "typesafeKey"
 
-        /** Image requests are slower than the 15s text default; the experiment pays patience. */
+        /** Image requests are slower than the 15s text default; the vision engine pays patience. */
         private const val WIRE_TIMEOUT_MS = 60_000L
         private const val SERVICE_WAIT_MS = 30_000L
         private const val SERVICE_POLL_MS = 250L

@@ -81,15 +81,14 @@
             android:name=".observe.CaptureActivity"
             android:exported="true" />
 
-        <!-- EXPERIMENT BRANCH ONLY (exp/vision-box): the vision-box try-out's adb entry.
-             The debug build runs under the DISTINCT applicationId navigator.app.visionexp
-             (build.gradle.kts) so it installs alongside the product app; the class lives
-             in the (branch-only) harness.vision package. Exported for adb-driven runs,
-             the HarnessActivity precedent. -->
+        <!-- The vision engine's adb entry (PHASE_14: part of the product app; a debug
+             harness, never product UI). Exported for adb-driven runs, the
+             HarnessActivity precedent. The product identity is navigator.app; the
+             experiment's `.visionexp` co-install is retired. -->
         <activity
             android:name=".harness.vision.VisionExperimentActivity"
             android:exported="true"
-            android:label="Navigator Vision Experiment" />
+            android:label="Navigator Vision Harness" />
 
         <!-- Debug-only adb capture trigger: fires while the browser stays foreground
              (refused unless the build is debuggable). -->

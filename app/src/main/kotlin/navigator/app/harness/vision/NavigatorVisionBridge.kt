@@ -172,7 +172,7 @@ object NavigatorVisionBridge {
          * The safety-gate seam (PHASE_VEXP3 WI1): passed straight through to the
          * [VisionLoop]. The product service passes `OverlayGatePresenter(a11y)` so a
          * risky action on the phone shows the SAME card the old engine showed; null
-         * (the adb experiment path) stays ungated.
+         * (the adb harness path) stays ungated.
          */
         gatePresenter: navigator.app.loop.GatePresenter? = null,
         /**
@@ -242,7 +242,7 @@ object NavigatorVisionBridge {
         }
     }
 
-    /** Image requests are slower than text; the experiment pays patience (the adb activity's timeout). */
+    /** Image requests are slower than text; the vision engine pays patience (the adb activity's timeout). */
     private const val WIRE_TIMEOUT_MS = 60_000L
     private const val ANSWER_TAIL_CHARS = 120
 }

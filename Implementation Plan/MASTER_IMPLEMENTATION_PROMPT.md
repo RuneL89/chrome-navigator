@@ -250,6 +250,7 @@ Phase documents live in `Implementation Plan/`; vision documents live in `Projec
 | 11 | `PHASE_11_result_screen.md` | `04` §6, `05` §3 | Result presentation, agreement |
 | 12 | `PHASE_12_eval_tier_b.md` | `07_EVALUATION_HARNESS.md`, `04` §5 | Suite law, perf law |
 | 13 | `PHASE_13_hardening_release.md` | `06` §6, `01` §5 | Attribution, self-checks |
+| 14 | `PHASE_14_vision_promotion.md` | `01`–`07` (2026-10-18 promotion amendment), `06` §1a/§2b | Two-engine product law, product identity, gate floor, legacy retention |
 
 ---
 

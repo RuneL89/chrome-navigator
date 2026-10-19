@@ -71,20 +71,21 @@ remembers."
   longer exists and the committed bytes are the historical record only); Tier B reports
   (Phase 12) extend the same schema prefix
 * `DEBUGGING.md` — the standing on-device run-monitoring procedure (owner-ratified
-  2026-10-17, S25+ wireless ADB): per-branch pre-flight identity checks (branch ↔ app id
-  ↔ APK file ↔ dex marker — both branches share the build-output dir and clobber each
-  other's APK), navcap arming/stopping, the per-app authoritative terminal signal
-  (PHASE_VEXP3: NO database anywhere — a legacy overlay run ends on the corner log's
-  task-state line + the READY notification; a vision run on the corner log + the
-  `run-reports/vision-exp/` evidence), pull/analysis, the REPORT.md format, and the
-  three-surface cleanup. Run folders: `hotel-iter/runN/` (product),
-  `vision-iter/runN/` (vision experiments), and `vision-iter/vexp5-run/` +
-  `vision-iter/vexp5-fixture/` (the PHASE_VEXP5 window-capture fixtures + A/B
-  evidence). RETENTION (owner request 2026-10-19): raw run evidence (screenshots,
-  logcat captures, model-call bodies, navcap frames, run-report JSONs) is NOT kept —
-  the REPORT.md analyses stay untracked and the fixture HTML remains; the historical
-  raw run data was deleted on the host (and is removed from the phone when the link
-  allows). The phase status/verification/compliance/eval records are the durable memory.
+  2026-10-17; updated for the 2026-10-18 promotion): one product identity
+  (`navigator.app` / `app-debug.apk` / the `vision-exp-v…` dex marker — no
+  `.visionexp`), the two-key channels, navcap arming/stopping, the per-engine
+  authoritative terminal signal (NO database anywhere: the vision engine ends on the
+  corner log's task-state line + the READY notification + the evidence terminal line;
+  the a11y engine on the corner log + READY; the adb activity on its report/evidence),
+  pull/analysis, the REPORT.md format, and the cleanup. Run folders:
+  `hotel-iter/runN/` (a11y product runs), `vision-iter/runN/` (vision runs), and
+  `vision-iter/vexp5-run/` + `vision-iter/vexp5-fixture/` (the PHASE_VEXP5
+  window-capture fixtures + A/B evidence). RETENTION (owner request 2026-10-19): raw
+  run evidence (screenshots, logcat captures, model-call bodies, navcap frames,
+  run-report JSONs) is NOT kept — the REPORT.md analyses stay untracked and the
+  fixture HTML remains; the historical raw run data was deleted on the host (and is
+  removed from the phone when the link allows). The phase
+  status/verification/compliance/eval records are the durable memory.
 
 ## Local Contracts
 

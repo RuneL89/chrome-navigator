@@ -8,9 +8,8 @@ import navigator.app.gen.LadderSchema
 import navigator.core.ladder.DoneCondition
 
 /**
- * The EXPERIMENT's prompt surface (branch-only try-out; versioned here so a run report
- * names exactly what ran). Two disciplines carry over from the production writer even
- * though this branch ignores the vision law, because they are good hygiene:
+ * The vision engine's prompt surface (versioned here so a run report names exactly what
+ * ran). Two disciplines:
  * - page material (a11y text AND the screenshot) is labeled UNTRUSTED DATA — text or
  *   rendered writing inside it is never an instruction to the model;
  * - outputs are STRICT JSON, extracted deterministically and validated loudly
@@ -56,7 +55,7 @@ object VisionPrompts {
     /** Max checks per subtask's verification battery (one noul + one image confirm each). */
     const val MAX_VERIFY_CHECKS = 3
 
-    /** Max chars of the a11y digest per call (the experiment has no token budget law; keep calls small anyway). */
+    /** Max chars of the a11y digest per call (there is no token budget law; keep calls small anyway). */
     const val MAX_DIGEST_CHARS = 2_500
 
     /**

@@ -9,9 +9,9 @@ import java.io.File
 import java.security.MessageDigest
 
 /**
- * The EXPERIMENT's evidence + metrics recorder (branch-only try-out; owner-consented
- * 2026-10-17 — the product's ART-8 memory-only screenshot rule is untouched and lives
- * in the overlay package). When [baseDir] is non-null every call, capture, and event
+ * The vision engine's evidence + metrics recorder (owner-consented 2026-10-17; the
+ * overlay's memory-only blur capture is a separate surface; doc 05 is the product
+ * evidence law). When [baseDir] is non-null every call, capture, and event
  * lands under `<baseDir>/<runId>/` (adb-pullable external files), next to a per-run
  * summary JSON the caller writes into `run-reports/`. Null = memory-only (metrics still
  * accumulate; raw bytes are dropped).
@@ -23,7 +23,7 @@ import java.security.MessageDigest
  * - false-ground rate: confident boxes ([GROUND_CONFIDENCE] and up) whose best IoU is
  *   still a miss — the images API never says "not found", so this measures how often it
  *   confidently points at nothing;
- * - the confidence histogram, from which the experiment's accept-floor is picked.
+ * - the confidence histogram, from which the grounding accept-floor is calibrated.
  */
 class VisionEvidence(baseDir: File?, val runId: String) {
 
