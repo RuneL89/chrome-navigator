@@ -325,6 +325,33 @@ class VisionExperimentTest {
     }
 
     @Test
+    fun `enterText fields parse per subtask and refuse non-strings`() {
+        // The v10 planner field (fifth actual-life repair): the per-subtask text the
+        // loop types when a tap on an editable field converts. Blank = absent.
+        val content = """
+            {"summary":"s","taskClass":"action","subtasks":[
+              {"instruction":"search","enterText":"hotels in Riga next weekend","done":{"markerText":"x"}},
+              {"instruction":"read","done":{"markerText":"y"}},
+              {"instruction":"fill","enterText":"  ","done":{"markerText":"z"}}]}
+        """.trimIndent()
+        val enterTexts = VisionPrompts.parseEnterTexts(content, "t")
+        assertEquals(1, enterTexts.size)
+        assertEquals("hotels in Riga next weekend", enterTexts[0])
+        assertTrue(VisionPrompts.parseEnterTexts("""{"summary":"s"}""", "t").isEmpty())
+        assertTrue(VisionPrompts.parseEnterTexts("""{"subtasks":[]}""", "t").isEmpty())
+        assertFailsWith<VisionHaiku.VisionHaikuException> {
+            VisionPrompts.parseEnterTexts(
+                """{"subtasks":[{"instruction":"a","enterText":42,"done":{"markerText":"x"}}]}""", "t",
+            )
+        }
+        assertFailsWith<VisionHaiku.VisionHaikuException> {
+            VisionPrompts.parseEnterTexts(
+                """{"subtasks":[{"instruction":"a","enterText":{"text":"x"},"done":{"markerText":"x"}}]}""", "t",
+            )
+        }
+    }
+
+    @Test
     fun `battery answers map back with numbering tolerance and gaps`() {
         val content = """
             {"answers":[{"question":"1. is the result visible?","answer":true}]}
@@ -580,8 +607,73 @@ class VisionExperimentTest {
     }
 
     @Test
-    fun `the prompt version is vision-exp-v7`() {
-        assertEquals("vision-exp-v7", VisionPrompts.VISION_PROMPT_VERSION)
+    fun `the prompt version is vision-exp-v10`() {
+        assertEquals("vision-exp-v10", VisionPrompts.VISION_PROMPT_VERSION)
+    }
+
+    @Test
+    fun `the proposer composes search text instead of tapping an empty address bar`() {
+        // Third actual-app live-test repair (2026-10-19, task-1792396531977): the browser
+        // sat on about:blank while the plan said "enter a hotel search into the address
+        // bar"; the old rule ("if the subtask does not say what to type ... else propose
+        // tap instead") produced a bare tap on the empty address bar for 13 re-plans and
+        // the search was never composed.
+        assertTrue(VisionPrompts.PROPOSE_SYSTEM.contains("COMPOSE a concise search"))
+        assertTrue(VisionPrompts.PROPOSE_SYSTEM.contains("hotels in Riga next weekend"))
+        assertTrue(VisionPrompts.PROPOSE_SYSTEM.contains("address bar or search field"))
+        assertTrue(
+            VisionPrompts.PROPOSE_SYSTEM.contains("a bare tap on an empty address bar is never a sufficient proposal"),
+        )
+        assertFalse(
+            VisionPrompts.PROPOSE_SYSTEM.contains("else propose tap instead"),
+            "the rule that suppressed composed search text must be gone",
+        )
+        assertTrue(VisionPrompts.PROPOSE_SYSTEM.contains("at most 120 chars"))
+        assertTrue(VisionPrompts.PROPOSE_SYSTEM.contains("never a directive"))
+    }
+
+    @Test
+    fun `the planner opens a blank or error page with a named search step`() {
+        // The proposer can only compose text the plan names: when the browser shows
+        // about:blank or an error page, the FIRST subtask must be a search/navigate step
+        // that names the query it will enter.
+        assertTrue(
+            VisionPrompts.PLAN_SYSTEM.contains(
+                "When the browser shows a blank or error page, the first subtask must be a SEARCH/NAVIGATE step",
+            ),
+        )
+        assertTrue(VisionPrompts.PLAN_SYSTEM.contains("names\nthe query to enter"))
+        assertTrue(VisionPrompts.PLAN_SYSTEM.contains("so the proposer has text to type"))
+    }
+
+    @Test
+    fun `the planner authors the per-subtask enterText field`() {
+        // Fifth actual-app live-test repair (2026-10-19, task-1792397809506): the
+        // grounded address bar was TAPPED five times and never typed because no plan
+        // field carried the text. The planner now authors it — required for a
+        // search/navigate/fill whose point is entering text, with the query for a
+        // blank/error-page search step.
+        assertTrue(VisionPrompts.PLAN_SYSTEM.contains("\"enterText\": \"<the exact text to type>\""))
+        assertTrue(VisionPrompts.PLAN_SYSTEM.contains("REQUIRED when the subtask is a search/navigate/fill"))
+        assertTrue(VisionPrompts.PLAN_SYSTEM.contains("hotels in Riga next weekend"))
+        assertTrue(
+            VisionPrompts.PLAN_SYSTEM.contains(
+                "\"enterText\":\"<the exact text to type; omit when the subtask types nothing>\"",
+            ),
+            "the JSON example carries the field",
+        )
+    }
+
+    @Test
+    fun `the planner claims multi only with a count-shaped done condition`() {
+        // Live defect D3 (2026-10-19): the writer repeatedly claimed taskClass "multi"
+        // with no count condition; its JSON was refused and only the error-fed retry
+        // recovered. The system prompt now states the law explicitly.
+        assertTrue(
+            VisionPrompts.PLAN_SYSTEM.contains(
+                "Claim 'multi' ONLY when a count-shaped done condition exists; otherwise use read or action.",
+            ),
+        )
     }
 
     @Test

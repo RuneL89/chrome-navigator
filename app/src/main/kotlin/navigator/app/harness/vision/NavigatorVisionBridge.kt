@@ -1,7 +1,9 @@
 package navigator.app.harness.vision
 
+import kotlinx.coroutines.delay
 import navigator.app.loop.ActionExecutor
 import navigator.app.loop.LoopObserver
+import navigator.app.observe.BrowserPackages
 import navigator.core.wire.OkHttpWireTransport
 import navigator.core.wire.WireTransport
 import java.io.File
@@ -81,6 +83,69 @@ sealed interface ProductRunRoute {
  */
 object NavigatorVisionBridge {
 
+    /** The readiness pre-step's bounded wait (the adb activity's original constants). */
+    const val READINESS_WAIT_MS = 10_000L
+    const val READINESS_POLL_MS = 500L
+
+    /**
+     * THE BROWSER-READINESS PRE-STEP (live defect D1, 2026-10-19: the service's vision
+     * branch started the loop on whatever screen the goal was submitted from — the
+     * setup wizard — so the loop proposed "Start Navigator" on the setup screen and
+     * wandered to the launcher; the adb activity had this gate, the service did not).
+     * Engine-free — readiness, NOT navigation: observe once; when the front is not an
+     * allowlisted browser, FIRST try [bringBrowserTaskForward]; only a false (no
+     * existing browser task) falls back to the caller's browser HOME launch — then wait
+     * BOUNDED (the caller's wait/poll params, the adb constants by default) for a
+     * browser to reach the front. [launchBrowserHome] null = no allowlisted browser
+     * installed (nothing to launch; the bounded wait still runs).
+     *
+     * The task-forward-first order is live defect D4 (the second VEXP4 actual-app
+     * repair, 2026-10-19): the HOME launch RESET the webview-shell browser to
+     * `about:blank`, destroying the page the owner had opened before submitting the
+     * goal. Bringing the EXISTING task forward preserves the page; a HOME launch is
+     * only the no-task fallback. A blank front still tries the forward seam (the read
+     * is inconclusive, the move is non-destructive) but never justifies the
+     * page-destroying HOME launch (the unknown-front rule).
+     *
+     * Returns true when a browser is front before the deadline; false = the caller
+     * proceeds loudly (the evidence tells the truth). JVM-pinned over scripted
+     * observers.
+     */
+    suspend fun ensureBrowserFront(
+        observer: LoopObserver,
+        launchBrowserHome: (() -> Unit)?,
+        bringBrowserTaskForward: (() -> Boolean)? = null,
+        waitMs: Long = READINESS_WAIT_MS,
+        pollMs: Long = READINESS_POLL_MS,
+        log: (String) -> Unit = {},
+    ): Boolean {
+        val first = observer.observe()
+        if (BrowserPackages.isBrowser(first.windowPackage)) return true
+        // D4: the non-navigating move FIRST; the HOME launch is the no-task fallback.
+        val brought = bringBrowserTaskForward?.invoke() == true
+        when {
+            brought -> log("vision: bringing the browser task to front (page preserved)")
+            first.windowPackage.isNotBlank() && launchBrowserHome != null -> {
+                log(
+                    if (bringBrowserTaskForward != null) {
+                        "vision: front window is ${first.windowPackage} - " +
+                            "no browser task found - launching browser home"
+                    } else {
+                        "vision: front window is ${first.windowPackage} - launching browser home"
+                    },
+                )
+                launchBrowserHome()
+            }
+        }
+        val deadline = System.currentTimeMillis() + waitMs
+        while (System.currentTimeMillis() < deadline) {
+            if (BrowserPackages.isBrowser(observer.observe().windowPackage)) return true
+            delay(pollMs)
+        }
+        log("vision: no browser came front - observing whatever is front")
+        return false
+    }
+
     /**
      * Builds the [VisionLoop] the service runs: [VisionHaiku] over the OpenRouter key
      * + [VisionJev] on the vendor route (the vendor defaults), ONE [ExpBudget] ledger
@@ -89,7 +154,9 @@ object NavigatorVisionBridge {
      * [evidenceDir] (null = memory-only), and the caller's observation/execution/
      * capture edges — the service passes its own a11y-backed trio. [transport]
      * defaults to the real wire transport; the JVM tests inject a scripted one (a unit
-     * test must never touch the network).
+     * test must never touch the network). [exclusionBounds] rides the capture's
+     * live-log masking (D2): the service supplies the corner overlay's current bounds;
+     * null (the adb activity) leaves the capture byte-identical.
      */
     fun newVisionLoop(
         observer: LoopObserver,
@@ -108,6 +175,13 @@ object NavigatorVisionBridge {
          * (the adb experiment path) stays ungated.
          */
         gatePresenter: navigator.app.loop.GatePresenter? = null,
+        /**
+         * The live-log exclusion seam (D2, 2026-10-19): read PER CAPTURE by the
+         * [VisionLoop], which paints the returned screen rect black over every
+         * screenshot. Null provider (the adb path — no live log there) = byte-identical
+         * capture.
+         */
+        exclusionBounds: (() -> VisionMath.RectPx?)? = null,
     ): VisionLoop {
         val budget = ExpBudget()
         val evidence = VisionEvidence(evidenceDir, runId)
@@ -140,6 +214,7 @@ object NavigatorVisionBridge {
             evidence = evidence,
             log = log,
             gatePresenter = gatePresenter,
+            exclusionBounds = exclusionBounds,
         )
     }
 

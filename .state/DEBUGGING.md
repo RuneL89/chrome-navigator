@@ -123,6 +123,106 @@ AUTHORITATIVE terminal signal per app:
 > corner log + the READY notification name the channel and point at setup — never a
 > silent legacy fallback). Only an owner-flipped toggle OFF keeps the legacy-loop
 > rules above byte-identical.
+>
+> **EXTENSION (2026-10-19, the actual-app live-test repair — VEXP4 D1/D2/D3):** a
+> product vision run now STARTS on a browser: the service branch runs the SHARED
+> engine-free readiness pre-step (`NavigatorVisionBridge.ensureBrowserFront`) before
+> VisionLoop — a NON-browser front (the setup wizard was the D1 repro,
+> `task-1792394642606`) gets ONE allowlisted browser HOME launch and a bounded wait.
+> The corner log / logcat carry "vision: front window is X - launching browser home"
+> on the launch and "vision: no browser came front - observing whatever is front"
+> when none arrived; in the latter case the run is observing a non-browser and its
+> early steps are suspect. The loop's own corner live log is now PAINTED OUT of every
+> screenshot (`OverlayManager.liveLogBounds` → `VisionCapture` maps the log window's
+> screen rect and fills it solid black before encoding, frame size unchanged, D2): a
+> black rectangle in the log's corner of an evidence screenshot is CORRECT. If the
+> log was hidden or not yet laid out, the frame is captured unchanged and the
+> evidence carries ONE loud note per run — "exclusion: the live log's bounds are
+> unavailable - capturing the full frame". The writer prompt is `vision-exp-v8`
+> (D3: taskClass "multi" is lawful only with a count-shaped done condition; a plan
+> attempt refused for MULTI is expected to retry error-fed).
+>
+> **EXTENSION (2026-10-19, the actual-app RERUN repair — VEXP4 D4,
+> `task-1792395871412`):** the D1 readiness pre-step's HOME launch was itself
+> destructive: on the webview-shell browser `packageManager.getLaunchIntentForPackage`
+> RESETS the browser to about:blank, so the owner's open page was destroyed before the
+> loop observed (the battery then flagged "Is the page blank, showing only about:blank,
+> or showing an error page?"). The pre-step now tries a NON-NAVIGATING task-forward
+> FIRST (`NavigatorVisionBridge.ensureBrowserFront`'s `bringBrowserTaskForward` seam →
+> the service's `ActivityManager.getRunningTasks(50)` filtered on the browser package →
+> `moveTaskToFront`, normal `REORDER_TASKS` permission) and only falls back to the HOME
+> launch when no browser task resolves. New corner log / logcat lines: "vision:
+> bringing the browser task to front (page preserved)" or "vision: front window is X -
+> no browser task found - launching browser home". If the owner's page still resets,
+> the fallback fired: modern Android restricts `getRunningTasks` to the caller's own
+> tasks, so the browser's row may be withheld and the environment took the no-task
+> path — record it as an environment limitation (it is not a loop decision).
+>
+> **EXTENSION (2026-10-19, the actual-app live-test repair — the COMPOSE LAW,
+> `task-1792396531977`):** the browser landed on about:blank and the planner correctly
+> wrote "enter a hotel search into the address bar", but the PROPOSER only ever
+> returned action=tap on the address field — never action=type with text — so the page
+> stayed blank across 13 re-plans. Root cause was the old PROPOSE_SYSTEM rule "if the
+> subtask does not say what to type ... else propose tap instead". The writer prompt is
+> now `vision-exp-v9`: on a blank/empty page, or a search/navigate subtask with no
+> literal text, the proposer COMPOSES a concise query from the goal/subtask and uses
+> action=type at the address bar / search field ("a bare tap on an empty address bar is
+> never a sufficient proposal"), and PLAN_SYSTEM requires a blank/error-page first
+> subtask to be a SEARCH/NAVIGATE step that NAMES the query to enter. Monitor: the
+> first proposal on about:blank should carry action=type + composed text, and the step
+> line should read `type "<composed query>" into <field>`; a bare tap there means the
+> build is stale (re-check the dex marker per §0) or the prompt regressed.
+>
+> **EXTENSION (2026-10-19, the actual-app live-test repair — the GROUNDING LADDER,
+> `task-1792397135186`):** the compose law worked (the proposer produced
+> action=type "hotels in Riga next weekend" at the address bar) but the step line read
+> `type ... [node n4 iou=0.00 (jev-box) conf=0.90] causes=[NO_FIELD_AT_POINT]`: the
+> Jev Box answer overlapped NO a11y node (IoU 0.00), the loop still accepted it as the
+> grounding, and `enterText` fired at a non-editable spot. The grounding is now an
+> EXPLICIT ladder: Jev box accepted ONLY at IoU >= 0.2 (`IOU_PARTIAL`); below it the
+> Haiku proposal box is retried at the same threshold (step-line arm
+> `(haiku-box-fallback)`), then the description's label match `(label-match)`, then the
+> raw rectangle's centre `(raw)` — and a TYPE on the raw arm must have an editable node
+> at that point or the step FAILS loudly (`type grounding refused - no editable field
+> at the raw point ... (NO_FIELD_AT_POINT); refusing the doomed enterText`), never a
+> doomed enterText. The grounding ledger records the FINAL arm's IoU exactly once.
+> Monitor: a step line naming `haiku-box-fallback`/`label-match` means the Jev box was
+> rejected; a `FAILED (type grounding refused ...)` line is the old churn now caught in
+> code. The prompt text is unchanged, so the version stays `vision-exp-v9`.
+>
+> **EXTENSION (2026-10-19, the actual-app live-test repair — PLAN `enterText` /
+> TAP-TO-TYPE CONVERSION, `task-1792397809506`):** with the grounding ladder the address
+> bar grounded at IoU 1.00 (label match) and the loop TAPPED it five times in a row,
+> never typing — a tap on an empty editable field achieves nothing. The writer prompt is
+> now `vision-exp-v10`: each plan subtask may carry `enterText` (the exact text to type;
+> REQUIRED when the subtask is a search/navigate/fill whose point is entering text), and
+> the loop CONVERTS a chosen TAP into a TYPE with that text when the grounded target
+> node is EDITABLE — the tap focuses the field first, then enterText fires at the node
+> centre; the step line reads `type "<text>" into ... (tap-converted)`. Monitor: right
+> after the focus tap, a step line `type "hotels in Riga next weekend" into [node ...]
+> (tap-converted)` and a page that leaves about:blank are the repair working. A repeated
+> bare `tap` means either the plan carried no `enterText` (check the plan JSON in the
+> run evidence) or the build is stale (re-check the dex marker per §0).
+>
+> **EXTENSION (2026-10-19, the actual-app live-test repair — THE EDITABLE RESOLUTION,
+> `task-1792398381736`):** with the v10 plan in place the step read `type "hotels in Riga"
+> into [node n3 iou=1.00 (label-match) conf=0.90] causes=[NO_FIELD_AT_POINT]`: the label
+> arm grounded node n3, the address-bar CONTAINER, while the real EditText is a CHILD
+> with different bounds — `enterText` fired at the container's centre and
+> GestureExecutor's fresh walk found no editable node there. Before executing a TYPE
+> (native or tap-converted) the loop now resolves the actual field when the grounded
+> node is NOT editable: the editable containing the ground point, else the new pure
+> `VisionMath.nearestEditableTo` (an editable whose bounds contain the target centre
+> within a bounded tolerance, else max IoU vs the target rect at >= 0.1) — and calls
+> `enterText` at the RESOLVED node's centre. The step line carries `(editable: n<id>)`
+> when the resolution changed the node; a grounded non-editable node with NO editable
+> nearby FAILS loudly naming the ground node (`type grounding refused - the ground node
+> n3 is not editable ... (NO_FIELD_AT_POINT); refusing the doomed enterText`), never a
+> doomed enterText. The gate classifies the resolved field (the actual typed control),
+> and the prompt is unchanged — version stays `vision-exp-v10`. Monitor: a line
+> `type "hotels in Riga" into [node n3 ... (label-match)] (editable: n5)` means the
+> container→child resolution worked; a `FAILED (type grounding refused - the ground
+> node ...)` line is the old churn now caught in code.
 
 * product (PHASE_VEXP3): NO database — the Room layer is retired and no
   `task_terminal` row is ever written (the historical `run-as … task_terminal`

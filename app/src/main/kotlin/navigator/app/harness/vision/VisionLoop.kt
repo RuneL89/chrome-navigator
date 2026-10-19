@@ -28,6 +28,7 @@ import navigator.core.enumerate.Bucket
 import navigator.core.enumerate.Candidate
 import navigator.core.enumerate.CandidateEnumerator
 import navigator.core.enumerate.CandidateSource
+import navigator.core.enumerate.ObservedNode
 
 /**
  * The EXPERIMENT's standalone vision loop (branch-only try-out; the product loop in
@@ -48,12 +49,17 @@ import navigator.core.enumerate.CandidateSource
  *    straight to the informed re-plan instead of burning a step on PROPOSE.
  * 4. PROPOSE   Haiku names 1..3 controls (verb + referential description + text-to-type).
  * 5. GROUND    AT the action: ONE batched Jev request — image in state + a Box per
- *    tap/type proposal + the pick-Choice. Jev's box is the PRIMARY grounding; the Haiku
- *    proposal box DEMOTES to fallback (Jev box missing / sub-floor / channel failed)
- *    and is recorded as the cross-check. Boxes map to screen pixels and match against
- *    the a11y node bounds (IoU) — an unmatched box still acts at its own center
- *    (raw-coordinate action, the experiment's grounding-fallback arm).
- * 6. ACT       tap / focus-first typed entry / IME submit / back / scroll.
+ *    tap/type proposal + the pick-Choice. The box-to-node match is an EXPLICIT
+ *    grounding-quality LADDER (the fourth live-test repair): the Jev box is PRIMARY but
+ *    accepted only at IoU >= IOU_PARTIAL against an a11y node; below it the Haiku
+ *    proposal box (`haiku-box-fallback`), then the description's label match
+ *    (`label-match`), then the best raw rectangle's centre (`raw`) — where a TYPE must
+ *    land inside an EDITABLE node or the step FAILS loudly (no doomed enterText). The
+ *    step line names the arm that grounded; the ledger records the FINAL arm's IoU.
+ * 6. ACT       tap / focus-first typed entry / IME submit / back / scroll. A TAP on a
+ *    grounded EDITABLE field whose subtask carries a plan `enterText` is CONVERTED to a
+ *    typed entry (the tap focuses, then the text is entered — the fifth live-test
+ *    repair: the grounded address bar was tapped five times and never typed).
  * 7. VERIFY    next iteration's code check, with the recorded opinions.
  *
  * Ordering law (PHASE_VEXP1 WI4): the battery runs BEFORE acting (escalation precedes
@@ -102,6 +108,16 @@ class VisionLoop(
      * `OverlayGatePresenter(a11y)`.
      */
     private val gatePresenter: GatePresenter? = null,
+    /**
+     * The live-log exclusion seam (D2, 2026-10-19): the product service supplies the
+     * corner live log's CURRENT screen bounds, read PER CAPTURE (the log grows with
+     * every line and re-anchors above the IME) — every screenshot has that region
+     * painted solid black so the writer/Jev never see, propose, or target the loop's
+     * own UI. NULL (the default; the adb activity has no live log) = the capture is
+     * byte-identical. When the provider returns null (log hidden/not yet laid out) the
+     * capture stays unchanged and ONE evidence note per run says so loudly.
+     */
+    private val exclusionBounds: (() -> VisionMath.RectPx?)? = null,
 ) {
 
     data class Config(
@@ -155,6 +171,12 @@ class VisionLoop(
     }
 
     companion object {
+        /** The grounding-ladder arms (the step line names the arm that grounded). */
+        const val GROUND_JEV_BOX = "Jev box"
+        const val GROUND_HAIKU_BOX = "haiku box fallback"
+        const val GROUND_LABEL = "label match"
+        const val GROUND_RAW = "raw"
+
         /**
          * The image-in-state law (PHASE_VEXP1 WI4): the TEXT state with the screenshot
          * reference embedded (backticks) where the image belongs — the images API's
@@ -228,7 +250,7 @@ class VisionLoop(
         val screenshots: Int,
     )
 
-    private class NodeMatch(val node: navigator.core.enumerate.ObservedNode, val iou: Double)
+    private class NodeMatch(val node: ObservedNode, val iou: Double)
 
     /** The step's best grounding, cached at the GROUND step for the evidence block (zero extra calls). */
     private class StepGrounding(
@@ -286,6 +308,9 @@ class VisionLoop(
     private var lastBatteryResults: List<CheckResult> = emptyList()
     private var lastBatteryHash: Int? = null
 
+    /** Whether the one-per-run "exclusion bounds unavailable" evidence note already fired (D2). */
+    private var exclusionNoteLogged = false
+
     /**
      * The per-task gate state machine (vision 06 §2): a FRESH [TaskGate] per `run()`
      * (trust never crosses tasks), reset at the top of every run like the other per-run
@@ -334,6 +359,7 @@ class VisionLoop(
         }
         var ladder = planned.ladder
         var batteries = planned.battery
+        var enterTexts = planned.enterText
         evidence.event("plan: ${ladder.summary} (${ladder.subtasks.size} subtasks, ${ladder.taskClass})")
         outcomes.add("plan: ${ladder.summary}")
         var pointer = 0
@@ -344,6 +370,8 @@ class VisionLoop(
         lastBatteryHash = null
         // PHASE_VEXP3 WI1: trust never crosses tasks — a fresh gate per run.
         taskGate = TaskGate()
+        // D2: the unavailable-bounds note fires at most once per run.
+        exclusionNoteLogged = false
 
         while (true) {
             if (isCancelled()) return terminal(Terminal.CANCELLED, ladder)
@@ -529,7 +557,10 @@ class VisionLoop(
                 // -- PROPOSE -> GROUND -> MATCH -> ACT ----------------------------------
                 var actedNodeId: String? = null
                 var stepLine = "step $step: "
-                val attempted = attemptStep(active, doneText, obs, shot, counters, actedNodeIds, typedSoFar)
+                val attempted = attemptStep(
+                    active, doneText, obs, shot, counters, actedNodeIds, typedSoFar,
+                    enterTexts[pointer].orEmpty(),
+                )
                 // ANY action attempt (acted or failed) clears the escalation guard —
                 // the battery re-arms from the following step.
                 batteryEscalatedWithoutAction = false
@@ -619,6 +650,7 @@ class VisionLoop(
                 }
                 ladder = rePlan.ladder
                 batteries = rePlan.battery
+                enterTexts = rePlan.enterText
                 pointer = pointer.coerceAtMost(ladder.subtasks.size - 1)
                 consecutiveFailures = 0
                 recentHashes.clear()
@@ -665,6 +697,7 @@ class VisionLoop(
         counters: MutableMap<String, Int>,
         actedNodeIds: MutableSet<String>,
         typedSoFar: String?,
+        planEnterText: String,
     ): Attempted {
         val proposals = try {
             VisionPrompts.parseProposals(
@@ -772,94 +805,208 @@ class VisionLoop(
 
         val proposal = proposals.getOrNull(pickIndex) ?: proposals.first()
 
-        // MATCH: the JEV box is PRIMARY (when it cleared the floor); the Haiku proposal
-        // box is the FALLBACK; without any image the description's label match is the
-        // last resort.
+        // -- MATCH: the EXPLICIT grounding-quality ladder --------------------------------
+        // (the fourth actual-app live-test repair, 2026-10-19, task-1792397135186): the
+        // Jev box came back confidence-high yet overlapped NO a11y node (IoU 0.00), the
+        // loop treated it as a grounding, and the TYPE churned into
+        // causes=[NO_FIELD_AT_POINT] against a non-editable spot. The arms, in order:
+        //   (a) Jev box -> best node match, ACCEPTED only at IoU >= IOU_PARTIAL;
+        //   (b) the Haiku proposal box at the same threshold (`haiku-box-fallback`);
+        //   (c) the description's label match (`label-match`);
+        //   (d) the best available raw rectangle's centre (`raw`) — and for TYPE that
+        //       point must sit inside an EDITABLE node, else the step FAILS loudly
+        //       instead of firing the doomed enterText.
+        val jevBox = jevBoxes[pickIndex]
+        val jevRect = shot?.let { frame ->
+            jevBox?.takeIf { it.confidence >= config.boxConfidenceFloor }?.let { b ->
+                VisionMath.boxToScreenRect(b.left, b.top, b.right, b.bottom, frame.screenWidth, frame.screenHeight)
+            }
+        }
+        val haikuRect = shot?.let { frame ->
+            proposal.box?.let { b ->
+                VisionMath.boxToScreenRect(b.left, b.top, b.right, b.bottom, frame.screenWidth, frame.screenHeight)
+            }
+        }
         var target: NodeMatch? = null
-        var rawRect: VisionMath.RectPx? = null
+        var rawRect: VisionMath.RectPx? = jevRect ?: haikuRect
         var groundSource: String? = null
         var groundConfidence = 0.0
-        val jevBox = jevBoxes[pickIndex]
-        if (jevBox != null && shot != null && jevBox.confidence >= config.boxConfidenceFloor) {
-            val jevRect = VisionMath.boxToScreenRect(
-                jevBox.left, jevBox.top, jevBox.right, jevBox.bottom, shot.screenWidth, shot.screenHeight,
-            )
-            rawRect = jevRect
-            target = VisionMath.bestNodeMatch(obs.nodes, jevRect)?.let { NodeMatch(it.first, it.second) }
-            groundSource = "Jev box"
-            groundConfidence = jevBox.confidence
-            // The calibration ledger scores JEV boxes (Phase-A now measures the real
-            // transport); the Haiku cross-check and the fallback arm ride the event log.
-            evidence.grounding.record(proposal.description, jevBox.confidence, target?.iou ?: 0.0, target?.node?.id)
-            stepGrounding = StepGrounding(
-                source = "Jev box",
-                description = proposal.description,
-                screenX = jevRect.centerX,
-                screenY = jevRect.centerY,
-                iou = target?.iou ?: 0.0,
-                nodeId = target?.node?.id,
-            )
-            proposal.box?.let { hb ->
-                val hRect = VisionMath.boxToScreenRect(
-                    hb.left, hb.top, hb.right, hb.bottom, shot.screenWidth, shot.screenHeight,
-                )
+        var groundIou = 0.0
+
+        // (a) the Jev box: PRIMARY, but only a PARTIAL-or-better node match grounds.
+        if (jevRect != null) {
+            val match = VisionMath.bestNodeMatch(obs.nodes, jevRect)?.let { NodeMatch(it.first, it.second) }
+            if (match != null && match.iou >= VisionEvidence.GroundingMetrics.IOU_PARTIAL) {
+                target = match
+                groundSource = GROUND_JEV_BOX
+                groundConfidence = jevBox?.confidence ?: 0.0
+                groundIou = match.iou
+            } else {
                 evidence.event(
-                    "cross-check: haiku box conf=%.2f iou-vs-jev-rect=%.2f".format(
-                        proposal.confidence,
-                        VisionMath.iou(hRect, jevRect),
+                    "jev box below PARTIAL (iou=%.2f < %.2f) — haiku-box fallback".format(
+                        match?.iou ?: 0.0,
+                        VisionEvidence.GroundingMetrics.IOU_PARTIAL,
                     ),
                 )
             }
-        }
-        if (groundSource == null) {
-            if (jevBox != null) {
+            // The Haiku cross-check compares the two channels' rectangles; it rides the
+            // event log regardless of which arm finally grounds.
+            if (haikuRect != null) {
                 evidence.event(
-                    "jev box sub-floor (conf=%.2f < %.2f) — haiku-box fallback"
-                        .format(jevBox.confidence, config.boxConfidenceFloor),
+                    "cross-check: haiku box conf=%.2f iou-vs-jev-rect=%.2f".format(
+                        proposal.confidence,
+                        VisionMath.iou(haikuRect, jevRect),
+                    ),
                 )
             }
-            val box = proposal.box
-            if (box != null && shot != null) {
-                val haikuRect = VisionMath.boxToScreenRect(box.left, box.top, box.right, box.bottom, shot.screenWidth, shot.screenHeight)
-                rawRect = haikuRect
-                target = VisionMath.bestNodeMatch(obs.nodes, haikuRect)?.let { NodeMatch(it.first, it.second) }
-                groundSource = "haiku box fallback"
+        } else if (jevBox != null && shot != null) {
+            evidence.event(
+                "jev box sub-floor (conf=%.2f < %.2f) — haiku-box fallback"
+                    .format(jevBox.confidence, config.boxConfidenceFloor),
+            )
+        }
+
+        // (b) the Haiku proposal box, when the Jev box did not reach PARTIAL.
+        if (target == null && haikuRect != null) {
+            val match = VisionMath.bestNodeMatch(obs.nodes, haikuRect)?.let { NodeMatch(it.first, it.second) }
+            if (match != null && match.iou >= VisionEvidence.GroundingMetrics.IOU_PARTIAL) {
+                target = match
+                groundSource = GROUND_HAIKU_BOX
                 groundConfidence = proposal.confidence
+                groundIou = match.iou
                 evidence.event(
                     "fallback grounding: '%s' conf=%.2f iou=%.2f node=%s".format(
                         proposal.description.take(60),
                         proposal.confidence,
-                        target?.iou ?: 0.0,
-                        target?.node?.id ?: "none",
+                        match.iou,
+                        match.node.id,
                     ),
                 )
-                stepGrounding = StepGrounding(
-                    source = "haiku box fallback",
-                    description = proposal.description,
-                    screenX = haikuRect.centerX,
-                    screenY = haikuRect.centerY,
-                    iou = target?.iou ?: 0.0,
-                    nodeId = target?.node?.id,
+            } else {
+                evidence.event(
+                    "haiku box below PARTIAL (iou=%.2f < %.2f) — label match".format(
+                        match?.iou ?: 0.0,
+                        VisionEvidence.GroundingMetrics.IOU_PARTIAL,
+                    ),
                 )
-            } else if (shot == null) {
-                // The no-image degrade: match the description by label; null = the action dies.
-                VisionMath.bestLabelMatch(obs.nodes, proposal.description)?.let {
-                    target = NodeMatch(it, 1.0)
-                } ?: return Attempted.Failed("no screenshot and no label match for '${proposal.description.take(60)}'")
             }
         }
 
-        // The grounding quality marker: a low-confidence location on a miss-grade match
-        // rides the step line LOUDLY (during calibration the step still acts — the
-        // evidence is the product; the floor gets picked from the histogram).
-        val lowConfMark = if (groundSource != null && groundConfidence < config.boxConfidenceFloor &&
-            (target?.iou ?: 0.0) < VisionEvidence.GroundingMetrics.IOU_PARTIAL
-        ) " (LOW-CONF ground conf=%.2f iou=%.2f)".format(groundConfidence, target?.iou ?: 0.0) else ""
+        // (c) the description's label match (a textual antecedent, no box quality).
+        if (target == null) {
+            VisionMath.bestLabelMatch(obs.nodes, proposal.description)?.let { labelNode ->
+                target = NodeMatch(labelNode, 1.0)
+                groundSource = GROUND_LABEL
+                groundConfidence = proposal.confidence
+                groundIou = 1.0
+            }
+        }
 
-        // ACT: matched node center, else the box's own center (the raw-coordinate arm).
-        // Scroll/back need no location: they act on the screen center by design.
+        // The no-image degrade keeps the pre-repair law: no screenshot AND no label
+        // match means the action has no location at all.
+        if (target == null && shot == null) {
+            return Attempted.Failed("no screenshot and no label match for '${proposal.description.take(60)}'")
+        }
+
+        // ACT point: the matched node's centre, else the raw rectangle's centre. Scroll/
+        // back need no location: they act on the screen center by design.
         val x = target?.node?.centerX ?: rawRect?.centerX ?: (shot?.screenWidth ?: 1080) / 2
         val y = target?.node?.centerY ?: rawRect?.centerY ?: (shot?.screenHeight ?: 2400) / 2
+
+        // (d) the raw-coordinate arm. A TYPE must land inside an EDITABLE node — the
+        // NO_FIELD_AT_POINT churn ends here, loudly, instead of calling enterText.
+        if (target == null) {
+            if (proposal.action == VisionPrompts.ProposalAction.TYPE &&
+                VisionMath.editableNodeAt(obs.nodes, x, y) == null
+            ) {
+                return Attempted.Failed(
+                    "type grounding refused - no editable field at the raw point ($x,$y) " +
+                        "(NO_FIELD_AT_POINT); refusing the doomed enterText",
+                )
+            }
+            if (rawRect != null) {
+                groundSource = GROUND_RAW
+                groundConfidence = if (jevRect != null) jevBox?.confidence ?: 0.0 else proposal.confidence
+                groundIou = 0.0
+            }
+        }
+
+        // -- THE PLAN'S enterText CONVERSION (the fifth actual-app live-test repair, ------
+        // 2026-10-19, task-1792397809506): the grounding ladder made the address bar
+        // ground at IoU 1.00 (label match) and the loop TAPPED it five times in a row,
+        // never typing — a tap on an empty editable field achieves nothing. When the
+        // chosen proposal is a TAP, its grounded target is EDITABLE, and the active
+        // subtask carries a non-blank plan enterText, the action becomes a TYPE with
+        // that text: the tap executes first to focus the field, then enterText at the
+        // node centre. Any other shape behaves exactly as before.
+        val convertedText = planEnterText.takeIf { it.isNotBlank() }
+        val tapConverted = proposal.action == VisionPrompts.ProposalAction.TAP &&
+            convertedText != null && target?.node?.editable == true
+        val effectiveAction =
+            if (tapConverted) VisionPrompts.ProposalAction.TYPE else proposal.action
+        val effectiveText = if (tapConverted) convertedText else proposal.text
+
+        // -- THE EDITABLE RESOLUTION (the sixth actual-app live-test repair, 2026-10-19, --
+        // task-1792398381736): the label arm grounded the address bar's CONTAINER (node n3)
+        // at IoU 1.00 while the real EditText is a CHILD with different bounds — the loop
+        // called enterText at the container's centre and GestureExecutor's fresh walk
+        // found no editable node there, so every step churned
+        // `causes=[NO_FIELD_AT_POINT]`. Before executing a TYPE (whether native or
+        // tap-converted) whose grounded node is NOT editable, resolve the actual field:
+        // the editable containing the ground point, else the nearest editable
+        // (containment within a bounded tolerance, then IoU >= 0.1) — and type at ITS
+        // centre. No resolution = the loud refusal naming the ground node (never a doomed
+        // enterText). A grounded EDITABLE node keeps today's behaviour byte-identically,
+        // and the raw-coordinate arm keeps its own point check above.
+        val groundNode = target?.node
+        val typeField: ObservedNode? = when {
+            effectiveAction != VisionPrompts.ProposalAction.TYPE -> null
+            groundNode == null -> null
+            groundNode.editable -> groundNode
+            else -> VisionMath.editableNodeAt(obs.nodes, x, y)
+                ?: VisionMath.nearestEditableTo(obs.nodes, groundNode)
+        }
+        if (effectiveAction == VisionPrompts.ProposalAction.TYPE &&
+            groundNode != null && typeField == null
+        ) {
+            return Attempted.Failed(
+                "type grounding refused - the ground node ${groundNode.id} is not editable and no " +
+                    "editable field could be resolved at its centre ($x,$y) (NO_FIELD_AT_POINT); " +
+                    "refusing the doomed enterText",
+            )
+        }
+        // The step line carries the resolution ONLY when it changed the node: the ground
+        // target's arm stays truthful and the actual edited field is named beside it.
+        val resolvedField = typeField?.takeIf { it.id != groundNode?.id }
+        val actX = resolvedField?.centerX ?: x
+        val actY = resolvedField?.centerY ?: y
+        val editableMark = resolvedField?.let { " (editable: ${it.id})" } ?: ""
+        // The gate classifies what will ACTUALLY be typed into — the resolved field, not
+        // the container the grounding arm saw (a container can hide a secret child).
+        val actTarget =
+            if (resolvedField != null) NodeMatch(resolvedField, target?.iou ?: 1.0) else target
+
+        // The grounding quality marker: a low-confidence location on a miss-grade match
+        // rides the step line LOUDLY (semantics unchanged; during calibration the step
+        // still acts — the evidence is the product; the floor gets picked from the histogram).
+        val lowConfMark = if (groundSource != null && groundConfidence < config.boxConfidenceFloor &&
+            groundIou < VisionEvidence.GroundingMetrics.IOU_PARTIAL
+        ) " (LOW-CONF ground conf=%.2f iou=%.2f)".format(groundConfidence, groundIou) else ""
+
+        // The calibration ledger scores the FINAL arm exactly once — a Haiku/label
+        // recovery must never be reported as the Jev miss it replaced. The same values
+        // populate the step's grounding cache for the re-plan's evidence block.
+        if (groundSource != null) {
+            evidence.grounding.record(proposal.description, groundConfidence, groundIou, target?.node?.id)
+            stepGrounding = StepGrounding(
+                source = groundSource,
+                description = proposal.description,
+                screenX = x,
+                screenY = y,
+                iou = groundIou,
+                nodeId = target?.node?.id,
+            )
+        }
 
         // -- GATE (PHASE_VEXP3 WI1): classify BEFORE every TAP/TYPE/SUBMIT dispatch —
         // scroll/back NEVER gate (the law; RiskGate also refuses those kinds by shape).
@@ -875,17 +1022,17 @@ class VisionLoop(
         var secretSwap: String? = null
         var gateMarker: String? = null
         if (gatePresenter != null &&
-            (proposal.action == VisionPrompts.ProposalAction.TAP ||
-                proposal.action == VisionPrompts.ProposalAction.TYPE ||
-                proposal.action == VisionPrompts.ProposalAction.SUBMIT)
+            (effectiveAction == VisionPrompts.ProposalAction.TAP ||
+                effectiveAction == VisionPrompts.ProposalAction.TYPE ||
+                effectiveAction == VisionPrompts.ProposalAction.SUBMIT)
         ) {
-            val kind = when (proposal.action) {
+            val kind = when (effectiveAction) {
                 VisionPrompts.ProposalAction.TAP -> ActionKind.TAP
                 VisionPrompts.ProposalAction.TYPE -> ActionKind.TYPE
                 else -> ActionKind.SUBMIT
             }
-            val candidate = gateCandidate(proposal, kind, target, x, y, obs)
-            val gateAction = GateAction(candidate, kind, proposal.text)
+            val candidate = gateCandidate(proposal, kind, actTarget, actX, actY, obs)
+            val gateAction = GateAction(candidate, kind, effectiveText)
             val pageContext = PageContext(obs.url, FieldDescriptor.fromNodes(obs.nodes))
             val hclass = RiskGate.classify(gateAction, pageContext)
             if (hclass != null) {
@@ -995,8 +1142,8 @@ class VisionLoop(
             }
         }
 
-        val needsLocation = proposal.action == VisionPrompts.ProposalAction.TAP ||
-            proposal.action == VisionPrompts.ProposalAction.TYPE
+        val needsLocation = effectiveAction == VisionPrompts.ProposalAction.TAP ||
+            effectiveAction == VisionPrompts.ProposalAction.TYPE
         val where = when {
             target != null -> "node ${target.node.id} iou=%.2f".format(target.iou) +
                 (groundSource?.let { src -> " (${src.lowercase().replace(' ', '-')})" } ?: "")
@@ -1007,7 +1154,7 @@ class VisionLoop(
         val executed: Boolean
         var detail: String
         var typed: String? = null
-        when (proposal.action) {
+        when (effectiveAction) {
             VisionPrompts.ProposalAction.TAP -> {
                 executed = executor.tap(x, y)
                 detail = "tap '${proposal.description.take(60)}' [$where conf=${"%.2f".format(proposal.confidence)}]$lowConfMark"
@@ -1019,13 +1166,21 @@ class VisionLoop(
                 // context the next proposal sees may carry it: both render the
                 // redaction marker (doc 05 §2 / doc 06 §2a).
                 val secretTyped = secretSwap != null
-                val text = secretSwap ?: proposal.text ?: return Attempted.Failed("type proposal carries no text")
+                val text = secretSwap ?: effectiveText
+                    ?: return Attempted.Failed("type proposal carries no text")
                 val causes = mutableListOf<TextEntryFailure>()
-                executed = executor.enterText(x, y, text) { causes.add(it) }
+                // The tap-to-type conversion executes the proposal's TAP first (it
+                // focuses the grounded editable field), then types the plan's text at
+                // the same node centre. A native TYPE on a non-editable ground target
+                // types at the RESOLVED editable field's centre instead (the sixth
+                // live-test repair) — never at the container's inert point.
+                if (tapConverted) executor.tap(x, y)
+                executed = executor.enterText(actX, actY, text) { causes.add(it) }
                 typed = if (secretTyped) TextSource.REDACTED else text
                 detail = "type \"${if (secretTyped) TextSource.REDACTED else text}\" into " +
-                    "[$where conf=${"%.2f".format(proposal.confidence)}]" +
-                    (if (executed) "" else " causes=$causes") + lowConfMark
+                    "[$where conf=${"%.2f".format(proposal.confidence)}]$editableMark" +
+                    (if (executed) "" else " causes=$causes") + lowConfMark +
+                    (if (tapConverted) " (tap-converted)" else "")
             }
             VisionPrompts.ProposalAction.SUBMIT -> {
                 executed = executor.submit()
@@ -1043,7 +1198,7 @@ class VisionLoop(
         // The gate's step-line marker ("(gate H4 approved)"-style): a null marker is an
         // ungated action (no presenter, no class, or scroll/back — never gated).
         gateMarker?.let { detail += " $it" }
-        val progresses = when (proposal.action) {
+        val progresses = when (effectiveAction) {
             VisionPrompts.ProposalAction.TAP,
             VisionPrompts.ProposalAction.TYPE,
             VisionPrompts.ProposalAction.SUBMIT,
@@ -1055,9 +1210,9 @@ class VisionLoop(
         }
         // The evidence cache's action route (the re-plan's ROUTE-REPEATED law: same verb
         // consecutively >= 3 renders the tag on the evidence block).
-        val actionLabel = when (proposal.action) {
+        val actionLabel = when (effectiveAction) {
             VisionPrompts.ProposalAction.TAP -> "tap ${shortLabel(proposal.description)}"
-            VisionPrompts.ProposalAction.TYPE -> "type ${shortLabel(proposal.text ?: proposal.description)}"
+            VisionPrompts.ProposalAction.TYPE -> "type ${shortLabel(effectiveText ?: proposal.description)}"
             VisionPrompts.ProposalAction.SUBMIT -> "submit"
             VisionPrompts.ProposalAction.BACK -> "back"
             VisionPrompts.ProposalAction.SCROLL_DOWN -> "scroll down"
@@ -1069,9 +1224,9 @@ class VisionLoop(
         while (verbHistory.size > 6) verbHistory.removeFirst()
         delay(config.settleMs)
         if (executed && target != null && actedNodeIds.add(target.node.id) &&
-            proposal.action != VisionPrompts.ProposalAction.BACK &&
-            proposal.action != VisionPrompts.ProposalAction.SCROLL_DOWN &&
-            proposal.action != VisionPrompts.ProposalAction.SCROLL_UP
+            effectiveAction != VisionPrompts.ProposalAction.BACK &&
+            effectiveAction != VisionPrompts.ProposalAction.SCROLL_DOWN &&
+            effectiveAction != VisionPrompts.ProposalAction.SCROLL_UP
         ) {
             counters.merge(DoneConditionChecker.WORKING_MEMORY_KEY, 1, Int::plus)
         }
@@ -1308,10 +1463,15 @@ class VisionLoop(
         return Opinions(noul, confirm, "[$noulVerdict confirm=$confirm]")
     }
 
-    /** A parsed plan plus the writer-authored per-subtask verification batteries (index → checks). */
+    /**
+     * A parsed plan plus the writer-authored per-subtask verification batteries (index →
+     * checks) and the per-subtask `enterText` fields (index → the exact text to type;
+     * the tap-to-type conversion's source).
+     */
     private class PlannedLadder(
         val ladder: Ladder,
         val battery: Map<Int, List<VisionPrompts.VerifyCheck>>,
+        val enterText: Map<Int, String>,
     )
 
     private suspend fun planLadder(goal: String, obs: StepObservation, failure: String?, shot: VisionCapture.ScreenShot?): PlannedLadder? {
@@ -1338,8 +1498,9 @@ class VisionLoop(
                 // The battery parses FIRST (it is not part of the product Ladder type):
                 // a malformed battery is a refused attempt and feeds the error-fed retry.
                 val battery = VisionPrompts.parseVerifyBlocks(content, "plan")
+                val enterText = VisionPrompts.parseEnterTexts(content, "plan")
                 val ladder = LadderSchema.parse(content, maxSubtasks = 8)
-                return PlannedLadder(ladder, battery)
+                return PlannedLadder(ladder, battery, enterText)
             } catch (e: Exception) {
                 correction = "Your previous JSON was refused: ${e.message?.take(300)} — fix exactly that and return the STRICT JSON again."
                 evidence.event("plan attempt ${attempt + 1} refused: ${e.message?.take(160)}")
@@ -1360,9 +1521,20 @@ class VisionLoop(
         null
     }
 
-    /** Capture with the loud text-only degrade (a capture failure never kills a run). */
+    /**
+     * Capture with the loud text-only degrade (a capture failure never kills a run).
+     * D2: the live-log exclusion is re-read per capture; unavailable bounds leave the
+     * frame unchanged with ONE loud evidence note per run.
+     */
     private suspend fun captureSafely(index: Int): VisionCapture.ScreenShot? = try {
-        capture.capture().also { evidence.screenshot(index, it, it.jpegBytes) }
+        val exclusion = exclusionBounds?.invoke()
+        if (exclusionBounds != null && exclusion == null && !exclusionNoteLogged) {
+            exclusionNoteLogged = true
+            val line = "exclusion: the live log's bounds are unavailable - capturing the full frame"
+            evidence.event(line)
+            log("[vision] $line")
+        }
+        capture.capture(exclusion).also { evidence.screenshot(index, it, it.jpegBytes) }
     } catch (e: Exception) {
         evidence.event("capture degraded: ${e.message?.take(120)} — TEXT-ONLY step")
         null

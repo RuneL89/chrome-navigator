@@ -71,6 +71,64 @@ object VisionMath {
             ?.let { (node, score) -> node to iou(box, nodeRect(node)) }
 
     /**
+     * The editable node containing a screen point — the TYPE raw-coordinate arm's safety
+     * check (the fourth live-test repair: a box that grounds no a11y node must never fire
+     * a doomed `enterText` at an inert spot). Smallest-area node wins (the most specific
+     * field when bounds nest); browser chrome is INCLUDED — the address bar is a
+     * legitimate type target and the a11y layer marks it as chrome.
+     */
+    fun editableNodeAt(nodes: List<ObservedNode>, x: Int, y: Int): ObservedNode? =
+        nodes.asSequence()
+            .filter { it.editable }
+            .filter { x in it.left..it.right && y in it.top..it.bottom }
+            .minByOrNull { area(it) }
+
+    /**
+     * The editable node nearest a grounded NON-editable target — the sixth live-test
+     * repair (`task-1792398381736`): a label match can ground the address bar's
+     * CONTAINER while the real EditText is a CHILD with different bounds, so a TYPE
+     * aimed at the container's centre finds no editable field and churns
+     * NO_FIELD_AT_POINT. Preference:
+     *
+     * 1. an editable whose bounds CONTAIN the target centre within a bounded pixel
+     *    tolerance, smallest area (the most specific field when bounds nest);
+     * 2. else the maximum-IoU editable against the target's rect, accepted only at
+     *    [MIN_EDITABLE_IOU] — a container and its child overlap substantially by
+     *    construction.
+     *
+     * Browser chrome is INCLUDED (the address bar is a legitimate type target).
+     */
+    fun nearestEditableTo(nodes: List<ObservedNode>, target: ObservedNode): ObservedNode? {
+        val editables = nodes.filter { it.editable }
+        if (editables.isEmpty()) return null
+        editables.filter { containsWithTolerance(it, target.centerX, target.centerY) }
+            .minByOrNull { area(it) }
+            ?.let { return it }
+        val targetRect = nodeRect(target)
+        return editables.asSequence()
+            .map { it to iou(targetRect, nodeRect(it)) }
+            .filter { (_, overlap) -> overlap >= MIN_EDITABLE_IOU }
+            .maxByOrNull { (_, overlap) -> overlap }
+            ?.first
+    }
+
+    /** A bounded tolerance for the point-containment preference (the child edge may sit just off the centre). */
+    private const val EDITABLE_CONTAIN_TOLERANCE_PX = 24
+
+    /** The editable-overlap floor for the [nearestEditableTo] fallback. */
+    private const val MIN_EDITABLE_IOU = 0.1
+
+    private fun containsWithTolerance(node: ObservedNode, x: Int, y: Int): Boolean =
+        x >= node.left - EDITABLE_CONTAIN_TOLERANCE_PX &&
+            x <= node.right + EDITABLE_CONTAIN_TOLERANCE_PX &&
+            y >= node.top - EDITABLE_CONTAIN_TOLERANCE_PX &&
+            y <= node.bottom + EDITABLE_CONTAIN_TOLERANCE_PX
+
+    private fun area(node: ObservedNode): Long =
+        (node.right - node.left).toLong().coerceAtLeast(0) *
+            (node.bottom - node.top).toLong().coerceAtLeast(0)
+
+    /**
      * The no-screenshot degrade: match a proposal's description to a node by word-set
      * overlap over its text/description label. Returns the best node scoring at least
      * [MIN_LABEL_SCORE], else null.

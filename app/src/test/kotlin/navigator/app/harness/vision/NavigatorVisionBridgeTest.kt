@@ -123,6 +123,205 @@ class NavigatorVisionBridgeTest {
 
 
 
+    // -- the browser-readiness pre-step (live defect D1) ----------------------------------
+
+    private fun packageObservation(pkg: String) = StepObservation(
+        url = "",
+        title = "",
+        lines = emptyList(),
+        nodes = emptyList(),
+        windowPackage = pkg,
+    )
+
+    /** A repeating observer: every observation reports the same window package. */
+    private class FixedPackageObserver(private val pkg: String) : LoopObserver {
+        var observes = 0
+            private set
+
+        override suspend fun observe(): StepObservation {
+            observes += 1
+            return StepObservation(
+                url = "",
+                title = "",
+                lines = emptyList(),
+                nodes = emptyList(),
+                windowPackage = pkg,
+            )
+        }
+    }
+
+    @Test
+    fun `readiness - a browser already front launches nothing`() = runBlocking {
+        var launches = 0
+        val observer = FixedPackageObserver("com.android.chrome")
+        val ready = NavigatorVisionBridge.ensureBrowserFront(
+            observer = observer,
+            launchBrowserHome = { launches += 1 },
+            waitMs = 100,
+            pollMs = 5,
+        )
+        assertTrue(ready)
+        assertEquals(0, launches, "no launch when the browser is already front")
+        assertEquals(1, observer.observes, "the first observation answers; no wait loop")
+    }
+
+    @Test
+    fun `readiness - a non-browser front launches the home once then waits for the browser`() = runBlocking {
+        var launches = 0
+        var observes = 0
+        val observer = object : LoopObserver {
+            override suspend fun observe(): StepObservation {
+                observes += 1
+                return packageObservation(
+                    if (observes <= 2) "com.android.settings" else "com.android.chrome",
+                )
+            }
+        }
+        val logLines = mutableListOf<String>()
+        val ready = NavigatorVisionBridge.ensureBrowserFront(
+            observer = observer,
+            launchBrowserHome = {
+                launches += 1
+                // The launch is not instant: the first post-launch observation still
+                // sees the old screen; the wait loop must keep polling.
+            },
+            waitMs = 500,
+            pollMs = 5,
+            log = { logLines.add(it) },
+        )
+        assertTrue(ready)
+        assertEquals(1, launches, "exactly one home launch")
+        assertTrue(observes >= 3, "the wait loop polled until the browser arrived")
+        assertTrue(
+            logLines.any { it.contains("front window is com.android.settings") && it.contains("launching browser home") },
+            "the launch is logged loudly: $logLines",
+        )
+    }
+
+    @Test
+    fun `readiness - no browser ever comes back returns false after the bounded wait`() = runBlocking {
+        var launches = 0
+        val observer = FixedPackageObserver("com.android.settings")
+        val logLines = mutableListOf<String>()
+        val started = System.currentTimeMillis()
+        val ready = NavigatorVisionBridge.ensureBrowserFront(
+            observer = observer,
+            launchBrowserHome = { launches += 1 },
+            waitMs = 80,
+            pollMs = 10,
+            log = { logLines.add(it) },
+        )
+        val elapsed = System.currentTimeMillis() - started
+        assertFalse(ready, "no browser = the caller proceeds loudly, never a false ready")
+        assertEquals(1, launches)
+        assertTrue(observer.observes >= 2, "the bounded wait polled at least once")
+        assertTrue(elapsed >= 40, "the wait was bounded but real: ${elapsed}ms")
+        assertTrue(
+            logLines.any { it.contains("no browser came front") },
+            "the failure is logged loudly: $logLines",
+        )
+    }
+
+    @Test
+    fun `readiness - a blank front window never launches but still waits`() = runBlocking {
+        var launches = 0
+        val observer = FixedPackageObserver("")
+        val ready = NavigatorVisionBridge.ensureBrowserFront(
+            observer = observer,
+            launchBrowserHome = { launches += 1 },
+            waitMs = 40,
+            pollMs = 10,
+        )
+        assertFalse(ready)
+        assertEquals(0, launches, "an unknown front window cannot justify a launch")
+    }
+
+    // -- D4 (the rerun repair): the EXISTING browser task comes forward before any launch --
+
+    @Test
+    fun `readiness - an existing browser task comes forward without a home launch`() = runBlocking {
+        var launches = 0
+        var forwards = 0
+        var observes = 0
+        val observer = object : LoopObserver {
+            override suspend fun observe(): StepObservation {
+                observes += 1
+                return packageObservation(
+                    // The owner returned to the app to submit the goal: the app is
+                    // front first, then the existing browser task lands.
+                    if (observes <= 2) "navigator.app" else "com.android.chrome",
+                )
+            }
+        }
+        val logLines = mutableListOf<String>()
+        val ready = NavigatorVisionBridge.ensureBrowserFront(
+            observer = observer,
+            launchBrowserHome = { launches += 1 },
+            bringBrowserTaskForward = { forwards += 1; true },
+            waitMs = 500,
+            pollMs = 5,
+            log = { logLines.add(it) },
+        )
+        assertTrue(ready)
+        assertEquals(1, forwards, "the existing task was brought forward once")
+        assertEquals(0, launches, "the page-destroying HOME launch never fires when a task exists")
+        assertTrue(observes >= 3, "the wait loop polled until the browser task reached the front")
+        assertTrue(
+            logLines.any { it.contains("bringing the browser task to front (page preserved)") },
+            "the non-destructive choice is logged loudly: $logLines",
+        )
+    }
+
+    @Test
+    fun `readiness - no browser task falls back to the home launch once`() = runBlocking {
+        val order = mutableListOf<String>()
+        var observes = 0
+        val observer = object : LoopObserver {
+            override suspend fun observe(): StepObservation {
+                observes += 1
+                return packageObservation(
+                    if (observes <= 2) "com.android.settings" else "com.android.chrome",
+                )
+            }
+        }
+        val logLines = mutableListOf<String>()
+        val ready = NavigatorVisionBridge.ensureBrowserFront(
+            observer = observer,
+            launchBrowserHome = { order.add("home") },
+            bringBrowserTaskForward = { order.add("forward"); false },
+            waitMs = 500,
+            pollMs = 5,
+            log = { logLines.add(it) },
+        )
+        assertTrue(ready)
+        assertEquals(
+            listOf("forward", "home"),
+            order,
+            "task-forward is tried FIRST; the HOME launch is only the no-task fallback",
+        )
+        assertTrue(
+            logLines.any { it.contains("no browser task found") && it.contains("launching browser home") },
+            "the fallback is logged loudly: $logLines",
+        )
+    }
+
+    @Test
+    fun `readiness - a blank front tries the task-forward first but never the home launch`() = runBlocking {
+        var launches = 0
+        var forwards = 0
+        val observer = FixedPackageObserver("")
+        val ready = NavigatorVisionBridge.ensureBrowserFront(
+            observer = observer,
+            launchBrowserHome = { launches += 1 },
+            bringBrowserTaskForward = { forwards += 1; true },
+            waitMs = 40,
+            pollMs = 10,
+        )
+        assertFalse(ready, "the blank read never becomes a browser front")
+        assertEquals(1, forwards, "the non-destructive move is tried even when the front read is blank")
+        assertEquals(0, launches, "a blank front still never justifies the HOME launch")
+    }
+
     // -- the construction test: the bridge builds a LIVE VisionLoop over the caller's edges --
 
     private fun node(

@@ -1,0 +1,9 @@
+{
+  "model": "typesafe/jev-1.14",
+  "state": {"screen": "results-screen", "task": "Find the Celsius Lemon Lime energy drink 24-pack on this Finnish grocery search page."},
+  "assets": {"results-screen": {"type": "image", "part": "results-screen"}},
+  "questions": {
+    "card": {"type": "box", "instructions": "the search-result card for the `Celsius Lemon Lime energiajuoma, 355 ml, 24-pack` product in `results-screen`"},
+    "visible": {"type": "noul", "instructions": "A search result listing the Celsius Lemon Lime energy drink 24-pack is visible on this page."}
+  }
+}

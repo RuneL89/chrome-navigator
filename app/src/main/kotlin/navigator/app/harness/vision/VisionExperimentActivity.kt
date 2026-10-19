@@ -6,7 +6,6 @@ import android.util.Log
 import android.view.WindowManager
 import navigator.app.harness.HarnessObserver
 import navigator.app.loop.GestureExecutor
-import navigator.app.observe.BrowserPackages
 import navigator.app.observe.NavigatorAccessibilityService
 import navigator.app.setup.OpenRouterKeyStore
 import navigator.core.wire.DefaultEngineConfigs
@@ -145,27 +144,23 @@ class VisionExperimentActivity : Activity() {
     // -- the shared readiness pre-step -----------------------------------------------------
 
     /**
-     * The engine-free browser-readiness gate (the product loop's pre-step precedent):
-     * launch the allowlisted browser's HOME when a non-blank NON-browser window is
-     * front, then wait bounded for a browser to be readable. Returns false when no
-     * browser ever came (the caller proceeds loudly — the evidence tells the truth).
+     * The engine-free browser-readiness gate — now the SHARED bridge helper
+     * (`NavigatorVisionBridge.ensureBrowserFront`, extracted after live defect D1: the
+     * service branch lacked this pre-step and drove the setup screen). Launch the
+     * allowlisted browser's HOME when a non-blank NON-browser window is front, then
+     * wait bounded for a browser to be readable. False when no browser ever came (the
+     * caller proceeds loudly — the evidence tells the truth).
      */
-    private suspend fun ensureBrowserFront(activity: VisionExperimentActivity, observer: HarnessObserver): Boolean {
-        val first = observer.observe()
-        if (first.windowPackage.isNotBlank() && !BrowserPackages.isBrowser(first.windowPackage)) {
-            HarnessObserver.installedBrowser(activity)?.let { pkg ->
-                log("front window is ${first.windowPackage} - launching browser home ($pkg)")
-                packageManager.getLaunchIntentForPackage(pkg)?.let { startActivity(it) }
-            }
-        }
-        val deadline = System.currentTimeMillis() + READINESS_WAIT_MS
-        while (System.currentTimeMillis() < deadline) {
-            val o = observer.observe()
-            if (BrowserPackages.isBrowser(o.windowPackage)) return true
-            delay(READINESS_POLL_MS)
-        }
-        log("WARNING: no allowlisted browser came to the front — observing whatever is front")
-        return false
+    private suspend fun ensureBrowserFront(activity: VisionExperimentActivity, observer: HarnessObserver) {
+        NavigatorVisionBridge.ensureBrowserFront(
+            observer = observer,
+            launchBrowserHome = HarnessObserver.installedBrowser(activity)?.let { pkg ->
+                {
+                    packageManager.getLaunchIntentForPackage(pkg)?.let { startActivity(it) }
+                }
+            },
+            log = ::log,
+        )
     }
 
     // -- loop mode -------------------------------------------------------------------------
@@ -366,8 +361,6 @@ class VisionExperimentActivity : Activity() {
 
         /** Image requests are slower than the 15s text default; the experiment pays patience. */
         private const val WIRE_TIMEOUT_MS = 60_000L
-        private const val READINESS_WAIT_MS = 10_000L
-        private const val READINESS_POLL_MS = 500L
         private const val SERVICE_WAIT_MS = 30_000L
         private const val SERVICE_POLL_MS = 250L
         private const val PROBE_NODE_COUNT = 6

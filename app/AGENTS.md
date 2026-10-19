@@ -803,9 +803,16 @@ legacy-engine fallback.
     upload format (an OpenRouter proxy gap — multipart rejected 400, base64-in-JSON
     stripped blind, repros in `.state/vision-iter/run1/REPORT.md`)). JEV BOX IS THE
     PRIMARY GROUNDER: GROUND is ONE batched vendor request — image in state + a Box per
-    tap/type proposal + the pick-Choice; a Jev box at/over the confidence floor grounds
-    the tap/type, and the Haiku proposal box DEMOTES to fallback
-    (missing/sub-floor/channel-failed) recorded as the cross-check. The verification
+    tap/type proposal + the pick-Choice; the box-to-node match is an EXPLICIT
+    grounding-quality LADDER (the fourth live-test repair, `task-1792397135186`): a Jev
+    box grounds the tap/type ONLY at IoU >= IOU_PARTIAL (the live defect: a
+    confidence-0.90 box overlapped no node, IoU 0.00, and the TYPE churned
+    `causes=[NO_FIELD_AT_POINT]`), else the Haiku proposal box retries at the same
+    threshold (`haiku-box-fallback`), then the description's label match (`label-match`),
+    then the raw rectangle's centre (`raw` — for TYPE the point must sit inside an
+    EDITABLE node (`VisionMath.editableNodeAt`) or the step FAILS loudly instead of
+    firing a doomed enterText); the step line names the arm that grounded and the ledger
+    records the FINAL arm's IoU. The verification
     battery gained eyes: its Jev nouls ride text+IMAGE in ONE request (the state embeds
     the screenshot reference), Haiku answers the same questions over its own image
     channel (independence preserved); ORDERING LAW — battery BEFORE acting (escalation
@@ -842,8 +849,43 @@ legacy-engine fallback.
     prompt gains `REPLAN_SKILL` (`VisionPrompts.planSystem`: match conditions to the
     evidence universe, never point a condition past an achieved outcome, act on the
     located box, author batteries Jev can answer, vary the route, cascade framing);
-    `VISION_PROMPT_VERSION` = `vision-exp-v7` (v6 added the evidence block +
-    REPLAN_SKILL; v7 added the final-subtask battery law). THE ROUND-1 LIVE DEFECT
+    `VISION_PROMPT_VERSION` = `vision-exp-v10` (v6 added the evidence block +
+    REPLAN_SKILL; v7 added the final-subtask battery law; v8 the taskClass honesty
+    sentence — "Claim 'multi' ONLY when a count-shaped done condition exists;
+    otherwise use read or action", after the writer repeatedly claimed MULTI without
+    a count condition and its JSON was refused until the error-fed retry recovered;
+    v9 THE COMPOSE LAW — the third actual-app live-test repair, run
+    `task-1792396531977`: about:blank + the plan's "enter a hotel search into the
+    address bar" produced ONLY a bare tap on the address field for 13 re-plans, so
+    `PROPOSE_SYSTEM` now says that on a blank/empty page or a search/navigate subtask
+    with no literal text the proposer COMPOSES a concise query from the goal/subtask
+    and uses action=type with that text at the address bar / search field — "a bare
+    tap on an empty address bar is never a sufficient proposal" — while
+    `PLAN_SYSTEM` requires a blank/error-page first subtask to be a SEARCH/NAVIGATE
+    step that NAMES the query to enter, so the proposer has text to type; the
+    description-identifies-ONE-control, at-most-120-chars and no-directive laws stay;
+    v10 THE PLAN `enterText` + TAP-TO-TYPE CONVERSION — the fifth actual-app live-test
+    repair, run `task-1792397809506`: the grounding ladder made the address bar ground
+    at IoU 1.00 (label match) and the loop TAPPED it five times in a row, never typing
+    (a tap on an empty editable field achieves nothing), so `PLAN_SYSTEM` now authors an
+    optional per-subtask `"enterText": "<the exact text to type>"` — REQUIRED when the
+    subtask is a search/navigate/fill whose point is entering text, the query for the
+    blank/error-page search step — `VisionPrompts.parseEnterTexts` parses it (index →
+    text; blank = absent; a non-string is LOUD), and `VisionLoop.attemptStep` CONVERTS
+    a chosen TAP into a TYPE with that text when the grounded target node is EDITABLE:
+    the tap executes first to focus the field, then `enterText` at the node centre,
+    with "(tap-converted)" on the step line; a non-editable target or an absent
+    enterText keeps today's behavior byte-identical). THE EDITABLE RESOLUTION (the sixth
+    actual-app live-test repair, run `task-1792398381736`; JVM gates in
+    `VisionLoopTypeEditableTest`): a TYPE (native or tap-converted) whose grounded node
+    is NOT editable resolves the real field first — `VisionMath.editableNodeAt` at the
+    ground point, else the new pure `VisionMath.nearestEditableTo` (containment within a
+    bounded tolerance, then max IoU vs the target rect at >= 0.1) — and types at the
+    resolved CHILD's centre with `(editable: n<id>)` on the step line; no resolution =
+    the existing loud NO_FIELD_AT_POINT refusal naming the ground node, never a doomed
+    enterText; a grounded editable node is byte-identical, the gate classifies the
+    resolved field, and the prompt stays `vision-exp-v10` (no prompt change). THE
+    ROUND-1 LIVE DEFECT
     (run vision-loop-1792356890231: a battery escalation skips attemptStep, so a frozen
     screen re-fired the identical verdict and two re-plans burned with zero actions):
     the escalation-without-action guard — a battery-escalation re-plan is followed by
@@ -901,13 +943,55 @@ legacy-engine fallback.
     same funnel; the credential card's `ApproveWithSecret` swaps the typed text for the
     card secret, redacted everywhere; wrong-source resolutions fail loudly; the
     `(gate H4 approved)`-style markers ride the step lines and the gate events the
-    evidence events.log; null = the ungated harness/adb path). The DEFAULT with a
+    evidence events.log; null = the ungated harness/adb path). THE READINESS PRE-STEP
+    (D1 live defect, owner's actual-app emulator run 2026-10-19,
+    `task-1792394642606`: the goal was submitted from the setup wizard and the
+    service branch started VisionLoop on the SETUP screen — it proposed "Start
+    Navigator" there and wandered to the launcher; the adb activity always had this
+    gate): `NavigatorVisionBridge.ensureBrowserFront` — the SHARED engine-free
+    readiness helper (observe once; a non-blank NON-browser front -> ONE browser HOME
+    launch through `HarnessObserver.installedBrowser` + the service's
+    `openBrowserHome`; bounded wait `READINESS_WAIT_MS`/`READINESS_POLL_MS` for an
+    allowlisted browser front; false logs "no browser came front" loudly and the run
+    proceeds truthfully) — runs BEFORE the loop from BOTH the service branch and
+    `VisionExperimentActivity` (whose private duplicate was deleted). D4 (the actual-app
+    RERUN, `task-1792395871412`): the HOME launch was the destructive part — on the
+    webview shell it RESET the browser to about:blank, destroying the page the owner
+    had open. The bridge's optional `bringBrowserTaskForward` seam is now tried FIRST
+    whenever the front is not an allowlisted browser (a blank read included — the move
+    is non-destructive): the service resolves the browser's task via
+    `ActivityManager.getRunningTasks` filtered on the browser package and calls
+    `moveTaskToFront` (normal `REORDER_TASKS` permission), preserving the page; only a
+    FALSE (no task — `getRunningTasks` is restricted on modern Android, so this is the
+    expected platform path) falls back to the HOME launch, and a blank front still
+    never justifies that launch. Loud lines: "vision:
+    bringing the browser task to front (page preserved)" / "vision: no browser task
+    found - launching browser home". The adb activity keeps its launch-only path
+    (null seam). THE LIVE-LOG
+    EXCLUSION (D2, the same run: the loop's own corner log appeared in its
+    screenshots and got proposed/targeted — "the ✕ close button of the NAVIGATOR
+    overlay"): `OverlayManager.liveLogBounds()` returns the log window's current
+    screen bounds from the main-thread-maintained snapshot
+    (`LiveLogOverlay.boundsInScreen`; null while hidden/unlaid), the service passes it
+    as `exclusionBounds` through the bridge into `VisionLoop`, and every capture
+    (`VisionCapture.capture(exclusion)`) maps that rect onto the encoded frame and
+    paints it solid black BEFORE encoding — the frame keeps its FULL size, so box
+    fractions stay valid; unavailable bounds leave the capture unchanged with ONE
+    loud evidence note per run; the adb activity passes null (no log there), keeping
+    the capture byte-identical. The DEFAULT with a
     missing key = the LOUD refusal naming
     the channel + the wizard (`ProductRunRoute.Refused`, the no-key precedent's
     wording style) — NEVER a silent fallback to the legacy loop; a
     thrown vision run = the pump's existing loud-but-polite catch; the owner's
     explicit toggle OFF = the legacy block BYTE-IDENTICAL, without reading the second
     key store. JVM gates:
+    `VisionExperimentTest` (the prompt JSON contracts + deterministic parsers — incl.
+    `parseEnterTexts` — the evidence block, the vendor-route request shapes, and the
+    prompt-version pin),
+    `VisionLoopGroundingTest` (the grounding-quality ladder over scripted transports:
+    Jev box / Haiku-box fallback / label match / the loud TYPE refusal),
+    `VisionLoopEnterTextTest` (the plan-`enterText` TAP→TYPE conversion over scripted
+    transports: converted / non-editable / absent, all $0),
     `VisionLoopGateTest` (the WI1 battery: approve/deny/timeout/credential-swap/
     double-refusal-abort/ungated-null/scroll-back-never + the wrong-source failures +
     per-task trust),
@@ -915,7 +999,16 @@ legacy-engine fallback.
     DEFAULT+both keys → Vision, DEFAULT+missing key → Refused naming the channel +
     the wizard, NEVER Legacy; explicit OFF → Legacy byte-identical; redacted-key
     toString; a LIVE scripted
-    VisionLoop through the CALLER's observer/executor; the terminal line),
+    VisionLoop through the CALLER's observer/executor; the terminal line; the
+    readiness pre-step over scripted observers — browser-front-at-once launches
+    nothing, a non-browser front launches the HOME exactly once then waits until a
+    browser arrives, a never-browser front returns false after the bounded wait, a
+    blank front never launches; D4: an existing browser task comes forward with NO
+    home launch, no task falls back to the HOME launch once (forward tried first), a
+    blank front still tries the task-forward but never the HOME launch),
+    `VisionCaptureExclusionTest` (Robolectric native-graphics bitmap gate: the mapped
+    screen rect is painted solid black, everything around it untouched, off-frame /
+    empty rects are no-ops; plus the pure screen→frame mapping/clamp helper),
     `SetupLogicTest` (toggle derivation + prefs contract + the default-ON + the
     five-check wizard pins),
     `VisionLoopPrefRoundTripTest` (Robolectric read/write round-trip, default ON).

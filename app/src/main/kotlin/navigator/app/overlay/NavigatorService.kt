@@ -1,5 +1,6 @@
 package navigator.app.overlay
 
+import android.app.ActivityManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -28,6 +29,7 @@ import navigator.app.harness.ScriptedGoal
 import navigator.app.harness.vision.NavigatorVisionBridge
 import navigator.app.harness.vision.ProductRunRoute
 import navigator.app.harness.vision.VisionCapture
+import navigator.app.harness.vision.VisionMath
 import navigator.app.loop.BrowserHomeLauncher
 import navigator.app.loop.BrowserLauncher
 import navigator.app.loop.BrowserProbe
@@ -385,8 +387,28 @@ class NavigatorService : Service() {
         goalText: String,
     ) {
         val runId = "task-${System.currentTimeMillis()}"
+        val observer = HarnessObserver(a11y)
+        // D1 (live defect, 2026-10-19): the loop must START on a browser, not on
+        // whatever screen the goal was submitted from (the setup wizard was front and
+        // the loop proposed "Start Navigator" there). The SAME engine-free readiness
+        // pre-step the adb activity always had — extracted into the bridge — fires the
+        // allowlisted browser's HOME once when a non-browser window is front, then
+        // waits bounded; no browser came = loud lines + the run proceeds truthfully.
+        // D4 (the rerun repair, 2026-10-19): the HOME launch was the DESTRUCTIVE part —
+        // on the webview shell it resets the browser to about:blank, destroying the
+        // page the owner had open. The bridge now tries the EXISTING browser task
+        // first (bringBrowserTaskForward: ActivityManager.moveTaskToFront — no
+        // navigation, page preserved) and falls back to the HOME launch only when no
+        // browser task resolves.
+        val browserPkg = HarnessObserver.installedBrowser(this)
+        NavigatorVisionBridge.ensureBrowserFront(
+            observer = observer,
+            launchBrowserHome = browserPkg?.let { pkg -> { openBrowserHome(pkg) } },
+            bringBrowserTaskForward = browserPkg?.let { pkg -> { bringBrowserTaskForward(pkg) } },
+            log = { line -> manager.appendLogLine(line) },
+        )
         val loop = NavigatorVisionBridge.newVisionLoop(
-            observer = HarnessObserver(a11y),
+            observer = observer,
             executor = GestureExecutor(a11y),
             capture = VisionCapture(a11y),
             evidenceDir = File(getExternalFilesDir(null), "run-reports/vision-exp"),
@@ -397,6 +419,16 @@ class NavigatorService : Service() {
             // PHASE_VEXP3 WI1: the safety gate rides the vision loop — a risky action
             // shows the SAME owner card the legacy engine shows (vision 06 §2).
             gatePresenter = OverlayGatePresenter(a11y),
+            // D2 (live defect, 2026-10-19): the loop's own corner live log was visible
+            // in its screenshots and got proposed/targeted ("the X close button of the
+            // NAVIGATOR overlay"). Every capture paints the log window's CURRENT bounds
+            // black; the bounds are re-read per capture (the log grows/moves), and a
+            // hidden/not-yet-laid-out log degrades to the unchanged frame + one loud note.
+            exclusionBounds = {
+                manager.liveLogBounds()?.let { b ->
+                    VisionMath.RectPx(b.left, b.top, b.right, b.bottom)
+                }
+            },
         )
         val result = loop.run(goalText, runId, taskCancelFlag::isCancelled)
         manager.setTaskStateLine(NavigatorVisionBridge.taskStateLine(result))
@@ -466,6 +498,37 @@ class NavigatorService : Service() {
                 Log.w(TAG, "openBrowserHome: no launch intent for $pkg")
             }
         }.onFailure { Log.w(TAG, "openBrowserHome failed: ${it::class.simpleName}: ${it.message}") }
+    }
+
+    /**
+     * D4 (the second VEXP4 actual-app repair, 2026-10-19): bring the browser's
+     * EXISTING task to the front WITHOUT navigating — the readiness pre-step's
+     * non-destructive move. The HOME launch resets the webview-shell browser to
+     * `about:blank`, destroying the page the owner had open; `moveTaskToFront` on the
+     * browser's task resumes exactly where it was.
+     *
+     * The task id comes from [ActivityManager.getRunningTasks] filtered on the
+     * browser package ([REORDER_TASKS_LIMIT] deep — the browser usually sits within
+     * the recent few). Both calls are deprecated/restricted on modern Android:
+     * `getRunningTasks` may legally return only the caller's OWN tasks, so a false
+     * return is EXPECTED when the platform withholds the browser's row — the caller's
+     * [NavigatorVisionBridge.ensureBrowserFront] then falls back to the HOME launch
+     * (the pre-D4 behavior, the truthful no-task path). `moveTaskToFront` is authorized
+     * by the normal REORDER_TASKS permission (manifest). Best-effort: a platform
+     * refusal logs loudly and returns false; it never throws into the run.
+     */
+    private fun bringBrowserTaskForward(pkg: String): Boolean = runCatching {
+        val activityManager = getSystemService(ActivityManager::class.java)
+            ?: return@runCatching false
+        @Suppress("DEPRECATION")
+        val browserTask = activityManager.getRunningTasks(REORDER_TASKS_LIMIT)
+            .firstOrNull { it.baseActivity?.packageName == pkg }
+            ?: return@runCatching false
+        activityManager.moveTaskToFront(browserTask.id, 0)
+        true
+    }.getOrElse {
+        Log.w(TAG, "bringBrowserTaskForward failed: ${it::class.simpleName}: ${it.message}")
+        false
     }
 
     /**
@@ -589,6 +652,13 @@ class NavigatorService : Service() {
         const val EXTRA_GOAL_ID = "goalId"
 
         private const val DEBUG_GOALS_ASSET = "harness/goals.json"
+
+        /**
+         * D4: how deep the readiness pre-step looks for the browser's EXISTING task
+         * ([ActivityManager.getRunningTasks]); the browser sits within the recent few
+         * when the platform yields cross-app rows at all.
+         */
+        private const val REORDER_TASKS_LIMIT = 50
 
         /**
          * In-process handle (same process as the overlays): the goal-input submit hands

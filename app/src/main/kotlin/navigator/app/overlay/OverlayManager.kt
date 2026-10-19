@@ -210,6 +210,15 @@ class OverlayManager(private val service: AccessibilityService) {
     fun hideLiveLog() = liveLog.hide()
 
     /**
+     * The live log window's CURRENT bounds in screen pixels, or null when the log is
+     * hidden/not yet laid out (D2, 2026-10-19): the vision capture paints this region
+     * solid black so the loop never sees — or targets — its own UI. Safe from the
+     * capture coroutine: [LiveLogOverlay] maintains a volatile snapshot on the main
+     * thread, so no view is read off it.
+     */
+    fun liveLogBounds(): Rect? = liveLog.boundsInScreen()
+
+    /**
      * The ⏹ wiring (UAT 9.1 close-out): set by NavigatorService — a tap on the log's
      * stop control lands here and cancels the ACTIVE run through the service's
      * cancellation flag (the loop's `isCancelled` seam; USER_CANCEL at the next step

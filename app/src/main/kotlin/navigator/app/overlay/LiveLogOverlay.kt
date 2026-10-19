@@ -112,6 +112,16 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
     /** The live window params (retained so the IME-watch can move the window). */
     private var windowParams: WindowManager.LayoutParams? = null
 
+    /**
+     * The live window's last-laid-out bounds in SCREEN pixels (D2, 2026-10-19): the
+     * vision capture paints this region black so the loop never sees — or targets —
+     * its own live log. Written on the main thread (layout listener + post-move
+     * refresh); read from the capture thread as a defensive copy. Null while
+     * hidden/not yet laid out.
+     */
+    @Volatile
+    private var windowBounds: android.graphics.Rect? = null
+
     /** Whether the window is currently anchored TOP-right (the IME-avoidance state). */
     @Volatile
     private var anchoredTop: Boolean = false
@@ -166,6 +176,28 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
 
     /** Snapshot fact: is the thinking spinner line up. */
     fun thinkingActive(): Boolean = thinkingActive
+
+    /**
+     * The live window's current bounds in screen pixels (a defensive copy), or null
+     * when the log is hidden or has not been laid out yet. Safe from any thread (the
+     * main thread maintains the snapshot; never a view read here).
+     */
+    fun boundsInScreen(): android.graphics.Rect? =
+        if (visible) windowBounds?.let { android.graphics.Rect(it) } else null
+
+    /** Main-thread bounds snapshot refresh (the layout listener + post-move hooks). */
+    private fun updateWindowBounds(v: View) {
+        runCatching {
+            val location = IntArray(2)
+            v.getLocationOnScreen(location)
+            windowBounds = android.graphics.Rect(
+                location[0],
+                location[1],
+                location[0] + v.width,
+                location[1] + v.height,
+            )
+        }
+    }
 
     fun show() {
         // Phase 10C (doc 05 §2 v1.7.0): the live log RESETS PER RUN — the battery saw a
@@ -305,6 +337,12 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
             manager.addViewToWindow(container, params)
             view = container
             windowParams = params
+            // D2: keep the screen-space bounds snapshot fresh — every relayout (line
+            // growth, expand/collapse) refreshes it; the IME re-anchor posts its own.
+            container.addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+                updateWindowBounds(v)
+            }
+            container.post { updateWindowBounds(container) }
             anchoredTop = false
             stopButton = stop
             linesView = linesText
@@ -399,6 +437,7 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
             stopButton = null
             recoveryRow = null
             windowParams = null
+            windowBounds = null
         }
     }
 
@@ -462,6 +501,7 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
             stopButton = null
             recoveryRow = null
             windowParams = null
+            windowBounds = null
         }
         lines.clear()
         ladderHeader = emptyList()
@@ -491,6 +531,9 @@ internal class LiveLogOverlay(private val manager: OverlayManager) {
         params.gravity = if (anchoredTop) Gravity.TOP or Gravity.END else Gravity.BOTTOM or Gravity.END
         params.y = desiredY
         manager.updateViewLayout(current, params)
+        // D2: a window move changes the screen position without a view relayout, so
+        // refresh the bounds snapshot after the window manager applies the new params.
+        current.post { updateWindowBounds(current) }
         if (decision != null) {
             Log.i(
                 TAG_LIVELOG,

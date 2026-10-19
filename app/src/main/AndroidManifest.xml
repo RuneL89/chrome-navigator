@@ -10,6 +10,13 @@
     <!-- Phase 6 harness robustness: cold-starting the browser between flake retries
          (HOME first, then kill its BACKGROUND process while the harness is foreground). -->
     <uses-permission android:name="android.permission.KILL_BACKGROUND_PROCESSES" />
+    <!-- VEXP4 D4 (live-test rerun repair, 2026-10-19): the vision readiness pre-step
+         brings the browser's EXISTING task to the front (ActivityManager.moveTaskToFront)
+         so the owner's page is preserved — a HOME launch reset the webview shell to
+         about:blank. REORDER_TASKS is a NORMAL permission (granted at install); when the
+         platform withholds the browser's task id, the pre-step falls back to the HOME
+         launch, unchanged. -->
+    <uses-permission android:name="android.permission.REORDER_TASKS" />
     <!-- Phase 6 harness gate stand-in ONLY: the debug gate-card dialog floats over Chrome
          (user-granted "display over other apps"). The PRODUCT overlays (Phase 9) are
          TYPE_ACCESSIBILITY_OVERLAY windows added by the accessibility service and need
