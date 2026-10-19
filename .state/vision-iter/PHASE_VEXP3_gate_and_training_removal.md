@@ -102,7 +102,14 @@ Implementation deterministic $0. No live calls.
 - `./gradlew :app:testDebugUnitTest`
 - `./gradlew :core:test`
 - `./gradlew :app:assembleDebug`
-- **APK size < 10 MB** (assert on the built APK; was ~572 MB)
+- **APK size < 40 MB AND no ONNX/laya/model residue** (assert on the built APK; was
+  ~572 MB with the model)
+  > AMENDMENT (2026-10-19, orchestrator, dated): the original `< 10 MB` threshold and
+  > the "~572 MB → ~3 MB" premise were packaging errors — they ignored the measured
+  > ~33 MB uncompressed AndroidX/Compose/Tink debug-dex base plus the lawfully KEPT
+  > 3.4 MB core tokenizer resource. The removal's true intent — the training machine's
+  > bytes gone — is asserted by < 40 MB + zero ONNX/laya residue. An R8/minify pass
+  > could reach ~10-15 MB but is out of experiment scope (owner may order it later).
 - Badge + dex marker.
 
 ## UAT
