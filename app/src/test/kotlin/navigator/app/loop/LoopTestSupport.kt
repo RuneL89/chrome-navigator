@@ -80,6 +80,9 @@ class FakeExecutor(private val journal: Journal) : ActionExecutor {
 
     override fun tap(x: Int, y: Int): Boolean = record("tap($x,$y)")
 
+    /** PHASE_VEXP5: the covered-point activation of a page node (ACTION_CLICK). */
+    override fun clickNode(x: Int, y: Int): Boolean = record("clickNode($x,$y)")
+
     override fun scroll(x: Int, y: Int, down: Boolean): Boolean = record("scroll($x,$y,$down)")
 
     override fun back(): Boolean = record("back")

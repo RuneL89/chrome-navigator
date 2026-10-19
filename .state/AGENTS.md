@@ -77,8 +77,10 @@ remembers."
   (PHASE_VEXP3: NO database anywhere — a legacy overlay run ends on the corner log's
   task-state line + the READY notification; a vision run on the corner log + the
   `run-reports/vision-exp/` evidence), pull/analysis, the REPORT.md format, and the
-  three-surface cleanup. Run folders: `hotel-iter/runN/` (product) and
-  `vision-iter/runN/` (vision experiments); reports stay untracked by convention
+  three-surface cleanup. Run folders: `hotel-iter/runN/` (product),
+  `vision-iter/runN/` (vision experiments), and `vision-iter/vexp5-run/` +
+  `vision-iter/vexp5-fixture/` (the PHASE_VEXP5 window-capture fixtures + A/B
+  evidence); reports stay untracked by convention
 
 ## Local Contracts
 

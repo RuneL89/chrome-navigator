@@ -226,7 +226,14 @@ When the user requests a durable behavior change, record it here or in the relev
   branch's VisionLoop (VEXP1/2, `harness/vision/`) the app's DEFAULT engine: the
   wizard's vision-loop preference defaults ON, a missing key refuses loudly naming
   the channel + the wizard (never a silent legacy fallback), and an explicit toggle
-  OFF is the owner's legacy-engine fallback. See `app/AGENTS.md`
+  OFF is the owner's legacy-engine fallback. PHASE_VEXP5 (2026-10-18) makes
+  model-bound screenshots browser-WINDOW-scoped (window capture primary: the live
+  log, keyboard and system bars absent; full-display + black-fill only as the
+  recorded fallback; `scope=` on every evidence frame) and keeps points under the
+  log actionable through a11y node actions (ACTION_CLICK / focus+SET_TEXT / IME
+  enter; covered scrolls move to an uncovered point or fail loudly when none exists —
+  the stuck probe included; no raw touch on the overlay — a covered point with no
+  actionable node fails loudly). See `app/AGENTS.md`
 * `tools/` — RETIRED folder (owner directive 2026-10-19, PHASE_VEXP3): the Phase-8/8C
   model-acquisition + reference-vector scripts are deleted; no live scripts, no build
   step. See `tools/AGENTS.md`

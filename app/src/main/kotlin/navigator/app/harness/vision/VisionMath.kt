@@ -18,21 +18,67 @@ object VisionMath {
     }
 
     /**
-     * Maps a fractional Box answer onto screen pixels via the ORIGINAL screen dims (the
-     * encoded image is a uniform downscale, so fractions are identical in both spaces).
-     * Clamps to the screen and orders the edges defensively (the API guarantees
-     * left<right / top<bottom, but a model can wobble).
+     * Maps a fractional Box answer onto screen pixels via the captured SCOPE's pre-scale
+     * dims plus its screen-space ORIGIN (PHASE_VEXP5 WI2: a browser-window capture starts
+     * at the window bounds, so screen = origin + fraction × scope dims; a display capture
+     * keeps origin (0,0), byte-identical to the pre-VEXP5 behavior). The encoded image is
+     * a uniform downscale, so fractions are identical in both spaces. Clamps the fraction
+     * to [0,1] and orders the edges defensively (the API guarantees left<right /
+     * top<bottom, but a model can wobble).
      */
     fun boxToScreenRect(
         left: Double, top: Double, right: Double, bottom: Double,
         screenWidth: Int, screenHeight: Int,
+        originX: Int = 0, originY: Int = 0,
     ): RectPx {
         require(screenWidth > 0 && screenHeight > 0) { "screen dims must be positive: ${screenWidth}x$screenHeight" }
-        val l = (left.coerceIn(0.0, 1.0) * screenWidth).toInt()
-        val r = (right.coerceIn(0.0, 1.0) * screenWidth).toInt()
-        val t = (top.coerceIn(0.0, 1.0) * screenHeight).toInt()
-        val b = (bottom.coerceIn(0.0, 1.0) * screenHeight).toInt()
+        val l = originX + (left.coerceIn(0.0, 1.0) * screenWidth).toInt()
+        val r = originX + (right.coerceIn(0.0, 1.0) * screenWidth).toInt()
+        val t = originY + (top.coerceIn(0.0, 1.0) * screenHeight).toInt()
+        val b = originY + (bottom.coerceIn(0.0, 1.0) * screenHeight).toInt()
         return RectPx(minOf(l, r), minOf(t, b), maxOf(l, r), maxOf(t, b))
+    }
+
+    /**
+     * PHASE_VEXP5 WI3: is the point inside any occluder rect grown by [margin]? The
+     * loop's covered-point guard reads the live log's + the IME's screen bounds through
+     * this; a raw touch at a covered point is never lawful.
+     */
+    fun coveredAt(rects: List<RectPx>, x: Int, y: Int, margin: Int): Boolean =
+        rects.any { rect ->
+            x >= rect.left - margin && x <= rect.right + margin &&
+                y >= rect.top - margin && y <= rect.bottom + margin
+        }
+
+    /**
+     * PHASE_VEXP5 WI3: the page node a covered TAP may activate instead of dispatching a
+     * raw touch — the SMALLEST-area node containing the point that is `clickable` or
+     * `editable`. Browser chrome is INCLUDED (the address bar is a lawful target and the
+     * overlay never covers it structurally); inert nodes never qualify.
+     */
+    fun tappableNodeAt(nodes: List<ObservedNode>, x: Int, y: Int): ObservedNode? =
+        nodes.asSequence()
+            .filter { it.clickable || it.editable }
+            .filter { x in it.left..it.right && y in it.top..it.bottom }
+            .minByOrNull { area(it) }
+
+    /**
+     * PHASE_VEXP5 WI3 (the orchestrator-review amendment): a deterministic screen point
+     * inside [area] that no occluder covers (within [margin]) — the covered SCROLL start
+     * moves here so the swipe never begins on the live log or the IME. Candidate order:
+     * the centre, the upper third, the left third, the upper-left sixth, the lower third.
+     * NULL when EVERY candidate is covered: there is no lawful start, and the caller
+     * MUST refuse rather than touch (a raw scroll on the overlay is never acceptable).
+     */
+    fun uncoveredPoint(rects: List<RectPx>, area: RectPx, margin: Int): Pair<Int, Int>? {
+        val candidates = listOf(
+            area.centerX to area.centerY,
+            area.centerX to (area.top + area.height / 3),
+            (area.left + area.width / 3) to area.centerY,
+            (area.left + area.width / 6) to (area.top + area.height / 6),
+            area.centerX to (area.bottom - area.height / 3),
+        )
+        return candidates.firstOrNull { (x, y) -> !coveredAt(rects, x, y, margin) }
     }
 
     /** Intersection-over-union of two screen rects; 0.0 when either is empty. */

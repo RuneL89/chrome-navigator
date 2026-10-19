@@ -223,6 +223,34 @@ AUTHORITATIVE terminal signal per app:
 > `type "hotels in Riga" into [node n3 ... (label-match)] (editable: n5)` means the
 > container→child resolution worked; a `FAILED (type grounding refused - the ground
 > node ...)` line is the old churn now caught in code.
+>
+> **EXTENSION (2026-10-18, PHASE_VEXP5 — WINDOW-SCOPED SCREENSHOTS + ACTIONS BEHIND
+> THE LOG):** model-bound frames are now the BROWSER WINDOW's surface
+> (`takeScreenshotOfWindow` over the focused/active allowlisted application window):
+> the corner live log, the soft keyboard and the system bars are ABSENT from model
+> images while the owner still sees the log on the phone. **CORRECTION to the D2 rule
+> above:** a BLACK rectangle in an evidence frame now means a FALLBACK frame — the
+> window capture failed and the full display was captured with the live-log region
+> blacked out. Every screenshot event line now carries the scope:
+> `screenshot #<i> <w>x<h> scope=<source> sha256=<16>`, where `<source>` is
+> `window:<pkg>:id=<id>:bounds=<l,t,r,b>` / `display` / `display:log-excluded` /
+> `display:fallback=<reason>` — verify a window-scoped run with that line (the live
+> log also shows `[vision] screen: <source>` for the first frame). Points under the
+> log/keyboard are now ACTIONED, never raw-tapped: a covered TAP rides the page's a11y
+> `ACTION_CLICK` and the step line carries `(behind-log: node click)` (evidence:
+> `covered action: tap (x,y) -> node click`), a covered tap-converted TYPE skips the
+> focus tap (`(focus tap skipped: behind-log)`) and enterText works on the field node,
+> a covered SCROLL moves its start to an uncovered point
+> (`(behind-log: moved to (x,y))`) or FAILS LOUDLY when every candidate is covered
+> (`scroll start (x,y) is covered by the live log or keyboard and no uncovered point
+> exists inside the captured frame; refusing a touch that would land on the overlay`) —
+> never a best-effort centre. The STUCK PROBE's own scroll follows the same law: a
+> covered probe start with a safe point logs `stuck probe: covered start -> moved to
+> (x,y)`; with NO safe point it logs `stuck probe skipped: covered start and no
+> uncovered point` and dispatches NOTHING (the screen stays "still static" and the
+> re-plan path follows), and a covered point with no actionable node FAILS loudly
+> (`... covered by the live log or keyboard and no actionable page node exists there;
+> refusing a touch that would land on the overlay`) instead of pressing the overlay.
 
 * product (PHASE_VEXP3): NO database — the Room layer is retired and no
   `task_terminal` row is ever written (the historical `run-as … task_terminal`

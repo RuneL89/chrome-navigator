@@ -56,11 +56,13 @@ class VisionLoopGateTest {
 
     private class RecordingExecutor : ActionExecutor {
         val taps = mutableListOf<Pair<Int, Int>>()
+        val nodeClicks = mutableListOf<Pair<Int, Int>>()
         val scrolls = mutableListOf<Boolean>()
         val backs = mutableListOf<Int>()
         val submits = mutableListOf<Int>()
         val entered = mutableListOf<Pair<Pair<Int, Int>, String>>()
         override fun tap(x: Int, y: Int): Boolean { taps.add(x to y); return true }
+        override fun clickNode(x: Int, y: Int): Boolean { nodeClicks.add(x to y); return true }
         override fun scroll(x: Int, y: Int, down: Boolean): Boolean { scrolls.add(down); return true }
         override fun back(): Boolean { backs.add(backs.size); return true }
         override fun submit(): Boolean { submits.add(submits.size); return true }

@@ -118,6 +118,17 @@ class VisionLoop(
      * capture stays unchanged and ONE evidence note per run says so loudly.
      */
     private val exclusionBounds: (() -> VisionMath.RectPx?)? = null,
+    /**
+     * The behind-log action seam (PHASE_VEXP5 WI3, 2026-10-18): the product service
+     * supplies the live log's + the soft keyboard's CURRENT screen bounds. Read
+     * immediately before every dispatch (after the gate): a TAP/TYPE-focus point under
+     * an occluder never fires a raw touch — the page's a11y node is activated instead
+     * (ACTION_CLICK / the enterText field-node sequence), a covered SCROLL starts at an
+     * uncovered point, and a covered point with no actionable node fails loudly. NULL
+     * (the default; the harness/adb path has no live log) = today's dispatch,
+     * byte-identical. An empty list is the truthful "nothing is covering the page".
+     */
+    private val coveredBounds: (() -> List<VisionMath.RectPx>)? = null,
 ) {
 
     data class Config(
@@ -176,6 +187,9 @@ class VisionLoop(
         const val GROUND_HAIKU_BOX = "haiku box fallback"
         const val GROUND_LABEL = "label match"
         const val GROUND_RAW = "raw"
+
+        /** The covered-point guard's margin (PHASE_VEXP5 WI3): a touch this near an occluder is covered. */
+        const val OCCLUSION_MARGIN_PX = 16
 
         /**
          * The image-in-state law (PHASE_VEXP1 WI4): the TEXT state with the screenshot
@@ -311,6 +325,9 @@ class VisionLoop(
     /** Whether the one-per-run "exclusion bounds unavailable" evidence note already fired (D2). */
     private var exclusionNoteLogged = false
 
+    /** Whether the one-per-run first-frame source line already fired (PHASE_VEXP5 WI1). */
+    private var sourceNoteLogged = false
+
     /**
      * The per-task gate state machine (vision 06 §2): a FRESH [TaskGate] per `run()`
      * (trust never crosses tasks), reset at the top of every run like the other per-run
@@ -372,6 +389,8 @@ class VisionLoop(
         taskGate = TaskGate()
         // D2: the unavailable-bounds note fires at most once per run.
         exclusionNoteLogged = false
+        // PHASE_VEXP5 WI1: the first frame's scope line fires once per run.
+        sourceNoteLogged = false
 
         while (true) {
             if (isCancelled()) return terminal(Terminal.CANCELLED, ladder)
@@ -475,15 +494,33 @@ class VisionLoop(
             while (recentHashes.size > config.stuckRepeats) recentHashes.removeFirst()
             if (recentHashes.size == config.stuckRepeats && recentHashes.distinct().size == 1) {
                 evidence.event("stuck: screen unchanged x${config.stuckRepeats} - scroll probe")
-                executor.scroll(obs.nodes.lastOrNull()?.centerX ?: 540, 1200, down = true)
-                delay(config.settleMs)
-                val probed = observer.observe()
-                if (probed.screenHash != obs.screenHash) {
-                    recentHashes.clear()
-                    step += 1
-                    continue
+                val probeX = obs.nodes.lastOrNull()?.centerX ?: 540
+                val probeY = 1200
+                // PHASE_VEXP5 WI3 (the orchestrator-review amendment): the stuck probe
+                // is a RAW touch too — it routes through the SAME covered-start law as
+                // the ACT SCROLL branch, and no uncovered point means NO dispatch.
+                val probeStart = scrollStart(coveredBounds?.invoke().orEmpty(), shot, probeX, probeY)
+                if (probeStart == null) {
+                    val line = "stuck probe skipped: covered start and no uncovered point"
+                    evidence.event(line)
+                    log("[vision] $line")
+                } else {
+                    if (probeStart != (probeX to probeY)) {
+                        evidence.event(
+                            "stuck probe: covered start -> moved to (${probeStart.first},${probeStart.second})",
+                        )
+                    }
+                    executor.scroll(probeStart.first, probeStart.second, down = true)
+                    delay(config.settleMs)
+                    val probed = observer.observe()
+                    if (probed.screenHash != obs.screenHash) {
+                        recentHashes.clear()
+                        step += 1
+                        continue
+                    }
                 }
-                // still static: treat as a failed step and fall through to the replan gate
+                // still static (or the probe was lawfully skipped): treat as a failed
+                // step and fall through to the replan gate
                 consecutiveFailures = config.stepFailuresBeforeReplan
             }
 
@@ -819,12 +856,18 @@ class VisionLoop(
         val jevBox = jevBoxes[pickIndex]
         val jevRect = shot?.let { frame ->
             jevBox?.takeIf { it.confidence >= config.boxConfidenceFloor }?.let { b ->
-                VisionMath.boxToScreenRect(b.left, b.top, b.right, b.bottom, frame.screenWidth, frame.screenHeight)
+                VisionMath.boxToScreenRect(
+                    b.left, b.top, b.right, b.bottom,
+                    frame.screenWidth, frame.screenHeight, frame.originX, frame.originY,
+                )
             }
         }
         val haikuRect = shot?.let { frame ->
             proposal.box?.let { b ->
-                VisionMath.boxToScreenRect(b.left, b.top, b.right, b.bottom, frame.screenWidth, frame.screenHeight)
+                VisionMath.boxToScreenRect(
+                    b.left, b.top, b.right, b.bottom,
+                    frame.screenWidth, frame.screenHeight, frame.originX, frame.originY,
+                )
             }
         }
         var target: NodeMatch? = null
@@ -908,10 +951,14 @@ class VisionLoop(
             return Attempted.Failed("no screenshot and no label match for '${proposal.description.take(60)}'")
         }
 
-        // ACT point: the matched node's centre, else the raw rectangle's centre. Scroll/
-        // back need no location: they act on the screen center by design.
-        val x = target?.node?.centerX ?: rawRect?.centerX ?: (shot?.screenWidth ?: 1080) / 2
-        val y = target?.node?.centerY ?: rawRect?.centerY ?: (shot?.screenHeight ?: 2400) / 2
+        // ACT point: the matched node's centre, else the raw rectangle's centre — both
+        // carry the captured SCOPE's screen-space origin (PHASE_VEXP5 WI2: a window
+        // frame starts at the window bounds). Scroll/back need no location: they act on
+        // the screen center by design (origin + half the scope dims).
+        val x = target?.node?.centerX ?: rawRect?.centerX
+            ?: ((shot?.originX ?: 0) + (shot?.screenWidth ?: 1080) / 2)
+        val y = target?.node?.centerY ?: rawRect?.centerY
+            ?: ((shot?.originY ?: 0) + (shot?.screenHeight ?: 2400) / 2)
 
         // (d) the raw-coordinate arm. A TYPE must land inside an EDITABLE node — the
         // NO_FIELD_AT_POINT churn ends here, loudly, instead of calling enterText.
@@ -1142,6 +1189,23 @@ class VisionLoop(
             }
         }
 
+        // -- PHASE_VEXP5 WI3: the covered-point guard ----------------------------------
+        // Read immediately before dispatch (after the gate): the product service's live
+        // log + soft keyboard bounds. A raw touch at a covered point lands on the
+        // OWNER'S OVERLAY, never the page — so a covered TAP activates the page's a11y
+        // node (executor.clickNode, ACTION_CLICK), a covered tap-converted TYPE skips
+        // the focus tap (enterText focuses/clicks/SET_TEXT on the field node), and a
+        // covered SCROLL moves to an uncovered point or fails loudly (the shared
+        // [scrollStart] helper — no candidate is never a best-effort centre). A covered
+        // point with no actionable node fails loudly. Native TYPE/SUBMIT/BACK are
+        // unchanged (node / global actions, never raw touches at a point). Null
+        // provider (the harness/adb path) = today's dispatch, byte-identical.
+        val occluders = coveredBounds?.invoke().orEmpty()
+        val actCovered = coveredBounds != null &&
+            VisionMath.coveredAt(occluders, x, y, OCCLUSION_MARGIN_PX)
+        val focusCovered = tapConverted && actCovered
+        var behindLogMarker: String? = null
+
         val needsLocation = effectiveAction == VisionPrompts.ProposalAction.TAP ||
             effectiveAction == VisionPrompts.ProposalAction.TYPE
         val where = when {
@@ -1156,7 +1220,29 @@ class VisionLoop(
         var typed: String? = null
         when (effectiveAction) {
             VisionPrompts.ProposalAction.TAP -> {
-                executed = executor.tap(x, y)
+                if (actCovered) {
+                    // The covered point: NEVER a raw touch. The page's own a11y node is
+                    // the lawful activation surface; no node = the loud refusal (the
+                    // step feeds the failure/re-plan gate, never the overlay).
+                    val node = VisionMath.tappableNodeAt(obs.nodes, x, y)
+                        ?: return Attempted.Failed(
+                            "tap target ($x,$y) is covered by the live log or keyboard and no " +
+                                "actionable page node exists there; refusing a touch that would " +
+                                "land on the overlay",
+                        )
+                    executed = executor.clickNode(x, y)
+                    if (!executed) {
+                        return Attempted.Failed(
+                            "tap target ($x,$y) is covered by the live log or keyboard and the " +
+                                "page node ${node.id} click was rejected; refusing a touch that " +
+                                "would land on the overlay",
+                        )
+                    }
+                    evidence.event("covered action: tap ($x,$y) -> node click")
+                    behindLogMarker = "(behind-log: node click)"
+                } else {
+                    executed = executor.tap(x, y)
+                }
                 detail = "tap '${proposal.description.take(60)}' [$where conf=${"%.2f".format(proposal.confidence)}]$lowConfMark"
             }
             VisionPrompts.ProposalAction.TYPE -> {
@@ -1171,16 +1257,20 @@ class VisionLoop(
                 val causes = mutableListOf<TextEntryFailure>()
                 // The tap-to-type conversion executes the proposal's TAP first (it
                 // focuses the grounded editable field), then types the plan's text at
-                // the same node centre. A native TYPE on a non-editable ground target
-                // types at the RESOLVED editable field's centre instead (the sixth
-                // live-test repair) — never at the container's inert point.
-                if (tapConverted) executor.tap(x, y)
+                // the same node centre. PHASE_VEXP5 WI3: a focus tap under the live log
+                // is SKIPPED — enterText performs FOCUS + CLICK + SET_TEXT on the field
+                // node itself, so the raw touch would only press the overlay. A native
+                // TYPE on a non-editable ground target types at the RESOLVED editable
+                // field's centre instead (the sixth live-test repair) — never at the
+                // container's inert point.
+                if (tapConverted && !focusCovered) executor.tap(x, y)
                 executed = executor.enterText(actX, actY, text) { causes.add(it) }
                 typed = if (secretTyped) TextSource.REDACTED else text
                 detail = "type \"${if (secretTyped) TextSource.REDACTED else text}\" into " +
                     "[$where conf=${"%.2f".format(proposal.confidence)}]$editableMark" +
                     (if (executed) "" else " causes=$causes") + lowConfMark +
-                    (if (tapConverted) " (tap-converted)" else "")
+                    (if (tapConverted) " (tap-converted)" else "") +
+                    (if (focusCovered) " (focus tap skipped: behind-log)" else "")
             }
             VisionPrompts.ProposalAction.SUBMIT -> {
                 executed = executor.submit()
@@ -1191,13 +1281,32 @@ class VisionLoop(
                 detail = "back"
             }
             VisionPrompts.ProposalAction.SCROLL_DOWN, VisionPrompts.ProposalAction.SCROLL_UP -> {
-                executed = executor.scroll(x, y, down = proposal.action == VisionPrompts.ProposalAction.SCROLL_DOWN)
+                // The covered-start law (PHASE_VEXP5 WI3 + the orchestrator-review
+                // amendment), shared with the stuck probe: an uncovered start is
+                // unchanged; a covered start moves to the first uncovered point inside
+                // the captured frame, and NO safe point is a loud refusal — never a
+                // raw touch on the overlay.
+                val start = scrollStart(occluders, shot, x, y)
+                    ?: return Attempted.Failed(
+                        "scroll start ($x,$y) is covered by the live log or keyboard and no " +
+                            "uncovered point exists inside the captured frame; refusing a touch " +
+                            "that would land on the overlay",
+                    )
+                executed = executor.scroll(
+                    start.first, start.second,
+                    down = proposal.action == VisionPrompts.ProposalAction.SCROLL_DOWN,
+                )
+                if (start != (x to y)) {
+                    behindLogMarker = "(behind-log: moved to (${start.first},${start.second}))"
+                }
                 detail = "${proposal.action.name.lowercase()} [$where]$lowConfMark"
             }
         }
         // The gate's step-line marker ("(gate H4 approved)"-style): a null marker is an
         // ungated action (no presenter, no class, or scroll/back — never gated).
         gateMarker?.let { detail += " $it" }
+        // PHASE_VEXP5 WI3: the covered-point disposition rides the step line loudly.
+        behindLogMarker?.let { detail += " $it" }
         val progresses = when (effectiveAction) {
             VisionPrompts.ProposalAction.TAP,
             VisionPrompts.ProposalAction.TYPE,
@@ -1234,6 +1343,32 @@ class VisionLoop(
     }
 
     // -- helpers ---------------------------------------------------------------------------
+
+    /**
+     * The covered-start law for EVERY raw scroll (PHASE_VEXP5 WI3, orchestrator-review
+     * amendment): shared by the ACT SCROLL branch and the stuck probe so the invariant
+     * cannot drift. An uncovered [x]/[y] is returned UNCHANGED (the caller dispatches
+     * exactly as before); a covered start is moved to the first uncovered candidate
+     * inside the captured frame (origin + scope dims). NULL means the start is covered
+     * and the frame offers NO uncovered point (or there is no frame) — the caller MUST
+     * NOT dispatch: a raw touch on the overlay is never lawful.
+     */
+    private fun scrollStart(
+        occluders: List<VisionMath.RectPx>,
+        shot: VisionCapture.ScreenShot?,
+        x: Int,
+        y: Int,
+    ): Pair<Int, Int>? {
+        if (!VisionMath.coveredAt(occluders, x, y, OCCLUSION_MARGIN_PX)) return x to y
+        val frame = shot ?: return null
+        val area = VisionMath.RectPx(
+            frame.originX,
+            frame.originY,
+            frame.originX + frame.screenWidth,
+            frame.originY + frame.screenHeight,
+        )
+        return VisionMath.uncoveredPoint(occluders, area, OCCLUSION_MARGIN_PX)
+    }
 
     /**
      * The gate's classification candidate for the acting proposal (PHASE_VEXP3 WI1):
@@ -1524,17 +1659,27 @@ class VisionLoop(
     /**
      * Capture with the loud text-only degrade (a capture failure never kills a run).
      * D2: the live-log exclusion is re-read per capture; unavailable bounds leave the
-     * frame unchanged with ONE loud evidence note per run.
+     * frame unchanged with ONE loud evidence note per run — and that note now says the
+     * black-fill only matters for a DISPLAY FALLBACK frame (PHASE_VEXP5: the primary
+     * capture is window-scoped and cannot contain the overlay). The first frame's
+     * scope (`[vision] screen: <source>`) lands on the live log once per run.
      */
     private suspend fun captureSafely(index: Int): VisionCapture.ScreenShot? = try {
         val exclusion = exclusionBounds?.invoke()
         if (exclusionBounds != null && exclusion == null && !exclusionNoteLogged) {
             exclusionNoteLogged = true
-            val line = "exclusion: the live log's bounds are unavailable - capturing the full frame"
+            val line = "exclusion: the live log's bounds are unavailable - " +
+                "this only matters for a display fallback frame"
             evidence.event(line)
             log("[vision] $line")
         }
-        capture.capture(exclusion).also { evidence.screenshot(index, it, it.jpegBytes) }
+        capture.capture(exclusion).also { shot ->
+            if (!sourceNoteLogged) {
+                sourceNoteLogged = true
+                log("[vision] screen: ${shot.source}")
+            }
+            evidence.screenshot(index, shot, shot.jpegBytes)
+        }
     } catch (e: Exception) {
         evidence.event("capture degraded: ${e.message?.take(120)} — TEXT-ONLY step")
         null

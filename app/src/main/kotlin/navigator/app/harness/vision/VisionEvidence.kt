@@ -100,8 +100,9 @@ class VisionEvidence(baseDir: File?, val runId: String) {
             f.absolutePath
         }
         event(
-            "screenshot #$index ${shot.width}x${shot.height} sha256=${shot.sha256.take(16)} " +
-                (path?.let { "-> $it" } ?: "(memory-only)"),
+            "screenshot #$index ${shot.width}x${shot.height} scope=${shot.source} " +
+                "sha256=${shot.sha256.take(16)}" +
+                (path?.let { " -> $it" } ?: " (memory-only)"),
         )
         return path
     }

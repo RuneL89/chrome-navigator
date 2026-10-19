@@ -63,6 +63,13 @@ class TypeMechanismLoopTest {
             return true
         }
 
+        /** PHASE_VEXP5: the covered-point node activation (never exercised here). */
+        override fun clickNode(x: Int, y: Int): Boolean {
+            calls.add("clickNode($x,$y)")
+            journal.add("clickNode($x,$y)")
+            return true
+        }
+
         override fun scroll(x: Int, y: Int, down: Boolean): Boolean {
             calls.add("scroll($x,$y,$down)")
             return true

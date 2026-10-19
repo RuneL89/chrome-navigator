@@ -967,18 +967,56 @@ legacy-engine fallback.
     never justifies that launch. Loud lines: "vision:
     bringing the browser task to front (page preserved)" / "vision: no browser task
     found - launching browser home". The adb activity keeps its launch-only path
-    (null seam). THE LIVE-LOG
-    EXCLUSION (D2, the same run: the loop's own corner log appeared in its
-    screenshots and got proposed/targeted — "the ✕ close button of the NAVIGATOR
-    overlay"): `OverlayManager.liveLogBounds()` returns the log window's current
-    screen bounds from the main-thread-maintained snapshot
-    (`LiveLogOverlay.boundsInScreen`; null while hidden/unlaid), the service passes it
-    as `exclusionBounds` through the bridge into `VisionLoop`, and every capture
-    (`VisionCapture.capture(exclusion)`) maps that rect onto the encoded frame and
-    paints it solid black BEFORE encoding — the frame keeps its FULL size, so box
-    fractions stay valid; unavailable bounds leave the capture unchanged with ONE
-    loud evidence note per run; the adb activity passes null (no log there), keeping
-    the capture byte-identical. The DEFAULT with a
+    (null seam). PHASE_VEXP5 WI1/WI3 (2026-10-18 — THE WINDOW-SCOPED CAPTURE + THE
+    BEHIND-LOG ACTIONS; D2's display black-fill is now a FALLBACK mechanism only):
+    model-bound screenshots are the BROWSER WINDOW's surface. `VisionCapture.capture`
+    first asks the pure `CaptureWindowPolicy` (`harness/vision/CaptureWindowPolicy.kt`
+    — Candidate(id, packageName, isFocused, isActive, isApplicationWindow, l/t/r/b) →
+    Target; lawful = allowlisted browser root package AND `TYPE_APPLICATION` AND
+    positive area; preference focused → active → list order, topmost-first) over
+    `service.windows`, only when `rootInActiveWindow`'s package is an allowlisted
+    browser; `rawWindowCapture(windowId)` rides `takeScreenshotOfWindow` (API 34+,
+    the same main-looper executor + callback shape as `rawCapture`). The live log, the
+    soft keyboard and the system bars are therefore ABSENT from model images while the
+    owner still sees the log. ANY window-capture failure falls back to the full-display
+    capture with the failure code in the source (`display:fallback=<reason>`), and the
+    display path keeps D2's exclusion black-fill (`OverlayManager.liveLogBounds()` →
+    `exclusionBounds`; the frame keeps its FULL size) — with ONE 400 ms retry each for
+    a synchronously thrown `UnsupportedOperationException` (the warmup quirk) and
+    `ERROR_TAKE_SCREENSHOT_INTERVAL_TIME_SHORT`, all else final. `ScreenShot` gained
+    `originX/originY/source` (APPENDED defaults: 0/0/"display") and
+    `screenWidth/Height` = the captured scope's pre-scale dims; sources are
+    `window:<pkg>:id=<id>:bounds=<l,t,r,b>` / `display` / `display:log-excluded` /
+    `display:fallback=<reason>`; the evidence line is `screenshot #<i> <w>x<h>
+    scope=<source> sha256=<16>`; the loop logs the first frame's source once per run
+    (`[vision] screen: <source>`). Coordinates add the scope origin:
+    `VisionMath.boxToScreenRect(..., originX, originY)`; the degraded centre fallbacks
+    use origin + half dims; the adb probe maps identically. THE COVERED-POINT GUARD
+    (WI3): `VisionLoop` takes `coveredBounds: (() -> List<RectPx>)? = null` (null =
+    today's dispatch, byte-identical), read immediately before dispatch after the gate
+    with `OCCLUSION_MARGIN_PX = 16`; a covered TAP resolves `VisionMath.tappableNodeAt`
+    (smallest clickable||editable node at the point, chrome INCLUDED) and fires
+    `executor.clickNode` (the new `ActionExecutor` method: active root must be an
+    allowlisted browser, one fresh recursive walk, refresh + ACTION_CLICK) — no node or
+    a rejected click = a loud `Attempted.Failed` (never a raw touch on the overlay),
+    step marker `(behind-log: node click)` + evidence `covered action: tap (x,y) ->
+    node click`; a covered tap-converted TYPE SKIPS the focus tap (enterText does
+    FOCUS+CLICK+SET_TEXT itself) and marks `(focus tap skipped: behind-log)`; a covered
+    SCROLL moves to an uncovered point inside the captured frame (candidate order:
+    centre → upper third → left third → upper-left sixth → lower third) and marks
+    `(behind-log: moved to (x,y))` — or FAILS LOUDLY when NO uncovered point exists
+    (`VisionMath.uncoveredPoint` returns null: never a best-effort centre, never a raw
+    touch); the STUCK PROBE's own scroll routes through the SAME private `scrollStart`
+    helper (a covered start with a safe point moves there with the evidence line
+    `stuck probe: covered start -> moved to (x,y)`; with NO safe point the probe is
+    SKIPPED — no `executor.scroll` — and the screen stays "still static":
+    `stuck probe skipped: covered start and no uncovered point`), so the raw-touch law
+    cannot drift between the two paths; native TYPE/SUBMIT/BACK are unchanged. Wiring: `NavigatorVisionBridge.newVisionLoop
+    (coveredBounds = …)` forwarded; `NavigatorService` supplies
+    `listOfNotNull(manager.liveLogBounds(), manager.inputMethodBounds())`;
+    `OverlayManager.inputMethodBounds()` (the `TYPE_INPUT_METHOD` scan;
+    `inputMethodWindowTop` now delegates to it). The unavailable-bounds note now says
+    it only matters for a display fallback frame. The DEFAULT with a
     missing key = the LOUD refusal naming
     the channel + the wizard (`ProductRunRoute.Refused`, the no-key precedent's
     wording style) — NEVER a silent fallback to the legacy loop; a
@@ -1009,6 +1047,22 @@ legacy-engine fallback.
     `VisionCaptureExclusionTest` (Robolectric native-graphics bitmap gate: the mapped
     screen rect is painted solid black, everything around it untouched, off-frame /
     empty rects are no-ops; plus the pure screen→frame mapping/clamp helper),
+    PHASE_VEXP5's JVM gates: `CaptureWindowPolicyTest` (the pure window decision —
+    focused → active → list order, and non-browser / non-application / zero-area /
+    null-package windows refused), `VisionOcclusionTest` (the pure covered-point +
+    origin math — coveredAt margin, tappableNodeAt smallest/chrome/inert,
+    uncoveredPoint order + NULL when every candidate is covered, boxToScreenRect
+    origin + zero-origin parity + clamping), `VisionLoopBehindLogTest` (the REAL loop over scripted
+    transports, $0: a covered tap activates the page node — clickNode 1 / tap 0, the
+    `(behind-log: node click)` marker, terminal GOAL_ACHIEVED; a covered point with no
+    actionable node — zero taps AND zero node clicks, the loud refusal into the
+    re-plan path; a covered tap-converted TYPE — zero taps, enterText with the plan
+    text, `(focus tap skipped: behind-log)`; a covered SCROLL with everything covered —
+    ZERO scroll dispatches and the loud no-uncovered-point refusal; a covered SCROLL
+    with a safe point — exactly one scroll at the uncovered point + the moved marker;
+    the STUCK PROBE over a static screen whose probe start is covered with every
+    candidate covered — zero scroll dispatches, the `stuck probe skipped` log, and the
+    still-static re-plan path),
     `SetupLogicTest` (toggle derivation + prefs contract + the default-ON + the
     five-check wizard pins),
     `VisionLoopPrefRoundTripTest` (Robolectric read/write round-trip, default ON).

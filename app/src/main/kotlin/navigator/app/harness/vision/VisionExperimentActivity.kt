@@ -279,7 +279,7 @@ class VisionExperimentActivity : Activity() {
                 val node = targets.getOrNull(i) ?: return@forEachIndexed
                 val box = VisionMath.boxToScreenRect(
                     boxAnswer.left, boxAnswer.top, boxAnswer.right, boxAnswer.bottom,
-                    shot.screenWidth, shot.screenHeight,
+                    shot.screenWidth, shot.screenHeight, shot.originX, shot.originY,
                 )
                 val real = VisionMath.RectPx(node.left, node.top, node.right, node.bottom)
                 val iou = VisionMath.iou(box, real)

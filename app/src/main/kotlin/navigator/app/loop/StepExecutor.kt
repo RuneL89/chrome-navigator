@@ -20,6 +20,18 @@ interface ActionExecutor {
     /** Taps the center of the target's bounds. Returns false when dispatch failed. */
     fun tap(x: Int, y: Int): Boolean
 
+    /**
+     * Activates the PAGE NODE at a screen point instead of dispatching a raw touch
+     * (PHASE_VEXP5 WI3 — the "behind-log action" path: a point under the live log or
+     * the soft keyboard must never receive a raw touch, because the touch would land on
+     * the overlay). The implementation walks the ACTIVE window's fresh tree (the active
+     * root's package must be an allowlisted browser), picks the SMALLEST node containing
+     * the point with `clickable || editable` (browser chrome included — the address bar
+     * is a lawful target), refreshes it and fires `ACTION_CLICK`. Returns false when no
+     * such node exists or the action was rejected — the caller turns that loud.
+     */
+    fun clickNode(x: Int, y: Int): Boolean
+
     /** Swipes a vertical scroll centered on (x, y). Returns false when dispatch failed. */
     fun scroll(x: Int, y: Int, down: Boolean): Boolean
 
@@ -135,6 +147,22 @@ internal const val MAX_PHRASE_LENGTH = 80
 class GestureExecutor(private val service: AccessibilityService) : ActionExecutor {
 
     override fun tap(x: Int, y: Int): Boolean = dispatchStroke(x, y, x, y, TAP_DURATION_MS)
+
+    /**
+     * PHASE_VEXP5 WI3: the behind-log activation — a covered point's action goes to the
+     * page NODE, never a raw gesture. The active root's package must be an allowlisted
+     * browser (the same focus law as text entry); a fresh recursive walk collects the
+     * clickable/editable nodes containing the point (browser chrome included) and the
+     * SMALLEST wins (the most specific control when bounds nest). Refresh, then
+     * ACTION_CLICK; false when nothing qualifies or the platform rejects it.
+     */
+    override fun clickNode(x: Int, y: Int): Boolean {
+        val root = service.rootInActiveWindow ?: return false
+        if (!BrowserPackages.isBrowser(root.packageName?.toString())) return false
+        val node = findTappable(root, x, y) ?: return false
+        if (!node.refresh()) return false
+        return node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+    }
 
     override fun scroll(x: Int, y: Int, down: Boolean): Boolean {
         val dy = SCROLL_DISTANCE_PX
@@ -272,6 +300,34 @@ class GestureExecutor(private val service: AccessibilityService) : ActionExecuto
             }
         }
         return null
+    }
+
+    /**
+     * The smallest `clickable || editable` node containing (x, y), from ONE fresh
+     * recursive walk (PHASE_VEXP5 WI3). Browser chrome is included — the address bar is
+     * a lawful target; inert nodes never qualify. Refresh failures drop the subtree, the
+     * honest-sparseness convention [findEditable] follows.
+     */
+    private fun findTappable(root: AccessibilityNodeInfo, x: Int, y: Int): AccessibilityNodeInfo? {
+        var best: AccessibilityNodeInfo? = null
+        var bestArea = Long.MAX_VALUE
+        fun walk(node: AccessibilityNodeInfo) {
+            if (!node.refresh()) return
+            val rect = Rect()
+            node.getBoundsInScreen(rect)
+            if (rect.contains(x, y) && (node.isClickable || node.isEditable)) {
+                val area = rect.width().toLong() * rect.height().toLong()
+                if (area < bestArea) {
+                    bestArea = area
+                    best = node
+                }
+            }
+            for (i in 0 until node.childCount) {
+                node.getChild(i)?.let { child -> walk(child) }
+            }
+        }
+        walk(root)
+        return best
     }
 
     companion object {

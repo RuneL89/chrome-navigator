@@ -120,13 +120,22 @@ class OverlayManager(private val service: AccessibilityService) {
      * (the UAT 9.1 R2 follow-up — during a run the agent's TYPE action raises the
      * keyboard and the log must move, insets cannot tell it).
      */
-    internal fun inputMethodWindowTop(): Int? {
+    internal fun inputMethodWindowTop(): Int? = inputMethodBounds()?.top
+
+    /**
+     * The visible IME window's CURRENT screen bounds, or null when none is up
+     * (PHASE_VEXP5 WI3: the vision loop's covered-point guard needs the keyboard's
+     * rectangle, not just its top edge — a covered tap must never press the IME).
+     * The same `getWindows()` scan as [inputMethodWindowTop]; the live log's presence
+     * signal keeps consuming that top edge.
+     */
+    internal fun inputMethodBounds(): Rect? {
         val windows = service.windows ?: return null
         for (window in windows) {
             if (window.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD) {
                 val bounds = Rect()
                 window.getBoundsInScreen(bounds)
-                return bounds.top
+                return bounds
             }
         }
         return null

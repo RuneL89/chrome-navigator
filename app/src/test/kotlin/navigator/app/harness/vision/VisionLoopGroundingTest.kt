@@ -56,8 +56,10 @@ class VisionLoopGroundingTest {
 
     private class RecordingExecutor : ActionExecutor {
         val taps = mutableListOf<Pair<Int, Int>>()
+        val nodeClicks = mutableListOf<Pair<Int, Int>>()
         val entered = mutableListOf<Pair<Pair<Int, Int>, String>>()
         override fun tap(x: Int, y: Int): Boolean { taps.add(x to y); return true }
+        override fun clickNode(x: Int, y: Int): Boolean { nodeClicks.add(x to y); return true }
         override fun scroll(x: Int, y: Int, down: Boolean): Boolean = true
         override fun back(): Boolean = true
         override fun submit(): Boolean = true

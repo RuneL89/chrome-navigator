@@ -429,6 +429,15 @@ class NavigatorService : Service() {
                     VisionMath.RectPx(b.left, b.top, b.right, b.bottom)
                 }
             },
+            // PHASE_VEXP5 WI3: the covered-point guard's occluders — the live log plus
+            // the soft keyboard, re-read immediately before every dispatch. A point
+            // under either one gets an a11y node action (or a loud refusal), never a
+            // raw touch on the overlay.
+            coveredBounds = {
+                listOfNotNull(manager.liveLogBounds(), manager.inputMethodBounds()).map { b ->
+                    VisionMath.RectPx(b.left, b.top, b.right, b.bottom)
+                }
+            },
         )
         val result = loop.run(goalText, runId, taskCancelFlag::isCancelled)
         manager.setTaskStateLine(NavigatorVisionBridge.taskStateLine(result))

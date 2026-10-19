@@ -179,9 +179,16 @@ object NavigatorVisionBridge {
          * The live-log exclusion seam (D2, 2026-10-19): read PER CAPTURE by the
          * [VisionLoop], which paints the returned screen rect black over every
          * screenshot. Null provider (the adb path — no live log there) = byte-identical
-         * capture.
+         * capture. PHASE_VEXP5: this only applies to DISPLAY FALLBACK frames — the
+         * primary capture is the browser window's surface.
          */
         exclusionBounds: (() -> VisionMath.RectPx?)? = null,
+        /**
+         * The behind-log action seam (PHASE_VEXP5 WI3): the product service supplies the
+         * live log's + the soft keyboard's CURRENT screen bounds, read immediately
+         * before dispatch. Null (the adb path) = today's raw dispatch, byte-identical.
+         */
+        coveredBounds: (() -> List<VisionMath.RectPx>)? = null,
     ): VisionLoop {
         val budget = ExpBudget()
         val evidence = VisionEvidence(evidenceDir, runId)
@@ -215,6 +222,7 @@ object NavigatorVisionBridge {
             log = log,
             gatePresenter = gatePresenter,
             exclusionBounds = exclusionBounds,
+            coveredBounds = coveredBounds,
         )
     }
 

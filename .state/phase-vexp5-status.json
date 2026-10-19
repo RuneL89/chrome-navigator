@@ -1,0 +1,100 @@
+{
+  "phase": "VEXP5",
+  "title": "Log-free model screenshots + actions behind the log",
+  "phaseDoc": ".state/vision-iter/PHASE_VEXP5_capture_scope.md",
+  "branch": "exp/vision-box",
+  "status": "verified",
+  "startedAt": "2026-10-18",
+  "implementedAt": "2026-10-18",
+  "reviewAmendmentAt": "2026-10-18",
+  "verifiedAt": "2026-10-18",
+  "verification": ".state/phase-vexp5-verification.md",
+  "emulatorVerifiedAt": "2026-10-18",
+  "goal": "Model-bound screenshots capture the browser window's surface (live log, soft keyboard and system bars excluded) with a full-display + black-fill fallback; actions at points covered by the live log or IME use page a11y node actions (ACTION_CLICK / focus+SET_TEXT / IME enter), covered scrolls move to an uncovered point, and a covered point with no actionable node fails loudly instead of pressing the overlay. Coordinates add the captured window's origin. No phone run, no Riga goal, no UI redesign, no old-engine deletion.",
+  "stoppingCondition": "Window-scoped capture primary with recorded scope + fallback; box fractions map through the window origin; zero raw tap() calls for covered points (JVM-pinned); text typing works behind the log; gates green incl. APK < 40MB + badge; docs/status/compliance updated; prompts/budgets unchanged.",
+  "gatesPassed": [
+    ":app:testDebugUnitTest --tests \"navigator.app.harness.vision.*\" — 99/99 (Bridge 14 + Gate 10 + Experiment 45 + CaptureExclusion 4 + Grounding 3 + EnterText 3 + TypeEditable 4 + BehindLog 6 + CaptureWindowPolicy 4 + Occlusion 6; baseline 83 + 16 new; the review amendment added 3 behind-log cases)",
+    ":app:testDebugUnitTest — 613/0/0 (baseline 597 + 16 new; zero failures, zero errors, zero skipped)",
+    ":core:test --rerun-tasks — 318/0/0 (forced fresh rerun; no :core change)",
+    ":app:assembleDebug — SUCCESS",
+    "badge navigator.app.visionexp / versionName 0.1.0-visionexp (aapt2 dump badging, first line verbatim: package: name='navigator.app.visionexp' versionCode='1' versionName='0.1.0-visionexp' ...)",
+    "APK 36,664,259 bytes = 34.96 MiB < 40MB (ls -l app/build/outputs/apk/debug/navigator-visionexp-debug.apk); dex check: classes13.dex carries BOTH review literals (`stuck probe skipped: covered start and no uncovered point`, `no uncovered point exists inside the captured frame`); NO install, NO adb, NO emulator"
+  ],
+  "gatesFailed": [],
+  "gatesPending": [],
+  "emulatorVerification": {
+    "harness": "emulator-5554 (API 35, pocketpet-test, org.chromium.webview_shell); Android-Dev plugin for preflight/install/launch/UI/screenshot/logs; Gradle build; fixture pages served at 10.0.2.2:8765; real stored keys (both re-tested live); NO phone run.",
+    "runs": [
+      "task-1792406038348 (first pass): every frame scope=window:org.chromium.webview_shell:id=281:bounds=0,0,1080,2340 (723x1568); step 0 [node n8 iou=0.94 (jev-box) conf=0.95] (behind-log: node click), covered action tap (740,1979) -> node click; the IME was the occluder (log top-right), the page became TAPPED.",
+      "task-1792406239937 (log-specific pass, IME disabled so the log stayed BOTTOM_RIGHT over the button): every frame scope=window:org.chromium.webview_shell:id=308:bounds=0,0,1080,2340; step 0 [node n8 iou=0.84 (jev-box) conf=0.93] (behind-log: node click), same covered action tap (740,1979) -> node click; page TAPPED."
+    ],
+    "coverageAB": "At screen (740,1979): device screenshot (35,19,15) = the live-log panel; model image before the tap (199,110,114) = the red button; model image after the tap (255,255,255) = TAPPED. Button crop: 36,533 red / 0 dark of 41,268 before; 0 red after.",
+    "verdict": "PASS for the two requested behaviors (log-free frames + behind-log node actions). The fixture runs did not reach GOAL_ACHIEVED because the fixture's URL-shaped done condition did not accept the page's TAPPED marker (the battery flagged the mis-shape and re-planned; the runs were ended after the step-0 evidence — fixture/planner mismatch, not a VEXP5 failure).",
+    "caveats": [
+      "A direct SetupActivity submit hit the known emulator readiness home-launch (getRunningTasks restricted -> about:blank); the fixture runs raised the goal overlay via the running service ACTION_SHOW_GOAL_INPUT while the browser task stayed front, preserving target.html (pre-existing D4 limitation; test-harness technique).",
+      "The live log's stop pill sits on the moving header; ending the churning fixture runs via the control was unreliable. The debug app was force-stopped after the evidence; the a11y service was re-enabled and the app relaunched. The product app navigator.app was untouched.",
+      "The first-frame [vision] screen: line appears twice on the first run after a service start (sourceNoteLogged reset order; cosmetic, no functional effect).",
+      "No phone install; the phone run is deferred at the owner's request."
+    ],
+    "report": ".state/vision-iter/vexp5-run/REPORT.md"
+  },
+  "workItems": {
+    "WI1_window_scoped_capture": {
+      "newFile": "app/src/main/kotlin/navigator/app/harness/vision/CaptureWindowPolicy.kt — PURE (no Android types): Candidate(id, packageName, isFocused, isActive, isApplicationWindow, left, top, right, bottom) → Target(id, packageName, l/t/r/b). select() keeps BrowserPackages.isBrowser(pkg) AND isApplicationWindow AND positive area; prefers focused, then active, then first lawful in list order (topmost-first); a null package is never lawful; null return = no target.",
+      "visionCapture": "browserWindowTarget() only when service.rootInActiveWindow?.packageName is an allowlisted browser; enumerates service.windows, reads w.id / w.type == TYPE_APPLICATION / w.isFocused / w.isActive / null-safe w.root?.packageName / getBoundsInScreen; feeds CaptureWindowPolicy. rawWindowCapture(windowId) via takeScreenshotOfWindow with the same main-looper executor + callback shape as rawCapture. ONE shared retry helper: one 400 ms retry on a synchronously thrown UnsupportedOperationException and one 400 ms retry on ERROR_TAKE_SCREENSHOT_INTERVAL_TIME_SHORT; every other failure final. Flow: target exists → window capture; ANY window failure → the existing full-display capture (existing exclusion black-fill) with the reason in the source; no target → plain display; a display failure still throws (the loop degrades to text-only). VisionCaptureException gained errorCode: Int? = null (both onFailure callbacks pass it).",
+      "screenShot": "Appended defaults originX: Int = 0, originY: Int = 0, source: String = \"display\" (all existing positional constructors/tests compile unchanged). screenWidth/Height = the captured scope's pre-scale dims (window bounds on a window capture, full display otherwise). Sources: window:<pkg>:id=<id>:bounds=<l,t,r,b> / display / display:log-excluded / display:fallback=<reason>. Exclusion applies ONLY on the display path; the frame keeps its full size.",
+      "evidence": "VisionEvidence.screenshot line = `screenshot #<i> <w>x<h> scope=<source> sha256=<16>` (the existing -> path / (memory-only) suffix kept).",
+      "loop": "VisionLoop.captureSafely logs the first frame's source once to the live log (`[vision] screen: <source>`), reset per run; the exclusion-unavailable note now says it only matters for a display fallback frame."
+    },
+    "WI2_coordinate_origin": {
+      "visionMath": "boxToScreenRect(..., screenWidth, screenHeight, originX = 0, originY = 0) — result = origin + fraction × scope dims (fraction clamp + edge ordering unchanged).",
+      "callsites": "VisionLoop's two box mapping calls (Jev + Haiku) pass frame.originX/originY; the degraded centre fallbacks use origin + half dims; VisionExperimentActivity's probe box mapping passes shot.originX/originY."
+    },
+    "WI3_behind_log_actions": {
+      "pureHelpers": "VisionMath.coveredAt(rects, x, y, margin) — point inside any rect grown by margin; tappableNodeAt(nodes, x, y) — smallest-area node containing the point with clickable || editable, browser chrome INCLUDED; uncoveredPoint(rects, area, margin): Pair<Int, Int>? — first uncovered candidate (centre, upper third, left third, upper-left sixth, lower third); NULL when EVERY candidate is covered (review amendment: no best-effort centre — the caller refuses).",
+      "visionLoop": "Covered-point guard after the gate, before dispatch: coveredBounds: (() -> List<RectPx>)? = null read once per step, margin OCCLUSION_MARGIN_PX = 16. Covered TAP → VisionMath.tappableNodeAt; none → Attempted.Failed(\"tap target (x,y) is covered by the live log or keyboard and no actionable page node exists there; refusing a touch that would land on the overlay\"); else executor.clickNode(x,y), false → loud Failed naming the page node; step marker (behind-log: node click), evidence `covered action: tap (x,y) -> node click`. Covered tap-converted TYPE → focus tap SKIPPED, marker `(focus tap skipped: behind-log)`, enterText still at the resolved field centre. Covered/any SCROLL routes through the private shared `scrollStart(occluders, shot, x, y)` helper: uncovered → the intended point unchanged; covered → first uncovered point inside the captured frame, marker `(behind-log: moved to (x,y))`; NULL (all candidates covered or no frame) → loud Failed (`scroll start (x,y) is covered by the live log or keyboard and no uncovered point exists inside the captured frame; refusing a touch that would land on the overlay`), NO dispatch. THE STUCK PROBE (run()'s static-screen scroll) uses the SAME helper: uncovered → exactly today's scroll; covered with a safe point → scroll there + evidence `stuck probe: covered start -> moved to (x,y)`; covered with NO safe point → NO executor.scroll, log/evidence `stuck probe skipped: covered start and no uncovered point`, then the existing still-static consecutiveFailures path. Native TYPE/SUBMIT/BACK unchanged. Null seam = the pre-VEXP5 dispatch (byte-identical); empty list = nothing covers the page.",
+      "executor": "ActionExecutor gained fun clickNode(x: Int, y: Int): Boolean; GestureExecutor implements it: active root package must be an allowlisted browser, one fresh recursive walk for the smallest node containing the point with clickable || editable (chrome included), refresh() + ACTION_CLICK, false when none/rejected.",
+      "fakes": "All 8 ActionExecutor fakes implement clickNode: VisionLoopGroundingTest/VisionLoopEnterTextTest/VisionLoopTypeEditableTest/VisionLoopGateTest/VisionExperimentTest/NavigatorVisionBridgeTest RecordingExecutors (the vision ones record calls), LoopTestSupport.FakeExecutor (journals clickNode(x,y)), TypeMechanismLoopTest.ChainFailExecutor (records).",
+      "wiring": "NavigatorVisionBridge.newVisionLoop(coveredBounds = …) forwarded to the loop; NavigatorService supplies listOfNotNull(manager.liveLogBounds(), manager.inputMethodBounds()) mapped to RectPx; OverlayManager.inputMethodBounds(): Rect? (TYPE_INPUT_METHOD scan) with inputMethodWindowTop() delegating to it (behavior preserved)."
+    },
+    "WI4_docs": {
+      "appAgents": "app/AGENTS.md — the D2 live-log-exclusion passage replaced by the PHASE_VEXP5 law (window capture primary + fallback, origin, covered-point guard, new files/wiring, the source vocabulary, the first-frame source line, the new JVM gates list entry).",
+      "rootAgents": "root AGENTS.md — one compact VEXP5 clause at the end of the app/ bullet (window-scoped screenshots + behind-log node actions + no raw touch).",
+      "debugging": ".state/DEBUGGING.md — dated VEXP5 extension in the vision blockquote: black rectangle = FALLBACK frame (scope=display:fallback=…); the log is otherwise absent from model images; verify with the screenshot's scope= line; behind-log markers named.",
+      "complianceLog": ".state/compliance-log.md — appended the 2026-10-18 PHASE_VEXP5 entry (implementer self-run gates, NOT verification; $0; no live calls; no commit).",
+      "unchanged": "VisionPrompts.kt / VISION_PROMPT_VERSION (vision-exp-v10), budgets, the live-log UI, and the legacy loop's tap path are UNCHANGED."
+    }
+  },
+  "testChanges": {
+    "added": [
+      "CaptureWindowPolicyTest (4): `the focused allowlisted application window wins`; `without focus the active window wins - then list order`; `non-browser non-application and empty windows are never lawful`; `no lawful candidate selects nothing - the display fallback`",
+      "VisionOcclusionTest (6): `coveredAt grows every rect by the margin`; `tappableNodeAt picks the smallest actionable node and includes browser chrome`; `tappableNodeAt ignores inert and scroll-only nodes`; `uncoveredPoint walks the candidate order and returns null when everything is covered` (rewritten by the review amendment); `boxToScreenRect adds the scope origin and clamps fractions`; `boxToScreenRect with a zero origin is the pre-VEXP5 mapping`",
+      "VisionLoopBehindLogTest (6): `a covered tap activates the page node - never a raw touch`; `a covered point with no actionable node fails loudly - zero touches`; `a covered tap-converted type skips the focus tap and still enters the plan text`; `a covered scroll with no uncovered point never dispatches - loud failure` (review amendment); `a covered scroll moves to the first uncovered point and dispatches once` (review amendment); `the stuck probe never scrolls from a covered start with no uncovered point` (review amendment)"
+    ],
+    "rewritten": [
+      "VisionOcclusionTest: `uncoveredPoint walks the candidate order and falls back to the centre` -> `uncoveredPoint walks the candidate order and returns null when everything is covered` (the review amendment's stricter law: assertNull for a whole-area occluder)"
+    ],
+    "removed": []
+  },
+  "deviations": [
+    "ORCHESTRATOR REVIEW FIX 1 (2026-10-18): the stuck probe's scroll WAS an unguarded raw touch (`executor.scroll(nodes.lastOrNull()?.centerX ?: 540, 1200, down = true)`). It now routes through the same private `scrollStart(...)` helper as the ACT SCROLL branch: a null coveredBounds or an uncovered point dispatches exactly as before; a covered start with a safe point scrolls there (evidence `stuck probe: covered start -> moved to (x,y)`); a covered start with NO safe point dispatches NOTHING, logs + evidences `stuck probe skipped: covered start and no uncovered point`, and falls through to the existing still-static `consecutiveFailures = config.stepFailuresBeforeReplan` path.",
+    "ORCHESTRATOR REVIEW FIX 2 (2026-10-18): `VisionMath.uncoveredPoint` changed to `Pair<Int, Int>?` and returns NULL when every candidate is covered (the previous best-effort centre fallback is gone). The ACT SCROLL branch then returns the prescribed loud failure (`scroll start (x,y) is covered by the live log or keyboard and no uncovered point exists inside the captured frame; refusing a touch that would land on the overlay`) with zero dispatch. `scrollStart` likewise returns null for a covered start with no shot frame, so the no-frame case keeps the loud refusal.",
+    "The tap refusal text interpolates the actual point (`($x,$y)`) where the phase doc wrote the `(x,y)` placeholder — the codebase's existing loud-cause style (e.g. `no editable field at the raw point (650,1250)`); both required phrases are verbatim.",
+    "A display FALLBACK frame that also painted the live log keeps `display:fallback=<reason>` as its source: the phase doc's vocabulary has no combined fallback+excluded form. The exclusion still applies (the display path); the fallback reason is the more load-bearing evidence.",
+    "windowSource/fallbackReason/SOURCE_* constants live in VisionCapture.Companion (pure string helpers beside the capture they describe) rather than a new file; the phase doc named CaptureWindowPolicy for the pure decision and VisionCapture for the capture.",
+    "The retry helper grants one 400 ms retry PER condition kind (one for a synchronously thrown UnsupportedOperationException, one for ERROR_TAKE_SCREENSHOT_INTERVAL_TIME_SHORT) rather than one shared retry total; each catches a distinct platform quirk and the doc lists both.",
+    "The covered-click-rejected failure message names the resolved page node id (the doc only prescribed a loud Failed); zero touches either way.",
+    "captureSafely's first-frame source line goes to the live log only (`[vision] screen: <source>`), per the doc's wording; it is not duplicated into the evidence event (the evidence already carries `scope=` on the screenshot line).",
+    "The new test cases live in three NEW $0 files (CaptureWindowPolicyTest / VisionOcclusionTest / VisionLoopBehindLogTest) rather than extending the existing vision test files — same package, scripted transport, fabricated ScreenShot, no device/provider call.",
+    "No emulator, no adb, no phone, no install, no commit per the dispatch.",
+    "DOX note: root AGENTS.md's app/ bullet already carried the VEXP4 sentence at the end of the vision/ bullet area; the VEXP5 clause was appended there (one compact clause). app/AGENTS.md's D2 text was replaced (not appended) because the old text contradicted the new primary capture path."
+  ],
+  "llmCost": 0.0,
+  "blocker": null,
+  "nextAction": "Owner phone run (deferred at the owner's request): install the verified APK on the S25+ when it is on the same Wi-Fi, enter/test both keys, submit the Riga goal through the real overlay, and monitor per .state/DEBUGGING.md. The canon-verifier PASS and the emulator fixture PASS are recorded; no code work is pending.",
+  "notes": [
+    "Baselines: vision 83 → 99; :app 597 → 613; :core 318 unchanged (the review amendment added 3 behind-log cases after the initial 96/610 round).",
+    "Verifier scrutiny points: (1) the window-capture failure fallback must never drop the exclusion on the display path (it does apply) and a DISPLAY failure must still throw; (2) the retry helper's two condition kinds and its finality for all other errors; (3) the covered-point guard's no-raw-tap invariant on EVERY covered TAP path (clickNode or loud failure, tap() never called) AND on EVERY scroll path — the ACT SCROLL branch and the stuck probe share `scrollStart`, and an all-covered frame yields NULL (asserted in the pure + loop tests); (4) the null coveredBounds / null shot / zero-exclusion paths staying byte-identical apart from the intentional evidence `scope=` addition; (5) origin propagation into the gate's x/y and the degraded centre fallbacks.",
+    "EMULATOR (2026-10-18): both requested behaviors verified on the real app path (see emulatorVerification + .state/vision-iter/vexp5-run/REPORT.md). The two fixture runs' step 0 fired the covered guard and the page became TAPPED; the window-scoped frames carried `scope=window:...`; the Jev boxes landed on the button node at IoU 0.94/0.84. The runs did not reach GOAL_ACHIEVED because the fixture's done condition was URL-shaped (the battery flagged the mis-shape; the runs were ended after the step-0 evidence) — fixture/planner mismatch, not a VEXP5 failure. No phone run."
+  ]
+}
