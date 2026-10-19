@@ -6,20 +6,19 @@ package navigator.app.setup
  * device reads in and renders the states this derives.
  *
  * The checks (phase doc §2.2 + the 2026-10-17 hotel-iteration addition + the PHASE_VEXP1
- * dual-key revision), in render order:
+ * dual-key revision; the informational laya model check REMOVED in PHASE_VEXP4 — it was
+ * dormant since PHASE_VEXP3 retired the training program), in render order:
  *  1. accessibility service enabled (the Android 13+ "Allow restricted settings" path
  *     is INSTRUCTION TEXT — a sideloaded a11y app is restricted after install);
  *  2. Samsung battery whitelist (TEXT-GUIDED: no programmatic whitelist on stock
  *     Android is lawful; non-Samsung devices pass with an info line so the wizard can
  *     complete green on the emulator);
  *  3. OpenRouter key saved (presence only — the value is never rendered back);
- *  4. TypeSafe key saved (PHASE_VEXP1 work item 2: the vision experiment's vendor image
+ *  4. TypeSafe key saved (PHASE_VEXP1 work item 2: the vision engine's vendor image
  *     channel; REQUIRED in this app — same presence-only law, same fixed-dot marker);
  *  5. keys LIVE (ON-DEMAND — the DUAL tester: one "Test keys" tap fires BOTH the free
  *     OpenRouter `GET /api/v1/key` AND a minimal one-noul TypeSafe probe, rendering TWO
- *     independent verdict lines; never auto-runs, never gates);
- *  6. on-device laya model status (informational, eval-only since the 2026-10-06 owner
- *     demotion — Jev is primary, the model is NOT required, never blocks).
+ *     independent verdict lines; never auto-runs, never gates).
  */
 object SetupLogic {
 
@@ -157,22 +156,6 @@ object SetupLogic {
     }
 
     /**
-     * The model-status check: INFORMATIONAL ONLY (the 2026-10-06 owner decision — the
-     * on-device laya model is eval-only, Jev is primary, the model is NOT required) and
-     * NEVER gates the summary.
-     */
-    fun modelCheck(modelPresent: Boolean): CheckState = CheckState(
-        id = CHECK_MODEL,
-        status = Status.INFO,
-        detail = if (modelPresent) {
-            "On-device Laya model (int8) is present. Eval-only: Jev is primary — not required."
-        } else {
-            "On-device Laya model (int8) is not installed. Eval-only: Jev is primary — not required."
-        },
-        required = false,
-    )
-
-    /**
      * The on-demand live-key test's states (2026-10-17 hotel iteration, run-1 fix 2):
      * UNTESTED until the owner taps the card's Test button — the network call NEVER
      * runs by itself (owner interview 2026-10-17: "only when I tap Test"), so wizard
@@ -261,22 +244,25 @@ object SetupLogic {
         states.filter { it.required }.all { it.status == Status.GREEN }
 
     /**
-     * PHASE_VEXP2 (the engine switch): the vision-loop toggle's pure state. The card
-     * is INTERACTIVE only when BOTH keys are stored (the run needs both channels —
-     * [navigator.app.harness.vision.ProductRunRoute] refuses otherwise), and the
-     * effective ON is the persisted value AND both keys (a key deleted after the
-     * toggle was saved reads honestly as off; the service re-checks the stores at run
-     * time anyway). NOT a wizard check — it never appears in the summary.
+     * PHASE_VEXP2 (the engine switch) + PHASE_VEXP4 (the default flip): the vision-loop
+     * toggle's pure state. The vision loop IS the app's engine — the preference
+     * defaults ON ([VISION_LOOP_DEFAULT]) and the owner's explicit OFF is the
+     * LEGACY-engine fallback. The card is INTERACTIVE only when BOTH keys are stored
+     * (the run needs both channels — [navigator.app.harness.vision.ProductRunRoute]
+     * refuses loudly otherwise), and the effective ON is the persisted-or-default value
+     * AND both keys (a key deleted after the toggle was saved reads honestly as off;
+     * the service re-checks the stores at run time anyway). NOT a wizard check — it
+     * never appears in the summary.
      */
     data class VisionLoopToggleState(
         /** Whether the card's control may be flipped right now (both keys stored). */
         val interactive: Boolean,
-        /** What a product run honors right now: the persisted value AND both keys. */
+        /** What a product run honors right now: the persisted-or-default value AND both keys. */
         val on: Boolean,
     )
 
     fun visionLoopToggleState(
-        storedOn: Boolean,
+        storedOn: Boolean = VISION_LOOP_DEFAULT,
         openRouterPresent: Boolean,
         typesafePresent: Boolean,
     ): VisionLoopToggleState {
@@ -291,7 +277,6 @@ object SetupLogic {
     const val CHECK_BATTERY = "battery"
     const val CHECK_KEY = "key"
     const val CHECK_TYPESAFE_KEY = "typesafeKey"
-    const val CHECK_MODEL = "model"
     const val CHECK_KEY_LIVE = "keyLive"
 
     /**
@@ -304,14 +289,22 @@ object SetupLogic {
     const val BATTERY_ACK_PREF_KEY = "battery-acknowledged"
 
     /**
-     * PHASE_VEXP2 — the vision-loop preference ("Use vision loop (experimental
-     * engine)") rides the SAME plain-SharedPreferences file (the battery-ack
-     * precedent: a user preference, not a secret), default OFF. The Setup wizard
-     * writes it on every flip; [navigator.app.overlay.NavigatorService] reads it at
+     * PHASE_VEXP2 — the vision-loop preference ("Use vision loop (recommended)")
+     * rides the SAME plain-SharedPreferences file (the battery-ack precedent: a user
+     * preference, not a secret). PHASE_VEXP4 — THE DEFAULT FLIP: the vision loop IS
+     * the app's engine, so every reader falls back to [VISION_LOOP_DEFAULT] (= ON)
+     * when the key is ABSENT; an explicitly stored OFF is the owner's legacy-engine
+     * fallback and routes [navigator.app.harness.vision.ProductRunRoute.Legacy]
+     * byte-identically. A default run with a key missing refuses LOUDLY naming the
+     * channel + the wizard — NEVER a silent legacy fallback. The Setup wizard writes
+     * the key on every flip; [navigator.app.overlay.NavigatorService] reads it at
      * every product run.
      */
     const val VISION_LOOP_PREFS_FILE = BATTERY_ACK_PREFS_FILE
     const val VISION_LOOP_PREF_KEY = "use-vision-loop"
+
+    /** The absent-key fallback: ON — the vision loop IS the app's engine (PHASE_VEXP4). */
+    const val VISION_LOOP_DEFAULT = true
 
     /**
      * UAT 9.2 revision R5 — the saved-key indicator: a FIXED dot string shown while a

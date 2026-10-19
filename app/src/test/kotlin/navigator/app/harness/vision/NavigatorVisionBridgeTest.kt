@@ -13,6 +13,7 @@ import kotlinx.serialization.json.put
 import navigator.app.loop.ActionExecutor
 import navigator.app.loop.LoopObserver
 import navigator.app.loop.StepObservation
+import navigator.app.setup.SetupLogic
 import navigator.core.enumerate.ObservedNode
 import navigator.core.wire.WireHttpRequest
 import navigator.core.wire.WireHttpResponse
@@ -70,6 +71,57 @@ class NavigatorVisionBridgeTest {
         // Blank is not a key (the store's own trim-to-null law mirrored here).
         assertEquals(ProductRunRoute.decide(true, "  ", "ts-key"), noOpenRouter)
     }
+
+    // -- PHASE_VEXP4, the default flip: the matrix pinned on the DEFAULT (the vision
+    // loop IS the app's engine — the absent-key fallback every preference reader uses) --
+
+    @Test
+    fun `the DEFAULT with both keys routes Vision - the vision loop is the app's engine`() {
+        // The default is the SetupLogic constant every reader falls back to when the
+        // pref key is ABSENT — and it is ON.
+        assertTrue(SetupLogic.VISION_LOOP_DEFAULT)
+        val route = ProductRunRoute.decide(SetupLogic.VISION_LOOP_DEFAULT, "or-key", "ts-key")
+        assertEquals(ProductRunRoute.Vision("or-key", "ts-key"), route)
+    }
+
+    @Test
+    fun `the DEFAULT with a missing key refuses loudly naming the channel and the wizard - never Legacy`() {
+        // Default + the TypeSafe key missing (the OpenRouter key present).
+        val noTypesafe = ProductRunRoute.decide(SetupLogic.VISION_LOOP_DEFAULT, "or-key", null)
+        assertTrue(noTypesafe is ProductRunRoute.Refused)
+        assertTrue(noTypesafe.detail.contains("TypeSafe"), "the missing channel is named")
+        assertTrue(noTypesafe.detail.contains("OpenRouter").not(), "only the missing channel is blamed")
+        assertTrue(noTypesafe.detail.contains("setup"), "the wizard is named")
+
+        // Default + the OpenRouter key missing (the TypeSafe key present).
+        val noOpenRouter = ProductRunRoute.decide(SetupLogic.VISION_LOOP_DEFAULT, null, "ts-key")
+        assertTrue(noOpenRouter is ProductRunRoute.Refused)
+        assertTrue(noOpenRouter.detail.contains("OpenRouter"))
+        assertTrue(noOpenRouter.detail.contains("TypeSafe").not())
+        assertTrue(noOpenRouter.detail.contains("setup"))
+
+        // Default + neither key stored names BOTH channels.
+        val none = ProductRunRoute.decide(SetupLogic.VISION_LOOP_DEFAULT, null, null)
+        assertTrue(none is ProductRunRoute.Refused)
+        assertTrue(none.detail.contains("OpenRouter") && none.detail.contains("TypeSafe"))
+
+        // The no-silent-fallback law: under the DEFAULT, a missing key NEVER routes
+        // the legacy loop (fresh re-derivations, so the check is real).
+        assertFalse(
+            ProductRunRoute.decide(SetupLogic.VISION_LOOP_DEFAULT, "or-key", null)
+                is ProductRunRoute.Legacy,
+        )
+        assertFalse(
+            ProductRunRoute.decide(SetupLogic.VISION_LOOP_DEFAULT, null, "ts-key")
+                is ProductRunRoute.Legacy,
+        )
+        assertFalse(
+            ProductRunRoute.decide(SetupLogic.VISION_LOOP_DEFAULT, null, null)
+                is ProductRunRoute.Legacy,
+        )
+    }
+
+
 
     // -- the construction test: the bridge builds a LIVE VisionLoop over the caller's edges --
 

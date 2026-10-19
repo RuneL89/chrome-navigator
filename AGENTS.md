@@ -164,7 +164,7 @@ When the user requests a durable behavior change, record it here or in the relev
   gate-runner surface (`GateScenarios` — the four gates' assertion bodies in main
   source, run by adb OUTSIDE instrumentation because the JUnit shell is
   platform-blocked on the API 35 emulator; evidence = `logcat -s NavigatorGates`)) and
-  the four-check
+  the five-row
   wizard (a11y, Samsung battery, OpenRouter key, TypeSafe key, the dual live-key
   tester) + the
   `EncryptedSharedPreferences` TWO-slot key store;

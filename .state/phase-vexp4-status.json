@@ -3,22 +3,57 @@
   "title": "The default flip: the vision loop IS the app's engine",
   "phaseDoc": ".state/vision-iter/PHASE_VEXP4_default_flip.md",
   "branch": "exp/vision-box",
-  "status": "in-progress",
+  "status": "verified",
   "startedAt": "2026-10-19",
-  "goal": "useVisionLoop defaults TRUE; app goals run VisionLoop by default; missing TypeSafe key = loud refusal, never silent legacy fallback; dormant laya setup probe removed.",
-  "stoppingCondition": "Gates green + behavior-matrix tests (default+keys=Vision, default+missing-TS=Refused, OFF=Legacy byte-identical) + probe gone.",
-  "gatesPassed": [],
-  "gatesFailed": [],
-  "gatesPending": [
-    ":app:testDebugUnitTest --tests navigator.app.harness.vision.*",
-    ":app:testDebugUnitTest",
-    ":core:test",
-    ":app:assembleDebug",
-    "badge + dex vision-exp-v7 + APK < 40MB"
+  "implementedAt": "2026-10-19",
+  "goal": "useVisionLoop defaults TRUE: with both keys stored every app goal runs VisionLoop; a missing TypeSafe/OpenRouter key is a LOUD refusal naming the channel + the wizard (NO silent legacy fallback); the toggle remains the owner's explicit legacy-engine fallback; the dormant laya setup model-check is removed.",
+  "stoppingCondition": "Behavior matrix pinned by tests (default+keys -> Vision; default+missing key -> Refused, never Legacy; explicit OFF -> Legacy byte-identical); dormant probe gone with the wizard required set updated; gates green incl. APK < 40MB + dex vision-exp-v7; docs/status/compliance updated.",
+  "baseline": "Fresh start per dispatch: the cancelled attempt's uncommitted working-tree changes (partial VEXP4 source edits + uncommitted VEXP3-era root-AGENTS.md / tools-AGENTS.md doc text) were DISCARDED (git restore) to the packaging commit 3276813 before implementing; the untracked .state run-evidence dirs were left alone.",
+  "gatesPassed": [
+    ":app:...vision.* — 57/57 (Bridge 7 + Gate 10 + Experiment 40, verifier re-run)",
+    ":app:testDebugUnitTest — 571/0/0 (verifier re-run)",
+    ":core:test --rerun-tasks — 318/0 (verifier forced re-run)",
+    ":app:assembleDebug — SUCCESS",
+    "badge navigator.app.visionexp / 0.1.0-visionexp + dex vision-exp-v7 (classes13.dex) + card strings present, model-check strings absent",
+    "APK 36,654,939 bytes = 34.96 MiB < 40MB"
   ],
-  "deviations": [],
-  "llmCost": "implementation $0 (deterministic)",
-  "blocker": null,
-  "nextAction": "canon-implementer builds work items 1-3 per the phase doc",
-  "notes": ["Sub-agents communicate via this file."]
+  "gatesFailed": [],
+  "gatesPending": [],
+  "workItems": {
+    "WI1_default_flip": "SetupLogic.VISION_LOOP_DEFAULT = true (new const); visionLoopToggleState(storedOn = VISION_LOOP_DEFAULT); NavigatorService.visionLoopToggled falls back to the constant; SetupActivity.readVisionLoopPref ditto; the wizard card reads \"Use vision loop (recommended)\" with the supporting text framing the legacy loop as the fallback in all three states (needs-keys / on-default / off-fallback). Behavior matrix: default+both keys -> ProductRunRoute.Vision; default+missing channel -> ProductRunRoute.Refused naming the channel + \"setup\" (the wizard), never Legacy; explicit OFF -> ProductRunRoute.Legacy byte-identical (the existing OFF test unchanged, literal false). ProductRunRoute.decide logic itself is UNCHANGED — the flip lives entirely in the preference readers, so the OFF path keeps its never-reads-the-second-store property.",
+    "WI2_dormant_probe_removal": "Deleted SetupLogic.modelCheck + CHECK_MODEL; deleted SetupActivity's LAYA_ASSET_DIR/LAYA_ASSET_FILE constants, the assets.list probe in refresh(), the checks.add(modelCheck(...)) row, and the CHECK_MODEL title mapping. The wizard renders FIVE checks (a11y, Samsung battery, OpenRouter key, TypeSafe key, the dual live-key tester); the required set is unchanged at a11y + both key cards (battery required on Samsung only; the tester never gated) — the model row was always INFO/required=false. This was the last functional laya reference in :app main.",
+    "WI3_docs": "app/AGENTS.md: the VEXP4 law in Purpose (vision loop IS the engine; loud refusal; explicit OFF = fallback), NavigatorService bullet (ENGINE SWITCH flipped by default), setup/ bullet (five checks; VISION_LOOP_DEFAULT; the reworded card), vision/ ENGINE SWITCH paragraph (default ON; missing key = LOUD refusal naming channel + wizard; explicit OFF = byte-identical legacy; the test list updated) + a pre-existing duplicated JVM-gates block collapsed; root AGENTS.md app/ bullet: the wizard count fixed to five + one VEXP4 default-engine passage at the bullet's end; .state/DEBUGGING.md: dated PHASE_VEXP4 extension in the §3 terminal-signal blockquote (default ON; missing-key refusal starts nothing; OFF keeps the legacy rules)."
+  },
+  "testChanges": {
+    "added": [
+      "NavigatorVisionBridgeTest: `the DEFAULT with both keys routes Vision - the vision loop is the app's engine`",
+      "NavigatorVisionBridgeTest: `the DEFAULT with a missing key refuses loudly naming the channel and the wizard - never Legacy`",
+      "SetupLogicTest: `the vision-loop preference defaults ON - the vision loop is the app's engine`",
+      "SetupLogicTest: `the wizard renders five checks - the dormant laya model check is removed`"
+    ],
+    "rewritten": [
+      "VisionLoopPrefRoundTripTest: default-ON assertion + an explicit-OFF leg added (the round-trip keeps write-ON/read-back)"
+    ],
+    "removed": [
+      "SetupLogicTest: `the model check is informational and never gates - Jev is primary` + the modelCheck(false) rows in four wizard lists"
+    ]
+  },
+  "deviations": [
+    "Discarded the cancelled attempt's working tree per the dispatch (git restore to 3276813) — including two files whose uncommitted text was NOT VEXP4 work: root AGENTS.md and tools/AGENTS.md carried an uncommitted VEXP3-era doc update (the retirement rewrite of the app/ + tools/ bullets; tools/AGENTS.md's Verification section still claims verifyLayaModel runs on every build, stale since VEXP3). My sanctioned root-AGENTS.md edit covers only the wizard count + the VEXP4 line, so the app/ bullet's pre-VEXP3 sentences (laya engine, Room persistence, Phase-8 shadow text) remain stale until that VEXP3 doc pass is re-landed — flagged here for the orchestrator to schedule; tools/AGENTS.md was outside my phase scope entirely and is untouched.",
+    "app/AGENTS.md: a pre-existing DUPLICATED JVM-gates block in the vision/ bullet (the NavigatorVisionBridgeTest/SetupLogicTest/VisionLoopPrefRoundTripTest lines + the Entry line appeared twice, lines ~891-902) was collapsed during the required edit of that block — DOX remove-stale-text, comment-only.",
+    "app/AGENTS.md Phase-9 gate record: the stale \"the never-gating model check\" fragment in SetupLogicTest's description was removed (the suite no longer covers it); the historical gate verdicts are untouched.",
+    "The TypeSafe key card's red-detail wording (\"The vision experiment's image channel …\") was left verbatim: the phase doc prescribes only the TOGGLE card wording change, and R5-era card strings are UAT-approved surface (any further rewording is a UI change with its own design interview).",
+    ".state/DEBUGGING.md's PHASE_VEXP2 blockquote keeps its historical \"Use vision loop (experimental engine)\" quote unmodified (append-forward records); the new dated PHASE_VEXP4 extension supersedes the default.",
+    "Filing note: the implementer status over-claimed a root-AGENTS edit that was already at HEAD a86cd82 (attribution corrected); the discarded-tree restore phrasing is mechanically confused but the end-state lost nothing (verifier-verified)."
+  ],
+  "llmCost": "implementation $0 (deterministic; all tests scripted, no live calls)",
+  "blocker": "",
+  "nextAction": "trilogy complete -> actual-app emulator test via the android-emulator plugin",
+  "notes": [
+    "No :core change this phase; the :core gate was forced (--rerun-tasks) for a truthful 318/0 record.",
+    "The compliance log carries the matching implementation entry (self-run gates, NOT verification).",
+    "Test count moved :app 568 -> 571 (see testChanges); total with :core 889 green.",
+    "git tree intentionally left UNCOMMITTED per the dispatch (do NOT commit; do NOT install)."
+  ],
+  "verification": ".state/phase-vexp4-verification.md (VERDICT: PASS)"
 }

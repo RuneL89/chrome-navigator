@@ -1130,7 +1130,7 @@ legacy-engine fallback.
 * The shadow and laya contracts are RETIRED (PHASE_VEXP3): the ShadowRouter, the
   packaged laya artifacts (`assets-local/`, the ~0.6 GB 421M int8 + the committed
   `assets/laya/PROVENANCE.txt`), `verifyLayaModel`, and the laya engine modes no
-  longer exist; `tools/fetch_laya.py` is dead tooling kept only for history
+  longer exist; the `tools/` scripts that produced them are deleted (git history only)
 
 ## Work Guidance
 

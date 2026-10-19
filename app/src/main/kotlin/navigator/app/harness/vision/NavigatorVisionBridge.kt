@@ -13,13 +13,18 @@ import java.io.File
  * `LiveLogRecovery`/`TypeMechanism` precedent): the service feeds the wizard toggle +
  * the store-resolved keys in, and the JVM tests pin every route.
  *
- * - Toggle OFF (the DEFAULT) routes [ProductRunRoute.Legacy] — the service falls
- *   straight through to its legacy [navigator.app.loop.NavigationLoop] construction,
- *   byte-identical, without touching either key store;
- * - Toggle ON + both keys stored routes [ProductRunRoute.Vision] carrying the keys;
- * - Toggle ON + a missing channel routes [ProductRunRoute.Refused] — the polite loud
- *   refusal naming the channel (the no-key precedent's wording style); the service
- *   renders it log + corner log + notification and runs nothing.
+ * - Toggle ON (the DEFAULT since PHASE_VEXP4 — the vision loop IS the app's engine;
+ *   every preference reader falls back to [navigator.app.setup.SetupLogic]
+ *   .VISION_LOOP_DEFAULT = ON) + both keys stored routes [ProductRunRoute.Vision]
+ *   carrying the keys;
+ * - Toggle ON + a missing channel routes [ProductRunRoute.Refused] — the LOUD refusal
+ *   naming the channel + the wizard (the no-key precedent's wording style); NEVER a
+ *   silent fallback to Legacy. The service renders it log + corner log + notification
+ *   and runs nothing;
+ * - Toggle OFF (the owner's explicit legacy-engine fallback) routes
+ *   [ProductRunRoute.Legacy] — the service falls straight through to its legacy
+ *   [navigator.app.loop.NavigationLoop] construction, byte-identical, without touching
+ *   either key store.
  */
 sealed interface ProductRunRoute {
 

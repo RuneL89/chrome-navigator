@@ -228,13 +228,15 @@ class NavigatorService : Service() {
                 }
                 writerKey = key
 
-                // PHASE_VEXP2 — THE ENGINE SWITCH (owner directive 2026-10-19): a goal
-                // typed in the app CAN run the experiment's VisionLoop when the wizard's
-                // "Use vision loop" preference is ON and BOTH keys are stored. Toggle
-                // OFF (the DEFAULT) routes Legacy and falls straight through to the
-                // legacy construction below — untouched, byte-identical. Toggle ON + a
-                // missing key refuses politely (the no-key precedent above); the vision
-                // run itself builds + runs in [runVisionLoopTask].
+                // PHASE_VEXP2 — THE ENGINE SWITCH (owner directive 2026-10-19), flipped
+                // BY DEFAULT in PHASE_VEXP4: the vision loop IS the app's engine — the
+                // wizard's "Use vision loop" preference defaults ON, so a goal typed in
+                // the app runs VisionLoop whenever BOTH keys are stored. A missing key
+                // refuses LOUDLY naming the channel + the wizard — NEVER a silent
+                // fallback to the legacy loop. Only the owner's explicit OFF routes
+                // Legacy: it falls straight through to the legacy construction below —
+                // untouched, byte-identical (and never reads the second key store).
+                // The vision run itself builds + runs in [runVisionLoopTask].
                 val visionToggled = visionLoopToggled()
                 when (val route = ProductRunRoute.decide(
                     useVisionLoop = visionToggled,
@@ -353,13 +355,15 @@ class NavigatorService : Service() {
     }
 
     /**
-     * The engine-switch preference (PHASE_VEXP2): plain SharedPreferences, the
-     * battery-ack file + precedent, key `"use-vision-loop"`, default OFF. Written by
-     * the setup wizard's toggle card on every flip.
+     * The engine-switch preference (PHASE_VEXP2; PHASE_VEXP4 the default flip): plain
+     * SharedPreferences, the battery-ack file + precedent, key `"use-vision-loop"`,
+     * default ON — the vision loop IS the app's engine, and an explicitly stored OFF
+     * is the owner's legacy-engine fallback. Written by the setup wizard's toggle
+     * card on every flip.
      */
     private fun visionLoopToggled(): Boolean =
         getSharedPreferences(SetupLogic.VISION_LOOP_PREFS_FILE, MODE_PRIVATE)
-            .getBoolean(SetupLogic.VISION_LOOP_PREF_KEY, false)
+            .getBoolean(SetupLogic.VISION_LOOP_PREF_KEY, SetupLogic.VISION_LOOP_DEFAULT)
 
     /**
      * PHASE_VEXP2: the TOGGLED product run — the experiment's VisionLoop over THIS

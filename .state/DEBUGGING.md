@@ -115,6 +115,14 @@ AUTHORITATIVE terminal signal per app:
 > logcat — there is no database to baseline or poll, and a legacy run's record after
 > the fact is whatever the corner log showed. Vision runs (toggle ON or adb) are
 > unchanged: corner log + `run-reports/vision-exp/` evidence.
+>
+> **EXTENSION (2026-10-19, PHASE_VEXP4 the default flip):** the wizard's "Use vision
+> loop (recommended)" preference now DEFAULTS ON — the vision loop IS the app's
+> engine. An overlay-submitted goal runs VisionLoop BY DEFAULT (with BOTH keys
+> stored); a default run missing EITHER key refuses LOUDLY and starts nothing (the
+> corner log + the READY notification name the channel and point at setup — never a
+> silent legacy fallback). Only an owner-flipped toggle OFF keeps the legacy-loop
+> rules above byte-identical.
 
 * product (PHASE_VEXP3): NO database — the Room layer is retired and no
   `task_terminal` row is ever written (the historical `run-as … task_terminal`

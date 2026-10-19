@@ -8,8 +8,9 @@ import kotlin.test.assertTrue
 /**
  * Gate F (Phase 9, phase doc §2.2) — the setup wizard's PURE state derivation:
  * the a11y-enabled check string parsing, the manufacturer branching (Samsung-only
- * battery step; the emulator completes green), the key presence semantics, the
- * informational model check (never blocks), and the all-required-green summary.
+ * battery step; the emulator completes green), the key presence semantics, and the
+ * all-required-green summary. PHASE_VEXP4 removed the dormant laya model check (the
+ * wizard's five checks) and flipped the vision-loop preference default ON.
  * Pure JVM — no Android types.
  */
 class SetupLogicTest {
@@ -81,7 +82,7 @@ class SetupLogicTest {
         assertEquals(SetupLogic.Status.GREEN, green.status)
     }
 
-    // -- the key + model checks and the summary ----------------------------------------
+    // -- the key checks and the summary -----------------------------------------------
 
     @Test
     fun `the key check is presence-only and required`() {
@@ -114,7 +115,6 @@ class SetupLogicTest {
                 SetupLogic.accessibilityCheck(true),
                 restored,
                 SetupLogic.keyCheck(true),
-                SetupLogic.modelCheck(false),
             ),
         ))
     }
@@ -134,17 +134,6 @@ class SetupLogicTest {
         assertTrue(saved.detail.contains(SetupLogic.SAVED_KEY_INDICATOR))
         assertTrue(saved.detail.contains("replaces"))
         assertFalse(saved.detail.contains("sk-"), "no key-material shape may ever render")
-    }
-
-    @Test
-    fun `the model check is informational and never gates - Jev is primary`() {
-        val present = SetupLogic.modelCheck(true)
-        assertEquals(SetupLogic.Status.INFO, present.status)
-        assertFalse(present.required)
-        val absent = SetupLogic.modelCheck(false)
-        assertEquals(SetupLogic.Status.INFO, absent.status)
-        assertFalse(absent.required)
-        assertTrue(absent.detail.contains("not required"))
     }
 
     @Test
@@ -199,7 +188,6 @@ class SetupLogicTest {
                 "Not tested yet — tap \"Test key\" to validate the stored key against " +
                     "OpenRouter (a free call; no tokens are spent).",
             ),
-            SetupLogic.modelCheck(false),
         )
         assertTrue(
             SetupLogic.allRequiredGreen(wizard),
@@ -218,7 +206,6 @@ class SetupLogicTest {
             SetupLogic.accessibilityCheck(true),
             SetupLogic.batteryCheck("Google", acknowledged = false),
             SetupLogic.keyCheck(true),
-            SetupLogic.modelCheck(false),
         )
         assertTrue(SetupLogic.allRequiredGreen(emulatorWizard), "the emulator can complete green")
 
@@ -226,7 +213,6 @@ class SetupLogicTest {
             SetupLogic.accessibilityCheck(true),
             SetupLogic.batteryCheck("samsung", acknowledged = false),
             SetupLogic.keyCheck(true),
-            SetupLogic.modelCheck(false),
         )
         assertFalse(SetupLogic.allRequiredGreen(samsungWizardPending))
 
@@ -307,7 +293,6 @@ class SetupLogicTest {
                     SetupLogic.KeyTestState.UNTESTED, "u",
                 ),
             ),
-            SetupLogic.modelCheck(false),
         )
         assertTrue(SetupLogic.allRequiredGreen(wizard), "an untested dual card never blocks")
         val noTypesafe = wizard.map {
@@ -343,10 +328,56 @@ class SetupLogicTest {
 
     @Test
     fun `the vision-loop persistence contract rides the plain battery-ack prefs file`() {
-        // The battery-ack precedent verbatim: same file, a dedicated key, default OFF
-        // (the default itself is the reader's `false` fallback — pinned by the key name).
+        // The battery-ack precedent verbatim: same file, a dedicated key; PHASE_VEXP4
+        // pins the DEFAULT itself as the ON constant (the reader's absent-key fallback).
         assertEquals("navigator-setup", SetupLogic.VISION_LOOP_PREFS_FILE)
         assertEquals(SetupLogic.BATTERY_ACK_PREFS_FILE, SetupLogic.VISION_LOOP_PREFS_FILE)
         assertEquals("use-vision-loop", SetupLogic.VISION_LOOP_PREF_KEY)
+    }
+
+    // -- PHASE_VEXP4: the default flip + the dormant model check removed ---------------------
+
+    @Test
+    fun `the vision-loop preference defaults ON - the vision loop is the app's engine`() {
+        // The default flip: every preference reader falls back to this constant when
+        // the key is absent, and it is ON; an explicit false stays the owner's
+        // legacy-engine fallback (the pure derivation honors the stored value).
+        assertTrue(SetupLogic.VISION_LOOP_DEFAULT)
+        val default = SetupLogic.visionLoopToggleState(openRouterPresent = true, typesafePresent = true)
+        assertTrue(default.interactive)
+        assertTrue(default.on, "an absent key reads as ON with both keys stored")
+        val explicitOff = SetupLogic.visionLoopToggleState(storedOn = false, openRouterPresent = true, typesafePresent = true)
+        assertTrue(explicitOff.interactive)
+        assertFalse(explicitOff.on, "an explicit OFF is the legacy fallback, honored exactly")
+    }
+
+    @Test
+    fun `the wizard renders five checks - the dormant laya model check is removed`() {
+        // PHASE_VEXP4 removed the always-informational laya model-status row (dormant
+        // since PHASE_VEXP3 retired the training program): the wizard the activity
+        // builds is now FIVE rows, none of them the model check, and the required set
+        // is a11y + both key cards (the battery is required on Samsung only; the dual
+        // tester never gates).
+        val wizard = listOf(
+            SetupLogic.accessibilityCheck(true),
+            SetupLogic.batteryCheck("Google", acknowledged = false),
+            SetupLogic.keyCheck(true),
+            SetupLogic.typesafeKeyCheck(true),
+            SetupLogic.dualKeyLiveCheck(
+                SetupLogic.DualKeyTest(
+                    SetupLogic.KeyTestState.UNTESTED, "u",
+                    SetupLogic.KeyTestState.UNTESTED, "u",
+                ),
+            ),
+        )
+        assertEquals(5, wizard.size, "the check count dropped with the model row")
+        assertFalse(wizard.any { it.id == "model" }, "the model check id is gone")
+        assertEquals(5, wizard.distinctBy { it.id }.size, "one row per check id")
+        assertTrue(
+            wizard.filter { it.required }.all { it.id != "model" },
+            "no removed check remains in the required set",
+        )
+        assertTrue(SetupLogic.allRequiredGreen(wizard))
+        assertEquals(setOf("accessibility", "key", "typesafeKey"), wizard.filter { it.required }.map { it.id }.toSet())
     }
 }

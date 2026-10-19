@@ -83,13 +83,15 @@ import okhttp3.RequestBody.Companion.toRequestBody
  *  5. the DUAL live-key validation (the 2026-10-17 hotel-iteration card, dual since
  *     PHASE_VEXP1: one "Test keys" button fires BOTH the free OpenRouter GET AND a
  *     minimal one-noul TypeSafe probe, rendering TWO independent verdict lines — never
- *     an auto-call, never a resume/focus ping, each save resets its own verdict);
- *  6. model-download status (informational; eval-only since the 2026-10-06 owner
- *     demotion — Jev is primary, never blocks).
+ *     an auto-call, never a resume/focus ping, each save resets its own verdict).
  * A summary line reports the all-required-green state (the dual-tester card never
  * gates). The screen also STARTS the [NavigatorService] (a lawful FOREGROUND start —
  * the FGS background-start law) and triggers the goal-input overlay for the
- * notification's "New task" action.
+ * notification's "New task" action. PHASE_VEXP4: the dormant laya model-status check
+ * is REMOVED (the last functional laya reference in :app main — dormant since
+ * PHASE_VEXP3 retired the training program) and the vision-loop toggle card reads
+ * "Use vision loop (recommended)" — the vision loop IS the app's engine by default
+ * (the preference defaults ON); the legacy loop is the owner's explicit fallback.
  *
  * Presentation (owner design pass 2026-10-09, ai-ui-design-skills interview: warm
  * brand-forward, dark-first compact, restructure + polish): warm-dark token set
@@ -153,12 +155,14 @@ class SetupActivity : ComponentActivity() {
     }
 
     /**
-     * PHASE_VEXP2: the "Use vision loop (experimental engine)" preference (plain prefs,
-     * the battery-ack precedent) — read on every refresh (R3), written on every flip.
+     * PHASE_VEXP2: the "Use vision loop (recommended)" preference (plain prefs, the
+     * battery-ack precedent) — read on every refresh (R3), written on every flip.
+     * PHASE_VEXP4: the default is ON (the vision loop IS the app's engine); an
+     * explicitly stored OFF is the owner's legacy-engine fallback.
      */
     private fun readVisionLoopPref(): Boolean =
         getSharedPreferences(SetupLogic.VISION_LOOP_PREFS_FILE, MODE_PRIVATE)
-            .getBoolean(SetupLogic.VISION_LOOP_PREF_KEY, false)
+            .getBoolean(SetupLogic.VISION_LOOP_PREF_KEY, SetupLogic.VISION_LOOP_DEFAULT)
 
     private fun writeVisionLoopPref(on: Boolean) {
         getSharedPreferences(SetupLogic.VISION_LOOP_PREFS_FILE, MODE_PRIVATE)
@@ -210,9 +214,6 @@ class SetupActivity : ComponentActivity() {
                 contentResolver,
                 Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
             )
-            val modelPresent = runCatching {
-                assets.list(LAYA_ASSET_DIR)?.contains(LAYA_ASSET_FILE) == true
-            }.getOrDefault(false)
             val keyStored = OpenRouterKeyStore.has(this@SetupActivity)
             val typesafeStored = OpenRouterKeyStore.hasTypesafeKey(this@SetupActivity)
             checks.clear()
@@ -227,7 +228,6 @@ class SetupActivity : ComponentActivity() {
                     SetupLogic.DualKeyTest(keyTestState, keyTestDetail, typesafeTestState, typesafeTestDetail),
                 ),
             )
-            checks.add(SetupLogic.modelCheck(modelPresent))
             keyPresent = keyStored
             typesafePresent = typesafeStored
             visionLoopOn = readVisionLoopPref()
@@ -509,11 +509,14 @@ class SetupActivity : ComponentActivity() {
                     }
                 }
 
-                // PHASE_VEXP2 (the engine switch): the vision-loop toggle card, beside
-                // the key cards. NOT a wizard check — it never gates the summary; the
-                // pure derivation (SetupLogic.visionLoopToggleState) makes the control
-                // interactive only when BOTH keys are stored, and every flip persists
-                // immediately (plain prefs, the battery-ack precedent).
+                // PHASE_VEXP2 (the engine switch) + PHASE_VEXP4 (the default flip): the
+                // vision-loop toggle card, beside the key cards. NOT a wizard check — it
+                // never gates the summary; the pure derivation
+                // (SetupLogic.visionLoopToggleState) makes the control interactive only
+                // when BOTH keys are stored, every flip persists immediately (plain
+                // prefs, the battery-ack precedent), and the stored value defaults ON
+                // (the vision loop IS the app's engine; explicit OFF = the legacy
+                // fallback).
                 val visionToggle = SetupLogic.visionLoopToggleState(
                     storedOn = visionLoopOn,
                     openRouterPresent = keyPresent,
@@ -550,7 +553,7 @@ class SetupActivity : ComponentActivity() {
                                 enabled = visionToggle.interactive,
                             )
                             Text(
-                                text = "Use vision loop (experimental engine)",
+                                text = "Use vision loop (recommended)",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier.weight(1f),
@@ -559,15 +562,16 @@ class SetupActivity : ComponentActivity() {
                         Text(
                             text = when {
                                 !visionToggle.interactive ->
-                                    "Needs both keys saved (OpenRouter + TypeSafe) before it " +
-                                        "can be switched on. Save them above."
+                                    "The vision loop is the app's engine and needs both keys " +
+                                        "saved (OpenRouter + TypeSafe) — goals refuse to run " +
+                                        "until you save them above."
                                 visionToggle.on ->
-                                    "On — typed goals run the experimental vision engine " +
-                                        "(screenshots + both AI channels). Turn off to return " +
-                                        "to the standard engine."
+                                    "On (default) — typed goals run the vision engine " +
+                                        "(screenshots + both AI channels). Turn off to fall " +
+                                        "back to the legacy engine."
                                 else ->
-                                    "Off — typed goals run the standard engine. Flip it on to " +
-                                        "experiment."
+                                    "Off — typed goals run the legacy engine (the fallback). " +
+                                        "Flip it on to return to the vision engine."
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -845,7 +849,6 @@ class SetupActivity : ComponentActivity() {
         SetupLogic.CHECK_KEY -> "OpenRouter key"
         SetupLogic.CHECK_TYPESAFE_KEY -> "TypeSafe key"
         SetupLogic.CHECK_KEY_LIVE -> "API keys are live"
-        SetupLogic.CHECK_MODEL -> "On-device model"
         else -> id.replaceFirstChar { it.uppercase() }
     }
 
@@ -871,8 +874,6 @@ class SetupActivity : ComponentActivity() {
         const val TYPESAFE_PROBE_MODEL = "jev-1.14.0"
 
         private const val POST_NOTIFICATIONS_REQUEST = 91
-        private const val LAYA_ASSET_DIR = "laya"
-        private const val LAYA_ASSET_FILE = "laya-int8.onnx"
     }
 }
 

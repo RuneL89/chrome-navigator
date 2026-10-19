@@ -12,9 +12,12 @@ import kotlin.test.assertTrue
 
 /**
  * PHASE_VEXP2 — the vision-loop preference's read/write round-trip (the engine
- * switch): plain SharedPreferences under the battery-ack file, default OFF, written on
- * every wizard flip and read by the service at every product run. Runs the real
- * SharedPreferences on the JVM under Robolectric (the DecisionLogDbTest precedent).
+ * switch); PHASE_VEXP4 — the DEFAULT FLIP: the vision loop IS the app's engine, so
+ * the plain SharedPreferences under the battery-ack file default ON
+ * ([SetupLogic.VISION_LOOP_DEFAULT]) and an explicitly stored OFF is the owner's
+ * legacy-engine fallback. Written on every wizard flip, read by the service at every
+ * product run. Runs the real SharedPreferences on the JVM under Robolectric (the
+ * DecisionLogDbTest precedent).
  */
 @RunWith(AndroidJUnit4::class)
 @Config(sdk = [34])
@@ -30,24 +33,28 @@ class VisionLoopPrefRoundTripTest {
     }
 
     @Test
-    fun `the preference defaults OFF and round-trips a flip`() {
-        // Default OFF: the reader's fallback, and the pure derivation reads it as off.
-        val default = prefs.getBoolean(SetupLogic.VISION_LOOP_PREF_KEY, false)
-        assertFalse(default)
-        assertFalse(SetupLogic.visionLoopToggleState(default, true, true).on)
+    fun `the preference defaults ON and round-trips a flip`() {
+        // Default ON (PHASE_VEXP4): the reader's fallback is the SetupLogic constant —
+        // a fresh install with the key ABSENT runs the vision loop.
+        val default = prefs.getBoolean(SetupLogic.VISION_LOOP_PREF_KEY, SetupLogic.VISION_LOOP_DEFAULT)
+        assertTrue(default)
+        assertTrue(SetupLogic.visionLoopToggleState(default, true, true).on)
+
+        // An explicitly stored OFF still reads OFF — the owner's legacy-engine fallback
+        // is honored, never overwritten by the default.
+        prefs.edit().putBoolean(SetupLogic.VISION_LOOP_PREF_KEY, false).commit()
+        val explicitOff = prefs.getBoolean(SetupLogic.VISION_LOOP_PREF_KEY, SetupLogic.VISION_LOOP_DEFAULT)
+        assertFalse(explicitOff)
+        assertFalse(SetupLogic.visionLoopToggleState(explicitOff, true, true).on)
 
         // The wizard's write path (SetupActivity.writeVisionLoopPref) is exactly this
         // edit; the service's read (NavigatorService.visionLoopToggled) is exactly the
         // get below — write ON, read back, the derivation flips.
         prefs.edit().putBoolean(SetupLogic.VISION_LOOP_PREF_KEY, true).commit()
-        val stored = prefs.getBoolean(SetupLogic.VISION_LOOP_PREF_KEY, false)
+        val stored = prefs.getBoolean(SetupLogic.VISION_LOOP_PREF_KEY, SetupLogic.VISION_LOOP_DEFAULT)
         assertTrue(stored)
         val state = SetupLogic.visionLoopToggleState(stored, openRouterPresent = true, typesafePresent = true)
         assertTrue(state.interactive)
         assertTrue(state.on)
-
-        // Back OFF (the owner's lawful off flip).
-        prefs.edit().putBoolean(SetupLogic.VISION_LOOP_PREF_KEY, false).commit()
-        assertFalse(prefs.getBoolean(SetupLogic.VISION_LOOP_PREF_KEY, false))
     }
 }
