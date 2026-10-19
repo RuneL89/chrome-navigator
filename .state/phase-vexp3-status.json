@@ -1,0 +1,29 @@
+{
+  "phase": "VEXP3",
+  "title": "The organs transplant (the gate) + the training machine REMOVED",
+  "phaseDoc": ".state/vision-iter/PHASE_VEXP3_gate_and_training_removal.md",
+  "branch": "exp/vision-box",
+  "status": "in-progress",
+  "startedAt": "2026-10-19",
+  "goal": "The vision loop carries the code-owned risk gate with owner cards; the entire training-data program is deleted from the app (APK ~572MB -> ~3MB).",
+  "stoppingCondition": "Gates green incl. APK < 10MB; no Room/RLCD/shadow/laya reference in :app main; gate tests (approve/deny/timeout/credential/abort) green.",
+  "gatesPassed": [],
+  "gatesFailed": [],
+  "gatesPending": [
+    ":app:testDebugUnitTest --tests navigator.app.harness.vision.*",
+    ":app:testDebugUnitTest",
+    ":core:test",
+    ":app:assembleDebug",
+    "APK size < 10MB",
+    "badge + dex vision-exp-v7"
+  ],
+  "deviations": [],
+  "llmCost": "implementation $0 (deterministic)",
+  "blocker": null,
+  "nextAction": "canon-implementer builds work items 1-3 per the phase doc",
+  "notes": [
+    "Owner directive 2026-10-19: training-data program RETIRED completely (no DecisionLog persistence, no shadow, no RLCD).",
+    "The 569MB assets-local/laya blob is gitignored - delete the directory, record it, never git-track it.",
+    "Sub-agents communicate via this file."
+  ]
+}

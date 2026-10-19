@@ -1347,3 +1347,10 @@ a new dated entry. Format per `Implementation Plan/MASTER_IMPLEMENTATION_PROMPT.
 * Planned files: app/src/main/kotlin/navigator/app/overlay/NavigatorService.kt, setup/{SetupLogic,SetupActivity}.kt, harness/vision/{ExpBudget,VisionLoop,VisionJev,VisionHaiku}.kt, app/src/test/**, app/AGENTS.md, .state/DEBUGGING.md
 * Law: experiment charter; owner directives 2026-10-19 (engine switch; 100x budgets). Departures from Project Vision (vision loop on the product goal path) pre-sanctioned.
 * Result: PASS — the switch is additive with a byte-identical OFF path; no :core change.
+
+## 2026-10-19 — PHASE_VEXP3 compliance pre-check
+* Checker: orchestrator (canon loop, exp/vision-box)
+* Phase doc: .state/vision-iter/PHASE_VEXP3_gate_and_training_removal.md
+* Planned: VisionLoop gate seam + NavigatorService presenter pass; deletions: app/laya, ShadowRouter, Room layer, laya/shadow/DB tests + gradle wiring; :core ShadowResultRow/RlcdExport/eval; docs.
+* Law: experiment charter + owner directive (training program RETIRED). Departures pre-sanctioned. :core deletions are training-only surfaces — state law (Tokenizer/LayaStateView/StateTextBuilder) untouched; if a kept file needs a deleted type, HALT and report (Contradiction Protocol).
+* Result: PASS with the halt condition above recorded.
