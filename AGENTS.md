@@ -137,15 +137,23 @@ When the user requests a durable behavior change, record it here or in the relev
   + measurement reports (re-pinned on v4 + intents-v1, retire-and-add). See `core/AGENTS.md`
 * `app/` — `:app`, the Android application (a11y observation, the Phase-6 navigation
   loop + budgets/stuck-detector/completion-guards + the fixture-driven stub engine and
-  headless debug harness, DecisionLog + companion-row Room persistence; Phase 8 added the on-device
-  laya shadow engine (`laya/`, gitignored ~0.6GB int8 asset rebuilt by
-  `tools/fetch_laya.py`, provenance-pinned in `app/src/main/assets/laya/PROVENANCE.txt`)
-  and the `ShadowRouter` (primary-sync, shadow-async, log-only); Phase 8C added the
-  owner-directed v32b primary checkpoint (second hash-pinned artifact + its own 256k
-  tokenizer family; demoted EVAL-ONLY 2026-10-06 after UAT Tests 2-3 — not packaged,
-  artifacts in the gitignored `.tools/laya-v32b/`, laya modes load the 421M checkpoint),
-  the FallbackEngine wiring, and the three harness engine modes
-  `jev`/`laya`/`laya-fb-jev`; Phase 8F added the credential-entry path (the loop's
+  headless debug harness; **the training-data program (DecisionLog Room persistence,
+  companion shadow rows, RLCD export, the on-device laya shadow engine and its
+  ~0.6 GB artifact, the Tier-A eval consumer surface) is RETIRED by owner directive
+  2026-10-19 — PHASE_VEXP3 deleted it all: APK 572 MB → ~34 MB, no ONNX, no Room;
+  the legacy loop runs on `NoOpLogSink` until the post-acceptance deletion phase**;
+  the surviving `core/laya/Tokenizer` is the state-text budget law, not training);
+  PHASE_VEXP1-4 (the vision promotion): the multimodal loop (`harness/vision/` —
+  Haiku plans/proposes/verifies over text+image; Jev 1.14 on the TypeSafe vendor route
+  grounds every tap with Box and judges with noul/choice over image-in-state;
+  the writer-authored verification battery gates max-style; the accept gate requires
+  codeDone AND battery concurrence; the risk gate + owner cards ride the same
+  `OverlayGatePresenter`), wired into the product path by the PURE
+  `ProductRunRoute.decide` seam (`useVisionLoop`, default ON since PHASE_VEXP4 —
+  missing TypeSafe key = loud refusal, never a silent legacy fallback; the toggle is
+  the owner's explicit legacy escape); ALL experiment budgets at 100x product values
+  (owner directive: steps 4000/6000, $20/$25 spend, replans 20/30/20, retries 20);
+  Phase 8F added the credential-entry path (the loop's
   `TextSource` + the card's masked-secret variant — the owner-typed secret is injected
   directly and rendered `[credential-redacted]` everywhere, never stored); Phase 9
   added the PRODUCT overlay UX (`overlay/` — the `TYPE_ACCESSIBILITY_OVERLAY` goal
@@ -156,9 +164,10 @@ When the user requests a durable behavior change, record it here or in the relev
   gate-runner surface (`GateScenarios` — the four gates' assertion bodies in main
   source, run by adb OUTSIDE instrumentation because the JUnit shell is
   platform-blocked on the API 35 emulator; evidence = `logcat -s NavigatorGates`)) and
-  the setup wizard (`setup/` — the six-check
+  the four-check
   wizard (a11y, Samsung battery, OpenRouter key, TypeSafe key, the dual live-key
-  tester, model status) + the `EncryptedSharedPreferences` TWO-slot key store;
+  tester) + the
+  `EncryptedSharedPreferences` TWO-slot key store;
   `MainActivity` is a thin launcher
   into it); UAT ACCEPTED 2026-10-09 (owner on-device, two revision rounds); a 2026-10-09
   owner design pass (warm brand-forward, dark-first compact) restyled the setup wizard
@@ -213,6 +222,11 @@ When the user requests a durable behavior change, record it here or in the relev
   mechanical exhaustion), landed-text verification (an action's boolean is not proof),
   and the exhaustion cause classified `INPUT_MECHANISM` whose informed re-plan hint
   changes the ROUTE, never the wording (the v4 golden family's third request variant,
-  additive). See `app/AGENTS.md`
-* `tools/` — Phase-8/8C model-acquisition + reference-vector scripts (uv-driven; build-time
-  HF downloads only). See `tools/AGENTS.md`
+  additive). On this branch (`exp/vision-box`), PHASE_VEXP4 (2026-10-19) made the
+  branch's VisionLoop (VEXP1/2, `harness/vision/`) the app's DEFAULT engine: the
+  wizard's vision-loop preference defaults ON, a missing key refuses loudly naming
+  the channel + the wizard (never a silent legacy fallback), and an explicit toggle
+  OFF is the owner's legacy-engine fallback. See `app/AGENTS.md`
+* `tools/` — RETIRED folder (owner directive 2026-10-19, PHASE_VEXP3): the Phase-8/8C
+  model-acquisition + reference-vector scripts are deleted; no live scripts, no build
+  step. See `tools/AGENTS.md`

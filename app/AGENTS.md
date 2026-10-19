@@ -11,6 +11,11 @@ PHASE_VEXP3 (owner directive 2026-10-19, verbatim: the training-data program is
 RETIRED — "remove that noise completely"): the on-device laya engine (`laya/`), the
 `ShadowRouter`, the Room DecisionLog persistence (`log/`), and the RLCD/eval machinery
 are DELETED; the legacy loop logs through `NoOpLogSink` (nothing persists).
+PHASE_VEXP4 (the default flip, 2026-10-19): THE VISION LOOP IS THE APP'S ENGINE on
+this branch — the wizard's vision-loop preference defaults ON, so every goal typed in
+the app runs the VisionLoop; a missing key refuses LOUDLY naming the channel + the
+wizard (NEVER a silent legacy fallback), and the owner's explicit toggle OFF is the
+legacy-engine fallback.
 
 ## Ownership
 
@@ -129,11 +134,15 @@ are DELETED; the legacy loop logs through `NoOpLogSink` (nothing persists).
     Jev primary keyed by the Setup-stored key (no key → a POLITE loud refusal, never a
     silent no-op) + product presenters + the ADDITIVE `LoopUiListener` streaming
     (onThinking→spinner, onPlan→PLAN display, onStep→measured live-log line,
-    onTaskState→log line + notification); PHASE_VEXP2 THE ENGINE SWITCH: the
+    onTaskState→log line + notification); PHASE_VEXP2 THE ENGINE SWITCH, FLIPPED BY
+    DEFAULT in PHASE_VEXP4: the
     loop-construction block consults the PURE `ProductRunRoute.decide` seam (the
-    `vision/` bullet's ENGINE SWITCH law — toggle OFF default = the legacy block
-    byte-identical; ON = `runVisionLoopTask` streams VisionLoop through the corner
-    log and the existing terminal funnel); the goal submit hands over via the
+    `vision/` bullet's ENGINE SWITCH law — the preference DEFAULTS ON, so a goal runs
+    VisionLoop: `runVisionLoopTask` streams it through the corner
+    log and the existing terminal funnel; a missing key refuses LOUDLY naming the
+    channel + the wizard, NEVER a silent legacy fallback; only the owner's explicit
+    OFF routes the legacy block byte-identical, without touching the second key
+    store); the goal submit hands over via the
     IN-PROCESS channel (no background FGS start ever — foreground starts only, from
     the wizard / the notification action); UAT close-out: every run wires the ⏹
     control — `manager.onStopTask` → the service's `TaskCancelFlag`, `beginTask` at
@@ -222,15 +231,16 @@ are DELETED; the legacy loop logs through `NoOpLogSink` (nothing persists).
     material/field labels and the TARGET STATE VIEW's slate labels before any call;
     law: `Project Vision/01` §3, `Project Vision/04` §1 v1.4.0 + §2 v1.6.0, `Project Vision/06` §2a/§4
   * `src/main/kotlin/navigator/app/setup/` — the setup wizard (Phase 9, §2.2;
-    PHASE_VEXP1 grew it to SIX checks with the TypeSafe key card + the dual tester):
+    PHASE_VEXP1 grew it to six checks with the TypeSafe key card + the dual tester;
+    PHASE_VEXP4 removed the dormant laya model check — FIVE checks since, the last
+    functional laya reference in :app main gone):
     `SetupLogic` (PURE state derivation, JVM-pinned: the a11y-enabled check string
     parsing, the Samsung-only battery branching — non-Samsung passes with an info line
     so the wizard completes green on the emulator, presence-only key state for BOTH
     keys (OpenRouter + `typesafeKeyCheck` — the TypeSafe card REQUIRED in this app,
     same R5 laws), the on-demand dual key tester's states
     (`keyLiveCheck`/`DualKeyTest`/`dualKeyLiveCheck` — one "Test keys" tap, two
-    independent channel verdicts, never gating), the informational eval-only model
-    check that NEVER gates, the all-required-green
+    independent channel verdicts, never gating), the all-required-green
     summary; the UAT 9.2 revision constants: `BATTERY_ACK_PREFS_FILE`/`BATTERY_ACK_PREF_KEY`
     — the battery "Done" acknowledgement's PLAIN-SharedPreferences location (a user
     acknowledgement, not a secret) — and `SAVED_KEY_INDICATOR`, the FIXED 8-dot
@@ -240,15 +250,18 @@ are DELETED; the legacy loop logs through `NoOpLogSink` (nothing persists).
     never gates), because key presence says nothing about validity and that day's run
     died on a stored-but-dead key at its first paid call; PHASE_VEXP2: the vision-loop
     toggle's derivation `visionLoopToggleState` (interactive only with BOTH keys
-    stored; effective ON = the persisted value AND both keys) + the
+    stored; effective ON = the persisted value AND both keys; PHASE_VEXP4 the default
+    flip: `VISION_LOOP_DEFAULT` = ON — the vision loop IS the app's engine, an
+    explicit OFF is the owner's legacy-engine fallback) + the
     `VISION_LOOP_PREFS_FILE`/`VISION_LOOP_PREF_KEY` (`"use-vision-loop"`, the
-    battery-ack plain-prefs file, default OFF — read by `NavigatorService` at every
+    battery-ack plain-prefs file, default ON — read by `NavigatorService` at every
     product run, written by the wizard on every flip)),
-    `SetupActivity` (the re-runnable six-check Compose wizard: a11y enable
+    `SetupActivity` (the re-runnable five-check Compose wizard (PHASE_VEXP4 dropped
+    the dormant laya model-status row): a11y enable
     deep-links with the Android 13+ "Allow restricted settings" path explained, the
     TEXT-GUIDED Samsung battery whitelist (no programmatic whitelist on stock Android
     is lawful), the OpenRouter key card, the TypeSafe key card (masked entry, fixed
-    8-dot saved marker, "type a new one to replace" — R5 verbatim), the model status; the UAT 9.2
+    8-dot saved marker, "type a new one to replace" — R5 verbatim); the UAT 9.2
     revisions live here: ALL checks re-evaluate on onResume AND window-focus gain
     (the R3 live-update — a row flips the moment the user returns from Settings), the
     battery acknowledgement persists across restarts (R4), and a saved key renders as
@@ -261,7 +274,9 @@ are DELETED; the legacy loop logs through `NoOpLogSink` (nothing persists).
     with the recovery path / honest error; keys ride Authorization headers only, never
     logged; saving either key resets ITS verdict; the state lives OUTSIDE the
     refresh cycle so no resume/focus ever pings either provider); PHASE_VEXP2: the
-    "Use vision loop (experimental engine)" TOGGLE CARD beside the key cards (never a
+    "Use vision loop (experimental engine)" TOGGLE CARD beside the key cards, REWORDED
+    by PHASE_VEXP4 to "Use vision loop (recommended)" with the supporting text framing
+    the legacy loop as the fallback (never a
     wizard check — never gates; the control is interactive only when BOTH keys are
     stored, every flip persists immediately to the plain prefs, and the card
     re-evaluates on resume/focus like every other check); STARTS the
@@ -861,13 +876,14 @@ are DELETED; the legacy loop logs through `NoOpLogSink` (nothing persists).
     memory-only rule is untouched) to `run-reports/vision-exp/<runId>/` (every
     image-carrying Jev call records endpoint+model on its evidence event); reports via
     `RunReportStore`.
-    THE ENGINE SWITCH (PHASE_VEXP2, owner directive 2026-10-19): a goal typed in the
-    PRODUCT app can run the vision loop — `NavigatorService.runProductTask` consults
+    THE ENGINE SWITCH (PHASE_VEXP2, owner directive 2026-10-19; PHASE_VEXP4 THE
+    DEFAULT FLIP): a goal typed in the
+    PRODUCT app runs the vision loop — `NavigatorService.runProductTask` consults
     the PURE `ProductRunRoute.decide` seam (`vision/NavigatorVisionBridge.kt`, no
     Android types, JVM-pinned) fed by the wizard's "use-vision-loop" plain-prefs
     preference (`SetupLogic.VISION_LOOP_PREF_KEY` on the battery-ack file, default
-    OFF): Legacy (untoggled) falls straight through to the legacy block BYTE-IDENTICAL
-    without reading the second key store; Vision (toggled + both keys stored) builds
+    ON via `SetupLogic.VISION_LOOP_DEFAULT` — the vision loop IS the app's engine):
+    Vision (default + both keys stored) builds
     via `NavigatorVisionBridge.newVisionLoop` — VisionLoop over the service's OWN
     `HarnessObserver`/`GestureExecutor`/`VisionCapture`, keys from the Setup stores,
     the transport injectable (JVM tests stay hermetic), evidence under the external
@@ -885,21 +901,25 @@ are DELETED; the legacy loop logs through `NoOpLogSink` (nothing persists).
     same funnel; the credential card's `ApproveWithSecret` swaps the typed text for the
     card secret, redacted everywhere; wrong-source resolutions fail loudly; the
     `(gate H4 approved)`-style markers ride the step lines and the gate events the
-    evidence events.log; null = the ungated harness/adb path). Toggle ON + a missing
-    key = the polite loud refusal naming
-    the channel (`ProductRunRoute.Refused`, the no-key precedent's wording style); a
-    thrown vision run = the pump's existing loud-but-polite catch. JVM gates:
+    evidence events.log; null = the ungated harness/adb path). The DEFAULT with a
+    missing key = the LOUD refusal naming
+    the channel + the wizard (`ProductRunRoute.Refused`, the no-key precedent's
+    wording style) — NEVER a silent fallback to the legacy loop; a
+    thrown vision run = the pump's existing loud-but-polite catch; the owner's
+    explicit toggle OFF = the legacy block BYTE-IDENTICAL, without reading the second
+    key store. JVM gates:
     `VisionLoopGateTest` (the WI1 battery: approve/deny/timeout/credential-swap/
     double-refusal-abort/ungated-null/scroll-back-never + the wrong-source failures +
     per-task trust),
-    `NavigatorVisionBridgeTest` (routes incl. redacted-key toString; a LIVE scripted
+    `NavigatorVisionBridgeTest` (routes incl. the PHASE_VEXP4 default matrix —
+    DEFAULT+both keys → Vision, DEFAULT+missing key → Refused naming the channel +
+    the wizard, NEVER Legacy; explicit OFF → Legacy byte-identical; redacted-key
+    toString; a LIVE scripted
     VisionLoop through the CALLER's observer/executor; the terminal line),
-    `SetupLogicTest` (toggle derivation + prefs contract),
-    `VisionLoopPrefRoundTripTest` (Robolectric read/write round-trip, default OFF). Entry: `VisionExperimentActivity` (adb; `--es goal` loop mode /
-    `NavigatorVisionBridgeTest` (routes incl. redacted-key toString; a LIVE scripted
-    VisionLoop through the CALLER's observer/executor; the terminal line),
-    `SetupLogicTest` (toggle derivation + prefs contract),
-    `VisionLoopPrefRoundTripTest` (Robolectric read/write round-trip, default OFF). Entry: `VisionExperimentActivity` (adb; `--es goal` loop mode /
+    `SetupLogicTest` (toggle derivation + prefs contract + the default-ON + the
+    five-check wizard pins),
+    `VisionLoopPrefRoundTripTest` (Robolectric read/write round-trip, default ON).
+    Entry: `VisionExperimentActivity` (adb; `--es goal` loop mode /
     `--es visionMode probe` = the Phase-A grounding calibration on the REAL transport:
     one screenshot, ONE batched vendor request — a Box per labeled interactive node +
     one noul — IoU scored against real bounds). Emulator-verified end to end:
@@ -1388,7 +1408,7 @@ tracked as last-known (normalized) and serves on an empty card URL, and garbage
   step line (masked `[credential-redacted]` at source), and the default-null listener
   byte-identical), `SetupLogicTest` (wizard state: the colon-separated
   enabled-services parsing, Samsung-only battery branching, presence-only key state,
-  the never-gating model check, the all-required-green summary; the UAT 9.2
+  the all-required-green summary; the UAT 9.2
   revision-contract pins: the battery-ack persistence keys, the restored-ack
   derivation, and the FIXED saved-key dot indicator (exact constant, presence only,
   never key-material-shaped detail)), `LiveLogAnchorTest` (the live log's IME-avoidance
