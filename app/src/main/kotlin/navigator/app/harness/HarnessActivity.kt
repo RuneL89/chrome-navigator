@@ -50,21 +50,18 @@ import navigator.app.loop.DebugCompletionCardPresenter
 import navigator.app.loop.DebugGatePresenter
 import navigator.app.loop.GestureExecutor
 import navigator.app.loop.NavigationLoop
+import navigator.app.loop.NoOpLogSink
 import navigator.app.loop.RunResult
-import navigator.app.loop.ShadowRouter
 import navigator.app.gen.asAssistSource
 import navigator.app.gen.asPhraseSource
-import navigator.app.laya.LayaCheckpoint
-import navigator.app.laya.LayaEngine
-import navigator.app.laya.LayaOnnxSession
 import navigator.app.observe.NavigatorAccessibilityService
 import navigator.core.log.DecisionLogRow
 
 /**
  * The headless debug harness (phase doc §2.2): pick engine (STUB with a scripted
  * transcript | LIVE Jev), pick a scripted goal, run the loop, stream the step log to
- * the screen and to a file, write DecisionLog rows, export a run report JSON to app
- * storage. NOT product UI — Phases 9/11 own that.
+ * the screen and to a file, export a run report JSON to app storage. NOT product UI —
+ * Phases 9/11 own that.
  *
  * Headless mode (Gate 6.2): launching with intent extras auto-runs goals with the STUB
  * engine and test-mode auto-deny (the flag defaults ON here; product UI has no auto
@@ -76,8 +73,9 @@ import navigator.core.log.DecisionLogRow
  * refusing anything; a run keeps a live per-step progress notification on the
  * `navigator-debug` channel and at ANY terminal the harness comes back to the front
  * with one short buzz, a final verdict notification, and the step log scrolled to the
- * verdict. Custom goals ride visibly in the goal list. Whenever the launch requests the
- * shadow (by any alias), EVERY per-run report carries the `shadowReport` object.
+ * verdict. Custom goals ride visibly in the goal list. PHASE_VEXP3: the shadow/laya
+ * machinery is retired with the training program — the loop logs through
+ * [navigator.app.loop.NoOpLogSink] (nothing is persisted).
  */
 class HarnessActivity : ComponentActivity() {
 
@@ -94,15 +92,11 @@ class HarnessActivity : ComponentActivity() {
     private val uiLog = mutableStateListOf<String>()
     private val running = mutableStateOf(false)
 
-    /** The full engine mode (Phase 8C: STUB | LIVE(jev) | LAYA | LAYA_FB_JEV); intent-set. */
+    /** The full engine mode (STUB | LIVE(jev); intent-set). */
     private val engineMode = mutableStateOf(HarnessEngineMode.STUB)
     private val autoDeny = mutableStateOf(true)
-    private val shadowOn = mutableStateOf(false)
     private val customGoals = mutableStateListOf<ScriptedGoal>()
     private val logListState = LazyListState()
-
-    /** Shadow sampling period for the next runs (1 = every step, vision 02 §4.3). */
-    private var shadowEveryNth: Long = 1
 
     /** The loop's post-gesture page settle for the next runs (adb-settable; ms). */
     private var settleMs: Long = HarnessLaunch.DEFAULT_SETTLE_MS
@@ -135,32 +129,15 @@ class HarnessActivity : ComponentActivity() {
 
     private lateinit var catalog: GoalCatalog
     private lateinit var pagesServer: HarnessPagesServer
-    private val logSink by lazy { RoomDecisionLogSink(this) }
+
+    /**
+     * The loop's sink (PHASE_VEXP3): the training program is retired — nothing is
+     * persisted; the legacy loop keeps compiling on the no-op sink.
+     */
+    private val logSink = NoOpLogSink
 
     @Volatile
     private var cancelRequested = false
-
-    /**
-     * Per-run shadow bookkeeping (owner-directed 2026-10-06): the uat-applepie-02 device
-     * report had no shadow block because `--ez shadowOn true` was silently unrecognized
-     * AND because the failure path (`failedReport`) never captured the router snapshot.
-     * Every executeGoal now records its shadow state here, so both the success and the
-     * failure report can always include the object.
-     */
-    private class RunShadow {
-        @Volatile
-        var snapshot: ShadowRouter.Snapshot? = null
-
-        /** Why there is no snapshot despite the shadow being requested (for the report note). */
-        @Volatile
-        var failure: String? = null
-    }
-
-    @Volatile
-    private var currentRunShadow: RunShadow? = null
-
-    @Volatile
-    private var currentRunWantsShadow = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -259,8 +236,7 @@ class HarnessActivity : ComponentActivity() {
             if (launch.mode == HarnessEngineMode.STUB) {
                 log(
                     "LAUNCH REFUSED (loud): a custom goal needs a non-STUB engine - " +
-                        "re-launch with `--es engine live` (or laya / laya-fb-jev); " +
-                        "custom goals carry no STUB script",
+                        "re-launch with `--es engine live`; custom goals carry no STUB script",
                 )
                 return
             }
@@ -274,8 +250,6 @@ class HarnessActivity : ComponentActivity() {
         }
         engineMode.value = launch.mode
         autoDeny.value = launch.autoDeny
-        shadowOn.value = launch.shadow
-        shadowEveryNth = launch.shadowEveryNth
         settleMs = launch.settleMs
         ladderMode = launch.ladder
         if (launch.ladder && launch.mode == HarnessEngineMode.STUB) {
@@ -291,8 +265,7 @@ class HarnessActivity : ComponentActivity() {
             ?: intent.getStringExtra(HarnessLaunch.EXTRA_OPENROUTER_KEY_SHORT)
         log(
             "headless run: goal=$extraGoal engine=${engineMode.value.name.lowercase()} " +
-                "autoDeny=${autoDeny.value} shadow=${shadowOn.value} " +
-                "shadowEveryNth=$shadowEveryNth delay=${launch.startDelayMs}ms fresh=$freshInstance " +
+                "autoDeny=${autoDeny.value} delay=${launch.startDelayMs}ms fresh=$freshInstance " +
                 "keyExtra=${launch.keyPresent}",
         )
         scope.launch {
@@ -379,7 +352,7 @@ class HarnessActivity : ComponentActivity() {
         if (goal.family == GoalCatalog.CUSTOM_FAMILY && engineMode.value == HarnessEngineMode.STUB) {
             log(
                 "RUN REFUSED (loud): custom goal ${goal.id} needs a non-STUB engine - flip the " +
-                    "LIVE Jev switch or launch with `--es engine laya` (custom goals carry no STUB script)",
+                    "LIVE Jev switch or launch with `--es engine live` (custom goals carry no STUB script)",
             )
             return
         }
@@ -394,8 +367,6 @@ class HarnessActivity : ComponentActivity() {
         if (running.value) return
         running.value = true
         cancelRequested = false
-        currentRunShadow = null
-        currentRunWantsShadow = shadowOn.value
         val reports = mutableListOf<RunReport>()
         notifyProgress(null, "starting...")
         try {
@@ -570,9 +541,7 @@ class HarnessActivity : ComponentActivity() {
         return false
     }
 
-    /** A failure record so the suite report shows the gap instead of hiding it.
-     *  Carries the shadow block too whenever the run requested the shadow (the
-     *  zeroed-with-note shape — see [shadowReport]). */
+    /** A failure record so the suite report shows the gap instead of hiding it. */
     private fun failedReport(goal: ScriptedGoal, t: Throwable, attempt: Int = 1) = RunReport(
         goalId = goal.id,
         family = goal.family,
@@ -599,22 +568,10 @@ class HarnessActivity : ComponentActivity() {
         attempts = attempt,
         flakeRetried = attempt > 1,
         stepLog = emptyList(),
-        shadow = shadowReport(currentRunWantsShadow, currentRunShadow, joined = null),
     )
 
     private suspend fun executeGoal(goal: ScriptedGoal, attempt: Int = 1): RunReport {
         val mode = engineMode.value
-        // The laya modes run BARE (vision 02 §7: no shadow, no shadow sampling) — a
-        // shadow request under them is refused LOUDLY and the run proceeds without it.
-        val wantShadow = shadowOn.value && !mode.isLaya
-        if (shadowOn.value && mode.isLaya) {
-            log("shadow requested under engine=${mode.name.lowercase()} - REFUSED (the laya " +
-                "modes carry no shadow; vision 02 §7) - running without it")
-        }
-        currentRunWantsShadow = wantShadow
-        // Registered BEFORE anything can fail so even a harness error before the loop
-        // still reports a (zeroed, noted) shadow block when the shadow was requested.
-        val runShadow = if (wantShadow) RunShadow().also { currentRunShadow = it } else null
         // Bind the observation service BEFORE launching the browser: Chromium only
         // builds its a11y tree for services connected at (or after) page load.
         val service = awaitService()
@@ -648,50 +605,14 @@ class HarnessActivity : ComponentActivity() {
             mode,
             goal,
             deliveredKey = deliveredOpenRouterKey,
-            laya = if (mode.isLaya) {
-                LayaEngineSource {
-                    // The ACTIVE checkpoint is the Phase-8 421M base: the owner demoted
-                    // v32b to eval-only on 2026-10-06 (UAT Tests 2-3 measured it
-                    // disqualifying as primary — inverted exit calibration + poor
-                    // navigation transfer; an eval-gated config decision, vision 02 §5).
-                    LayaCheckpoint.LAYA_421M.engine(this@HarnessActivity).also {
-                        log("laya: ${LayaCheckpoint.LAYA_421M.id} engine open " +
-                            "(${LayaOnnxSession.ASSET_DIR}/${LayaCheckpoint.LAYA_421M.modelAsset}, " +
-                            "cpu, 1 intra-op thread)")
-                    }
-                }
-            } else {
-                null
-            },
         )
         log(
             "engine: ${built.mode} (${built.identity.configId}, ${built.identity.model})" +
-                (built.fallbackIdentity?.let {
-                    " + fallback (${it.configId}, ${it.model})"
-                } ?: "") +
                 "; auto-deny=${autoDeny.value}" +
                 (built.keySource?.let { "; key source: ${it.name.lowercase()}" } ?: ""),
         )
-        // Phase 8: shadow ON wraps the primary in the ShadowRouter (vision 02 §4) — the
-        // loop cannot tell (ART-2); the sink gains the shadow fields of every row.
-        val shadowSession = if (wantShadow) LayaOnnxSession.open(this) else null
-        val shadowEngine = shadowSession?.let {
-            log(
-                "shadow: laya int8 session open (${LayaOnnxSession.ASSET_DIR}/${LayaOnnxSession.ASSET_FILE}, " +
-                    "cpu, 1 intra-op thread)",
-            )
-            LayaEngine(it)
-        }
-        val router = shadowEngine?.let {
-            ShadowRouter(
-                primary = built.engine,
-                shadow = it,
-                samplingPolicy = ShadowRouter.SamplingPolicy.everyNth(shadowEveryNth),
-                companionSink = logSink.companionSink, // late answers land as companion rows (8B)
-            )
-        }
         val loop = NavigationLoop(
-            engine = router ?: built.engine,
+            engine = built.engine,
             observer = HarnessObserver(service),
             executor = GestureExecutor(service),
             gatePresenter = if (autoDeny.value) AutoDenyGatePresenter else DebugGatePresenter(this),
@@ -703,11 +624,10 @@ class HarnessActivity : ComponentActivity() {
             } else {
                 DebugCompletionCardPresenter(this)
             },
-            logSink = notifyingSink(goal.id, router?.sink(logSink) ?: logSink),
+            logSink = notifyingSink(goal.id, logSink),
             spendMeter = built.spendMeter,
-            // Page-settle pacing (the loop's own post-gesture settle, NEVER shadow-driven —
-            // vision 02 §4.3). adb-settable so a slow emulator can run Gate 8.4 with a step
-            // period above the MEASURED shadow latency; default mirrors the loop default.
+            // Page-settle pacing (the loop's own post-gesture settle). adb-settable so a
+            // slow emulator's step period can stretch; default mirrors the loop default.
             config = NavigationLoop.Config(settleMs = settleMs),
             // Phase 8D cold-start (vision 04 §1): the loop's deterministic pre-step, run
             // BEFORE triage and the first OBSERVE — derive the goal's start URL in code,
@@ -743,71 +663,14 @@ class HarnessActivity : ComponentActivity() {
             },
         )
         val startedAt = System.currentTimeMillis()
-        val result = try {
-            loop.run(
-                goal = goal.goal,
-                goalId = goal.id,
-                engineIdentity = built.identity,
-                isCancelled = { cancelRequested },
-                fallbackIdentity = built.fallbackIdentity,
-                startUrl = goal.startUrl,
-            )
-        } finally {
-            // The shadow is fire-and-forget: settle it before the report freezes counts.
-            try {
-                val snapshot = router?.let { r ->
-                    r.awaitIdle(SHADOW_SETTLE_TIMEOUT_MS)
-                    r.snapshot()
-                }
-                if (wantShadow) {
-                    if (snapshot != null) runShadow?.snapshot = snapshot
-                    else runShadow?.failure = "router produced no snapshot at settle"
-                }
-                snapshot?.let {
-                    // percentile() takes SORTED input — sort here too, or the log line's
-                    // p50/p95 disagree with the report's (measured in the 2026-10-05 sweep).
-                    val forwardsSorted = it.latenciesMs.map { p -> p.first }.sorted()
-                    val totalsSorted = it.latenciesMs.map { p -> p.second }.sorted()
-                    log(
-                        "shadow: sampled=${it.sampled} completed=${it.completions} miss=${it.misses} " +
-                            "fail=${it.failures} companions=${it.companionRows} " +
-                            "droppedAfterClose=${it.droppedAfterClose} " +
-                            "forwardMs(p50/p95)=" +
-                            "${percentile(forwardsSorted, 50)}/" +
-                            "${percentile(forwardsSorted, 95)} " +
-                            "totalMs(p95)=${percentile(totalsSorted, 95)}",
-                    )
-                }
-                // Phase 8B: the logger is closed for companions — any straggler completion
-                // from here on is dropped AND counted (amendment rule c).
-                router?.close()
-            } catch (t: Throwable) {
-                // Settle failures must not hide the run's outcome — record them so the
-                // report's shadow block explains its own emptiness instead.
-                if (wantShadow) {
-                    runShadow?.failure = "shadow settle failed: ${t::class.simpleName}: ${t.message}"
-                }
-                log("shadow settle failed: ${t::class.simpleName}: ${t.message}")
-            } finally {
-                shadowSession?.close()
-                // Phase 8C: the on-device laya engine is per-ATTEMPT — close it here so a
-                // starvation retry never opens a second ~1.4 GB session beside the first
-                // (measured LMK kill on the 2-4 GB emulator, 2026-10-06).
-                built.primaryCloseable?.let { closer ->
-                    runCatching { closer.close() }.onFailure {
-                        log("laya engine close failed: ${it::class.simpleName}: ${it.message}")
-                    }
-                }
-            }
-        }
+        val result = loop.run(
+            goal = goal.goal,
+            goalId = goal.id,
+            engineIdentity = built.identity,
+            isCancelled = { cancelRequested },
+            startUrl = goal.startUrl,
+        )
         result.stepLog.forEach { log(it) }
-        // Phase 8B: the run-report coverage is the JOINED view (vision 05 §3 amendment
-        // rule d) — decision-row shadows + companions for THIS task, from the database.
-        val joinedAgreement = runCatching {
-            logSink.shadowResults.joinedAgreementByTask(result.taskId)
-        }.onFailure {
-            log("joined agreement read failed: ${it::class.simpleName}: ${it.message}")
-        }.getOrNull()
         val report = RunReport(
             goalId = goal.id,
             family = goal.family,
@@ -842,18 +705,6 @@ class HarnessActivity : ComponentActivity() {
             attempts = attempt,
             flakeRetried = attempt > 1,
             stepLog = result.stepLog,
-            shadow = shadowReport(wantShadow, runShadow, joinedAgreement),
-            escalations = built.fallbackEngine?.stats()?.let { stats ->
-                log(
-                    "escalations: ${stats.escalations}/${stats.decisions} decisions " +
-                        "(rate ${"%.1f".format(stats.rate * 100)}%)",
-                )
-                EscalationStats(
-                    decisions = stats.decisions,
-                    escalations = stats.escalations,
-                    rate = stats.rate,
-                )
-            },
             exit = result.exit?.let { exit ->
                 log(
                     "exit: path=${exit.path} guard=${exit.guardLevel} noul=${exit.noul} " +
@@ -991,73 +842,6 @@ class HarnessActivity : ComponentActivity() {
             },
         )
         return navigator.app.gen.GenLadderSource(client)
-    }
-
-    /**
-     * Phase 8/8B evidence: the shadow side of one run — ALWAYS present when the run
-     * requested the shadow (owner-directed 2026-10-06: uat-applepie-02's report had no
-     * shadow block at all; that must be impossible). [joined] is the database's
-     * joined-view agreement for this task (vision 05 §3 amendment rule d) — when
-     * present with sampled rows, [ShadowReport.coverage] is the joined coverage
-     * (decision-row shadows + companions); the in-memory row-enrichment ratio is only
-     * the fallback. On the degraded paths (no router snapshot: session open failed,
-     * harness error before the loop, settle failure) the block is zeroed with a [note].
-     */
-    private fun shadowReport(
-        wantShadow: Boolean,
-        runShadow: RunShadow?,
-        joined: navigator.core.log.JoinedAgreementMetrics?,
-    ): ShadowReport? {
-        if (!wantShadow) return null
-        val snapshot = runShadow?.snapshot
-        if (snapshot == null) {
-            return ShadowReport(
-                enabled = true,
-                everyNth = shadowEveryNth,
-                decisions = 0,
-                sampled = 0,
-                completed = 0,
-                missed = 0,
-                failed = 0,
-                coverage = 0.0,
-                forwardLatencyP50Ms = 0,
-                forwardLatencyP95Ms = 0,
-                totalLatencyP95Ms = 0,
-                companionRows = 0,
-                droppedAfterClose = 0,
-                companionRejected = 0,
-                note = runShadow?.failure ?: "no router snapshot was taken for this run",
-            )
-        }
-        val forwards = snapshot.latenciesMs.map { p -> p.first }.sorted()
-        val totals = snapshot.latenciesMs.map { p -> p.second }.sorted()
-        return ShadowReport(
-            enabled = true,
-            everyNth = snapshot.samplingEveryNth,
-            decisions = snapshot.decisions,
-            sampled = snapshot.sampled,
-            completed = snapshot.completions,
-            missed = snapshot.misses,
-            failed = snapshot.failures,
-            coverage = when {
-                joined != null && joined.sampledRows > 0 -> joined.coverage
-                snapshot.sampled > 0 -> snapshot.enrichedRows.toDouble() / snapshot.sampled
-                else -> 0.0
-            },
-            forwardLatencyP50Ms = percentile(forwards, 50),
-            forwardLatencyP95Ms = percentile(forwards, 95),
-            totalLatencyP95Ms = percentile(totals, 95),
-            companionRows = snapshot.companionRows,
-            droppedAfterClose = snapshot.droppedAfterClose,
-            companionRejected = snapshot.companionRejected,
-        )
-    }
-
-    /** Nearest-rank percentile of a SORTED list (empty → 0). */
-    private fun percentile(sorted: List<Long>, p: Int): Long {
-        if (sorted.isEmpty()) return 0
-        val index = ((p / 100.0) * (sorted.size - 1)).toInt().coerceIn(0, sorted.size - 1)
-        return sorted[index]
     }
 
     private fun writeSuiteReport(reports: List<RunReport>) {
@@ -1215,9 +999,8 @@ class HarnessActivity : ComponentActivity() {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("engine: ${engineMode.value.name.lowercase()}")
-                // The switch covers the STUB <-> LIVE(jev) pair only; the laya modes
-                // arrive via the launch intent (`--es engine laya|laya-fb-jev`) and
-                // disable the switch (they are measurement modes, vision 02 §7).
+                // The switch covers the STUB <-> LIVE(jev) pair (the only modes since
+                // PHASE_VEXP3 retired the laya register with the training program).
                 Text("LIVE Jev")
                 Switch(
                     checked = engineMode.value == HarnessEngineMode.LIVE,
@@ -1314,9 +1097,6 @@ class HarnessActivity : ComponentActivity() {
 
         /** The loop's own budgets bound a run; this catches a wedged run on top. */
         const val GOAL_TIMEOUT_MS = 15L * 60_000L
-
-        /** Bounded settle for the fire-and-forget shadow after the loop returns. */
-        const val SHADOW_SETTLE_TIMEOUT_MS = 30_000L
 
         /** The run-over buzz length (owner-directed: one short ~200ms vibration). */
         const val BUZZ_MS = 200L

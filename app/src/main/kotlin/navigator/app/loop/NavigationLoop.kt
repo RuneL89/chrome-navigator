@@ -113,7 +113,7 @@ import navigator.core.state.StateTextBuilder
  *
  * Every Android edge sits behind an interface ([LoopObserver], [ActionExecutor],
  * [GatePresenter], [DecisionLogSink]) so the loop runs in plain JVM unit tests with
- * fakes (Gate 6.1, Robolectric-free). `ShadowRouter` (Phase 8) replaces the engine
+ * fakes (Gate 6.1, Robolectric-free). Any wrapping engine replaces the engine
  * reference at construction with zero loop changes (ART-2 proof point).
  */
 class NavigationLoop(
@@ -207,12 +207,11 @@ class NavigationLoop(
 
     /**
      * The fallback-composition probe (vision 02 §7): when the injected engine is a
-     * [FallbackEngine] (the `laya-fb-jev` mode), its per-decision records flow into the
-     * log rows (`escalated` + `fallback`, doc 05 v1.2.0). A capability probe, not an
-     * identity branch — every other engine leaves this null and the loop is unchanged
-     * (the ART-2 law: the loop never branches on WHICH engine it holds; this reads a
-     * generic reporting surface, the same seam [UsageFeed] uses). Null also when a
-     * router wraps the composition — the laya modes run bare by design.
+     * [FallbackEngine] (a composed primary+fallback engine), its per-decision records
+     * flow into the log rows (`escalated` + `fallback`, doc 05 v1.2.0). A capability
+     * probe, not an identity branch — every other engine leaves this null and the loop
+     * is unchanged (the ART-2 law: the loop never branches on WHICH engine it holds;
+     * this reads a generic reporting surface, the same seam [UsageFeed] uses).
      */
     private val fallbackReporting: FallbackReporting? = engine as? FallbackReporting
 
@@ -301,9 +300,9 @@ class NavigationLoop(
     /**
      * Runs one task to exactly one terminal state. [isCancelled] is polled between
      * steps (the harness cancel button; never true in headless runs).
-     * [fallbackIdentity] names the fallback engine of a composed engine (the `laya-fb-jev`
-     * mode) so escalated rows can carry the `fallback {engine, model}` provenance
-     * (doc 05 v1.2.0); null for every single-engine mode. [startUrl] is the goal's
+     * [fallbackIdentity] names the fallback engine of a composed engine so escalated
+     * rows can carry the `fallback {engine, model}` provenance (doc 05 v1.2.0); null
+     * for every single-engine mode. [startUrl] is the goal's
      * scripted start URL (the harness goal's `startUrl`), the cold-start derivation's
      * fallback when the goal text names no site itself; null elsewhere.
      */

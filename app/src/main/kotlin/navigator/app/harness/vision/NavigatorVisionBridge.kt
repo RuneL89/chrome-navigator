@@ -96,6 +96,13 @@ object NavigatorVisionBridge {
         typesafeKey: String,
         log: (String) -> Unit,
         transport: WireTransport = OkHttpWireTransport(callTimeoutMs = WIRE_TIMEOUT_MS),
+        /**
+         * The safety-gate seam (PHASE_VEXP3 WI1): passed straight through to the
+         * [VisionLoop]. The product service passes `OverlayGatePresenter(a11y)` so a
+         * risky action on the phone shows the SAME card the old engine showed; null
+         * (the adb experiment path) stays ungated.
+         */
+        gatePresenter: navigator.app.loop.GatePresenter? = null,
     ): VisionLoop {
         val budget = ExpBudget()
         val evidence = VisionEvidence(evidenceDir, runId)
@@ -127,6 +134,7 @@ object NavigatorVisionBridge {
             budget = budget,
             evidence = evidence,
             log = log,
+            gatePresenter = gatePresenter,
         )
     }
 

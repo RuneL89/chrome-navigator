@@ -1,11 +1,8 @@
 package navigator.app.harness
 
 import kotlinx.coroutines.runBlocking
-import navigator.app.laya.LayaEngine
-import navigator.app.laya.LayaForward
 import navigator.app.loop.Triage
 import navigator.app.stub.ScriptedAnswer
-import navigator.core.decision.FallbackEngine
 import navigator.core.wire.WireHttpRequest
 import navigator.core.wire.WireHttpResponse
 import navigator.core.wire.WireTransport
@@ -171,116 +168,15 @@ class HarnessEngineFactoryTest {
         assertEquals(0, built.spendMeter.spentMicroUsd)
     }
 
-    // ---- Phase 8C: the laya modes (vision 02 §7 mode register) --------------------------
-    // The ACTIVE checkpoint is the Phase-8 421M base (v32b demoted eval-only 2026-10-06).
-
-    /** The factory tests never decide; the engine's forward is never reached. */
-    private val noForward = LayaForward { _, _, _ -> error("no forward expected in factory tests") }
-
-    /** A scripted laya engine source; [error] reproduces the model-missing loud shape. */
-    private fun layaSource(error: String? = null) = LayaEngineSource {
-        if (error != null) throw IllegalStateException(error)
-        LayaEngine(noForward)
-    }
+    // PHASE_VEXP3: the laya mode register is retired with the training program — the
+    // mode parser's retired-name fallback is pinned in [HarnessLaunchTest].
 
     @Test
-    fun `LAYA mode builds the bare laya engine over the ACTIVE checkpoint - no fallback, no key needed`() {
-        val built = HarnessEngineFactory.build(
-            HarnessEngineMode.LAYA,
-            goal,
-            deliveredKey = null,
-            env = emptyMap(),
-            keysFile = keysFile(null),
-            transport = ScriptedWireTransport(responseJson()),
-            laya = layaSource(),
-        )
-
-        assertEquals(HarnessEngineMode.LAYA, built.mode)
-        assertEquals(HarnessEngineFactory.LAYA_CONFIG_ID, built.identity.configId)
-        assertEquals(HarnessEngineFactory.LAYA_421M_MODEL, built.identity.model)
-        assertNull(built.fallbackIdentity, "bare laya has no fallback (vision 02 §7)")
-        assertNull(built.fallbackEngine)
-        assertNull(built.keySource, "pure phone-only: no key involved")
-    }
-
-    @Test
-    fun `LAYA_FB_JEV composes the laya primary with the Jev fallback and its identity`() {
-        val built = HarnessEngineFactory.build(
-            HarnessEngineMode.LAYA_FB_JEV,
-            goal,
-            deliveredKey = "delivered-key",
-            env = emptyMap(),
-            keysFile = keysFile(null),
-            transport = ScriptedWireTransport(responseJson()),
-            laya = layaSource(),
-        )
-
-        assertEquals(HarnessEngineMode.LAYA_FB_JEV, built.mode)
-        val composed = built.engine
-        assertTrue(composed is FallbackEngine, "the loop sees ONE composed engine (ART-2)")
-        assertEquals(HarnessEngineFactory.LAYA_CONFIG_ID, built.identity.configId)
-        assertEquals(HarnessEngineFactory.LAYA_421M_MODEL, built.identity.model)
-        val fallbackIdentity = requireNotNull(built.fallbackIdentity)
-        assertEquals(HarnessEngineFactory.LAYA_FALLBACK_CONFIG_ID, fallbackIdentity.configId)
-        assertEquals("typesafe/jev-1.13-20260917", fallbackIdentity.model)
-        assertEquals(HarnessKeySource.INTENT_EXTRA, built.keySource)
-        assertEquals(composed, built.fallbackEngine, "the stats surface is the composition")
-    }
-
-    @Test
-    fun `LAYA mode without the laya engine source fails loudly (no silent substitute)`() {
-        val e = assertThrows<IllegalStateException> {
-            HarnessEngineFactory.build(
-                HarnessEngineMode.LAYA,
-                goal,
-                laya = null,
-            )
-        }
-        assertTrue(
-            e.message!!.contains("LAYA") && e.message!!.contains("refusing"),
-            "the failure must name the mode and refuse: ${e.message}",
-        )
-    }
-
-    @Test
-    fun `LAYA mode with a missing model file fails loudly through the source`() {
-        val e = assertThrows<IllegalStateException> {
-            HarnessEngineFactory.build(
-                HarnessEngineMode.LAYA,
-                goal,
-                laya = layaSource(error = "laya model file missing"),
-            )
-        }
-        assertEquals("laya model file missing", e.message, "the source's failure surfaces as-is")
-    }
-
-    @Test
-    fun `LAYA_FB_JEV without any configured key fails loudly`() {
-        val e = assertThrows<IllegalStateException> {
-            HarnessEngineFactory.build(
-                HarnessEngineMode.LAYA_FB_JEV,
-                goal,
-                deliveredKey = null,
-                env = emptyMap(),
-                keysFile = keysFile(null),
-                transport = ScriptedWireTransport(responseJson()),
-                laya = layaSource(),
-            )
-        }
-        assertTrue(
-            e.message!!.contains("openrouterKey"),
-            "the failure must name the delivery path: ${e.message}",
-        )
-    }
-
-    @Test
-    fun `mode names parse per the vision register - stub, jev alias, laya, laya-fb-jev`() {
+    fun `mode names parse per the register - stub, live, jev alias`() {
         assertEquals(HarnessEngineMode.STUB, HarnessEngineMode.parse(null))
         assertEquals(HarnessEngineMode.STUB, HarnessEngineMode.parse("stub"))
         assertEquals(HarnessEngineMode.LIVE, HarnessEngineMode.parse("live"))
         assertEquals(HarnessEngineMode.LIVE, HarnessEngineMode.parse("jev"))
-        assertEquals(HarnessEngineMode.LAYA, HarnessEngineMode.parse("laya"))
-        assertEquals(HarnessEngineMode.LAYA_FB_JEV, HarnessEngineMode.parse("laya-fb-jev"))
         assertEquals(HarnessEngineMode.STUB, HarnessEngineMode.parse("nonsense"))
     }
 }

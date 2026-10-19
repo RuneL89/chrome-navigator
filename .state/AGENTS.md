@@ -66,18 +66,19 @@ remembers."
   usable tree AND the ACTIVE window's package in the browser allowlist, the clipboard
   cleared after paste; +2 additive classifier-matrix rows
 * `eval/` — measurement-report artifacts, git-tracked: `tier-a-report.{md,json}` (Tier A
-  deterministic replay, Phase 7; regenerate with `./gradlew :core:generateTierAReport` —
-  the committed bytes are the drift detector a state/wire/taxonomy/gate change must keep
-  green); Tier B reports (Phase 12) extend the same schema prefix
+  deterministic replay, Phase 7 — FROZEN HISTORY since PHASE_VEXP3 retired the eval
+  harness with the training program: the `:core:generateTierAReport` generator no
+  longer exists and the committed bytes are the historical record only); Tier B reports
+  (Phase 12) extend the same schema prefix
 * `DEBUGGING.md` — the standing on-device run-monitoring procedure (owner-ratified
   2026-10-17, S25+ wireless ADB): per-branch pre-flight identity checks (branch ↔ app id
   ↔ APK file ↔ dex marker — both branches share the build-output dir and clobber each
   other's APK), navcap arming/stopping, the per-app authoritative terminal signal
-  (product: `task_terminal` row in `navigator-decision-log.db`; vision: the report JSON
-  + `terminal=` logcat line — the vision app writes no Room rows), pull/analysis, the
-  REPORT.md format, and the three-surface cleanup. Run folders: `hotel-iter/runN/`
-  (product) and `vision-iter/runN/` (vision experiments); reports stay untracked by
-  convention
+  (PHASE_VEXP3: NO database anywhere — a legacy overlay run ends on the corner log's
+  task-state line + the READY notification; a vision run on the corner log + the
+  `run-reports/vision-exp/` evidence), pull/analysis, the REPORT.md format, and the
+  three-surface cleanup. Run folders: `hotel-iter/runN/` (product) and
+  `vision-iter/runN/` (vision experiments); reports stay untracked by convention
 
 ## Local Contracts
 

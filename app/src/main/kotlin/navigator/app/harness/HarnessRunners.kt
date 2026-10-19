@@ -2,27 +2,16 @@ package navigator.app.harness
 
 import android.content.Context
 import navigator.app.loop.ActionExecutor
-import navigator.app.loop.CompanionSink
-import navigator.app.loop.DecisionLogSink
 import navigator.app.loop.GestureExecutor
 import navigator.app.loop.JevSpendRecorder
 import navigator.app.loop.LoopObserver
-import navigator.app.loop.ShadowRouter
 import navigator.app.loop.SpendMeter
 import navigator.app.loop.UsageFeed
-import navigator.app.log.DecisionLogDb
-import navigator.app.log.DecisionLogger
-import navigator.app.log.ExitCheckLogger
-import navigator.app.log.ShadowResultLogger
-import navigator.app.laya.LayaEngine
 import navigator.app.observe.NavigatorAccessibilityService
 import navigator.app.stub.StubEngine
 import navigator.core.decision.DecisionEngine
-import navigator.core.decision.FallbackEngine
 import navigator.core.enumerate.ObservedNode
 import navigator.core.state.ContentExtractor
-import navigator.core.log.DecisionLogRow
-import navigator.core.log.ExitCheckRow
 import navigator.core.wire.DefaultEngineConfigs
 import navigator.core.wire.OkHttpWireTransport
 import navigator.core.wire.SystemOneClient
@@ -31,9 +20,11 @@ import navigator.core.decision.JevEngine
 
 /**
  * The harness's loop wiring (phase doc §2.2): the observer/executor adapters over the
- * a11y service, the STUB | LIVE engine factory, the Room-backed log sink, and the run
- * report store. Everything Android about the loop lives here; the loop itself stays
- * JVM-pure (Gate 6.1).
+ * a11y service, the STUB | LIVE engine factory, and the run report store. Everything
+ * Android about the loop lives here; the loop itself stays JVM-pure (Gate 6.1).
+ * PHASE_VEXP3: the laya engine modes, the shadow router, and the Room log sink are
+ * GONE — the training-data program is retired (owner directive 2026-10-19) and the
+ * harness runs [navigator.app.loop.NoOpLogSink].
  */
 
 /** Maps the service's live [LoopObservation] onto the loop's pure [StepObservation]. */
@@ -120,29 +111,21 @@ class HarnessObserver(private val service: NavigatorAccessibilityService) : Loop
     }
 }
 
-/** The harness engine selection (phase doc §2.2; Phase 8C adds the vision 02 §7 modes). */
+/** The harness engine selection (phase doc §2.2; PHASE_VEXP3 retired the laya modes). */
 enum class HarnessEngineMode {
     STUB,
 
     /** LIVE Jev — the current product default (mode register: `jev`; alias `live`). */
     LIVE,
-
-    /** Bare on-device fine-tuned Laya (the ACTIVE checkpoint, [HarnessEngineFactory.LAYA_421M_MODEL]) —
-     * no shadow, no fallback (mode register: `laya`). */
-    LAYA,
-
-    /** On-device laya primary + Jev confidence-band fallback (mode register: `laya-fb-jev`). */
-    LAYA_FB_JEV,
     ;
 
-    val isLaya: Boolean get() = this == LAYA || this == LAYA_FB_JEV
-
     companion object {
-        /** Mode names are the vision 02 §7 register + the harness aliases (`live` = `jev`). */
+        /** Mode names are the register + the harness aliases (`live` = `jev`). The
+         *  retired laya mode names (`laya`, `laya-fb-jev`) fall back to STUB loudly —
+         *  they parse as unknown (the activity reports unknown values in the launch
+         *  line via the mode's own echo). */
         fun parse(raw: String?): HarnessEngineMode = when (raw?.trim()?.lowercase()) {
             "live", "jev" -> LIVE
-            "laya" -> LAYA
-            "laya-fb-jev", "laya_fb_jev" -> LAYA_FB_JEV
             else -> STUB
         }
     }
@@ -160,60 +143,21 @@ enum class HarnessKeySource {
     KEYS_FILE,
 }
 
-/** Built engine: the loop cannot tell stub from live from laya (ART-2); the harness knows. */
+/** Built engine: the loop cannot tell stub from live (ART-2); the harness knows. */
 data class HarnessEngine(
     val engine: DecisionEngine,
     val identity: navigator.core.log.EngineIdentity,
     val spendMeter: SpendMeter,
     val mode: HarnessEngineMode,
-    /** Null for STUB/LAYA. The key's SOURCE for LIVE/LAYA_FB_JEV — never the key value. */
+    /** Null for STUB. The key's SOURCE for LIVE — never the key value. */
     val keySource: HarnessKeySource? = null,
-    /**
-     * The composed engine's fallback identity (the `laya-fb-jev` mode): escalated log
-     * rows carry it in their `fallback {engine, model}` provenance (doc 05 v1.2.0).
-     */
-    val fallbackIdentity: navigator.core.log.EngineIdentity? = null,
-    /** The composition itself when [mode] is LAYA_FB_JEV — the run report's escalation stats. */
-    val fallbackEngine: FallbackEngine? = null,
-    /**
-     * The on-device laya engine behind [engine] (laya modes only) — the harness closes it
-     * at the end of EVERY attempt: two ~1.4 GB sessions alive at once breach the
-     * emulator's low-memory watermark (measured 2026-10-06: LMK killed the run when a
-     * starvation retry opened a second engine beside the un-closed first).
-     */
-    val primaryCloseable: AutoCloseable? = null,
 )
-
-/**
- * The laya engine edge (Phase 8C): opening the ACTIVE on-device checkpoint is
- * Android-context-bound (asset extraction + filesDir copy), so the factory takes it as
- * a seam — the activity supplies [LayaCheckpoint.LAYA_421M.engine] (the ACTIVE
- * checkpoint since the owner demoted v32b to eval-only, 2026-10-06); JVM tests script
- * fakes. A missing/mis-hashed model file fails LOUDLY inside the source (the gradle
- * `verifyLayaModel` task already refuses the build before it can ship).
- */
-fun interface LayaEngineSource {
-    fun open(): LayaEngine
-}
 
 object HarnessEngineFactory {
 
     const val STUB_CONFIG_ID = "stub"
     const val STUB_MODEL = "scripted-harness-v1"
     const val LIVE_CONFIG_ID = "jev-primary"
-    const val LAYA_CONFIG_ID = "laya"
-    const val LAYA_FALLBACK_CONFIG_ID = "jev"
-
-    /**
-     * The pinned ACTIVE laya snapshot — the Phase-8 421M checkpoint (vision 02 §5: pinned
-     * IDs live in this factory only). The laya modes load it since the owner demoted v32b
-     * to eval-only (2026-10-06, UAT Tests 2-3: inverted exit calibration + poor
-     * navigation transfer — an eval-gated config decision per vision 02 §5 / 07 §3a).
-     */
-    const val LAYA_421M_MODEL = "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851"
-
-    /** The pinned v32b snapshot — EVAL-ONLY (demoted 2026-10-06; not packaged). */
-    const val LAYA_V32B_MODEL = "ichenney/laya-browser-v32b@161d54d6000913ff279b0afd1ac77faef8685a9b"
 
     /**
      * STUB: the fixture-driven [StubEngine] replaying [goal]'s script, $0 spend. LIVE:
@@ -222,17 +166,9 @@ object HarnessEngineFactory {
      * resolved with priority [deliveredKey] (the adb intent extra) > env
      * (`NAVIGATOR_OPENROUTER_KEY`) > the git-ignored keys file — an Android app process
      * has neither an environment nor the repo's `.tools/` directory, so headless live
-     * runs deliver the key by intent extra. A LIVE or LAYA_FB_JEV request without any
-     * configured key fails loudly — never a silent stub. [deliveredKey] is never logged
-     * and never stored beyond the built [EngineConfig] (whose `toString` redacts it).
-     *
-     * LAYA: the bare on-device laya engine over the ACTIVE checkpoint ([laya] source;
-     * loud when null or when the model file is missing). LAYA_FB_JEV: the vision 02 §7
-     * composition — laya primary,
-     * Jev confidence-band fallback (the fallback rides its own [JevSpendRecorder] so
-     * escalated consults still book provider-reported spend into the SAME meter the
-     * loop budgets with); the loop sees ONE engine (ART-2) and the escalation stats
-     * come off the built [FallbackEngine].
+     * runs deliver the key by intent extra. A LIVE request without any configured key
+     * fails loudly — never a silent stub. [deliveredKey] is never logged and never
+     * stored beyond the built [EngineConfig] (whose `toString` redacts it).
      */
     fun build(
         mode: HarnessEngineMode,
@@ -241,7 +177,6 @@ object HarnessEngineFactory {
         env: Map<String, String> = System.getenv(),
         keysFile: java.nio.file.Path = DefaultEngineConfigs.DEFAULT_KEYS_FILE,
         transport: WireTransport = OkHttpWireTransport(),
-        laya: LayaEngineSource? = null,
     ): HarnessEngine = when (mode) {
         HarnessEngineMode.STUB -> HarnessEngine(
             engine = StubEngine(goal.stubScript()),
@@ -259,47 +194,10 @@ object HarnessEngineFactory {
                 keySource = wired.keySource,
             )
         }
-        HarnessEngineMode.LAYA -> {
-            val layaEngine = laya?.open() ?: throw IllegalStateException(
-                "LAYA mode needs the on-device laya engine source (no Android context is " +
-                    "available to open $LAYA_421M_MODEL) — refusing to run a silent substitute.",
-            )
-            HarnessEngine(
-                engine = layaEngine,
-                identity = navigator.core.log.EngineIdentity(LAYA_CONFIG_ID, LAYA_421M_MODEL),
-                spendMeter = SpendMeter(),
-                mode = mode,
-                primaryCloseable = layaEngine,
-            )
-        }
-        HarnessEngineMode.LAYA_FB_JEV -> {
-            val layaEngine = laya?.open() ?: throw IllegalStateException(
-                "LAYA_FB_JEV mode needs the on-device laya engine source — refusing to run " +
-                    "a silent substitute.",
-            )
-            val wired = jevSpendRecordedEngine(deliveredKey, env, keysFile, transport)
-            val composed = FallbackEngine(
-                primary = layaEngine,
-                fallback = wired.clientEngine,
-            )
-            HarnessEngine(
-                engine = composed,
-                identity = navigator.core.log.EngineIdentity(LAYA_CONFIG_ID, LAYA_421M_MODEL),
-                spendMeter = wired.meter,
-                mode = mode,
-                keySource = wired.keySource,
-                fallbackIdentity = navigator.core.log.EngineIdentity(
-                    LAYA_FALLBACK_CONFIG_ID,
-                    DefaultEngineConfigs.OPENROUTER_MODEL,
-                ),
-                fallbackEngine = composed,
-                primaryCloseable = layaEngine,
-            )
-        }
     }
 
     /**
-     * The LIVE/LAYA_FB_JEV key resolution + recorded Jev engine (one wire client).
+     * The LIVE key resolution + recorded Jev engine (one wire client).
      * Internal (not private) since Phase 9: the product [navigator.app.overlay.NavigatorService]
      * builds the SAME recorded Jev engine over the Setup-stored key (one wiring, one
      * redaction law — the key's value never surfaces, only its source).
@@ -347,49 +245,6 @@ object HarnessEngineFactory {
         val meter: SpendMeter,
         val keySource: HarnessKeySource,
     )
-}
-
-/** Room-backed [DecisionLogSink]: the durable, insert-only decision history. */
-class RoomDecisionLogSink(context: Context, name: String = DB_NAME) : DecisionLogSink {
-
-    private val db = DecisionLogDb.open(context, name)
-    private val logger = DecisionLogger(db)
-
-    /** Companion shadow-result logger over the SAME database (phase 8B §2.2). */
-    val shadowResults = ShadowResultLogger(db)
-
-    /** Exit-check logger over the SAME database (vision 05 §2 amendment 2026-10-06). */
-    val exitChecks = ExitCheckLogger(db)
-
-    override suspend fun write(row: DecisionLogRow) = logger.insert(row)
-
-    /** Exactly one insert-only row per finish check, refusals included (amendment rule a). */
-    override suspend fun writeExitCheck(row: ExitCheckRow) = exitChecks.insert(row)
-
-    /**
-     * Phase 10C (doc 05 §2 v1.7.0): the per-task terminal row — the product run's end state
-     * + reason. ONE row per task (PRIMARY KEY taskId, REPLACE on a re-run of the same id).
-     */
-    override suspend fun writeTerminal(row: navigator.app.loop.TerminalRow) =
-        db.terminalDao().insert(
-            navigator.app.log.TerminalEntity(
-                taskId = row.taskId,
-                goal = row.goal,
-                terminal = row.terminal,
-                detail = row.detail,
-                timestamp = row.timestamp,
-            ),
-        )
-
-    /**
-     * The router's companion edge: guarded, exactly-once inserts into `shadow_result`
-     * (amendment rule a at the persistence boundary; duplicates ABORT).
-     */
-    val companionSink = CompanionSink { row -> shadowResults.insert(row) }
-
-    private companion object {
-        const val DB_NAME = "navigator-decision-log.db"
-    }
 }
 
 /** Run-report export: JSON to the app's external files dir (pullable via adb). */

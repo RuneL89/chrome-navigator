@@ -8,10 +8,10 @@ import org.junit.jupiter.api.Test
 
 /**
  * The headless launch policy (owner-directed harness-visibility tooling, 2026-10-06):
- * show-only never auto-runs, the extra aliases resolve (incl. `shadowOn` — the alias
- * the uat-applepie-02 device run fired and the harness of the day silently ignored),
- * and unknown `navigator.harness.*` extras are detected instead of dropped. Pure JVM —
- * no instrumentation, no Robolectric.
+ * show-only never auto-runs, the extra aliases resolve, and unknown
+ * `navigator.harness.*` extras are detected instead of dropped. Pure JVM — no
+ * instrumentation, no Robolectric. PHASE_VEXP3: the retired shadow/laya names now fall
+ * to their defaults (and the long names are flagged as unknown).
  */
 class HarnessLaunchTest {
 
@@ -71,17 +71,6 @@ class HarnessLaunchTest {
     }
 
     @Test
-    fun `the shadowOn alias is recognized - the uat-applepie-02 root cause`() {
-        assertTrue(parse("shadowOn" to true).shadow, "--ez shadowOn true must enable the shadow")
-        assertTrue(parse("shadow" to true).shadow, "the original short alias keeps working")
-        assertTrue(
-            parse(HarnessLaunch.EXTRA_SHADOW to true).shadow,
-            "the long name keeps working",
-        )
-        assertFalse(parse().shadow, "the shadow stays OFF by default")
-    }
-
-    @Test
     fun `unrecognized navigator harness extras are flagged, unknown short names are not`() {
         val launch = parse(
             "goal" to "search-and-read-1",
@@ -99,7 +88,6 @@ class HarnessLaunchTest {
     fun `known namespaced extras are never flagged`() {
         val launch = parse(
             HarnessLaunch.EXTRA_GOAL to "search-and-read-1",
-            HarnessLaunch.EXTRA_SHADOW to true,
             HarnessLaunch.EXTRA_SETTLE_MS to 300L,
             HarnessLaunch.EXTRA_SHOW_ONLY to false,
         )
@@ -118,12 +106,10 @@ class HarnessLaunchTest {
     }
 
     @Test
-    fun `defaults mirror the pre-refactor headless launch`() {
+    fun `defaults mirror the headless launch`() {
         val launch = parse("goal" to "search-and-read-2")
         assertFalse(launch.live, "engine defaults to STUB")
         assertTrue(launch.autoDeny, "auto-deny defaults ON in the harness only")
-        assertFalse(launch.shadow)
-        assertEquals(1, launch.shadowEveryNth)
         assertEquals(HarnessLaunch.DEFAULT_SETTLE_MS, launch.settleMs)
         assertEquals(HarnessLaunch.DEFAULT_START_DELAY_MS, launch.startDelayMs)
         assertFalse(launch.keyPresent)
@@ -145,36 +131,28 @@ class HarnessLaunchTest {
     }
 
     @Test
-    fun `sampling and settle extras are coerced to legal values`() {
-        assertEquals(1, parse("shadowEveryNth" to 0L).shadowEveryNth)
+    fun `settle extras are coerced to legal values`() {
         assertEquals(0, parse("settleMs" to -5L).settleMs)
-        assertEquals(3, parse("shadowEveryNth" to 3L).shadowEveryNth)
     }
 
     @Test
     fun `live engine selection parses through the shared mode parser`() {
         assertTrue(parse("engine" to "live", "goal" to "x").live)
+        assertTrue(parse("engine" to "jev", "goal" to "x").live, "the `jev` alias stays live")
         assertFalse(parse("engine" to "stub", "goal" to "x").live)
         assertFalse(parse("engine" to "nonsense", "goal" to "x").live, "unknown engines degrade to STUB")
     }
 
     @Test
-    fun `the laya modes parse through the launch - full mode carried`() {
+    fun `the retired laya mode names degrade to STUB`() {
         assertEquals(
-            HarnessEngineMode.LAYA,
+            HarnessEngineMode.STUB,
             parse("engine" to "laya", "goal" to "x").mode,
-            "the bare laya mode arrives by intent (vision 02 §7 register)",
-        )
-        assertEquals(
-            HarnessEngineMode.LAYA_FB_JEV,
-            parse("engine" to "laya-fb-jev", "goal" to "x").mode,
+            "the laya modes retired with the training program (PHASE_VEXP3)",
         )
         assertEquals(
             HarnessEngineMode.STUB,
-            parse("engine" to "laya-typo", "goal" to "x").mode,
-            "unknown engines still degrade to STUB (never a silent laya run)",
+            parse("engine" to "laya-fb-jev", "goal" to "x").mode,
         )
-        // The alias kept its Phase-6 boolean view.
-        assertTrue(parse("engine" to "jev", "goal" to "x").live)
     }
 }

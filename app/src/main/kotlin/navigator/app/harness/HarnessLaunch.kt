@@ -7,11 +7,10 @@ package navigator.app.harness
  * can log loudly to the step pane). Pure and JVM-testable: the show-only path, the
  * extra aliases, and the unknown-extra detector are unit-gated.
  *
- * Aliases are load-bearing: the uat-applepie-02 device run fired `--ez shadowOn true`,
- * which the harness of the day silently ignored (it only read `shadow`), so the run
- * report carried no shadow block at all. `shadowOn` is now a first-class alias and ANY
- * unrecognized `navigator.harness.*` extra is reported loudly by the activity instead
- * of being dropped on the floor.
+ * ANY unrecognized `navigator.harness.*` extra is reported loudly by the activity
+ * instead of being dropped on the floor (the law the uat-applepie-02 shadow alias
+ * incident created; the shadow extras themselves retired with the training program,
+ * PHASE_VEXP3).
  */
 data class HarnessLaunch(
     /** `--ez showOnly true`: bring the harness to the front, never start/refuse a run. */
@@ -23,11 +22,9 @@ data class HarnessLaunch(
     val customGoal: ScriptedGoal?,
     /** Why [customGoal] is null despite [customRequested] (logged loudly on run launches). */
     val customError: String?,
-    /** The full engine mode (Phase 8C: STUB | LIVE(jev) | LAYA | LAYA_FB_JEV). */
+    /** The full engine mode (STUB | LIVE(jev)). */
     val mode: HarnessEngineMode,
     val autoDeny: Boolean,
-    val shadow: Boolean,
-    val shadowEveryNth: Long,
     val settleMs: Long,
     /**
      * Phase 10 (phase doc §2.4, Gate 10.4): `--ez ladder true` — the LIVE LADDER mode:
@@ -73,8 +70,6 @@ data class HarnessLaunch(
         const val EXTRA_ENGINE = "navigator.harness.extra.ENGINE"
         const val EXTRA_AUTO_DENY = "navigator.harness.extra.AUTO_DENY"
         const val EXTRA_START_DELAY_MS = "navigator.harness.extra.START_DELAY_MS"
-        const val EXTRA_SHADOW = "navigator.harness.extra.SHADOW"
-        const val EXTRA_SHADOW_EVERY_NTH = "navigator.harness.extra.SHADOW_EVERY_NTH"
 
         /**
          * Gate 6.3 key delivery: the LIVE run's OpenRouter key, passed by adb
@@ -107,11 +102,6 @@ data class HarnessLaunch(
         const val EXTRA_ENGINE_SHORT = "engine"
         const val EXTRA_AUTO_DENY_SHORT = "autoDeny"
         const val EXTRA_START_DELAY_SHORT_MS = "startDelayMs"
-        const val EXTRA_SHADOW_SHORT = "shadow"
-
-        /** The alias the UAT session actually fired (uat-applepie-02): now recognized. */
-        const val EXTRA_SHADOW_ON_SHORT = "shadowOn"
-        const val EXTRA_SHADOW_EVERY_NTH_SHORT = "shadowEveryNth"
         const val EXTRA_OPENROUTER_KEY_SHORT = "openrouterKey"
         const val EXTRA_CUSTOM_GOAL_TEXT_SHORT = "customGoalText"
         const val EXTRA_CUSTOM_START_URL_SHORT = "customStartUrl"
@@ -127,7 +117,7 @@ data class HarnessLaunch(
 
         private val KNOWN_LONG_NAMES = setOf(
             EXTRA_GOAL, EXTRA_ENGINE, EXTRA_AUTO_DENY, EXTRA_START_DELAY_MS,
-            EXTRA_SHADOW, EXTRA_SHADOW_EVERY_NTH, EXTRA_OPENROUTER_KEY,
+            EXTRA_OPENROUTER_KEY,
             EXTRA_CUSTOM_GOAL_TEXT, EXTRA_CUSTOM_START_URL, EXTRA_CUSTOM_GOAL_ID,
             EXTRA_SETTLE_MS, EXTRA_SHOW_ONLY, EXTRA_LADDER,
         )
@@ -156,9 +146,6 @@ data class HarnessLaunch(
             } else {
                 null
             }
-            val shadow = extras.bool(EXTRA_SHADOW, extras.bool(
-                EXTRA_SHADOW_ON_SHORT, extras.bool(EXTRA_SHADOW_SHORT, false),
-            ))
             return HarnessLaunch(
                 showOnly = showOnly,
                 goalId = goalId,
@@ -169,10 +156,6 @@ data class HarnessLaunch(
                     extras.string(EXTRA_ENGINE) ?: extras.string(EXTRA_ENGINE_SHORT),
                 ),
                 autoDeny = extras.bool(EXTRA_AUTO_DENY, extras.bool(EXTRA_AUTO_DENY_SHORT, true)),
-                shadow = shadow,
-                shadowEveryNth = extras.long(EXTRA_SHADOW_EVERY_NTH, extras.long(
-                    EXTRA_SHADOW_EVERY_NTH_SHORT, 1,
-                )).coerceAtLeast(1),
                 settleMs = extras.long(EXTRA_SETTLE_MS, extras.long(
                     EXTRA_SETTLE_MS_SHORT, DEFAULT_SETTLE_MS,
                 )).coerceAtLeast(0),

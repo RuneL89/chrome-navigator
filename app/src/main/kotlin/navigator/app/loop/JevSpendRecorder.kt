@@ -38,7 +38,7 @@ class UsageFeed {
  * makes no wire calls and is never wrapped — stub runs cost exactly $0.
  *
  * Implements [DecisionEngine] itself, so the loop is wired identically for STUB and
- * LIVE: `ShadowRouter` (Phase 8) replaces this reference with zero loop changes.
+ * LIVE: any wrapping engine replaces this reference with zero loop changes.
  */
 class JevSpendRecorder(
     private val inner: DecisionEngine,

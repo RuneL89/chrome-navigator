@@ -5,9 +5,9 @@ import kotlinx.serialization.json.Json
 
 /**
  * The harness's exported run reports (the Gate 6.2 evidence artifacts), as pure data +
- * serializers — own file so the JSON contract is JVM-testable without the activity
- * (and so the always-include-shadow guarantee, owner-directed 2026-10-06, is pinned by
- * a unit test).
+ * serializers — own file so the JSON contract is JVM-testable without the activity.
+ * PHASE_VEXP3: the shadow/escalations evidence blocks are retired with the training
+ * program (owner directive 2026-10-19).
  */
 
 /**
@@ -75,17 +75,6 @@ data class RunReport(
     /** True when attempt 1 ended in observation starvation and a retry followed. */
     val flakeRetried: Boolean = false,
     val stepLog: List<String>,
-    /** Phase 8 shadow evidence. Null ONLY when the shadow was OFF for this run —
-     *  whenever the launch requested the shadow, this object is ALWAYS present (see
-     *  [ShadowReport.note] for the degraded cases). */
-    val shadow: ShadowReport? = null,
-    /**
-     * Phase 8C fallback-composition evidence (vision 02 §7): the composed engine's
-     * escalation count + rate over this run. Null for every single-engine mode
-     * (STUB / LIVE(jev) / LAYA) — the field's absence must never be ambiguous with
-     * "no escalations" when the owner reads the UAT comparison.
-     */
-    val escalations: EscalationStats? = null,
     /**
      * Phase 8J exit provenance (vision 04 §3 v1.2.0): the goal-achieved path, guard
      * level, noul, finish-check count and completion-card record. Null unless the run
@@ -118,19 +107,6 @@ data class RunReport(
      * [RunReport.spendMicroUsd] (the decision spend; the caps never mix).
      */
     val writerSpendMicroUsd: Long = 0,
-)
-
-/**
- * The fallback composition's per-run counters (from [navigator.core.decision.FallbackEngine.stats]):
- * how many decisions the composition settled and how many consulted the fallback —
- * the UAT comparison's escalation-rate evidence.
- */
-@Serializable
-data class EscalationStats(
-    val decisions: Long,
-    val escalations: Long,
-    /** escalations / decisions over this run (0.0 over zero decisions). */
-    val rate: Double,
 )
 
 /**
@@ -204,47 +180,6 @@ data class AnswerReport(
     val outputTokens: Long,
     /** Integer micro-USD (ART-5) — the writer budget's metered cost of the call. */
     val costMicroUsd: Long,
-)
-
-/**
- * The shadow side of one run (Gate 8.4/8B evidence): coverage is the JOINED-VIEW
- * fraction (vision 05 §3 amendment 2026-10-04, rule d: joined rows over total sampled —
- * decision-row shadows + companion `ShadowResultRow`s; the in-memory enrichment ratio
- * is only the fallback when the joined read is unavailable); `companionRows` /
- * `droppedAfterClose` are the amendment's companion counters. Latencies are the
- * MEASURED laya call times (nearest-rank percentiles over the completed decisions).
- */
-@Serializable
-data class ShadowReport(
-    val enabled: Boolean,
-    /** The sampling period this run ran with (1 = every step, vision 02 §4.3). */
-    val everyNth: Long,
-    val decisions: Long,
-    val sampled: Long,
-    val completed: Long,
-    val missed: Long,
-    val failed: Long,
-    val coverage: Double,
-    val forwardLatencyP50Ms: Long,
-    val forwardLatencyP95Ms: Long,
-    val totalLatencyP95Ms: Long,
-    /**
-     * Late shadow answers landed as companion rows (amendment 2026-10-04). No default:
-     * the report Json omits defaulted properties, and a missing key must never be
-     * ambiguous with "no companions" when the owner reads coverage per UAT test.
-     */
-    val companionRows: Long,
-    /** Completions dropped because the logger was already closed (amendment rule c). */
-    val droppedAfterClose: Long,
-    /** Companion inserts the persistence guard rejected (must stay 0; loud if not). */
-    val companionRejected: Long,
-    /**
-     * Present (non-null) only on the degraded paths introduced by the owner-directed
-     * 2026-10-06 fix: the shadow was requested but no router snapshot could be taken
-     * (session open failed, harness error before the loop, ...) — the counters are then
-     * zeroed and this note says why, so the block is never silently empty.
-     */
-    val note: String? = null,
 )
 
 /** The batch report: every family at its defined terminal state, zero log gaps. */

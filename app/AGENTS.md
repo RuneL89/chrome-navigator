@@ -3,61 +3,19 @@
 ## Purpose
 
 `:app` — the Android application (vision 01 §3): a11y service, overlay UI, guards
-integration, Room, ONNX, cloud LLM client. Phase 0 shipped the buildable skeleton;
-Phase 1 the observation layer (`observe/`); Phase 5 the DecisionLog persistence
-(`log/`); Phase 6 the navigation loop (`loop/`), the fixture-driven stub engine
-(`stub/`), and the headless debug harness (`harness/`); Phase 8 the on-device shadow
-(`laya/`) and the `ShadowRouter`; Phase 9 the product overlay UX (`overlay/`) and the
-setup wizard (`setup/`).
+integration, cloud LLM client. Phase 0 shipped the buildable skeleton; Phase 1 the
+observation layer (`observe/`); Phase 6 the navigation loop (`loop/`), the
+fixture-driven stub engine (`stub/`), and the headless debug harness (`harness/`);
+Phase 9 the product overlay UX (`overlay/`) and the setup wizard (`setup/`).
+PHASE_VEXP3 (owner directive 2026-10-19, verbatim: the training-data program is
+RETIRED — "remove that noise completely"): the on-device laya engine (`laya/`), the
+`ShadowRouter`, the Room DecisionLog persistence (`log/`), and the RLCD/eval machinery
+are DELETED; the legacy loop logs through `NoOpLogSink` (nothing persists).
 
 ## Ownership
 
 * `src/main/kotlin/navigator/app/` — Android UI and services
-  * `src/main/kotlin/navigator/app/laya/` — the on-device laya engine (Phase 8,
-    vision 05 §6): `LayaOnnxSession` (ONNX Runtime over the pinned int8 graphs — CPU EP,
-    1 intra-op thread; first-run asset→files copy, direct-path session; the
-    `ai.onnxruntime` API is identical on the Android AAR and the desktop JVM artifact,
-    so the laya gates run it unmodified on the JVM; Phase 8C: the artifact FILE is a
-    parameter — `laya-int8.onnx` (421M) or `laya-v32b-int8.onnx`), `MarkerBuilder` (the
-    upstream sequence format `[CLS] <type> question [SEP] [MASK] opt … [SEP] state [SEP]`,
-    ported branch-by-branch from the pinned upstream commit; Phase 8C: the checkpoint's
-    budgets + marker tokens are a `SequenceFormat` — 421M: 512/192/[CLS]/[SEP]/[MASK],
-    v32b: 1024/768/<bos>/<eos>/<mask>), `Calibration` (fitted
-    per-`(qtype, option-bucket)` temperatures per checkpoint `Profile` — 421M's fitted
-    tables vs v32b's identity [1,1,1] — clamped to [0.5, 5.0], softmax + confidences),
-    `LayaCheckpoint` (Phase 8C: the exported-checkpoint registry — artifact file, REAL
-    tokenizer (421M: the Phase-2 classpath resource; v32b: the hash-pinned
-    `tokenizer-v32b.json` in the eval-only dir, a SECOND tokenizer family), format,
-    calibration; the harness engine modes pick the ACTIVE checkpoint by id — since the
-    2026-10-06 owner demotion `laya`/`laya-fb-jev` load `LAYA_421M`; `V32B` stays
-    registered EVAL-ONLY (not packaged; engine construction fails loudly without the
-    `.tools/laya-v32b/` eval artifacts — acceptable)), `LayaEngine` (implements
-    `DecisionEngine`; Phase 10B MIGRATED `choose` to the cascade mirror
-    (`chooseCascade`: stage-1 = the FIXED intent choice over the question's own
-    instructions — calibration bucket `choice:6-10`; stage-2 = one score forward PER
-    candidate question over the rubric — `score:3-5` — argmax by expected level, ties
-    by id; non-cascade questions stay single-stage) plus `judge`/`score` mappings;
-    Phase 8C: tokenizer/calibration/format
-    are constructor params defaulting to the Phase-8 checkpoint; Phase 08H dual-view:
-    the caller passes the CANONICAL text (rows keep it verbatim) and the engine derives
-    the LAYA STATE VIEW through `LayaStateView` within the format's `layaStateViewBudget`
-    (421M: 319) before every marker build — zero train/serve skew per view). Phase 10B
-    retired the pre-cascade `BucketedForms` description-parsing: the ShadowRouter
-    receives the loop's STRUCTURED cascade forms — `choose` recognizes the fixed intent
-    question structurally (`LayaEngine.isIntentQuestion`) and `scoreBatch` attaches the
-    `cand-*` batch to the tracked decision; NON-cascade choose questions (triage, the
-    recovery set) are refused LOUDLY — a logged line + a counted refusal, never silent
-    darkness (vision 02 §4 v1.3.0)); `MarkerBuilder` (Phase 08H: the checkpoint's
-    `SequenceFormat.layaStateViewBudget = maxLen − headMaxLen − 1` formula lives beside
-    the ceilings (ART-5), and a state that does not fit the room a question's head left
-    fails LOUDLY — the upstream silent right-truncation is outlawed by the vision 03 §4
-    dual-view law; the port is otherwise branch-by-branch).
-    Question-text wording is fixture law: the Gate 8.1/8C.2
-    reference vectors (`tools/laya_reference.py` → `app/src/test/resources/laya/`)
-    mirror it exactly; the script's stdlib-only `--state-view-parity` mode generates
-    `state-view-parity.json`, the cross-language derivation fixture the
-    `LayaStateViewParityTest` must match byte-for-byte
-    * `src/main/kotlin/navigator/app/overlay/` — the PRODUCT overlay UX (Phase 9,
+  * `src/main/kotlin/navigator/app/overlay/` — the PRODUCT overlay UX (Phase 9,
     phase doc §2.1, pre-check readings a/b): `OverlayManager` (owns the three
     `TYPE_ACCESSIBILITY_OVERLAY` windows — added/removed through the observation
     service's WindowManager, NO SYSTEM_ALERT_WINDOW grant for product overlays; created
@@ -592,24 +550,9 @@ setup wizard (`setup/`).
     `beginTask` RESETS at every task start so a stale cancel never kills the next task,
     `cancelActive` is idempotent, the loop polls at each step boundary and exits
     USER_CANCEL — the lawful owner exit, vision 04 §3; the flag only ever STOPS the
-    loop, ART-4 intact; JVM-pinned); Phase 8 added `ShadowRouter` (vision 02 §4):
-    implements `DecisionEngine`, returns the PRIMARY's answer synchronously, fires the
-    shadow async on a single-thread `laya-shadow` dispatcher, every-Nth sampling with
-    the thermal/battery every-3rd toggle (`SamplingPolicy`), and a `sink()` decorator
-    that enriches the loop's row with `shadow`/`shadowAnswer`/agreement fields — or
-    freezes it as a shadowMiss (`shadowSampled=true`, `shadow=null`) when the shadow
-    is not complete at row-write time (rows are immutable history, vision 05, so the
-    miss boundary is the write); Phase 8B (amendment 2026-10-04): a shadow answer
-    completing AFTER the freeze lands as exactly ONE companion `ShadowResultRow` via
-    the optional `CompanionSink` (the freeze/completion transition is atomic on the
-    job, so the answer lands in the row OR one companion — never both; `close()` ends
-    companion inserts and later completions are dropped and counted; the executor's
-    view of every row stays primary-only); Phase 8J Round 2 (vision 05 §2 amendment
-    2026-10-06): EVERY finish check — accepted or refused — writes exactly ONE
-    insert-only `ExitCheckRow` through the `DecisionLogSink.writeExitCheck` edge (the
-    loop captures the anchored judge's escalation separately from the step's choose;
-    on a primary hard failure the executed fallback noul stands in as `answer`,
-    decision-row precedent).
+    loop, ART-4 intact; JVM-pinned). (PHASE_VEXP3: the Phase-8 `ShadowRouter` and the
+    row-enrichment program are DELETED with the training program; the
+    `DecisionLogSink.writeExitCheck` seam remains, every sink a no-op.)
     PHASE 10 (the task ladder, vision 04 §1 v1.4.0) added, all inside the loop package:
     `LadderSource.kt` (the restructure seam — consulted for EVERY goal when wired; the
     default `None` leaves every existing path byte-identical; `null` = the clean
@@ -930,12 +873,29 @@ setup wizard (`setup/`).
     the transport injectable (JVM tests stay hermetic), evidence under the external
     `run-reports/vision-exp/task-<ts>/`, the vision steps streaming into the CORNER
     LOG (the bridge's log lambda → `appendLogLine`), cancel riding the SAME
-    `TaskCancelFlag` the ⏹ control drives, and the terminal mapped through the
+    `TaskCancelFlag` the ⏹ control drives, the terminal mapped through the
     EXISTING funnel (`NavigatorVisionBridge.taskStateLine` → `setTaskStateLine` + the
-    READY notification — NO DB row: the vision loop has no sink; training rows are
-    retired next phase). Toggle ON + a missing key = the polite loud refusal naming
+    READY notification — NO DB row anywhere: the training program is RETIRED,
+    PHASE_VEXP3), and — PHASE_VEXP3 WI1 — the SAFETY GATE riding the vision loop: the
+    bridge takes `gatePresenter: GatePresenter? = null` and the service passes
+    `OverlayGatePresenter(a11y)`, so a risky action on the phone shows the SAME owner
+    card the legacy engine shows (vision 06 §2; `RiskGate.classify` before every
+    TAP/TYPE/SUBMIT proposal, scroll/back never gated; per-task `(class, site)` trust +
+    the double-refusal abort = the new `VisionLoop.Terminal.GUARD_ABORT` through the
+    same funnel; the credential card's `ApproveWithSecret` swaps the typed text for the
+    card secret, redacted everywhere; wrong-source resolutions fail loudly; the
+    `(gate H4 approved)`-style markers ride the step lines and the gate events the
+    evidence events.log; null = the ungated harness/adb path). Toggle ON + a missing
+    key = the polite loud refusal naming
     the channel (`ProductRunRoute.Refused`, the no-key precedent's wording style); a
     thrown vision run = the pump's existing loud-but-polite catch. JVM gates:
+    `VisionLoopGateTest` (the WI1 battery: approve/deny/timeout/credential-swap/
+    double-refusal-abort/ungated-null/scroll-back-never + the wrong-source failures +
+    per-task trust),
+    `NavigatorVisionBridgeTest` (routes incl. redacted-key toString; a LIVE scripted
+    VisionLoop through the CALLER's observer/executor; the terminal line),
+    `SetupLogicTest` (toggle derivation + prefs contract),
+    `VisionLoopPrefRoundTripTest` (Robolectric read/write round-trip, default OFF). Entry: `VisionExperimentActivity` (adb; `--es goal` loop mode /
     `NavigatorVisionBridgeTest` (routes incl. redacted-key toString; a LIVE scripted
     VisionLoop through the CALLER's observer/executor; the terminal line),
     `SetupLogicTest` (toggle derivation + prefs contract),
@@ -949,33 +909,31 @@ setup wizard (`setup/`).
     debug-sourceSet app/a11y labels) so it installs ALONGSIDE the product app (owner
     directive 2026-10-17); remove the build.gradle.kts debug block, `src/debug/res`,
     the manifest activity, and this bullet with the branch.
-    `HarnessActivity` (engine picker — Phase 8C mode register
-    STUB | LIVE(jev) | LAYA | LAYA_FB_JEV via `--es engine` (the UI switch covers
-    STUB↔LIVE; the laya modes arrive by intent, are shown, and disable the switch);
-    LAYA/LAYA_FB_JEV run BARE — a shadow request under them is refused loudly
-    (vision 02 §7); custom goals are refused under STUB only), shadow toggle +
-    `shadow`/`shadowEveryNth` intent extras (Phase 8, plus `settleMs` — the loop's
-    page-settle pacing, adb-settable so an emulator's step period can exceed the
-    MEASURED shadow latency; never shadow-driven waiting), auto-deny default ON in
+    `HarnessActivity` (engine picker — STUB | LIVE(jev) via `--es engine`
+    (the UI switch covers STUB↔LIVE; the retired `laya`/`laya-fb-jev` names parse to
+    STUB since PHASE_VEXP3 deleted the modes with the training program); custom goals
+    are refused under STUB only), `settleMs` (the loop's page-settle pacing,
+    adb-settable), auto-deny default ON in
     harness only, goal runner streaming the step log, run-report JSON export to
-    `run-reports/` incl. the `ShadowReport` block — coverage, misses, measured laya
-    latencies), `HarnessLaunch` (the pure, JVM-tested launch policy: extra aliases —
-    `shadowOn` is a first-class alias of `shadow`, the typo that silently disabled the
-    shadow for the uat-applepie-02 device run, 2026-10-06 —, `showOnly` (bring the
+    `run-reports/`; the loop logs through `NoOpLogSink` (nothing persists —
+    PHASE_VEXP3), `HarnessLaunch` (the pure, JVM-tested launch policy:
+    `showOnly` (bring the
     harness to the front, NEVER starts or refuses a run), unknown
-    `navigator.harness.*` extras are reported loudly, and the show-only/goal policy),
+    `navigator.harness.*` extras are reported loudly, and the show-only/goal policy;
+    the retired `shadow`/`shadowOn`/`shadowEveryNth` extras are unknown names now —
+    flagged loudly like any typo), 
     `HarnessNotifications` (harness-DEBUG-ONLY notification text + channel
     `navigator-debug`: per-step ONGOING progress and FINAL verdict notifications,
     builders carry ids/kinds only — never typed values or page text; product
     notifications are Phase 9's with their own rules), `RunReports` (pure report
-    data + JSON; when a launch requests the shadow by ANY alias, EVERY per-run report
-    carries the full `shadowReport` object — zeroed with a `note` on degraded paths;
+    data + JSON;
     Phase 8D: every report carries `triageClass` + `budgetProfile` (additive,
     defaulted — null only when triage never resolved);
     `RunReportStore` does the file export; Phase 8G additive blocks — `targets`
     (`TargetTrackerReport`: tracked/processed/pending/skipped/drained, action-multi
     runs only) and `plan` (`PlanReport`: version + subgoals provenance); both null
-    (and JSON-omitted) elsewhere); `HarnessObserver` (Phase 08H: maps the live walk and
+    (and JSON-omitted) elsewhere; PHASE_VEXP3 removed the `shadow` (`ShadowReport`)
+    and `escalations` blocks with the training program); `HarnessObserver` (Phase 08H: maps the live walk and
     computes the bounded content excerpt via the `:core` `ContentExtractor` over the same
     fresh nodes — the excerpt rides every `StepObservation` the loop sees; since the
     2026-10-08 pre-UAT2 H8-gap fix it also threads the reader's `isPassword` flag into
@@ -1023,8 +981,9 @@ setup wizard (`setup/`).
     registered custom goals appear as marked rows in the harness goal list, and at any
     terminal the harness returns to the front with one ~200ms buzz and the final verdict
     notification — the owner always knows a run is over),
-    `HarnessRunners` (`HarnessObserver`, engine factory,
-    Room-backed `DecisionLogSink`, `RunReportStore`). Phase 10: `--ez ladder true` (the
+    `HarnessRunners` (`HarnessObserver`, the STUB | LIVE engine factory,
+    `RunReportStore` — PHASE_VEXP3: the Room-backed sink is DELETED, the harness and
+    the product service construct `NoOpLogSink`). Phase 10: `--ez ladder true` (the
     LIVE LADDER mode, phase doc §2.4 / Gate 10.4) — the run restructures the goal
     through the writer (`GenLadderSource` over `GenClient` + the pinned generative
     config, keyed by the standard key-delivery priority; a missing key fails LOUDLY),
@@ -1038,15 +997,8 @@ setup wizard (`setup/`).
     factory resolves the OpenRouter key by priority intent extra
     (`--es openrouterKey <KEY>` — the only delivery that works inside an app process,
     which has neither an environment nor the repo's `.tools/`) > env > keys file,
-    failing loudly when LIVE or LAYA_FB_JEV is selected with no key anywhere; only the
+    failing loudly when LIVE is selected with no key anywhere; only the
     key's SOURCE (`HarnessKeySource`) is ever exposed or logged — never the value.
-    Phase 8C modes (vision 02 §7): `laya` = bare on-device laya primary (the ACTIVE
-    checkpoint `LayaCheckpoint.LAYA_421M` via the injectable `LayaEngineSource`; loud
-    without the model — since the 2026-10-06 owner demotion v32b is EVAL-ONLY and NOT
-    the laya-mode checkpoint), `laya-fb-jev` =
-    `FallbackEngine`(laya primary, Jev confidence-band fallback riding its own
-    JevSpendRecorder — escalated consults still book spend); escalated rows carry the
-    fallback identity; run reports gain the `escalations` block (count/rate).
     Launch-note: `am start -S` force-stops the app and the platform then DROPS its
     enabled accessibility service — re-put `enabled_accessibility_services` +
     `accessibility_enabled` immediately after the launch, inside the harness's
@@ -1075,36 +1027,14 @@ setup wizard (`setup/`).
   (the Phase-9 wizard; MainActivity is a thin launcher onto it — the declaration was
   briefly lost in the Phase-9 restructure and its absence crashed every fresh-install
   launch; restored 2026-10-09)
-  * `src/main/kotlin/navigator/app/log/` — Room persistence for the DecisionLog
-    (Phase 5, vision 05 §2): `DecisionLogDb.kt` — `DecisionLogEntity` (nested log objects
-  (Phase 5, vision 05 §2): `DecisionLogDb.kt` — `DecisionLogEntity` (nested log objects
-  as `DECISION_LOG_JSON` columns), `DecisionLogConverters` (row ↔ entity, loud decode),
-  `DecisionLogDao` + `DecisionLogger` (the Phase-6 insert/query API),
-  `DecisionLogDb`; Phase 8B added `ShadowResultDao.kt` (vision 05 §2 amendment
-  2026-10-04): `ShadowResultEntity` (companion rows; UNIQUE index over
-  `(taskId, stepIndex)`), `ShadowResultDao` + `ShadowResultLogger` (guarded insert-only
-  companions — loud rejection of companion-for-answered-row and orphans — plus the
-  decision ⋈ companion LEFT-JOIN view and the joined-view agreement with coverage),
-  and `DecisionLogDb` v4 with `MIGRATION_1_2` (adds `shadow_result`),
-  `MIGRATION_2_3` (Phase 8C, doc 05 v1.2.0: ALTER ADD COLUMN `escalated` (NOT NULL
-  DEFAULT 0) + `fallbackJson` (nullable)) and `MIGRATION_3_4` (Phase 8J, doc 05
-  v1.4.0: ALTER ADD COLUMN `exitJson` (nullable) — the terminal row's exit
-  provenance; existing databases keep every row, which decode as exit=null; no
-  destructive fallback); Phase 8J Round 2 added `ExitCheckDao.kt` (vision 05 §2
-  amendment 2026-10-06): `ExitCheckEntity` (the third insert-only row type; UNIQUE
-  index over `(taskId, stepIndex)` — one finish check consumes one step, so the key
-  IS the check's identity), `ExitCheckConverters` (loud decode), `ExitCheckDao` +
-  `ExitCheckLogger` (insert-only + by-task/time-window queries for the noul-kind
-  export), and `DecisionLogDb` v5 with `MIGRATION_4_5` (CREATE TABLE `exit_check`
-  + indices only — both existing tables untouched); Phase 8F (doc 05 §2, doc 06 §2a)
-  added `DecisionLogDb` v6 with `MIGRATION_5_6` (ALTER ADD COLUMN `typedSecret`
-  NOT NULL DEFAULT 0 — the FLAG only: the credential value itself is never stored
-  anywhere; pre-v6 rows decode typedSecret=false); Phase 8G (doc 05 §2 `plan`) added
-  `DecisionLogDb` v7 with `MIGRATION_6_7` (ALTER ADD COLUMN `planJson` nullable — the
-  plan-provenance JSON; pre-v7 rows decode plan=null); law:
-  `Project Vision/05` §2, §5
+  (The `src/main/kotlin/navigator/app/log/` Room persistence — Phase 5 through Phase
+  10C's v8 — is DELETED: PHASE_VEXP3 retired the training-data program, owner
+  directive 2026-10-19 "remove that noise completely". The legacy loop constructs
+  `loop/NoOpLogSink`; no database is created or written.)
 * `build.gradle.kts` — Android build config (minSdk 34, compile/targetSdk 36, Compose;
-  Room compiler wired via KSP; kotlinx-serialization + coroutines plugins/deps;
+  kotlinx-serialization + coroutines plugins/deps; the Room deps + the KSP plugin and
+  the ONNX Runtime (Android AAR + desktop test artifact + the vcrt PATH shim) are
+  REMOVED with the training program (PHASE_VEXP3);
   Phase 9 added `androidx.security:security-crypto` (the 1.1.x line is alpha-only
   upstream — alpha06 is the newest published artifact; deviation recorded in the phase
   status file) and the instrumented-gate androidTest stack (ext-junit + runner + core +
@@ -1115,8 +1045,9 @@ setup wizard (`setup/`).
 
 ## Local Contracts
 
-* Stack pins (vision 01 §3): Compose UI, OkHttp + kotlinx.serialization, Room, ONNX Runtime
-  Android AAR; minSdk 34 / target+compileSdk 36
+* Stack pins (vision 01 §3): Compose UI, OkHttp + kotlinx.serialization;
+  minSdk 34 / target+compileSdk 36 (the Room + ONNX pins are retired with the
+  training program, PHASE_VEXP3)
 * Every navigation decision routes through `:core`'s `DecisionEngine` (ART-2) — no direct
   provider calls anywhere in this module
 * Observation law is vision 03: fresh root every observation (`node.refresh()` before
@@ -1124,24 +1055,17 @@ setup wizard (`setup/`).
 * No Android types in the pure observation model (`A11ySnapshot`, `TreeSerializer`,
   `UrlBarReader` strategy) — they must stay JVM-unit-testable without Robolectric;
   Android `AccessibilityNodeInfo` adapters live only in the service
-* DecisionLog storage law (vision 05 §2/§5): the DAO is INSERT-ONLY — no @Update, no
-  @Delete, no DELETE/UPDATE queries may ever exist (rows are immutable history; a
-  duplicate rowId fails loudly via `OnConflictStrategy.ABORT`); retention is indefinite
-  with no auto-pruning; all access converts through the validated `:core`
-  `DecisionLogRow` so corrupt columns fail loudly on decode. Companion rows (Phase 8B)
-  are insert-only too: a UNIQUE `(taskId, stepIndex)` index ABORTs duplicates and a
-  transactional guard rejects loudly a companion beside an answered decision row or an
-  orphan companion (rule a); DB migrations preserve history (v1→v2 adds `shadow_result`;
-  v2→v3 ALTER-adds the `escalated`/`fallbackJson` columns; v3→v4 ALTER-adds `exitJson`;
-  v4→v5 adds `exit_check`, the third insert-only row type — one row per finish check,
-  refused checks included, UNIQUE `(taskId, stepIndex)`; no destructive fallback anywhere)
+* Training-program retirement (PHASE_VEXP3, owner directive "remove that noise
+  completely"): NO Room database, NO shadow engine, NO RLCD export, NO on-device laya
+  inference anywhere in `:app`; every `DecisionLogSink` instance is `NoOpLogSink`
+  (writes are no-ops; the types remain for the loop's seams and the legacy row schema)
 * The loop's Android edges sit behind interfaces (`LoopObserver`, `ActionExecutor`,
   `GatePresenter`, `DecisionLogSink`, `Clock`) so Gate 6.1 runs on the plain JVM with
   fakes — Robolectric-free; Android types appear only in `GestureExecutor`,
   `DebugGatePresenter`, `HarnessObserver`, and the service adapters
 * The loop never branches on engine identity: STUB and LIVE are wired at construction
-  (`StubEngine` vs `JevEngine` wrapped in `JevSpendRecorder`) — the Phase-8
-  `ShadowRouter` replaces the same reference with zero loop changes
+  (`StubEngine` vs `JevEngine` wrapped in `JevSpendRecorder`) — any wrapping engine
+  replaces the same reference with zero loop changes
 * Auto-deny and the ScriptedGatePresenter are HARNESS-ONLY test modes; the Phase 9
   product UI has no auto modes (phase doc §2.1)
 * Product overlay law (Phase 9): overlay windows are `TYPE_ACCESSIBILITY_OVERLAY` added
@@ -1156,17 +1080,14 @@ setup wizard (`setup/`).
   (ART-5); spend comes from recorded token counts — the provider-reported `usage` of
   each wire call — never a billing API
 * Gate outcomes are always presented through `GateCard` verbatim (class, site, URL,
-  target, consequence) and resolved through the `:core` `TaskGate` — the loop never
-  bypasses the gate; DENY and TIMEOUT both skip, second same-(class,site) refusal
-  aborts the task
-* Exactly one `DecisionLogRow` per navigation decision via `DecisionLogSink`; the
-  rephrase-recovery stub is a goal-text meta-decision (run report + HISTORY, no row);
-  recovery give-up logs a FINISH/EXITED row
+  target, consequence) and resolved through the `:core` `TaskGate` — no loop (legacy OR
+  vision) ever bypasses the gate; classify before TAP/TYPE/SUBMIT only (scroll/back
+  never); DENY and TIMEOUT both skip, second same-(class,site) refusal aborts the task
+  (the vision loop's terminal: `GUARD_ABORT`); the credential card's typed secret is
+  the ONLY lawful credential TextSource and renders `[credential-redacted]` everywhere
 * Harness test pages live in `assets/harness/pages/` and are served loopback-only by
   `HarnessPagesServer` — static local test pages, no external network
-* The log path is local-only (ART-8): no network code may ever touch
-  `navigator.app.log` or `navigator.core.log`
-* Room DAO tests run on the JVM under Robolectric (test-only dependency, `@Config(sdk=[34])`);
+* The prefs round-trip gate runs on the JVM under Robolectric (test-only dependency);
   the JUnit4 runner rides the JUnit platform via the vintage engine; Phase 10 added the
   test-only MockWebServer dependency for Gate 10.1 (the writer client's golden +
   validation gates — no gate ever calls a live provider, the `:core` wire-gate precedent)
@@ -1186,25 +1107,10 @@ setup wizard (`setup/`).
 * `Observation.nodes` is Phase 2's bucketing input — the node list shape is frozen
   (PHASE_01 §6); changes to it are a cross-phase contract change (Phase 6 added the
   separate `observeForLoop()` + `LoopObservation` instead of touching it)
-* Shadow law (vision 02 §4, Phase 8): shadow answers NEVER reach the executor — the
-  router's `choose`/`judge`/`score` return the primary's value untouched and the sink
-  decorator only ever ADDS log fields (a shadow failure degrades to a miss inside the
-  sink, never an exception into the loop); the shadow runs on its own single thread and
-  never blocks the loop; question wording of the two laya question forms is pinned by
-  the Gate 8.1 reference fixtures — change the words, regenerate the fixture
-* The packaged laya model artifact (the ~0.6 GB 421M int8) lives OUT of git in
-  `src/main/assets-local/` (gitignored); `tools/fetch_laya.py` builds it and writes
-  `assets/laya/PROVENANCE.txt` (committed, one hash-pinned section per artifact). The
-  demoted v32b artifact + its 34 MB tokenizer are EVAL-ONLY: NOT packaged — they live
-  in the gitignored `.tools/laya-v32b/` (demotion + reason recorded in their
-  provenance sections' `Packaging: eval-only` / `Demotion:` lines). The
-  `verifyLayaModel` gradle task (wired to `preBuild`) fails the build loudly when any
-  PACKAGED declared artifact is missing or its sha256 drifts; eval-only sections are
-  hash-checked at the eval path when present and skipped with a loud note when absent —
-  never ship or commit around it. The ACTIVE checkpoint is a harness engine-mode
-  choice (laya modes → `LAYA_421M` since the 2026-10-06 demotion; `V32B` stays
-  registered eval-only for the parity path — `LayaCheckpoint.V32B.engine` fails loudly
-  without the eval artifacts, which is acceptable)
+* The shadow and laya contracts are RETIRED (PHASE_VEXP3): the ShadowRouter, the
+  packaged laya artifacts (`assets-local/`, the ~0.6 GB 421M int8 + the committed
+  `assets/laya/PROVENANCE.txt`), `verifyLayaModel`, and the laya engine modes no
+  longer exist; `tools/fetch_laya.py` is dead tooling kept only for history
 
 ## Work Guidance
 
@@ -1297,7 +1203,9 @@ setup wizard (`setup/`).
   verbatim as INPUT_MECHANISM + the accepted re-plan resetting the memory so the new
   subtask types again) + GenClientTest's third-variant gate (the mechanism-cause
   re-plan request byte-pinned + the strategy-splitting, rollback-free response);
-  `./gradlew test` since Phase 10B Round 2: :core 360 + :app 512 = 872 tests, 0 failures
+  `./gradlew test` at PHASE_VEXP3: :core 318 + :app 568 = 886 tests, 0 failures
+  (the training-program suites — laya, ShadowRouter, Room DB, RLCD, Tier A eval — are
+  deleted with their code; the Phase-10B Round-2 count was :core 360 + :app 512)
 (the Round-2 additions: `CascadeTest` — the pure routing module; `WindowTitlesTest` —
 the title reader's lawful-window decision; `Phase10BLoopTest` — the cascade execution
 in the REAL loop: the routing matrix, the handshake bounds (ONE assist per page-hash,
@@ -1306,21 +1214,16 @@ phrase law (writer-phrased; the refusal routes to recovery), the held-hash re-ch
 cadence, and the cascade ROW shapes (intent question, targetScores, targetStateText);
 `GenAssistPhraseTest` + the hostile-input rows (the Round-2 carry: injected
 instructions in the page material ride labeled-untrusted and the validated/honest-skip
-path never emits a directive); `LayaEngineCascadeTest` (replaces the retired two-stage
-test) + `ShadowRouterTest`/`ShadowRouterCompanionTest` re-pinned to the cascade router
-(structured handoff, the loud non-cascade refusal counters, the stage-2 attachment,
-targetAgreement); the loop tests re-scripted to the cascade; goals.json re-authored;
-the laya reference vectors regenerated on the REAL checkpoints (421M + v32b eval) at
-10 cascade-form cases each — Round 1's 841 was :core 359 + :app 482; Round 2's
-baseline re-pin is lawful: the ratified cascade moved the behavior)
+path never emits a directive); the loop tests re-scripted to the cascade;
+goals.json re-authored — Round 2's baseline re-pin was lawful: the ratified cascade
+moved the behavior)
   (the lawful re-pins that moved with Phase 10B Round 1: the exit-family version pins
   — `AnchoredNoulTest` v3 + the ATOMIC per-shape proposition pins (the task-level v2
   body pins unchanged), `SpecimenReplayTest`/`ExitCheckRowLoopTest`/
   `LadderExecutionLoopTest` ANCHORED_NOUL_VERSION 2→3 pins, `ExitPolicyTest` re-written
   for the condition-keyed streak (re-key reset, re-plan survival, held-hash API, the
   two new config constants) with `ExitReplaySupport` passing a constant condition key;
-  `RlcdExportTest` re-written for the v1.6.0 intent-form choose + score case kinds;
-  the Tier A eval tests for the cascade replay; the 9 DecisionLog goldens regenerated
+  the 9 DecisionLog goldens regenerated
   via UPDATE_GOLDENS under the ratified additive amendment; the Phase-10 R1 re-pins
   recorded above are unchanged); :app:assembleDebug green. Phase 10B Round 1 additions:
   `GenAssistPhraseTest` (13 — the assist/phrase goldens byte-pin `assist-v1`/
@@ -1332,9 +1235,8 @@ baseline re-pin is lawful: the ratified cascade moved the behavior)
 * `./gradlew :app:testDebugUnitTest` — Gate 1.1 serializer goldens (+ the 2026-10-08
   H8-gap `password`-kind marker tests — flagged nodes emit `edit password`, unflagged
   nodes render exactly as before) + Gate 1.2 URL-bar
-  strategy paths + Gate 5.1 Room half (`DecisionLogDbTest`) + Gate 8B.1/8B.3 Room half
-  (`ShadowResultDbTest`: companion round-trip, duplicate-key ABORT, the rule-a guard,
-  the v1→v2 migration, the joined view + hand-checked agreement/coverage) + the
+  strategy paths (the Gate 5.1/8B Room halves are retired with the database,
+  PHASE_VEXP3) + the
   Phase-6 Gate 6.1 loop
   gates (`NavigationLoopTest`: strict step order incl. GATE-before-EXECUTE, budget
   clean-stops per dimension, double-deny abort, ART-4 adversarial finish refusal,
@@ -1412,19 +1314,9 @@ tracked as last-known (normalized) and serves on an empty card URL, and garbage
   completes — approve-with-secret → injected → the lone-secret submission gates H3 →
   approve → GOAL_ACHIEVED, with the unflagged sibling field typing the stub phrase
   ungated (precision); the live Chrome login shape (flagged wording-free password
-  field, label = typed content) gates the H4 pair on entry AND submission;
-  `DecisionLogV6DbTest` Room v6: the
-  typedSecret flag round-trips, plain rows decode false, and the hand-built v5 database
-  survives `MIGRATION_5_6`) +
-  the Phase-8 laya gates (`LayaEngineTwoStageTest`
-  Gate 8.2 scripted two-stage correctness, `LayaEngineReferenceParityTest` Gate 8.1
-  reference-vector parity over the REAL int8 graph on the desktop JVM ONNX Runtime,
-  `ShadowRouterTest` Gate 8.3 router semantics: latency isolation, shadowMiss under a
-  slow shadow, every-3rd sampling pattern, executor-sees-primary-only, enrichment;
-  `ShadowRouterCompanionTest` Gate 8B.2 late-write semantics: freeze → exactly-once
-  companion, fast-shadow single row with NO companion, duplicate-write idempotence,
-  post-close drop counted, rejecting sink surfaced not propagated, executor isolation
-  in the real loop) + the Phase-8J exit gates (`ExitPolicyTest` Gate 8J.1 policy
+  field, label = typed content) gates the H4 pair on entry AND submission; the
+  Phase-8 laya/shadow/Room-DB gates are deleted with the training program,
+  PHASE_VEXP3) + the Phase-8J exit gates (`ExitPolicyTest` Gate 8J.1 policy
   matrix: path boundaries per Bands semantics, K-consecutive counting, once-per-task
   card, M=2 window + hash-change clearing; `TargetEntityTest` + `SpecimenReplayTest`
   Gate 8J.2 (+8J.6 Round 2): entity extraction — the UAT W1 URL-goal pins (the live
@@ -1449,11 +1341,8 @@ tracked as last-known (normalized) and serves on an empty card URL, and garbage
   never (incl. the permanent `decoy-applepie-mention` fixture — the Test-2′
   mention page — WEAK and never exiting in any engine mode), per engine mode,
   report written to `.state/eval/exit-calibration-report.json` (carries
-  `anchoredNoulVersion`);
-  `DecisionLogV4DbTest` Room v4 exit round-trips + the v3→v4 migration;
-  `DecisionLogV5DbTest` Room v5 exit-check round-trips + duplicate-key ABORT + the
-  v3→v4→v5 migration chain — its chain, like every migration-chain test's, now runs
-  through `MIGRATION_6_7` (Phase 8G)) —
+  `anchoredNoulVersion`); the Room DB gate suites are retired with the database,
+  PHASE_VEXP3) —
   the Phase-8G working-memory gates (`TargetTrackerTest` Gate 8G.1: the tracker state
   machine — enumeration scope/cap/normalization, the documented key derivation
   (label + band + container), processing/skip idempotence, scroll survival via the
@@ -1472,20 +1361,11 @@ tracked as last-known (normalized) and serves on an empty card URL, and garbage
   byte-identical (explicit `PlanSource.None` produces identical step logs/state
   texts), a proposed plan riding every row + the once-at-triage consultation + the
   triage provenance line, the guardDetail suffix on the NONE refusal (verdict
-  unchanged); `DecisionLogV7DbTest` Room v7 (plan round-trip, plain rows decode
-  plan=null, the hand-built v6 database survives `MIGRATION_6_7`) —
-  plain JVM, Robolectric-free; the laya gates need the 421M model artifact
-  (verifyLayaModel fails the build loudly when it is missing); the v32b parity gate
-  (`LayaEngineV32bReferenceParityTest`) is EVAL-ONLY since the 2026-10-06 demotion — it
-  runs from `.tools/laya-v32b/` when the artifacts are there and assumes away with a
-  loud message when they are not (never a build failure)) +
-  the Phase-8H dual-view gates (`LayaStateViewParityTest` Gate 8H.2: the Kotlin
-  `LayaStateView` derivation reproduces `tools/laya_reference.py --state-view-parity`
-  byte-for-byte over the generated corpus; `LayaStateViewEngineTest` Gate 8H.2 (app
-  half): the engine feeds the derived ≤319-token view to the checkpoint while the
-  caller's canonical rides unchanged, a state that cannot fit the marker room fails
-  loudly (never a silent right-truncation), the ART-5 budget formula pins for both
-  checkpoints; `Phase08HLoopTest` Gate 8H.2 (loop half): the content excerpt inside the
+  unchanged); plan-provenance rides the rows (the Room v7 gate suite is retired with
+  the database, PHASE_VEXP3)) +
+  the Phase-8H dual-view gates (the app-side parity/engine gates are retired with the
+  laya engine, PHASE_VEXP3; the derivation law lives in `:core`'s `LayaStateViewTest`;
+  `Phase08HLoopTest` Gate 8H.2 (loop half): the content excerpt inside the
   untrusted block, bounded PLAN lines from a proposed plan, the tracker's TASK PROGRESS
   counts on action-multi, and the default path's pre-08H layout) +
   the Phase-08I fixture-goal gates (`GoalCatalogTest` Gate 8I.1/8I.3: the catalog parses
@@ -1583,9 +1463,8 @@ tracked as last-known (normalized) and serves on an empty card URL, and garbage
   refusal — no crash, no hang), every navigation decision logged (logGaps 0), real
   provider-usage spend recorded per task; quality is MEASURED not gated (ratified M0
   bar). Evidence: `.state/gate63-reports/`
-* Gate 8.4 (on-device, Phase 8): one harness goal with `--ez shadow true`: rows carry
-  both engines, measured laya latency in the run report's `ShadowReport`, >= 90% shadow
-  coverage, no ANR
+* (Gate 8.4 — the on-device shadow gate — is retired with the shadow engine,
+  PHASE_VEXP3.)
 * `./gradlew :core:test` — `RealA11yDumpFixturesTest` strictly re-validates every
   committed a11y-dump fixture (seed + Phase-1 real captures)
 

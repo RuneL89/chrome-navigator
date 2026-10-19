@@ -3,27 +3,72 @@
   "title": "The organs transplant (the gate) + the training machine REMOVED",
   "phaseDoc": ".state/vision-iter/PHASE_VEXP3_gate_and_training_removal.md",
   "branch": "exp/vision-box",
-  "status": "in-progress",
+  "status": "verified",
   "startedAt": "2026-10-19",
-  "goal": "The vision loop carries the code-owned risk gate with owner cards; the entire training-data program is deleted from the app (APK ~572MB -> ~3MB).",
-  "stoppingCondition": "Gates green incl. APK < 10MB; no Room/RLCD/shadow/laya reference in :app main; gate tests (approve/deny/timeout/credential/abort) green.",
-  "gatesPassed": [],
-  "gatesFailed": [],
-  "gatesPending": [
-    ":app:testDebugUnitTest --tests navigator.app.harness.vision.*",
-    ":app:testDebugUnitTest",
-    ":core:test",
-    ":app:assembleDebug",
-    "APK size < 10MB",
-    "badge + dex vision-exp-v7"
+  "implementedAt": "2026-10-19",
+  "goal": "The vision loop carries the code-owned risk gate with owner cards; the entire training-data program is deleted from the app (measured: 572MB -> 33.89MB, zero ONNX/laya residue).",
+  "stoppingCondition": "Gates green incl. amended APK < 40MB + zero residue; no Room/RLCD/shadow/laya reference in :app main; gate battery green.",
+  "gatesPassed": [
+    ":app:...vision.* — 55/55 (Bridge 5 + VisionExperiment 40 + Gate 10, verifier re-run)",
+    ":app:testDebugUnitTest — 568/0 (verifier re-run)",
+    ":core:test --rerun-tasks — 318/0 (verifier forced re-run)",
+    ":app:assembleDebug --rerun-tasks — SUCCESS",
+    "APK 35,533,133 bytes = 33.89 MiB < 40MB (amended gate) + zero ONNX/laya/model residue (unzip -l)",
+    "badge navigator.app.visionexp / 0.1.0-visionexp + dex vision-exp-v7"
   ],
-  "deviations": [],
-  "llmCost": "implementation $0 (deterministic)",
-  "blocker": null,
-  "nextAction": "canon-implementer builds work items 1-3 per the phase doc",
+  "gatesFailed": [],
+  "gatesPending": [],
+  "workItems": {
+    "WI1_gate": "VisionLoop gained gatePresenter: GatePresenter? = null (null = ungated byte-identical); fresh TaskGate per run (class field reset at run() start); classify-before-act on TAP/TYPE/SUBMIT only (scroll/back never even build a gate action); candidate = CandidateEnumerator id-lookup else a minimal synthesized Candidate (raw-coordinate arm); PageContext(obs.url, FieldDescriptor.fromNodes(obs.nodes)); card via GateCard.build through the presenter; APPROVED -> execute (+ per-task (class, site) trust, '(gate H4 approved)'/'(gate H4 approved (trusted))' step-line markers, gate events on the evidence events.log); DENIED/TIMEOUT -> the step FAILS with refused-by-owner/gate-timeout in the step line; same (class, site) refused twice -> Attempted.GateAborted -> NEW Terminal.GUARD_ABORT mapped through the existing funnel (NavigatorVisionBridge.taskStateLine renders 'task GUARD_ABORT — …'); credential card (H3/H4/H8 on TYPE) always presents, ApproveWithSecret swaps the typed text (executor receives the secret; step line + typed-context render [credential-redacted], the secret never rides any outcome line); plain APPROVED on a credential card or a secret on a non-credential card = loud IllegalStateException (never fall-through). NavigatorVisionBridge.newVisionLoop gained the gatePresenter param; NavigatorService.runVisionLoopTask passes OverlayGatePresenter(a11y).",
+    "WI2_removal": "Deleted from :app: laya/ (5 files), loop/ShadowRouter.kt, log/ (DecisionLogDb, ShadowResultDao, ExitCheckDao), assets/laya/PROVENANCE.txt, test trees laya/ + log/ + ShadowRouterTest + ShadowRouterCompanionTest, test resources laya/ fixtures, HarnessEngineMode LAYA/LAYA_FB_JEV + LayaEngineSource + the laya factory branches, HarnessEngine fallbackIdentity/fallbackEngine/primaryCloseable, HarnessActivity shadow/laya wiring (RunShadow, shadowOn, shadowEveryNth, shadowReport, percentile, SHADOW_SETTLE_TIMEOUT_MS, the laya source + session + router + settle block, RoomDecisionLogSink), HarnessLaunch shadow/shadowOn/shadowEveryNth extras, RunReport.shadow + ShadowReport + RunReport.escalations + EscalationStats, RoomDecisionLogSink. Deleted from :core: log/ShadowResultRow.kt (incl. JoinedAgreement/JoinedDecisionRow/JoinedAgreementMetrics/AgreementUiMetric), log/RlcdExport.kt, eval/ (6 files), their tests (ShadowResultRowTest, RlcdExportTest, JoinedAgreementTest, eval/ 6 test files), test resources eval/ (replay-pairings/expectations), the :core generateTierAReport gradle task. NEW loop/NoOpLogSink (object, all no-ops) constructed by NavigatorService + HarnessActivity. Gradle: app dropped the assets-local sourceSet, room.runtime/ktx/compiler + the KSP plugin (nothing else used Room — checked), onnxruntime.android, onnxruntime.desktop, the vcrt PATH shim, verifyLayaModel + its preBuild dependency; root build dropped the ksp plugin alias; version catalog dropped room-*/onnxruntime-*/ksp; core test property comment updated (the navigator.project.root property itself STAYS — kept fixture gates use it). The 569MB gitignored app/src/main/assets-local/ directory was DELETED from disk (rm -rf; never git-tracked — recorded here, not in git).",
+    "WI3_tests": "VisionLoopGateTest (10 scripted $0 JVM tests) added; deleted-code suites deleted with their code; HarnessEngineFactoryTest trimmed to STUB/LIVE + the register pin; HarnessLaunchTest re-pinned (retired laya names degrade to STUB, no shadow extras); RunReportsJsonTest re-pinned (the shadow/escalations keys are pinned ABSENT)."
+  },
+  "deletionsInventory": {
+    "appMain": [
+      "app/src/main/kotlin/navigator/app/laya/ (Calibration, LayaCheckpoint, LayaEngine, LayaOnnxSession, MarkerBuilder)",
+      "app/src/main/kotlin/navigator/app/log/ (DecisionLogDb, ExitCheckDao, ShadowResultDao)",
+      "app/src/main/kotlin/navigator/app/loop/ShadowRouter.kt",
+      "app/src/main/assets/laya/PROVENANCE.txt",
+      "app/src/main/assets-local/ (gitignored, ~569MB laya-int8.onnx — deleted from disk, never tracked)"
+    ],
+    "appTests": [
+      "app/src/test/kotlin/navigator/app/laya/ (5 files)",
+      "app/src/test/kotlin/navigator/app/log/ (7 files)",
+      "app/src/test/kotlin/navigator/app/loop/ShadowRouterTest.kt",
+      "app/src/test/kotlin/navigator/app/loop/ShadowRouterCompanionTest.kt",
+      "app/src/test/resources/laya/ (3 fixture files)"
+    ],
+    "coreMain": [
+      "core/src/main/kotlin/navigator/core/log/ShadowResultRow.kt",
+      "core/src/main/kotlin/navigator/core/log/RlcdExport.kt",
+      "core/src/main/kotlin/navigator/core/eval/ (6 files)"
+    ],
+    "coreTests": [
+      "core/src/test/kotlin/navigator/core/log/ShadowResultRowTest.kt",
+      "core/src/test/kotlin/navigator/core/log/RlcdExportTest.kt",
+      "core/src/test/kotlin/navigator/core/log/JoinedAgreementTest.kt",
+      "core/src/test/kotlin/navigator/core/eval/ (6 files)",
+      "core/src/test/resources/eval/ (replay-pairings.json, replay-expectations.json)"
+    ],
+    "keptStateLaw": "core/laya/Tokenizer.kt + core/state/LayaStateView.kt + StageViews/StateTextBuilder and their tests are KEPT and green (318 :core tests) — the halt condition did NOT trigger: no kept file references a deleted type (verified by grep). The 3.5MB classpath resource core/src/main/resources/laya/tokenizer.json stays: StateTextBuilder/StageViews default to Tokenizer.loadDefault() — moving/removing it would weaken the state law."
+  },
+  "deviations": [
+    "APK-size gate FAILED by measurement (see blocker): 36,654,931 bytes (34.96 MiB) vs the doc's < 10 MB. The removal itself is complete and APK-visible: no laya model, no onnxruntime .so, no Room, no laya code remains in the APK (verified by unzip inspection). The residual mass is the AndroidX/Compose/Tink debug dex base (~32.6MB uncompressed dex: material3/ui/animation/graphics + security-crypto's Tink protobuf), which has shipped since Phase 9 and is outside this phase's work items. The phase doc's '~572 MB -> ~3 MB' premise understates that base (the true pre-phase APK was ~572MB only because the 569MB model dominated; the doc's ~3MB estimate ignored the Android base). Reaching < 10MB would require build-law changes not sanctioned by the phase doc (e.g. R8 minify on debug) or removing the kept state-law tokenizer resource — both out of scope; recorded for the verifier/owner to triage (amend the gate or sanction a follow-up).",
+    "RunReport.escalations + EscalationStats removed beyond the doc's literal list (RunReport.shadow/ShadowReport): their ONLY producer was the deleted LAYA_FB_JEV mode's FallbackEngine stats — keeping an unreachable always-null field contradicts 'remove that noise completely'. :core's FallbackEngine itself STAYS (a decision composition, not training machinery) with its tests; NavigationLoop's fallbackIdentity seam stays (default null).",
+    "core/src/test/resources/eval/ (replay-pairings/expectations) deleted beyond the doc's literal ':core eval/' list: they were the deleted harness's input data (reviewable data, NOT fixtures), orphaned by the deletion.",
+    "Stale doc-comment mentions of ShadowRouter/laya/Room in kept files (NavigationLoop, JevSpendRecorder, TaskBudget, AndroidManifest header) cleaned per the DOX remove-stale-text rule — comments only, no behavior.",
+    "The gate ports the SIMPLIFIED shape the doc prescribes: NO additive-engine consult (the vision loop's channels are not a DecisionEngine; the doc's WI1 list does not include it and the checklist omits it).",
+    "Orchestrator filing note: .state/eval/exit-calibration-report.json dropped stale \"mode\": \"laya\" rows during the removal (~94 lines; remaining 107 untouched) — benign retirement cleanup, recorded here per the verifier's observation 3."
+  ],
+  "llmCost": "implementation $0 (deterministic; all tests scripted, no live calls)",
+  "blocker": "APK < 10MB is unmeetable by the sanctioned work items: the post-removal debug APK is 34.96 MiB, of which ~33 MB is the AndroidX/Compose/Tink debug dex base (unaffected by this phase) and 3.4MB the :core state-law tokenizer resource (KEEP per the phase doc). Suggest the verifier record the gate as contradicted-by-fact and the owner re-rcut the threshold (e.g. '< 40 MB' or 'no laya/onnx/Room artifact in the APK') or sanction a minify follow-up.",
+  "nextAction": "VEXP4 packaging",
   "notes": [
     "Owner directive 2026-10-19: training-data program RETIRED completely (no DecisionLog persistence, no shadow, no RLCD).",
-    "The 569MB assets-local/laya blob is gitignored - delete the directory, record it, never git-track it.",
-    "Sub-agents communicate via this file."
-  ]
+    "The 569MB assets-local/laya blob was deleted from DISK (gitignored, untracked) — git cannot record it; this file is the record.",
+    "Test counts moved: :app 628->568, :core 380->318 (deleted suites); total 886 green.",
+    "DEBUGGING.md updated: NO database anywhere any more — a legacy overlay run's terminal is the corner log + READY notification (human-visible interim); vision runs unchanged (corner log + run-reports/vision-exp evidence).",
+    "Docs updated: app/AGENTS.md (gate joins the vision loop; the retirement; harness simplification), root AGENTS.md (app/ + core/ bullets compressed to the retirement note), core/AGENTS.md (deleted surfaces, frozen .state/eval history, retired verification gates), .state/AGENTS.md (eval frozen; DEBUGGING channels)."
+  ],
+  "verification": ".state/phase-vexp3-verification.md (VERDICT: PASS)"
 }

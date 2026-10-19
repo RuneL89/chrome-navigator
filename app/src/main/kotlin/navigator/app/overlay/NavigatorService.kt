@@ -24,7 +24,6 @@ import navigator.app.harness.GoalCatalog
 import navigator.app.harness.HarnessEngineFactory
 import navigator.app.harness.HarnessObserver
 import navigator.app.harness.HarnessPagesServer
-import navigator.app.harness.RoomDecisionLogSink
 import navigator.app.harness.ScriptedGoal
 import navigator.app.harness.vision.NavigatorVisionBridge
 import navigator.app.harness.vision.ProductRunRoute
@@ -35,6 +34,7 @@ import navigator.app.loop.BrowserProbe
 import navigator.app.loop.GestureExecutor
 import navigator.app.loop.LoopUiListener
 import navigator.app.loop.NavigationLoop
+import navigator.app.loop.NoOpLogSink
 import navigator.app.loop.SpendMeter
 import navigator.app.loop.TaskCancelFlag
 import navigator.app.observe.CaptureMode
@@ -289,7 +289,11 @@ class NavigatorService : Service() {
                 )
             }
             val genLadder = genClient?.let { navigator.app.gen.GenLadderSource(it) }
-            val sink = RoomDecisionLogSink(this)
+            // PHASE_VEXP3: the training program is RETIRED (owner directive
+            // 2026-10-19) — the legacy loop logs through the no-op sink; nothing is
+            // persisted (the writeTerminal below no-ops: the terminal's channel is the
+            // corner log + notification, per .state/DEBUGGING.md).
+            val sink = NoOpLogSink
             val loop = NavigationLoop(
                 engine = engine,
                 observer = HarnessObserver(a11y),
@@ -386,6 +390,9 @@ class NavigatorService : Service() {
             openRouterKey = route.openRouterKey,
             typesafeKey = route.typesafeKey,
             log = { line -> manager.appendLogLine(line) },
+            // PHASE_VEXP3 WI1: the safety gate rides the vision loop — a risky action
+            // shows the SAME owner card the legacy engine shows (vision 06 §2).
+            gatePresenter = OverlayGatePresenter(a11y),
         )
         val result = loop.run(goalText, runId, taskCancelFlag::isCancelled)
         manager.setTaskStateLine(NavigatorVisionBridge.taskStateLine(result))

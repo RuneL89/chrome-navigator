@@ -3,14 +3,31 @@ package navigator.app.harness.vision
 import kotlinx.coroutines.delay
 import navigator.app.gen.LadderSchema
 import navigator.app.loop.ActionExecutor
+import navigator.app.loop.GatePresenter
+import navigator.app.loop.GateResolution
 import navigator.app.loop.LoopObserver
 import navigator.app.loop.StepObservation
 import navigator.app.loop.TextEntryFailure
+import navigator.app.loop.TextSource
+import navigator.core.gate.ActionKind
+import navigator.core.gate.CREDENTIAL_TYPING_CLASSES
+import navigator.core.gate.FieldDescriptor
+import navigator.core.gate.GateAction
+import navigator.core.gate.GateCard
+import navigator.core.gate.GateDecision
+import navigator.core.gate.GateEvent
+import navigator.core.gate.HClass
+import navigator.core.gate.PageContext
+import navigator.core.gate.RiskGate
+import navigator.core.gate.TaskGate
 import navigator.core.ladder.DoneCondition
 import navigator.core.ladder.DoneConditionChecker
 import navigator.core.ladder.Ladder
 import navigator.core.ladder.Subtask
+import navigator.core.enumerate.Bucket
+import navigator.core.enumerate.Candidate
 import navigator.core.enumerate.CandidateEnumerator
+import navigator.core.enumerate.CandidateSource
 
 /**
  * The EXPERIMENT's standalone vision loop (branch-only try-out; the product loop in
@@ -70,6 +87,21 @@ class VisionLoop(
     private val evidence: VisionEvidence,
     private val log: (String) -> Unit = {},
     private val config: Config = Config(),
+    /**
+     * The safety-gate seam (PHASE_VEXP3 WI1 — the old engine's organ transplanted into
+     * the vision loop, simplified to the single-target step semantics): the code-owned
+     * [RiskGate] classifies every TAP/TYPE/SUBMIT proposal before dispatch (scroll/back
+     * NEVER gate — the law), a gated action presents the [GateCard] verbatim through
+     * this presenter and executes only on the owner's approval; per-task trust
+     * `(class, site)` rides the fresh-per-run [TaskGate], the same `(class, site)`
+     * refused twice aborts the task ([Terminal.GUARD_ABORT]), and the credential card's
+     * `ApproveWithSecret` swaps the typed text for the card-supplied secret
+     * ([TextSource.GateSuppliedSecret] — the value lives in memory for the injection
+     * call only). NULL (the default) keeps the ungated behavior byte-identical — the
+     * harness/adb path stays ungated this phase; the product service passes
+     * `OverlayGatePresenter(a11y)`.
+     */
+    private val gatePresenter: GatePresenter? = null,
 ) {
 
     data class Config(
@@ -105,7 +137,7 @@ class VisionLoop(
         val batteryReplansPerSubtask: Int = 30,
     )
 
-    enum class Terminal { GOAL_ACHIEVED, MODELS_CONFIRM_DONE, STEPS_EXHAUSTED, BUDGET_EXHAUSTED, REPLANS_EXHAUSTED, CANCELLED, PLAN_REFUSED }
+    enum class Terminal { GOAL_ACHIEVED, MODELS_CONFIRM_DONE, STEPS_EXHAUSTED, BUDGET_EXHAUSTED, REPLANS_EXHAUSTED, CANCELLED, PLAN_REFUSED, GUARD_ABORT }
 
     /** One answered battery check: the two channels' raw evidence (null = channel refused). */
     data class CheckResult(
@@ -254,6 +286,14 @@ class VisionLoop(
     private var lastBatteryResults: List<CheckResult> = emptyList()
     private var lastBatteryHash: Int? = null
 
+    /**
+     * The per-task gate state machine (vision 06 §2): a FRESH [TaskGate] per `run()`
+     * (trust never crosses tasks), reset at the top of every run like the other per-run
+     * facts. CLASS field, not a run() local — [attemptStep] consumes it (the loop-state
+     * discipline: instance state costs nothing, captured locals cost Ref plumbing).
+     */
+    private var taskGate: TaskGate = TaskGate()
+
     suspend fun run(goal: String, goalId: String, isCancelled: () -> Boolean): Result {
         val outcomes = mutableListOf<String>()
         val counters = mutableMapOf<String, Int>()
@@ -302,6 +342,8 @@ class VisionLoop(
         batteryEscalatedWithoutAction = false
         lastBatteryResults = emptyList()
         lastBatteryHash = null
+        // PHASE_VEXP3 WI1: trust never crosses tasks — a fresh gate per run.
+        taskGate = TaskGate()
 
         while (true) {
             if (isCancelled()) return terminal(Terminal.CANCELLED, ladder)
@@ -507,6 +549,16 @@ class VisionLoop(
                         consecutiveFailures += 1
                         proposerExhaustedLast = attempted.reason.startsWith("no proposals")
                     }
+                    is Attempted.GateAborted -> {
+                        // PHASE_VEXP3 WI1: the SAME (class, site) refused twice in this
+                        // task — the owner's denial is authoritative; clean abort now.
+                        val line = stepLine + attempted.detail
+                        outcomes.add(line)
+                        log("[vision] $line")
+                        evidence.event("GUARD_ABORT: $line")
+                        step += 1
+                        return terminal(Terminal.GUARD_ABORT, ladder)
+                    }
                 }
                 outcomes.add(stepLine)
                 log("[vision] $stepLine")
@@ -596,6 +648,13 @@ class VisionLoop(
     private sealed interface Attempted {
         data class Acted(val detail: String, val actedNodeId: String?, val typed: String?, val progresses: Boolean) : Attempted
         data class Failed(val reason: String) : Attempted
+
+        /**
+         * The gate's second same-`(class, site)` refusal in one task: a clean task
+         * abort ([Terminal.GUARD_ABORT]). [detail] is the step line's suffix (the
+         * refusal + the abort truth); it never renders typed values.
+         */
+        data class GateAborted(val detail: String) : Attempted
     }
 
     private suspend fun attemptStep(
@@ -801,6 +860,141 @@ class VisionLoop(
         // Scroll/back need no location: they act on the screen center by design.
         val x = target?.node?.centerX ?: rawRect?.centerX ?: (shot?.screenWidth ?: 1080) / 2
         val y = target?.node?.centerY ?: rawRect?.centerY ?: (shot?.screenHeight ?: 2400) / 2
+
+        // -- GATE (PHASE_VEXP3 WI1): classify BEFORE every TAP/TYPE/SUBMIT dispatch —
+        // scroll/back NEVER gate (the law; RiskGate also refuses those kinds by shape).
+        // Ported from NavigationLoop's GATE block, simplified to the vision step's
+        // single target: ONE proposal is about to act, so ONE classification and at
+        // most ONE card per step. A null presenter keeps the ungated behavior
+        // byte-identical (the harness/adb path this phase). Cards render the [GateCard]
+        // verbatim through the presenter; per-task `(class, site)` trust + the
+        // double-refusal abort ride the fresh-per-run [TaskGate]; the credential card's
+        // `ApproveWithSecret` swaps the typed text for the card secret (RC2's binding
+        // law simplified: the secret replaces THIS step's only proposal text, never
+        // falls through).
+        var secretSwap: String? = null
+        var gateMarker: String? = null
+        if (gatePresenter != null &&
+            (proposal.action == VisionPrompts.ProposalAction.TAP ||
+                proposal.action == VisionPrompts.ProposalAction.TYPE ||
+                proposal.action == VisionPrompts.ProposalAction.SUBMIT)
+        ) {
+            val kind = when (proposal.action) {
+                VisionPrompts.ProposalAction.TAP -> ActionKind.TAP
+                VisionPrompts.ProposalAction.TYPE -> ActionKind.TYPE
+                else -> ActionKind.SUBMIT
+            }
+            val candidate = gateCandidate(proposal, kind, target, x, y, obs)
+            val gateAction = GateAction(candidate, kind, proposal.text)
+            val pageContext = PageContext(obs.url, FieldDescriptor.fromNodes(obs.nodes))
+            val hclass = RiskGate.classify(gateAction, pageContext)
+            if (hclass != null) {
+                val site = pageContext.site
+                // "(gate H4 approved)"-style step-line marker (class prefix only — the
+                // full enum name rides the evidence log).
+                fun mark(decision: String) = "(gate ${hclass.name.substringBefore('_')} $decision)"
+
+                /** DENIED/TIMEOUT: the step fails with the gate disposition; the same
+                 *  (class, site) refused twice in this task aborts it (GUARD_ABORT). */
+                fun refusal(resolution: GateResolution, card: GateCard): Attempted = when (resolution) {
+                    GateResolution.DENIED -> when (val d = taskGate.decide(GateEvent.DENY)) {
+                        GateDecision.SKIP -> {
+                            evidence.event(
+                                "gate: $hclass on $site - owner DENIED \"${card.classLabel}\" - action skipped",
+                            )
+                            Attempted.Failed("refused-by-owner - ${mark("denied")}")
+                        }
+                        is GateDecision.ABORT_TASK -> Attempted.GateAborted(
+                            gateAbortDetail("refused-by-owner", mark("denied"), hclass, site),
+                        )
+                        else -> throw IllegalStateException(
+                            "gate DENY resolved to $d - TaskGate state machine misuse",
+                        )
+                    }
+                    GateResolution.TIMEOUT -> when (val d = taskGate.decide(GateEvent.TIMEOUT)) {
+                        GateDecision.SKIP -> {
+                            evidence.event(
+                                "gate: $hclass on $site - card TIMED OUT (= deny, fail-safe) - action skipped",
+                            )
+                            Attempted.Failed("gate-timeout - ${mark("timeout")}")
+                        }
+                        is GateDecision.ABORT_TASK -> Attempted.GateAborted(
+                            gateAbortDetail("gate-timeout", mark("timeout"), hclass, site),
+                        )
+                        else -> throw IllegalStateException(
+                            "gate TIMEOUT resolved to $d - TaskGate state machine misuse",
+                        )
+                    }
+                    else -> throw IllegalStateException("refusal() invoked with $resolution")
+                }
+
+                val card = GateCard.build(hclass, gateAction, pageContext)
+                val credentialTyping = kind == ActionKind.TYPE && hclass in CREDENTIAL_TYPING_CLASSES
+                if (credentialTyping) {
+                    // doc 06 §2a: the secret comes from the card, so the card is
+                    // presented for EVERY credential-typing action — per-task trust
+                    // cannot supply a secret (a trusted execution has no card, hence no
+                    // lawful TextSource). The resolution still flows the TaskGate's
+                    // legal transitions, so trust bookkeeping and the double-refusal
+                    // abort stay the gate's own.
+                    check(card.credentialTyping) {
+                        "credential-typing action (${hclass.name}) must build the credential card variant"
+                    }
+                    when (val resolution = gatePresenter.present(card)) {
+                        is GateResolution.ApproveWithSecret -> {
+                            when (val request = taskGate.decide(GateEvent.REQUEST(hclass, site))) {
+                                is GateDecision.EXECUTE -> {}
+                                GateDecision.ASK -> taskGate.decide(GateEvent.APPROVE)
+                                else -> throw IllegalStateException(
+                                    "gate REQUEST behind a secret-approved credential card resolved to " +
+                                        "$request - TaskGate state machine misuse",
+                                )
+                            }
+                            secretSwap = resolution.secret
+                            gateMarker = mark("approved")
+                            evidence.event(
+                                "gate: $hclass on $site - owner APPROVED \"${card.classLabel}\" - secret typed " +
+                                    "on the card (${TextSource.REDACTED}, never logged)",
+                            )
+                        }
+                        GateResolution.APPROVED -> throw IllegalStateException(
+                            "credential card for ${hclass.name} on $site approved WITHOUT the " +
+                                "card-supplied secret - wrong source; failing closed, never falling " +
+                                "through to the proposal's text",
+                        )
+                        else -> return refusal(resolution, card)
+                    }
+                } else {
+                    evidence.event("gate: $hclass on $site - checking per-task trust")
+                    when (val decision = taskGate.decide(GateEvent.REQUEST(hclass, site))) {
+                        is GateDecision.EXECUTE -> {
+                            gateMarker = mark(if (decision.trustedFromTask) "approved (trusted)" else "approved")
+                            if (decision.trustedFromTask) {
+                                evidence.event("gate: $hclass on $site - trusted per-task - executing (trustedFromTask)")
+                            }
+                        }
+                        GateDecision.ASK -> when (val resolution = gatePresenter.present(card)) {
+                            GateResolution.APPROVED -> {
+                                val approved = taskGate.decide(GateEvent.APPROVE)
+                                val trusted = approved is GateDecision.EXECUTE && approved.trustedFromTask
+                                gateMarker = mark(if (trusted) "approved (trusted)" else "approved")
+                                evidence.event("gate: $hclass on $site - owner APPROVED \"${card.classLabel}\"")
+                            }
+                            is GateResolution.ApproveWithSecret -> throw IllegalStateException(
+                                "non-credential card for ${hclass.name} on $site resolved ApproveWithSecret " +
+                                    "- a secret was offered where the vision step expects the proposal's own " +
+                                    "text; failing closed, never executing or falling through",
+                            )
+                            else -> return refusal(resolution, card)
+                        }
+                        GateDecision.SKIP, GateDecision.ABORT_TASK -> throw IllegalStateException(
+                            "gate $decision without a pending card - TaskGate state machine misuse",
+                        )
+                    }
+                }
+            }
+        }
+
         val needsLocation = proposal.action == VisionPrompts.ProposalAction.TAP ||
             proposal.action == VisionPrompts.ProposalAction.TYPE
         val where = when {
@@ -811,7 +1005,7 @@ class VisionLoop(
             else -> "screen center"
         }
         val executed: Boolean
-        val detail: String
+        var detail: String
         var typed: String? = null
         when (proposal.action) {
             VisionPrompts.ProposalAction.TAP -> {
@@ -819,11 +1013,18 @@ class VisionLoop(
                 detail = "tap '${proposal.description.take(60)}' [$where conf=${"%.2f".format(proposal.confidence)}]$lowConfMark"
             }
             VisionPrompts.ProposalAction.TYPE -> {
-                val text = proposal.text ?: return Attempted.Failed("type proposal carries no text")
+                // PHASE_VEXP3 WI1: the credential card's ApproveWithSecret REPLACES the
+                // proposal's text (the RC2 binding law, single-target form) — the typed
+                // value is the card's secret, and NEITHER the detail line nor the typed
+                // context the next proposal sees may carry it: both render the
+                // redaction marker (doc 05 §2 / doc 06 §2a).
+                val secretTyped = secretSwap != null
+                val text = secretSwap ?: proposal.text ?: return Attempted.Failed("type proposal carries no text")
                 val causes = mutableListOf<TextEntryFailure>()
                 executed = executor.enterText(x, y, text) { causes.add(it) }
-                typed = text
-                detail = "type \"$text\" into [$where conf=${"%.2f".format(proposal.confidence)}]" +
+                typed = if (secretTyped) TextSource.REDACTED else text
+                detail = "type \"${if (secretTyped) TextSource.REDACTED else text}\" into " +
+                    "[$where conf=${"%.2f".format(proposal.confidence)}]" +
                     (if (executed) "" else " causes=$causes") + lowConfMark
             }
             VisionPrompts.ProposalAction.SUBMIT -> {
@@ -839,6 +1040,9 @@ class VisionLoop(
                 detail = "${proposal.action.name.lowercase()} [$where]$lowConfMark"
             }
         }
+        // The gate's step-line marker ("(gate H4 approved)"-style): a null marker is an
+        // ungated action (no presenter, no class, or scroll/back — never gated).
+        gateMarker?.let { detail += " $it" }
         val progresses = when (proposal.action) {
             VisionPrompts.ProposalAction.TAP,
             VisionPrompts.ProposalAction.TYPE,
@@ -875,6 +1079,51 @@ class VisionLoop(
     }
 
     // -- helpers ---------------------------------------------------------------------------
+
+    /**
+     * The gate's classification candidate for the acting proposal (PHASE_VEXP3 WI1):
+     * the enumerator's candidate for the matched node when it has one, else a MINIMAL
+     * synthesized [Candidate] for the raw-coordinate arm (id from the matched node or
+     * the box center, label = the proposal's description, bucket by the action kind,
+     * on-screen non-synthetic, browser-chrome carried from the matched node — the gate
+     * never credential-classifies a browser-chrome target).
+     */
+    private fun gateCandidate(
+        proposal: VisionPrompts.Proposal,
+        kind: ActionKind,
+        target: NodeMatch?,
+        x: Int,
+        y: Int,
+        obs: StepObservation,
+    ): Candidate {
+        if (target != null) {
+            CandidateEnumerator.enumerate(obs.nodes).flat.firstOrNull { it.id == target.node.id }
+                ?.let { return it }
+        }
+        val bucket = when (kind) {
+            ActionKind.TYPE -> Bucket.FORM_FIELDS
+            ActionKind.TAP, ActionKind.SUBMIT -> Bucket.BUTTONS
+            else -> Bucket.SCROLL
+        }
+        val kinds = if (kind == ActionKind.TYPE) listOf("edit") else listOf("tap")
+        return Candidate(
+            id = target?.node?.id ?: "raw-$x-$y",
+            label = proposal.description,
+            kinds = kinds,
+            cx = x,
+            cy = y,
+            bucket = bucket,
+            source = CandidateSource.A11Y,
+            sourceOrder = 0,
+            synthetic = false,
+            browserChrome = target?.node?.browserChrome ?: false,
+        )
+    }
+
+    /** The double-refusal abort's step-line suffix: the disposition, the marker, the truth. */
+    private fun gateAbortDetail(disposition: String, marker: String, hclass: HClass, site: String): String =
+        "FAILED ($disposition - $marker) - the same (${hclass.name}, $site) was refused twice " +
+            "in this task - task aborted"
 
     /** The informed re-plan's failure context: the failing subtask + the evidence block. */
     private fun failureContext(index: Int, active: Subtask, doneText: String): String = buildString {

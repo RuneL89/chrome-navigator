@@ -5,15 +5,13 @@ import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
- * The run-report JSON contract (owner-directed 2026-10-06): whenever a run requested
- * the shadow, the per-run report ALWAYS carries the full `shadowReport` object —
- * coverage, companions, latencies — even on degraded paths. The uat-applepie-02 device
- * report shipped with no shadow block at all; this gate makes that impossible to
- * reintroduce silently. Pure JVM.
+ * The run-report JSON contract (pure JVM). PHASE_VEXP3: the shadow/escalations evidence
+ * blocks are retired with the training program (owner directive 2026-10-19) — the
+ * retired-block gates below pin their ABSENCE so the keys can never silently return.
  */
 class RunReportsJsonTest {
 
-    private fun report(shadow: ShadowReport?) = RunReport(
+    private fun report() = RunReport(
         goalId = "uat-applepie-02",
         family = "custom",
         goal = "find a highly rated apple pie recipe and open it",
@@ -37,78 +35,14 @@ class RunReportsJsonTest {
         startedAt = 1,
         finishedAt = 2,
         stepLog = emptyList(),
-        shadow = shadow,
     )
 
     @Test
-    fun `a shadow-on run report always embeds the full shadowReport object`() {
-        val json = RunReports.json(
-            report(
-                ShadowReport(
-                    enabled = true,
-                    everyNth = 1,
-                    decisions = 7,
-                    sampled = 6,
-                    completed = 6,
-                    missed = 5,
-                    failed = 0,
-                    coverage = 0.8333,
-                    forwardLatencyP50Ms = 4896,
-                    forwardLatencyP95Ms = 9039,
-                    totalLatencyP95Ms = 9500,
-                    companionRows = 5,
-                    droppedAfterClose = 1,
-                    companionRejected = 0,
-                ),
-            ),
-        )
-        for (key in listOf(
-            "\"shadow\"",
-            "everyNth", "decisions", "sampled", "completed", "missed", "failed",
-            "coverage", "forwardLatencyP50Ms", "forwardLatencyP95Ms", "totalLatencyP95Ms",
-            "companionRows", "droppedAfterClose", "companionRejected",
-        )) {
-            assertTrue(key in json, "report JSON must carry $key")
-        }
-        assertFalse("SUPER-SECRET" in json)
-    }
-
-    @Test
-    fun `the degraded path still embeds the object - zeroed with a note`() {
-        val json = RunReports.json(
-            report(
-                ShadowReport(
-                    enabled = true,
-                    everyNth = 1,
-                    decisions = 0,
-                    sampled = 0,
-                    completed = 0,
-                    missed = 0,
-                    failed = 0,
-                    coverage = 0.0,
-                    forwardLatencyP50Ms = 0,
-                    forwardLatencyP95Ms = 0,
-                    totalLatencyP95Ms = 0,
-                    companionRows = 0,
-                    droppedAfterClose = 0,
-                    companionRejected = 0,
-                    note = "laya session open failed: IllegalStateException: model missing",
-                ),
-            ),
-        )
-        assertTrue("\"shadow\"" in json, "degraded shadow-on reports still carry the block")
-        assertTrue("laya session open failed" in json, "the note explains the empty counters")
-        assertTrue("companionRows" in json)
-    }
-
-    @Test
-    fun `shadow-off reports omit the shadow key entirely (unchanged shape)`() {
-        // The report Json omits defaulted properties (encodeDefaults=false): a
-        // shadow-off run has NO shadow key at all — which is exactly what made the
-        // uat-applepie-02 report look like it never ran a shadow.
-        val json = RunReports.json(report(shadow = null))
-        assertFalse("\"shadow\"" in json)
+    fun `the retired training blocks never ride the report JSON`() {
+        val json = RunReports.json(report())
+        assertFalse("\"shadow\"" in json, "the shadow block is retired (PHASE_VEXP3)")
         assertFalse("companionRows" in json)
+        assertFalse("\"escalations\"" in json, "the fallback-composition block is retired")
     }
 
     // -- Phase 08G: the tracker summary and the plan provenance blocks ------------------
@@ -116,7 +50,7 @@ class RunReportsJsonTest {
     @Test
     fun `an action-multi run report carries the tracker summary and plan provenance`() {
         val json = RunReports.json(
-            report(shadow = null).copy(
+            report().copy(
                 targets = TargetTrackerReport(
                     tracked = 3,
                     processed = 2,
@@ -134,7 +68,7 @@ class RunReportsJsonTest {
 
     @Test
     fun `lookup and unplanned runs omit the targets and plan keys (additive only)`() {
-        val json = RunReports.json(report(shadow = null))
+        val json = RunReports.json(report())
         assertFalse("\"targets\"" in json)
         assertFalse("\"plan\"" in json)
     }

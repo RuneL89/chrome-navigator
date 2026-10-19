@@ -194,56 +194,33 @@ without a device.
   checkpoint's GPT-2-style ByteLevel BPE (the classpath resource in
   `src/main/resources/laya/`, verbatim + `PROVENANCE.txt`, revision-pinned); family 2
   (Phase 8C): the v32b checkpoint's 256k mmBERT/Gemma-family BPE (Replace(" "→"▁")
-  normalizer, Metaspace pre-tokenizer, byte_fallback — the checkpoint data lives as a
-  gitignored hash-pinned asset in `:app`, loaded by file); the family is declared by
-  the tokenizer.json's normalizer+pre_tokenizer pair and anything else fails loudly;
-  correctness = exact-match reference vectors per checkpoint (Gate 8.1 / Gate 8C.2);
+  normalizer, Metaspace pre-tokenizer, byte_fallback — the from-file loader stays;
+  the checkpoint asset itself is gone since PHASE_VEXP3 retired the training program);
+  the family is declared by the tokenizer.json's normalizer+pre_tokenizer pair and
+  anything else fails loudly; correctness = exact-match reference vectors (Gate 2.2);
+  the class is KEPT because the state-text budget law (`StateTextBuilder`/`StageViews`
+  defaults) enforces its ≤960-token budgets with this real tokenizer;
   law: `Project Vision/05` §6
-* `src/main/kotlin/navigator/core/eval/` — the Tier A evaluation harness (Phase 7,
-  vision 07 §1 Tier A; Phase 10B: the CASCADE replay per vision 07 v1.3.0):
-  `ReplayRunner` (deterministic replay of every golden dump through state build →
-  stage-1 INTENT synthesis + resolution → stage-2 batched score synthesis with the
-  legend law (the legend must equal the declared rubric verbatim; the gold candidate's
-  level favored, pairwise-distinct masses) → gate classify; the pairings carry the gold
-  intent, the 2 retired `finish` pairings re-recorded `verify-done`; the
-  `RecordedResponse` synthesizers write real provider answer shapes re-parsed by the
-  wire parser), `PositionBias` (rotation matrix over each fixture's candidate order —
-  the stage-2 slate among them — name-keyed intent+target resolution 100% stable),
-  `HarnessSelfCheck` (the cascade mutation set: membership-drop adaptive per stage,
-  intent-mass-shift, score-mass-shift, flat-spread-no-target, positional-resolution-leak
-  — no false green), `EvalReport` (deterministic markdown+JSON writers, `intentsVersion`
-  recorded; artifacts in `.state/eval/` via `:core:generateTierAReport`),
-  `TierAHarness` + entry point; law: `Project Vision/07` §1–§2, §4–§5,
-  `Implementation Plan/PHASE_07_eval_tier_a.md`
 * `src/main/kotlin/navigator/core/log/` — the DecisionLog in its day-one shape
   (Phase 5): `DecisionLogModels.kt` (the full vision 05 §2 row schema as serializable
   types + `DECISION_LOG_JSON` + enum-serial-name helpers; Phase 10B: additive
   `targetScores` (the executed stage-2 slate's expected levels, 1..5 band-checked) +
   `targetAgreement` + `targetStateText` (Round 2: the executed stage-2 request's TARGET
-  STATE VIEW — REQUIRED on every `targetScores` row, the score case's state law; the
-  canonical stand-in is not training-ready and fails loudly), additive
+  STATE VIEW — REQUIRED on every `targetScores` row, the score case's state law), additive
   `LoggedActionKind.VIEW` (the open-site code path), and cascade-aware row coherence —
   when the primary question IS the fixed intent form the shadow's bucket stage lives on
   the INTENT ids and the headline top-1 is intent-vs-intent; legacy rows keep the
   two-stage bucket/element law),
-  `Agreement.kt` (top-1 exact match + KL(teacher ∥ shadow), vision 05 §3),
-  `RlcdExport.kt` (the RLCD JSONL export + manifest, vision 05 §4 v1.6.0: THREE case
-  kinds — `RlcdChooseCase` (decision rows: the FIXED intent choice form + the
-  teacher/fallback distribution), `RlcdScoreCase` (NEW, Phase 10B: decision rows with
-  `targetScores` — the verbatim rubric + the `cand-<id>` names + the authoritative
-  executed slate as gold), and `RlcdNoulCase` (exit-check rows: the anchored question +
-  its version + the authoritative pTrue) — with authoritative-gold selection,
-  format-AND-question-schema scoping (the choose form must be the intent vocabulary;
-  legacy flat rows are excluded + counted in `excludedByQuestionSchema`), the loud
-  exclusion/kind counts, `chooseQuestionVersion` = intents-v1 (the accumulation counter
-  restarts on it as on every format/view/question bump), and the laya-view derivation
-  seam), `ShadowResultRow.kt` (Phase 8B: the companion shadow-result row + the
-  joined-view aggregation `JoinedAgreement`, the 2026-10-04 amendment), and
-  `ExitCheckRow.kt` (Phase 8J Round 2, the 2026-10-06 amendment: the third insert-only
-  row type — one row per finish check, accepted or refused, with the anchored question +
+  `Agreement.kt` (top-1 exact match + KL(teacher ∥ shadow), vision 05 §3), and
+  `ExitCheckRow.kt` (Phase 8J Round 2, the 2026-10-06 amendment: the third row
+  type — one row per finish check, accepted or refused, with the anchored question +
   version, primary noul + band, escalation + fallback noul, guard level
   (NONE/WEAK/STRONG — refusals can be NONE), verdict, and accepted path; loud
-  incoherent shapes in `init`); pure data + math, zero I/O (ART-8);
+  incoherent shapes in `init`). PHASE_VEXP3 retired the training program (owner
+  directive 2026-10-19): the companion shadow-result row (`ShadowResultRow` +
+  `JoinedAgreement`), the RLCD export (`RlcdExport`), and the Tier A eval harness
+  (`eval/`) are DELETED — the row TYPES remain the wire/persistence schema (legacy
+  bytes decode unchanged); pure data + math, zero I/O (ART-8);
   law: `Project Vision/05` §1–§5, `Project Vision/02` §4–§5
 * `src/main/kotlin/navigator/core/StateFormat.kt` — `STATE_FORMAT_VERSION` (= 4 since
   Phase 10B: the canonical sections are unchanged from v3 — the bump is the version
@@ -273,17 +250,6 @@ without a device.
   one clearly cheapest — the cheapest-compare substrate), and
   `adv-mutation-bait-05.json` (the subscriptions page with injected mutation-bait text
   inside unrelated community content))
-* `src/test/resources/eval/` — Tier A replay inputs, reviewable data (NOT fixtures):
-  `replay-pairings.json` (each dump's gold decision: goal + the gold stage-1 INTENT
-  (Phase 10B — the 2 retired `finish` pairings re-recorded `verify-done`) + chosen node +
-  optional explicit action kind + note) and `replay-expectations.json` (golden chosen
-  node id + gate class per fixture). Expectation fixes are NEW/edited entries with a
-  note — the a11y-dump fixtures themselves never mutate (vision 07 §2; UAT 7.1: the
-  owner reviews these). Since Phase 10B the table carries FOUR generations per fixture
-  where the bumps touched it: the retired v1 pin, the retired v2 pin, the retired v3
-  pin, and the active v4 re-pin (the loader allows several retired entries per fixture —
-  one per superseded format generation; what it still forbids is a retired entry with
-  no active replacement)
 * `src/test/resources/log/goldens/` — byte-stable JSON snapshots of the DecisionLog row
   schema (Gate 5.1); immutable once accepted — regenerate only with `UPDATE_GOLDENS=true`
   after a reviewed, vision-level schema change
@@ -316,16 +282,14 @@ without a device.
   plugin (ART-2 boundary; verifier checks this)
 * Golden fixtures are immutable once committed — never edit one; a schema change is a
   vision-level event requiring both phase docs to be updated (`PHASE_00` §6, vision 07 §2)
-* Tier A replay law (Phase 7, vision 07 §4 + v1.3.0): candidate-order rotation must be
-  100% name-keyed stable (the stage-1 intent AND the stage-2 target), and any change to
-  state format, wire parsing, taxonomy, gate classes, intent vocabulary, stage-2 rubric,
-  or per-question instruction wording must re-run Tier A green (`.state/eval/` artifacts
-  byte-stable) — the committed artifacts are the drift detector; regenerate with
-  `./gradlew :core:generateTierAReport` and commit the result when a reviewed change
-  moves them. The Phase-10B v4 cascade bump is the current baseline: retire-and-add
-  re-pinned all 16 fixtures (43 retired pins across the v1/v2/v3 generations, 16 active
-  v4 pins), 278 rotations stable, 77/77 cascade mutations caught, tokens 217–955 ≤ 960,
-  stateFormatVersion 4 + intentsVersion intents-v1 (the drift detector re-armed)
+* Tier A replay law (Phase 7, vision 07 §4 + v1.3.0) — RETIRED with the training
+  program (PHASE_VEXP3, owner directive "remove that noise completely"): the eval
+  harness, its replay inputs, and the `:core:generateTierAReport` generator are DELETED;
+  the committed `.state/eval/tier-a-report.{md,json}` are FROZEN HISTORY (the Phase-10B
+  v4 baseline: 16 active pins, 278 rotations stable, 77/77 cascade mutations caught) and
+  no longer a drift gate — schema/wire/taxonomy changes now lean on the golden round-trip
+  gates (`DecisionLogSchemaRoundTripTest`, `RealA11yDumpFixturesTest`, the wire
+  transcript fixtures) which stay green
 * Loaders validate strictly: unknown/missing fields and cross-field inconsistencies fail
   loudly (`FixtureValidationException`); malformed fixture = test failure, never silent default
 * Probability maps are name/id-keyed, never positional (vision 02 §2); callers branch on
@@ -374,8 +338,10 @@ without a device.
   correctness = exact match on the committed reference vectors — never "improve" it without
   regenerating vectors from the checkpoint (vision 05 §6)
 * DecisionLog law (Phase 5): the row schema is final day-one shape (vision 05 §2) —
-  schema changes are vision-level events; every row is immutable history (the persistence
-  layer in `:app` is insert-only); cross-field consistency fails loudly in `init`
+  schema changes are vision-level events; every row is immutable history (PHASE_VEXP3
+  retired the `:app` persistence: nothing writes rows any more — the types remain the
+  wire/persistence schema and legacy bytes decode unchanged); cross-field consistency
+  fails loudly in `init`
   (teacher/shadow answers must live on their question's option space; agreement fields
   are present iff both answers exist; `trustedFromTask` only on an approved gate decision).
   Phase 6 added ONE additive `ActionDisposition` value — `refused-by-guard` (@SerialName
@@ -416,21 +382,13 @@ without a device.
   the goldens were regenerated via UPDATE_GOLDENS under the ratified amendment — every
   row now encodes `"plan": null`, and the new `row-planned.json` golden pins the
   populated shape; earlier rows decode unchanged
-* Companion shadow-result rows (Phase 8B, vision 05 §2 amendment 2026-10-04):
-  `ShadowResultRow` is the second INSERT-ONLY row type, legal only for a decision row
-  logged as a shadowMiss and exactly once per `(taskId, stepIndex)` — enforced at the
-  `:app` persistence boundary (guard + unique index), never by convention; agreement
-  metrics are computed over the joined view (`JoinedAgreement.metrics`, incoherent
-  views fail loudly instead of double-counting) with coverage = joined/total-sampled,
-  exposed to the UI as `(percentage, coverage)` (the Phase 9/11 contract); companions
-  remain agreement-only (`RlcdExportManifest.companionRowCount` is informational —
-  the 2026-10-06 amendment's rule d supersedes rule e only in opening the training
-  corpus to exit-check rows)
-* Exit-check rows (Phase 8J Round 2, vision 05 §2 amendment 2026-10-06): the
-  exit-calibration training path — EVERY finish check, accepted or refused, is corpus
-  data (the refusals are the decoy contrast); `:app` persists them insert-only in
-  `exit_check` (Room v5, UNIQUE `(taskId, stepIndex)`); a mixed-anchoredNoulVersion
-  export window is incoherent and fails loudly (question schemas are format-scoped)
+* Companion shadow-result rows, the joined view, and the RLCD export are RETIRED
+  (PHASE_VEXP3, the training program removed) — the row types' schema survives in
+  `DecisionLogModels.kt` only so legacy bytes decode unchanged
+* Exit-check rows (Phase 8J Round 2, vision 05 §2 amendment 2026-10-06): the row TYPE
+  remains (the loop's `writeExitCheck` seam, one row per finish check — no `:app`
+  persistence since PHASE_VEXP3; a mixed-anchoredNoulVersion window is incoherent and
+  fails loudly)
 * The KL convention (vision 05 §3, documented in `Agreement.kt`): natural log, union of
   distribution keys zero-filled, p→0 terms contribute 0 (limit), q→0 terms floored at
   1e-12 (epsilon — large but finite, JSON cannot carry Infinity); inputs asserted in
@@ -438,29 +396,6 @@ without a device.
   `WIRE_ROUNDING_TOLERANCE` 0.02 renormalized — the provider emits 2-decimal
   probabilities whose sum can be e.g. 0.99, measured live; beyond that, loud failure),
   identical distributions give exactly 0.0
-* The RLCD export (vision 05 §4 v1.6.0) emits THREE case kinds: `choose` (from decision
-  rows — `questions` is the INTENT choice form, `intents-v1`, and `gold` the full
-  distribution, never a bare label), `score` (Phase 10B, from cascade rows with
-  `targetScores` — the batched per-candidate rubric + authoritative slate levels; the
-  case's `state` IS the row's `targetStateText` — the recorded TARGET STATE VIEW, the
-  Round-2 carry: a canonical-text stand-in is not training-ready and fails loudly in
-  the row `init` and the export), and `noul` (from exit-check rows — `question` is the anchored
-  `NoulQuestion` payload with its `anchoredNoulVersion`, `gold` the authoritative pTrue).
-  AUTHORITATIVE-GOLD LAW: gold is always the EXECUTED answer — the fallback's when
-  `escalated=true`, the primary's otherwise; a student engine is never its own gold.
-  FORMAT SCOPING: only rows of the current `STATE_FORMAT_VERSION` export (since the
-  Phase-10 v3 bump the retired v1 AND v2 rows are the excluded ones); rows of other versions
-  are excluded
-  and counted by version in the manifest (loudly, never silently dropped) — the
-  manifest's `rowCount` IS the Road L accumulation counter and restarts at every bump
-  (doc 01 Road L Phase 3; the v3 export's manifest shows the v2 rows excluded+counted
-  and the rowCount restarted). STATE VIEW (Phase 08H): the canonical export (default) copies
-  the rows' state text verbatim; the on-device lineage (`RlcdStateView.LAYA_VIEW`) derives
-  the LAYA STATE VIEW through the same versioned builder ([LayaStateView.derive] within
-  the caller checkpoint's view budget) and the manifest carries
-  `layaStateViewVersion = LAYA_STATE_VIEW_VERSION` — byte-for-byte what the graduated
-  checkpoint sees at serve time; the export never rewrites state text. Mixed-teacher
-  corpora are flagged when more than one pinned teacher model appears in the window
 
 ## Work Guidance
 
@@ -512,12 +447,8 @@ without a device.
   DecisionLog gates
 (5.1 schema round-trip + byte-stable `log/goldens/` snapshots — since Phase 8G incl.
 the regenerated goldens, the `row-typed-secret.json`/`row-planned.json` populated
-shapes + the typedSecret and plan loud-incoherence proofs, 5.2 RLCD export vs a
-  strict finetune-row validator + mixed-teacher manifest + the THREE case kinds (choose =
-  the intent form; score = the batched rubric + the authoritative slate; noul) with
-  authoritative-gold selection, loud format- AND question-schema scoping, the
-  chooseQuestionVersion manifest field, and BOTH accumulation restarts pinned (state
-  format 4 + intents-v1), 5.3 agreement math with
+shapes + the typedSecret and plan loud-incoherence proofs — the 5.2 RLCD gate retired
+with the export (PHASE_VEXP3), 5.3 agreement math with
   hand-computed KL values, the Phase-8J-Round-2 `ExitCheckRowTest` schema round-trips
   + loud incoherent shapes) must all pass
 * The Phase-10C laws (doc 04 v1.7.0, owner-ratified 2026-10-12):
@@ -535,20 +466,10 @@ shapes + the typedSecret and plan loud-incoherence proofs, 5.2 RLCD export vs a
   production client (choice+noul, score); needs the owner key (env `NAVIGATOR_OPENROUTER_KEY`
   or git-ignored `.tools/keys.env`), costs ~$0.00005, never run by a gate
 * `./gradlew :core:dependencies --configuration runtimeClasspath` must show no Android artifacts
-* `./gradlew :core:test --tests "navigator.core.eval.*"` — the Tier A gates (7.1 golden
-  replay vs `eval/replay-expectations.json` + byte-identical consecutive runs + committed
-  `.state/eval/` artifact drift detection, 7.2 the cascade mutation self-check, 7.3
-  rotation stability over the stage-2 slate, report schema incl. `intentsVersion`) must
-  all pass; the standard regression command for any later change to state format, wire
-  parsing, taxonomy, gate classes, intent vocabulary, rubric, or instruction wording.
-  The table runs retire-and-add — since the Phase-10B v4 bump: 43 retired entries (11 v1
-  pins + the 16
-  v2 pins + the 16 v3 pins, `retired: true`, provenance only) + 16 active v4 pins (the
-  re-pins, gold decisions unchanged; the pairings carry the gold stage-1 intent and the
-  2 finish pairings re-recorded verify-done); the drift detector is re-armed at the v4
-  baseline (`.state/eval/tier-a-report.{md,json}`, stateFormatVersion=4 +
-  intentsVersion=intents-v1, 278 rotations stable, 77/77 cascade mutations caught,
-  tokens 217–955 ≤ 960)
+* The Tier A eval gates (7.1–7.3) are RETIRED with the harness (PHASE_VEXP3): the
+  regression line for state-format/wire/taxonomy/gate/vocabulary changes is now the
+  golden round-trip gates above (5.1 goldens + the wire transcript fixtures + the
+  state-text law tests), which stay green
 
 ## Child DOX Index
 

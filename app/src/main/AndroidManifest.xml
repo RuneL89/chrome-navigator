@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Phase 1: adds the observation service (vision 03) and the debug capture harness.
-     A11y service, overlay UI, Room, ONNX wiring arrive in their own phases (vision 01 §3). -->
+     A11y service, overlay UI and the cloud engine wiring arrived in their phases
+     (vision 01 §3); the Room/ONNX training machinery was retired in PHASE_VEXP3. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!-- Phase 6: the LIVE harness mode speaks to the engine endpoint through :core's

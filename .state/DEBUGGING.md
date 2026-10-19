@@ -78,7 +78,7 @@ adb -s SERIAL logcat -v time <FILTER> > logcat-capture.log
 FILTER per app (see §0 table):
 
 * product: `NavigatorHarness:V NavigatorService:V NavigatorGates:V AndroidRuntime:E *:S`
-  — expect it to be QUIET (the loop's narration goes to the corner log and the DB)
+  — expect it to be QUIET (the loop's narration goes to the corner log)
 * vision: `NavigatorVision:V AndroidRuntime:E *:S` — NOT quiet: the experiment streams
   its full step narration to this tag
 
@@ -105,14 +105,24 @@ AUTHORITATIVE terminal signal per app:
 > events.log, call-*.req/res.json, screen-*.jpg) — adb-pullable, and the terminal
 > value is the task-state line's own text. Toggle OFF (the default) keeps every rule
 > above unchanged.
+>
+> **EXTENSION (2026-10-19, PHASE_VEXP3 the training program retired):** the Room layer
+> is GONE from the app — `navigator-decision-log.db` is no longer created, updated, or
+> written by ANY run, so the `task_terminal` polling rule above (and the §4 DB pull)
+> is VOID. A toggle-OFF (legacy loop) overlay run now ends HUMAN-VISIBLE ONLY: the
+> corner log's task-state line + the READY notification are the authoritative end
+> signal, with the step narration in the corner log and under `NavigatorService` in
+> logcat — there is no database to baseline or poll, and a legacy run's record after
+> the fact is whatever the corner log showed. Vision runs (toggle ON or adb) are
+> unchanged: corner log + `run-reports/vision-exp/` evidence.
 
-* product: a row in `task_terminal` inside `databases/navigator-decision-log.db` of
-  `navigator.app` — that is the Room DB's real name (a literal `log.db` also exists in
-  the tree and is NOT it; polling the wrong one silently reads an empty 49-byte file).
-  Before the run, take a baseline count of terminal-state strings via
-  `adb exec-out run-as navigator.app sh -c 'cat databases/navigator-decision-log.db databases/navigator-decision-log.db-wal' | grep -acE 'GOAL_ACHIEVED|BUDGET_EXHAUSTED|STUCK_KILL|GUARD_ABORT|USER_CANCEL|LADDER_REFUSED|[^_]REFUSED'`;
-  poll every ~5 s and treat baseline+1 as the end.
-* vision: NO Room rows — the experiment writes no DecisionLog (polling a
+* product (PHASE_VEXP3): NO database — the Room layer is retired and no
+  `task_terminal` row is ever written (the historical `run-as … task_terminal`
+  baseline+1 polling rule is void). The authoritative end is the CORNER LOG's
+  task-state line ("task <TERMINAL> — <detail>") plus the READY notification, both
+  human-visible; corroborate from logcat under `NavigatorService` if the overlay is
+  not in view.
+* vision: NO Room rows — nothing writes a DecisionLog any more (polling a
   `navigator-decision-log.db` under `navigator.app.visionexp` silently reads nothing
   new: the same wrong-DB trap, re-stated). The authoritative end = a NEW report file
   landing in `/storage/emulated/0/Android/data/navigator.app.visionexp/files/run-reports/`
@@ -130,13 +140,10 @@ stop that PID.
 
 ## 4 · Pull and analyze
 
-Product: `adb pull /data/local/tmp/navcap/. shots/`, pull the DB the same `run-as
-exec-out` way into `db/nav.db` plus `-wal`/`-shm`, and open a COPY with Python — only
-the `py` launcher exists on this machine (3.14, has `sqlite3`; there is no `python`,
-`uv`, or `sqlite3` on PATH). Read `task_terminal` for the verdict, then `decision_log`
-for the run's `taskId`: each row carries `questionPrimaryJson`/`teacherAnswerJson`,
-`executedActionJson` + `outcome`, `planJson`, `targetScoresJson`, `assistText`, and
-`stateText`. `exit_check` holds every completion check with its noul and verdict.
+Product (PHASE_VEXP3): `adb pull /data/local/tmp/navcap/. shots/` — there is NO
+database to pull any more (the Room layer is retired with the training program). The
+run's record is the corner log's lines (screenshot in `shots/`, or the on-screen
+overlay) and the logcat capture; analyze those with the frames.
 
 Vision: pull the run's evidence dir and report directly (external files dir, no
 `run-as` needed): `run-reports/vision-exp/<runId>/` (events.log, `call-*.req.json` /

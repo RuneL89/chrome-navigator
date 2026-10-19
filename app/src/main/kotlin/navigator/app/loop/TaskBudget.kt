@@ -122,8 +122,7 @@ object BudgetProfiles {
 /**
  * Per-task budget (vision 04 §5 — law), now in per-class [BudgetProfile] strengths.
  * Soft thresholds warn (the step carries on, the warning is logged); hard thresholds
- * stop the task cleanly with partial results, everything logged. Laya shadow calls are
- * free and unbudgeted (vision 04 §5) — they never reach this class.
+ * stop the task cleanly with partial results, everything logged.
  *
  * The no-argument defaults are the Standard profile (lookup/research/form-fill — the
  * original Phase-6 numbers); the loop applies the triage-selected profile after triage

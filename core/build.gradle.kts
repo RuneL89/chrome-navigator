@@ -28,27 +28,13 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
-    // The eval harness (Phase 7) resolves the repo tree (committed .state/eval artifacts,
-    // eval inputs) relative to the project root — tests read it via this property.
+    // Fixture/golden-backed tests resolve the repo tree relative to the project root —
+    // tests read it via this property. (The Tier A eval harness was retired with the
+    // training program, PHASE_VEXP3.)
     systemProperty("navigator.project.root", rootDir.absolutePath)
     testLogging {
         events("passed", "failed", "skipped")
     }
-}
-
-// Tier A eval harness (Phase 7): runs the deterministic replay suite and writes the
-// measurement report artifacts to .state/eval/ (git-tracked, vision 07 §5).
-// Extra args for the entry point (e.g. the pairing-authoring helper) can be passed with
-// -PevalArgs="list-candidates".
-val generateTierAReport by tasks.registering(JavaExec::class) {
-    group = "verification"
-    description = "Runs the Tier A eval replay suite and writes .state/eval/tier-a-report.{md,json}."
-    classpath = sourceSets["main"].runtimeClasspath
-    mainClass = "navigator.core.eval.TierAHarnessKt"
-    argumentProviders.add(CommandLineArgumentProvider {
-        listOf(rootDir.absolutePath) +
-            (project.findProperty("evalArgs")?.toString()?.split(' ')?.filter { it.isNotBlank() } ?: emptyList())
-    })
 }
 
 // UAT 3.1 (Phase 3): the ONE live-provider path in the build — two real calls through the
