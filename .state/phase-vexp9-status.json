@@ -1,0 +1,38 @@
+{
+  "phase": "VEXP9",
+  "title": "Tree-first with vision escalation — the experiment program",
+  "phaseDoc": ".state/vision-iter/PHASE_VEXP9_tree_first_vision_escalation.md",
+  "branch": "exp/tree-first (off master @ 1a0af26; master untouched)",
+  "status": "OPEN — research phase; no product change, no default flip, no prompt bump",
+  "startedAt": "2026-10-20",
+  "question": "With the accessibility tree as the default actor, when must vision be invoked, which vision mode is the cheapest sufficient one, and does the resulting policy beat both pure-tree and pure-vision on time-to-success without losing success rate?",
+  "hypotheses": {
+    "H1": "The tree path is materially faster per action (1-2 text-only calls vs 2-4 image-carrying calls).",
+    "H2": "Tree failures are classifiable from observable state (the existing failure seams), not random.",
+    "H3": "Most tree failures are repairable by a cheap vision mode (verify/ground/propose); a full step is needed only for a small class.",
+    "H4": "Early escalation reduces end-to-end time-to-success even though escalated steps are slower (failed tree runs are the slowest observed outcome: 358-648 s vs 25-82 s successes)."
+  },
+  "stages": {
+    "0-observability": "PENDING — RunResult persistence + ExperimentProbe no-op seam + sampled frames + steps.csv/runs.csv",
+    "1-tree-taxonomy": "PENDING — real corpus (R1-R6) + synthetic probes (S1-S8); every failure class >=3 instances or marked unobserved",
+    "2-shadow-vision": "PENDING — shadow consult at 100% non-HIGH + 20% HIGH control; rescue potential per class",
+    "3-rescue-on-failure": "PENDING — BLOCKED->vision handoff at EMPTY_SLATE / NO_GOOD_TARGET / NO_PROGRESS; paired vs tree-only",
+    "4-rule-and-ABC": "PENDING — derived decision table; interleaved T/H/V on the full corpus",
+    "5-recommendation": "PENDING — recommendation.md with the data table, risks, and the road decision"
+  },
+  "exitCriteria": [
+    "Stage 0 evidence exists for both engines; suites green with the probe unarmed",
+    "Every failure class observed >=3x or marked unobserved",
+    "Cheapest sufficient vision mode identified per class with evidence",
+    "A candidate policy with measured coverage and precision",
+    "A/B/C: hybrid success >= pure-vision and hybrid time-to-success < pure-vision",
+    "recommendation.md written; the owner decides"
+  ],
+  "stopRule": "Stage 5 reached and the owner decided, OR two consecutive iterations with no new failure class and no decision-table change, OR the owner calls it.",
+  "budgetHardCapUsd": 15,
+  "llmCost": 0,
+  "runs": 0,
+  "blocker": null,
+  "nextAction": "Stage 0: implement WI1-WI3 on exp/tree-first, then run the iteration-1 warm-up (one tree-only BBC run + one vision run) and write .state/vision-iter/vexp9/iteration-1.md.",
+  "masterPolicy": "master receives no experiment code. If the recommendation is accepted, the change is written as its own phase doc and implemented on master."
+}

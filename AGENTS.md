@@ -99,12 +99,17 @@ When the user requests a durable behavior change, record it here or in the relev
   for the vision-promotion amendment because the GLM-5.3 credits were exhausted; the
   GLM-5.3 default for vision law remains. The one-time exception is recorded in
   `.state/compliance-log.md` and `Project Vision/AGENTS.md`.
+* EXPERIMENT BRANCH RULE (owner, 2026-10-20): experiment programs (the `PHASE_VEXP*`
+  docs) run on their own branch and never land product code on `master`. A product
+  change suggested by an experiment is written as a separate phase on `master` only
+  after the owner accepts the experiment's recommendation. An experiment build is
+  disposable; its finding and recommendation are not.
 
 ## Child DOX Index
 
 * `Project Vision/` — canonical vision and specification documents (01–07; the 2026-10-18 vision-engine promotion amendment is current law); the source of truth for implementation compliance. See `Project Vision/AGENTS.md`
 * `Implementation Plan/` — phased implementation plan (Phases 0–10D + 14–15; Phases 11–13 removed by owner directive 2026-10-20), master index, and agent prompts. See `Implementation Plan/AGENTS.md`
-* `.state/` — phase status files, compliance log, verification reports, eval reports; the project's durable memory. See `.state/AGENTS.md`
+* `.state/` — phase status files, compliance log, verification reports, eval reports, and the experiment-program docs (`.state/vision-iter/PHASE_VEXP*`, open programs carry their own status file); the project's durable memory. See `.state/AGENTS.md`
 * `handoff/` — source documents (handoff v1, handoff v2 Road L) and feasibility research; input material, not law. The Road L program is retired
 * `core/` — `:core`, the pure-JVM decision core: the `DecisionEngine` interface + `JevEngine` (the retained a11y engine's cascade — intents-v1, the stage-2 rubric, banding), the systemone wire client + engine configs, observation/enumeration types, the state-text builder + stage views, the task-ladder types + the code done-condition checker (`urlHost`/`urlContains`/`markerText`/`elementPresent`/`count`/`answerExtracted`), the informed-re-plan types (`ReplanRule`/`ReplanContext`), and the H1–H9 risk gate (the multilingual floor + the additive-only engine check). The training/eval surfaces (Laya shadow, RLCD, shadow rows, Tier-A replay) are RETIRED; the surviving tokenizer resource is the a11y state-budget law, not a model. See `core/AGENTS.md`
 * `app/` — `:app`, the Android application. THE VISION ENGINE IS THE DEFAULT (`harness/vision/`): a11y + browser-window screenshot; Haiku plans/proposes/repairs/confirms/extracts; Jev 1.14 grounds every tap/type with a Box and runs the text+image verification battery; code owns the ladder, the battery accept, the finality law (`MODELS_CONFIRM_DONE` only on the final WEAK subtask with the pair + goal noul), the CTA/scroll-churn backstop, the browser-readiness pre-step, the risk gate + owner cards, and the evidence record. The retained A11Y ENGINE (`loop/`) runs on the explicit Setup toggle OFF: the Jev cascade, the same gate/ladder, `NoOpLogSink` (no database). The product surfaces are the overlay goal input + corner live log + gate/completion cards + the `NavigatorService`; Setup is the five-check wizard with two encrypted key slots and the dual live-key tester. The training program (Room/RLCD/shadow/laya/ONNX/Tier A) is deleted. The app id is `navigator.app` (no `.visionexp`). See `app/AGENTS.md`

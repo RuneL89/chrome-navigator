@@ -88,6 +88,13 @@ remembers."
 * `tools/navcap.sh` — the on-device run-capture script used by `DEBUGGING.md` §1. It is
   a tool, not run data: the run folders' raw evidence is cleared; the `REPORT.md`
   analyses and this script stay.
+* `vision-iter/PHASE_VEXP9_tree_first_vision_escalation.md` — the OPEN experiment-program
+  contract (tree-first with vision escalation). It is a RESEARCH phase: it produces a
+  finding and a `recommendation.md`, never a product change. All experiment code and
+  evidence live on the `exp/tree-first` branch; `master` receives nothing until the owner
+  accepts a recommendation and a separate phase is written there. Its iteration reports
+  live in `vision-iter/vexp9/iteration-N.md`; raw frames are ephemeral (deleted after each
+  iteration), the step/run CSVs are scrubbed and durable.
 
 ## Local Contracts
 
