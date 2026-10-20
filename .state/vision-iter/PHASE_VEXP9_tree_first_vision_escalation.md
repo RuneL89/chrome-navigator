@@ -25,8 +25,9 @@ recommendation memo — not a product change.
 The question, stated exactly:
 
 > With the accessibility tree as the default actor, **when** must vision be invoked,
-> **which** vision mode is the cheapest sufficient one, and does the resulting policy
-> beat both pure-tree and pure-vision on time-to-success without losing success rate?
+> **which** vision mode is the most efficient one — fastest to a *correct* resolution,
+> not merely the least resource-hungry — and does the resulting policy beat both
+> pure-tree and pure-vision on time-to-success without losing success rate?
 
 ## 1. Hypotheses
 
@@ -36,8 +37,12 @@ The question, stated exactly:
 - **H2 (the cost of the premise).** The tree fails on a minority of pages/steps, and
   those failures are **classifiable** from observable state (the existing failure seams),
   not random.
-- **H3 (the repair).** Most tree failures are repairable by a *cheap* vision mode
-  (verify / ground / propose) — a full vision step is needed only for a small class.
+- **H3 (the repair).** Most tree failures are repairable by a *partial* vision mode
+  (verify / ground / propose) faster and more reliably than by a full vision step. This
+  is a hypothesis to test, not a cost rule: a partial mode can be **slower to a correct
+  outcome** than a full step when it is ambiguous and needs retries, or when it advances
+  on the wrong target. Efficiency is measured per class, never assumed from the mode's
+  price.
 - **H4 (the payoff).** Because failed tree runs are the slowest outcome observed
   (358–648 s versus 25–82 s for successes), early escalation reduces **end-to-end**
   time-to-success even though each escalated step is slower.
@@ -86,7 +91,9 @@ Prior art (directly relevant, both preprints — treat as directional):
 
 ### 3.1 The mode ladder
 
-Escalation is not binary. Ordered by cost:
+Escalation is not binary. The rows are ordered by perception spend — a **prior** on
+effort, not the efficiency ranking. Efficiency is measured, and the ranking is expected
+to be non-monotonic (see §6.3a).
 
 | Mode | What the image is used for | Code seam it would use |
 |---|---|---|
@@ -96,19 +103,22 @@ Escalation is not binary. Ordered by cost:
 | **L3 propose** | invent a target the tree does not contain | `VisionHaiku` `PROPOSE_SYSTEM` + Jev ground |
 | **L4 full step** | decide the action from scratch | `VisionLoop.attemptStep` |
 
-The experiment's job is to find, for each failure class, the **cheapest sufficient
-mode**. The working prior (H3) is that most classes need L1–L2, not L4.
+The experiment's job is to find, for each failure class, the **most efficient mode**:
+the one that reaches a *correct* resolution in the least expected wall-clock time. The
+working prior (H3) is that partial modes usually win — but a full step wins wherever a
+partial mode is ambiguous, wrong, or needs a retry, and that is the point of measuring
+rather than ranking by price.
 
 ### 3.2 The failure taxonomy (the "when")
 
 The a11y loop already has the seams. They are the observable trigger candidates:
 
-| Class | Seam in `NavigationLoop` | Behaviour today | Candidate mode |
+| Class | Seam in `NavigationLoop` | Behaviour today | Candidate modes (Stage-3 draw) |
 |---|---|---|---|
-| `EMPTY_SLATE` — needed control not in the bucket last | `emptySlateStep` (`:3025`) | grace → fallback | L3 propose |
-| `NO_GOOD_TARGET` — candidates exist, none scores | `stage2NoGoodStep` (`:3084`) | fallback | L2 ground |
+| `EMPTY_SLATE` — needed control not in the bucket last | `emptySlateStep` (`:3025`) | grace → fallback | L3 propose / L4 full step |
+| `NO_GOOD_TARGET` — candidates exist, none scores | `stage2NoGoodStep` (`:3084`) | fallback | L2 ground / L4 full step |
 | `UNCERTAIN` — page purpose unclear | `cascadeFallbackStep` (`:2518`) | re-plan / escalate | L4 full step |
-| `NO_PROGRESS` — acted, nothing changed | `handleSubtaskFailureOrKill` (`:1241`) | hint → re-plan → card | L4 inspect + L1 verify |
+| `NO_PROGRESS` — acted, nothing changed | `handleSubtaskFailureOrKill` (`:1241`) | hint → re-plan → card | L1 verify / L4 inspect |
 | `UNVERIFIABLE` — WEAK condition, outcome not code-checkable | exit policy / guards | owner card / probe | L1 verify |
 | `UNREADABLE` — unusable tree | `observeUsable` refusal | refused | L4 (only channel) |
 
@@ -169,7 +179,8 @@ the subtask advanced. Per run: terminal, `elapsedMs`, `steps`, spend.
 written into `iteration-1.md`.
 
 **This stage alone may answer the question.** If one class accounts for most terminal
-failures and it is L2-repairable, the policy is essentially known.
+failures, the policy's *shape* is known — but not yet its mode; efficiency is measured
+in Stages 3–4.
 
 ### Stage 2 — Shadow vision
 
@@ -184,31 +195,55 @@ control. Without the control you cannot tell whether `HIGH` is genuinely safe.
 
 **Run:** the Stage-1 corpus again, shadow arm.
 
-**Exit:** per failure class, a measured **rescue potential**: how often vision proposed an
-actionable alternative, how well it grounded, and how often it agreed with the tree.
-Written to `iteration-2.md`.
+**Exit:** per failure class and per mode, the shadow's **potential** (actionable-alternative
+rate, grounding quality, agreement with the tree) and that mode's **latency**. The shadow
+cannot establish correctness — it never acts — so its output ranks modes only as
+hypotheses for Stage 3. Written to `iteration-2.md`.
 
 ### Stage 3 — Rescue on failure (the first real policy)
 
 **Build:** at `EMPTY_SLATE`, `NO_GOOD_TARGET`, and `NO_PROGRESS` (before the re-plan
-path), optionally hand the step to vision and execute its proposal through the normal
-executor and `RiskGate`. Record whether the step advanced, and whether the subtask
-recovered.
+path), hand the step to vision and execute its result through the normal executor and
+`RiskGate`. Record correctness, latency, and whether the subtask recovered.
 
-This is Jev-Mobile's `BLOCKED → VLM` handoff, and it is the simplest policy that can be
-shipped: escalate on **observed** failure. It needs no classifier.
+**Mode assignment is randomized, not greedy.** For each intervention, draw a mode from
+the class's applicable set with a seeded balanced draw (e.g. `EMPTY_SLATE`: L3 vs L4;
+`NO_GOOD_TARGET`: L2 vs L4; `NO_PROGRESS`: L1 vs L4). Without randomization only the
+guessed mode ever accumulates samples, and "most efficient" becomes an assumption rather
+than a measurement. This is why the experiment budget is generous: we must sometimes pay
+for the mode we suspect will lose.
+
+**Correctness is recorded explicitly, at the intervention row.** An intervention is
+**correct** only when all hold:
+- the step advances toward the active subtask's done-condition;
+- the acted target is the intended element (grounding agreement, or the following
+  observation shows the expected change);
+- the subtask later verifies through the code checker;
+- no corrective rollback, undo, or re-plan is charged to it.
+An intervention that changes the page but targets the wrong element is **incorrect**, not
+a success. A wrong-but-moving action is usually more expensive than doing nothing, because
+it buys a recovery.
+
+This is Jev-Mobile's `BLOCKED → VLM` handoff, extended into a per-mode comparison: it is
+the simplest policy that can be shipped (escalate on **observed** failure) and the stage
+that produces the per-mode correctness labels Stage 4 consumes.
 
 **Run:** the goals whose Stage-1 runs failed, rescue arm, 2 runs each, against a matched
 pair of tree-only runs.
 
-**Exit:** rescue rate, and whether rescue beats re-plan on the same failures. Written to
-`iteration-3.md`.
+**Exit:** per class and per mode, the **correctness rate**, the **intervention latency**,
+and the resulting **expected time-to-correct-resolution** (§6.3), with at least 5
+interventions per cell — otherwise the cell is reported as under-sampled and Stage 4
+does not choose a mode for it. Plus: whether rescue beats re-plan on the same failures.
+Written to `iteration-3.md`.
 
 ### Stage 4 — Rule derivation and A/B/C
 
 **Build:** implement the derived rule as an experiment policy: for each class (and any
-probability/margin/slate-size precondition found in Stage 2), the cheapest sufficient
-mode. Keep it an explicit, readable decision table — no learned model, no black box.
+probability/margin/slate-size precondition found in Stage 2), the mode with the lowest
+measured expected time-to-correct-resolution. Where two modes are statistically
+indistinguishable, prefer the higher correctness rate, then the lower latency. Keep it
+an explicit, readable decision table — no learned model, no black box.
 
 **Run:** the full corpus, three arms, interleaved (T H V, repeated) to control for
 network/site drift:
@@ -217,15 +252,18 @@ network/site drift:
 - **H** — the hybrid rule
 - **V** — vision only (current product)
 
-**Exit:** H beats T on success and beats V on time-to-success, or the recommendation is
-"do not build the hybrid" with the evidence. Written to `iteration-4.md`.
+**Exit:** H beats T on success **and** on time-to-correct-completion, and beats V on
+time-to-success, or the recommendation is "do not build the hybrid" with the evidence.
+Written to `iteration-4.md`.
 
 ### Stage 5 — The recommendation memo
 
 `recommendation.md` in `.state/vision-iter/vexp9/`, containing:
 
 - the measured table (success, time-to-success median/p90, steps, escalations/mode);
-- the failure-class table with the cheapest sufficient mode and its evidence;
+- the failure-class table with **correctness, latency, and expected
+  time-to-correct-resolution per mode**, and the chosen mode with its sample size and
+  confidence;
 - the decision table (if any);
 - the risks and the cases the data does not cover;
 - an explicit "road" recommendation: keep two engines with manual switching / build the
@@ -293,12 +331,14 @@ real goals exist to validate it.
 | `shadow_sampled`, `shadow_mode` | was this step shadowed, and how |
 | `shadow_proposal`, `shadow_target_id`, `shadow_iou`, `shadow_confidence`, `shadow_agrees` | the shadow's opinion |
 | `escalated`, `escalation_mode`, `escalation_result` | the interventional arms |
+| `correctness`, `correctness_basis`, `recovery_cost_ms` | the label and how it was established (Stage 3+) |
 
 ### 6.2 `runs.csv` — one row per run
 
 `run_id`, `goal_id`, `arm` (T/H/V/shadow/rescue), `terminal`, `success`, `steps`,
 `elapsed_ms`, `t_first_action_ms`, `jev_calls`, `haiku_calls`, `images_sent`,
-`spend_usd`, `escalations`, `escalations_by_mode`, `failure_class`.
+`spend_usd`, `escalations`, `escalations_by_mode`, `interventions`,
+`interventions_correct`, `failure_class`.
 
 Call counts are first-class: they are the causal variable (per Jev-Mobile), and they
 predict latency better than dollars do.
@@ -312,17 +352,51 @@ predict latency better than dollars do.
 - **escalation rate** — escalated steps / all steps (the latency price of the policy).
 - **coverage** — of tree-failing steps, the fraction an escalation trigger caught.
 - **precision** — of escalated steps, the fraction that would have failed without it.
-- **rescue rate** — of escalations, the fraction that advanced the step.
+- **intervention correctness** — of interventions, the fraction that are *correct* per
+  the Stage-3 definition (advance toward the done-condition, intended target, subtask
+  verifies, no recovery charged). **Advancement alone is not correctness** and must never
+  be reported as such.
+- **intervention latency** — from the decision point to the post-action observation for
+  the intervention, including capture and every model call the mode spends.
+- **expected time-to-correct-resolution (ETCR)** — the efficiency metric, per class and
+  mode:
+  `P(correct)·latency_correct + P(incorrect)·(latency_incorrect + recovery_cost) + P(no progress)·fallback_cost`.
+  Lower is better. This is what "most efficient" means in this program: the mode that
+  reaches a correct outcome in the least expected wall-clock, counting the cost of being
+  wrong.
 - **false-escalation rate** — escalations where the tree action would have succeeded
   (measured from the Stage-2 `HIGH` control sample and the Stage-4 matched pairs).
 
+### 6.3a Why the mode ranking is not the price ranking
+
+ETCR is deliberately not monotonic in perception spend:
+
+- A **partial** mode (L1/L2) is fast when it is unambiguous, but when it is ambiguous it
+  either refuses (falling back, paying the fallback cost) or guesses (risking an incorrect
+  intervention and its recovery).
+- A **full step** (L4) costs more per call but can settle an ambiguous page in one
+  intervention instead of three.
+
+So a class can legitimately be "most efficient" with a partial mode *or* with a full
+step, and the answer can differ per class. The experiment ranks by measured ETCR; it does
+not award the win to the smallest mode. Cost (spend) is reported but is not the
+objective — the owner's current constraint is performance.
+
 ### 6.4 The objective
 
-> Maximise success rate; then minimise median time-to-success and the p90 tail,
-> subject to success ≥ the pure-vision arm.
+> Maximise the rate of **correct** completions; then minimise median and p90
+> time-to-**correct**-completion, subject to correctness ≥ the pure-vision arm.
+> Where a mode choice exists, choose the one with the lowest expected
+> time-to-correct-resolution (§6.3a).
 
-Not "minimise vision calls." A cheap early escalation that prevents a 600 s failure
-spiral is a win even if it adds 4 s to a step.
+Two things this is not:
+
+- **Not "minimise vision calls."** A 4-second escalation that prevents a 600 s failure
+  spiral is efficient. A one-second partial check that advances on the wrong target is
+  not — it buys a recovery, and the recovery is charged to it.
+- **Not "minimise spend."** Spend is recorded and reported, but efficiency is measured in
+  correctness-weighted wall-clock time. The cheapest mode is the efficient mode only when
+  the data says so.
 
 ## 7. The continuous loop
 
@@ -379,7 +453,7 @@ the apparatus before spending a full corpus.
 | WI2 | `ExperimentProbe` no-op seam on `NavigationLoop` (extracted helpers only) | 0 |
 | WI3 | Sampled frame capture + `steps.csv` / `runs.csv` writers (scrubbed) | 0 |
 | WI4 | Shadow consult (deferred, post-action, never steering) | 2 |
-| WI5 | Rescue-on-failure arm (gated, recorded) | 3 |
+| WI5 | Rescue-on-failure arm: randomized balanced mode draw, gated execution, per-intervention correctness + latency | 3 |
 | WI6 | Synthetic probe pages S1–S8 | 1 |
 | WI7 | Iteration reports + status + the recommendation memo | all |
 
@@ -395,9 +469,10 @@ the apparatus before spending a full corpus.
 ## 12. Budget
 
 The owner's directive: cost is not the current constraint; performance is. The experiment
-therefore optimises time-to-success, not spend. A **hard cap of $15** for the whole
-program is recorded in the status file; at ~$0.05–$0.30 per run it funds well over the
-planned corpus. Pause and report at 80%.
+therefore optimises correctness-weighted time-to-completion, not spend. A **hard cap of
+$15** for the whole program is recorded in the status file; at ~$0.05–$0.30 per run it
+funds well over the planned corpus — including the deliberate randomized-mode draws that
+pay for modes we suspect will lose. Pause and report at 80%.
 
 ## 13. Gates (JVM, harness-only, $0)
 
@@ -412,7 +487,13 @@ planned corpus. Pause and report at 80%.
 5. **Sampling:** the sampling function is deterministic under a seeded RNG and selects
    100% of non-`HIGH` + the configured rate of `HIGH`.
 6. **Schema:** `steps.csv` / `runs.csv` row shapes are pinned; a missing column fails.
-7. **`assembleDebug`** succeeds; the APK stays under 40 MB.
+7. **Correctness label:** a wrong-but-advancing intervention (the page changes, the wrong
+   element is hit, a recovery follows) is labeled **incorrect** by the pure correctness
+   function, while an intended-target advance with a later verified subtask is labeled
+   correct.
+8. **Randomized mode draw:** the draw is deterministic under a seed and balanced across a
+   class's applicable modes (no mode is starved by the sampler).
+9. **`assembleDebug`** succeeds; the APK stays under 40 MB.
 
 ## 14. UAT
 
@@ -428,9 +509,13 @@ planned corpus. Pause and report at 80%.
 
 - [ ] Stage 0 evidence exists for both engines; suites green with the probe unarmed
 - [ ] Stage 1 taxonomy written; every class observed ≥3× or marked unobserved
-- [ ] Stage 2 rescue potential per class measured
-- [ ] Stage 3 rescue arm paired against tree-only on the same failures
-- [ ] Stage 4 A/B/C interleaved; H vs T and H vs V on success and time-to-success
+- [ ] Stage 2 potential and per-mode latency measured
+- [ ] Stage 3 rescue arm randomized across the applicable modes, paired against
+      tree-only on the same failures, with **correctness** labels (not advancement)
+- [ ] Stage 4 A/B/C interleaved; H vs T on correct completion and H vs V on
+      time-to-correct-completion
+- [ ] The mode chosen per class is the lowest measured ETCR, with its sample size and
+      confidence recorded
 - [ ] `recommendation.md` written with the data table and the risks
 - [ ] No secret in any evidence; frames deleted after each iteration
 - [ ] `master` untouched; the follow-up phase scoped (if any)

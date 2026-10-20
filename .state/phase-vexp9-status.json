@@ -5,12 +5,14 @@
   "branch": "exp/tree-first (off master @ 1a0af26; master untouched)",
   "status": "OPEN — research phase; no product change, no default flip, no prompt bump",
   "startedAt": "2026-10-20",
-  "question": "With the accessibility tree as the default actor, when must vision be invoked, which vision mode is the cheapest sufficient one, and does the resulting policy beat both pure-tree and pure-vision on time-to-success without losing success rate?",
+  "question": "With the accessibility tree as the default actor, when must vision be invoked, which vision mode is the most efficient one (fastest to a CORRECT resolution, not least spend), and does the resulting policy beat both pure-tree and pure-vision on correctness-weighted time-to-completion?",
+  "objective": "Maximise the rate of correct completions; then minimise median and p90 time-to-correct-completion, subject to correctness >= the pure-vision arm. Mode choice per class = lowest expected time-to-correct-resolution (ETCR), not lowest spend.",
+  "efficiencyMetric": "ETCR = P(correct)*latency_correct + P(incorrect)*(latency_incorrect + recovery_cost) + P(no progress)*fallback_cost. Lower is better. Advancement alone is NOT correctness: a wrong-but-moving action that needs a recovery counts as incorrect.",
   "hypotheses": {
     "H1": "The tree path is materially faster per action (1-2 text-only calls vs 2-4 image-carrying calls).",
     "H2": "Tree failures are classifiable from observable state (the existing failure seams), not random.",
-    "H3": "Most tree failures are repairable by a cheap vision mode (verify/ground/propose); a full step is needed only for a small class.",
-    "H4": "Early escalation reduces end-to-end time-to-success even though escalated steps are slower (failed tree runs are the slowest observed outcome: 358-648 s vs 25-82 s successes)."
+    "H3": "Most tree failures are repairable by a partial vision mode (verify/ground/propose) more efficiently than by a full step - a hypothesis, not a cost rule: a partial mode can lose on ETCR when it is ambiguous, wrong, or needs retries.",
+    "H4": "Early escalation reduces end-to-end time-to-correct-completion even though escalated steps are slower (failed tree runs are the slowest observed outcome: 358-648 s vs 25-82 s successes)."
   },
   "stages": {
     "0-observability": "PENDING — RunResult persistence + ExperimentProbe no-op seam + sampled frames + steps.csv/runs.csv",
@@ -23,9 +25,9 @@
   "exitCriteria": [
     "Stage 0 evidence exists for both engines; suites green with the probe unarmed",
     "Every failure class observed >=3x or marked unobserved",
-    "Cheapest sufficient vision mode identified per class with evidence",
+    "Most efficient vision mode identified per class by measured ETCR, with sample size and confidence",
     "A candidate policy with measured coverage and precision",
-    "A/B/C: hybrid success >= pure-vision and hybrid time-to-success < pure-vision",
+    "A/B/C: hybrid correct-completion rate >= pure-vision and hybrid time-to-correct-completion < pure-vision",
     "recommendation.md written; the owner decides"
   ],
   "stopRule": "Stage 5 reached and the owner decided, OR two consecutive iterations with no new failure class and no decision-table change, OR the owner calls it.",
