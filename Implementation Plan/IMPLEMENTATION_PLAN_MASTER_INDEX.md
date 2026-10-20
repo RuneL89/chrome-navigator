@@ -9,11 +9,11 @@
 
 ## Overview
 
-This implementation plan breaks Chrome Navigator into 15 phases (0–14), carrying the
-project from an empty repo through **v1** and the 2026-10-18 **vision-engine
-promotion**. Each phase is a standalone deliverable that can be tested in isolation and
-integrated with previously accepted phases. **You do not move to the next phase until
-every gate in the current phase passes.**
+This implementation plan breaks Chrome Navigator into 16 phases (0–15), carrying the
+project from an empty repo through **v1**, the 2026-10-18 **vision-engine promotion**,
+and the 2026-10-20 translate-first follow-up. Each phase is a standalone deliverable that
+can be tested in isolation and integrated with previously accepted phases. **You do not
+move to the next phase until every gate in the current phase passes.**
 
 The Road L Phases 2–4 (Accumulate, Fine-tune, Graduate) are **retired** by the
 2026-10-18 promotion (owner directive 2026-10-19: the training program is gone). The
@@ -56,7 +56,8 @@ human-verifiable steps), a hard sign-off checklist, and integration notes.
 | 11 | [PHASE_11_result_screen.md](PHASE_11_result_screen.md) | Result screen: replay log, counters, agreement bar | $1.00 | 3-5h |
 | 12 | [PHASE_12_eval_tier_b.md](PHASE_12_eval_tier_b.md) | 16-goal on-device suite, perf law, v1 evidence pack | $4.00 | 5-7h |
 | 13 | [PHASE_13_hardening_release.md](PHASE_13_hardening_release.md) | Self-checks, attribution, privacy sweep, kill-resilience, `v1` tag | $1.00 | 2-4h |
-| 14 | [PHASE_14_vision_promotion.md](PHASE_14_vision_promotion.md) | **The vision-engine promotion (2026-10-18)**: promote the vision engine to the product default; the a11y engine retained behind the explicit toggle; product identity `navigator.app` (no `.visionexp`); the Finnish checkout gate-floor regression; Project Vision 01–07 rewritten; master fast-forward | $0 | 2-3h |
+| 14 | [PHASE_14_vision_promotion.md](PHASE_14_vision_promotion.md) | **The vision-engine promotion (2026-10-18)**: promote the vision engine to the product default; the a11y engine retained behind the explicit toggle; product identity `navigator.app` (no `.visionexp`); Project Vision 01–07 rewritten; master fast-forward | $0 | 2-3h |
+| 15 | [PHASE_15_translate_first.md](PHASE_15_translate_first.md) | **Translate first, not a language dictionary (2026-10-20)**: the vision engine always accepts the browser's translate-to-English prompt before acting; the PHASE_14 Finnish gate floor and matrix row withdrawn; prompt v14; the English/structural gate floor applies to the translated page | $0 | 1-2h |
 
 **Total Estimated LLM Cost (all phases):** ≈ $12 (hard caps; expected well under)
 **Total Estimated Time:** ≈ 55–80h of agent+device work
@@ -130,6 +131,7 @@ Before starting each phase, read the mapped vision documents (all in `Project Vi
 | 12 | 07 (+04 §5) | Full suite law, perf law, v1 acceptance |
 | 13 | 06 §6, 01 §5 | Attribution, self-checks, non-goal sweep |
 | 14 | 01–07 (2026-10-18 promotion amendment), 06 §1a/§2b | Two-engine product law, product identity, gate floor, legacy retention |
+| 15 | 04 §2, 06 §1a/§2b, 03 §4.2 | Translate-first law; the Finnish floor withdrawn; prompt v14 |
 
 After completing each phase, update the affected vision document only **with user
 approval** (Contradiction Protocol otherwise). The vision documents are the source of
@@ -165,6 +167,7 @@ isolation tests → integration tests → Verifier cold-check with evidence → 
 | 12 | 16-goal suite evidence + perf law measured |
 | 13 | **v1 released** — daily driver; Road L Phase 2 (Accumulate) begins |
 | 14 | **The promoted product**: vision engine default, a11y engine retained, product identity, rewritten vision law |
+| 15 | **Translate-first**: a non-English page is translated to English before acting; the gate floor stays English/structural |
 
 ---
 

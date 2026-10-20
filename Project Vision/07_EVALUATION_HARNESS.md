@@ -1,7 +1,11 @@
 # Verification & Evaluation
 
 **Document ID:** `NAVIGATOR-VISION-007`
-**Version:** 2.0.0 *(amended 2026-10-18: the vision-engine promotion — the Tier-A replay
+**Version:** 2.1.1 *(amended 2026-10-20 (UAT repair round 2): the pick-level translate
+preference (v15) joins the change gate; amended 2026-10-20: the translate-first prompt
+law (v14) joins the
+change gate through VISION_PROMPT_VERSION; the PHASE_14 Finnish classifier-matrix row is
+withdrawn. Amended 2026-10-18: the vision-engine promotion — the Tier-A replay
 harness, the Tier-B 16-goal suite, the RLCD/agreement measurements and the
 exit-calibration corpus are retired with the training program. The verification regime
 is now the JVM suites plus the owner's live-run evidence and run reports. The prompt
@@ -9,7 +13,7 @@ version, model pins, capture law, gate floor and ladder schema join the change-g
 list. Owner-authorized DeepSeek Flash amendment; the GLM-5.3 exception is recorded in
 `.state/compliance-log.md`)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-06, 2026-10-10, 2026-10-11,
-2026-10-12, 2026-10-17, 2026-10-18)
+2026-10-12, 2026-10-17, 2026-10-18, 2026-10-20)
 **Date:** 2026-10-03
 **Implements:** ART-7 (versioned forms gate), doc 02 §5 (pins), doc 03 §3 (taxonomy),
 doc 04 (loop laws)
@@ -71,7 +75,7 @@ three-surface cleanup. A live run is monitored as follows:
 Any change to the following requires a full JVM run green **and** a live-run review
 (or an explicit owner waiver recorded in the phase status):
 
-- `VISION_PROMPT_VERSION` or any prompt text in the plan/propose/repair/extract/
+- `VISION_PROMPT_VERSION` or any prompt text in the plan/propose/pick/repair/extract/
   evidence surfaces;
 - the writer or judgment-engine model pin, the vendor/chat endpoints, or the key
   routing;
@@ -95,7 +99,9 @@ vision suite. A model pin bump is a commit of its own with the evidence review.
   the prompt JSON-contract fixtures (`VisionExperimentTest` and the loop tests). The
   a11y engine's a11y/wire fixtures remain for its retained suites.
 - The gate's classifier matrix is fixture law: each row is a candidate + page context
-  + expected class; the Finnish checkout row is a required regression row.
+  + expected class. The PHASE_14 Finnish checkout row is **withdrawn** — it is not a
+  regression row; the translate-first prompt law (v14) is the regression mechanism, and
+  the matrix keeps the English/structural floor.
 
 ## 6. The acceptance goals
 

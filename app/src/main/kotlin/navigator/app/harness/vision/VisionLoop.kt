@@ -1074,6 +1074,10 @@ class VisionLoop(
             return Attempted.Failed("propose refused (${e.javaClass.simpleName}: ${e.message?.take(120)})")
         }
         if (proposals.isEmpty()) return Attempted.Failed("no proposals for this page")
+        // v15 (PHASE_15 UAT repair round 2): the proposer's Translate acceptance is
+        // CODE-PREFERRED over Jev's pick/none on the image path. Run 13's proposer
+        // offered it at ground calls 032/035/038; the pick chose the cookie consent / none.
+        val translateIndex = TranslatePrompt.acceptIndex(proposals)
 
         // GROUND (v6, PHASE_VEXP1 WI4): ONE batched Jev request on the vendor route — the
         // screenshot rides IN STATE (the assets map), a Box question per tap/type
@@ -1099,9 +1103,8 @@ class VisionLoop(
                 add(
                     VisionJev.Question.Choice(
                         "pick",
-                        "Which proposed action best fulfills the subtask on this page? Answer with one option id.",
-                        proposals.mapIndexed { i, p -> "p$i" to "${p.action.name.lowercase()} ${p.description}" } +
-                            listOf("none" to "none of the proposals can advance the subtask"),
+                        VisionPrompts.pickInstructions(),
+                        VisionPrompts.pickCriteria(proposals),
                     ),
                 )
             }
@@ -1114,12 +1117,20 @@ class VisionLoop(
                     onRaw = { req, res -> rawReq = req; rawRes = res },
                 )
                 evidence.call("ground", rawReq, rawRes, System.currentTimeMillis() - started, null, note = jev.describe)
-                (answers["pick"] as? VisionJev.Answer.Choice)?.let { pick ->
+                val jevPick = answers["pick"] as? VisionJev.Answer.Choice
+                if (translateIndex != null) {
+                    pickIndex = translateIndex
+                    evidence.event(
+                        "translate-first: preferring p$translateIndex " +
+                            "'${proposals[translateIndex].description.take(120)}' over jev pick " +
+                            "'${jevPick?.chosen ?: "absent"}'",
+                    )
+                } else if (jevPick != null) {
                     pickIndex = when {
-                        pick.chosen == "none" || !pick.chosen.startsWith("p") ->
+                        jevPick.chosen == "none" || !jevPick.chosen.startsWith("p") ->
                             return Attempted.Failed("jev picked none of the proposals")
-                        else -> pick.chosen.removePrefix("p").toIntOrNull()
-                            ?: return Attempted.Failed("jev picked unparseable '${pick.chosen}'")
+                        else -> jevPick.chosen.removePrefix("p").toIntOrNull()
+                            ?: return Attempted.Failed("jev picked unparseable '${jevPick.chosen}'")
                     }
                 }
                 tapTypeIndices.forEach { i ->
@@ -1127,7 +1138,7 @@ class VisionLoop(
                 }
             } catch (e: Exception) {
                 evidence.event("ground degraded (boxes+pick): ${e.message?.take(160)} — first proposal, haiku-box fallback")
-                pickIndex = 0
+                pickIndex = translateIndex ?: 0
             }
         } else if (proposals.size > 1) {
             // The no-image degrade: the pick-Choice alone rides TEXT-ONLY (a box without
@@ -1141,9 +1152,8 @@ class VisionLoop(
                     listOf(
                         VisionJev.Question.Choice(
                             "pick",
-                            "Which proposed action best fulfills the subtask on this page? Answer with one option id.",
-                            proposals.mapIndexed { i, p -> "p$i" to "${p.action.name.lowercase()} ${p.description}" } +
-                                listOf("none" to "none of the proposals can advance the subtask"),
+                            VisionPrompts.pickInstructions(),
+                            VisionPrompts.pickCriteria(proposals),
                         ),
                     ),
                     null, VisionJev.newImageRef(), "ground-choice",
@@ -1582,7 +1592,8 @@ class VisionLoop(
                 } else {
                     executed = executor.tap(x, y)
                 }
-                detail = "tap '${proposal.description.take(60)}' [$where conf=${"%.2f".format(proposal.confidence)}]$lowConfMark"
+                detail = "tap '${proposal.description.take(60)}' [$where conf=${"%.2f".format(proposal.confidence)}]$lowConfMark" +
+                    if (translateIndex != null) " (translate-first)" else ""
             }
             VisionPrompts.ProposalAction.TYPE -> {
                 // PHASE_VEXP3 WI1: the credential card's ApproveWithSecret REPLACES the

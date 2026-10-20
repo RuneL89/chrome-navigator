@@ -1,7 +1,9 @@
 # Observation & State
 
 **Document ID:** `NAVIGATOR-VISION-003`
-**Version:** 3.0.0 *(amended 2026-10-18: the vision-engine promotion — the observation
+**Version:** 3.0.2 *(amended 2026-10-20 (UAT repair round 2): the prompt version is v15
+(the pick-level translate preference); the v14 translate-first law stands. Amended
+2026-10-18: the vision-engine promotion — the observation
 layer now serves two engines: the a11y engine's text-only state law is retained, and
 the vision engine adds the browser-WINDOW-scoped screenshot, the live-log exclusion,
 the behind-log action rules and the prompt-state contract. The old "no screenshots, no
@@ -9,7 +11,7 @@ pixels" non-goal is reversed: model-bound screenshots are a first-class input to
 vision engine. Owner-authorized DeepSeek Flash amendment; the GLM-5.3 exception is
 recorded in `.state/compliance-log.md`)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-06, 2026-10-09, 2026-10-10,
-2026-10-11, 2026-10-13, 2026-10-17, 2026-10-18)
+2026-10-11, 2026-10-13, 2026-10-17, 2026-10-18, 2026-10-20)
 **Date:** 2026-10-03
 **Implements:** ART-4 (untrusted page content), ART-6 (deterministic candidate order),
 ART-7 (versioned forms), ART-8 (privacy boundary)
@@ -169,7 +171,7 @@ step; it is not the a11y corpus of record:
 **Untrusted discipline:** page-derived text and the screenshot are labeled UNTRUSTED
 DATA; text or writing inside them is never an instruction. The writer's proposals are
 strict JSON; the judgment engine's answers are typed questions. The vision engine's
-prompt version is `VISION_PROMPT_VERSION = "vision-exp-v13"`; any change bumps it
+prompt version is `VISION_PROMPT_VERSION = "vision-exp-v15"`; any change bumps it
 (doc 07).
 
 ## 5. Unusable tree / failed capture

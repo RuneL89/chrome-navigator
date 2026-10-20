@@ -170,3 +170,41 @@ intended dollar ceiling without a hard stop.
 the price table) on every call; pin the metering with a JVM test; re-check the run's
 actual spend from the raw response usage.
 
+## KD-13 · DEFERRED — the translate matcher false-positives on a context quote
+
+**Evidence:** run 14 (`task-1792479513341`, v15) at 39.9 s: the search-field proposal's
+description quoted the "Translate page?" bar as context later in the string, and
+`TranslatePrompt` took the first quoted label anywhere (the context quote) as the control
+label, marking the search field `translate-first`. The true Translate proposals start with
+the control label (`tap "Translate"…` / `"Translate" link-button…`); the false one starts
+with "Search edit field…". The Jev pick was also p0, so the action was the intended
+search.
+**Impact:** the code preference can mark an unrelated control as the translate
+acceptance; no forced wrong action in this run, but the marker/evidence is wrong and a
+different case could divert an action.
+**Recovery candidates:** require the LEADING control label (the first quoted label near
+the start of the description; a context quote later never counts); add the search-field
+description to `TranslatePromptTest`; re-run the vision suite; re-test the translate bar.
+
+## KD-14 · DEFERRED — the H2 gate card on the English checkout is untested
+
+**Evidence:** the Phase 15 UAT goals were cart goals (run 13, run 14), so no checkout/H2
+card was exercised. The run-12 order (pre-v15) had no gate line; the v15 translate-first
+normalizes the page, but the English checkout card has not been verified live.
+**Impact:** the gate's English/structural floor after translation is the whole point of
+the withdrawn Finnish floor; it needs a live card.
+**Recovery candidates:** a goal that reaches the English checkout; verify the H2 card
+fires before the confirmation; record the gate evidence.
+
+## KD-15 · DEFERRED — the site-entry/repair integrity + the translation ladder condition
+
+**Evidence:** run 13 (`task-1792476562080`) marked a `verkkokauppa.com` site-entry
+subtask done on a `google.com/search` URL via a condition repair; the owner deferred the
+fix. The owner also chose the pick guard over a new ladder condition (Option 1); the
+code-owned `TranslationAccepted` condition remains unimplemented.
+**Impact:** a goal naming a site can complete its site-entry on a different host; and the
+translation is a code preference, not a ladder leg with a code-checkable condition.
+**Recovery candidates:** a code-side goal/site destination bound on the repair; a
+mandatory translation leg only if the owner later chooses the code-owned counter
+condition (a vision-law amendment + the canon model gate).
+

@@ -384,14 +384,15 @@ class SetupActivity : ComponentActivity() {
                                 Button(
                                     onClick = {
                                         if (keyInput.isNotBlank()) {
-                                            OpenRouterKeyStore.save(this@SetupActivity, keyInput)
-                                            // The field clears; the state shows saved-only.
-                                            keyInput = ""
-                                            // A new key invalidates THIS channel's previous
-                                            // test result (the TypeSafe verdict is untouched).
-                                            keyTestState = SetupLogic.KeyTestState.UNTESTED
-                                            keyTestDetail = UNTESTED_DETAIL
-                                            keySaved = !keySaved // re-trigger the LaunchedEffect
+                                            if (OpenRouterKeyStore.save(this@SetupActivity, keyInput)) {
+                                                // The field clears; the state shows saved-only.
+                                                keyInput = ""
+                                                // A new key invalidates THIS channel's previous
+                                                // test result (the TypeSafe verdict is untouched).
+                                                keyTestState = SetupLogic.KeyTestState.UNTESTED
+                                                keyTestDetail = UNTESTED_DETAIL
+                                                keySaved = !keySaved // re-trigger the LaunchedEffect
+                                            }
                                         }
                                     },
                                     enabled = keyInput.isNotBlank(),
@@ -446,13 +447,14 @@ class SetupActivity : ComponentActivity() {
                                 Button(
                                     onClick = {
                                         if (typesafeKeyInput.isNotBlank()) {
-                                            OpenRouterKeyStore.saveTypesafeKey(this@SetupActivity, typesafeKeyInput)
-                                            typesafeKeyInput = ""
-                                            // A new key invalidates THIS channel's previous
-                                            // test result (the OpenRouter verdict is untouched).
-                                            typesafeTestState = SetupLogic.KeyTestState.UNTESTED
-                                            typesafeTestDetail = UNTESTED_DETAIL
-                                            typesafeSaved = !typesafeSaved // re-trigger the LaunchedEffect
+                                            if (OpenRouterKeyStore.saveTypesafeKey(this@SetupActivity, typesafeKeyInput)) {
+                                                typesafeKeyInput = ""
+                                                // A new key invalidates THIS channel's previous
+                                                // test result (the OpenRouter verdict is untouched).
+                                                typesafeTestState = SetupLogic.KeyTestState.UNTESTED
+                                                typesafeTestDetail = UNTESTED_DETAIL
+                                                typesafeSaved = !typesafeSaved // re-trigger the LaunchedEffect
+                                            }
                                         }
                                     },
                                     enabled = typesafeKeyInput.isNotBlank(),

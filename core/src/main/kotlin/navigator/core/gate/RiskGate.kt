@@ -266,19 +266,11 @@ object RiskGate {
     // -- heuristics tables (each entry scope-documented at its use site; the field-lexical
     //    tables shared with FieldDescriptor derivation live on FieldDescriptor) ----------
 
-    /**
-     * Buy/purchase/checkout/place-order control wording — the MULTILINGUAL floor
-     * (vision 06 §1a, amended 2026-10-18). The Finnish forms are the observed
-     * Verkkokauppa checkout ("Vahvista tilaus" — confirm order, the run that executed
-     * without a card because the English-only floor missed it); they are a regression
-     * floor, not a site-specific rule.
-     */
+    /** Buy/purchase/checkout/place-order control wording. */
     internal val PURCHASE_CONTROL_WORDS = Regex(
         "buy|purchase|place[ -]?order|order[ -]?now|complete[ -]?order|confirm[ -]?order|" +
             "checkout|check-out|pay[ -]?now|proceed[ -]?to[ -]?(checkout|payment)|" +
-            "continue[ -]?to[ -]?(checkout|payment)|" +
-            "vahvista[ -]?tilaus|vahvista[ -]?osto|vahvista[ -]?maksu|" +
-            "tilaa[ -]?nyt|maksa[ -]?nyt|osta[ -]?nyt",
+            "continue[ -]?to[ -]?(checkout|payment)",
     )
 
     /** Purchase-context host/path words (query stripped before matching — ART-4). */
@@ -358,8 +350,7 @@ object RiskGate {
         "are[ -]?you[ -]?sure|cannot[ -]?be[ -]?undone|can'?t[ -]?be[ -]?undone|no[ -]?undo|" +
             "irreversible|permanently|this[ -]?(will|cannot)[ -]?(delete|remove|cancel|erase|affect)|" +
             "confirm[ -]?(deletion|removal|cancellation|erasure)|" +
-            "yes[ -]?,?[ -]?(delete|remove|cancel|continue|proceed|i[ -]?understand)|" +
-            "vahvista",
+            "yes[ -]?,?[ -]?(delete|remove|cancel|continue|proceed|i[ -]?understand)",
     )
 
     /**

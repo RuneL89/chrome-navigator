@@ -298,7 +298,13 @@ accuracy) and is NOT a deletion candidate.
     (measured: the first cut drew under the status bar),
     `OpenRouterKeyStore` (`EncryptedSharedPreferences` — TWO slots since PHASE_VEXP1:
     the OpenRouter key + the `typesafe-key` slot; keys are LOCAL ONLY, never logged,
-    never rendered back — presence check only)
+    never rendered back — presence check only; the PHASE_15 crash/save repair: the store
+    uses a VERSIONED v2 prefs file; an unreadable/restored keyset self-heals by clearing
+    the cached legacy + current SharedPreferences (`deleteSharedPreferences`), deleting
+    the files and the default Keystore alias, then recreating; load/has/save are
+    exception-safe (save returns Boolean; the Setup only clears on success); the
+    manifest sets `android:allowBackup="false"` so the encrypted store is never
+    restored without its key)
   * `src/main/kotlin/navigator/app/observe/` — observation layer (Phase 1,
     vision 03): `NavigatorAccessibilityService` (fresh-root reads of the
     PACKAGE_ALLOWLIST browsers; Phase 6 added `observeForLoop()` = the same fresh
@@ -852,7 +858,7 @@ accuracy) and is NOT a deletion candidate.
     prompt gains `REPLAN_SKILL` (`VisionPrompts.planSystem`: match conditions to the
     evidence universe, never point a condition past an achieved outcome, act on the
     located box, author batteries Jev can answer, vary the route, cascade framing);
-    `VISION_PROMPT_VERSION` = `vision-exp-v13` (v6 added the evidence block +
+    `VISION_PROMPT_VERSION` = `vision-exp-v15` (v6 added the evidence block +
     REPLAN_SKILL; v7 added the final-subtask battery law; v8 the taskClass honesty
     sentence — "Claim 'multi' ONLY when a count-shaped done condition exists;
     otherwise use read or action", after the writer repeatedly claimed MULTI without
@@ -894,7 +900,16 @@ accuracy) and is NOT a deletion candidate.
     repeats of one scroll); `PLAN_SYSTEM` authors purchase subtasks around the VISIBLE
     control with a cart-state final check; `REPLAN_SKILL` reads a product-page scroll
     streak as "the control is visible — TAP it"; the `<scroll-churn>` block is
-    code-generated guidance, never page text). THE EDITABLE RESOLUTION (the sixth
+    code-generated guidance, never page text; v14 THE TRANSLATE-FIRST LAW (PHASE_15,
+    2026-10-20) — a Google Translate / "Translate this page" prompt offering English is
+    ALWAYS accepted (the proposer's primary action; the planner's first subtask on a
+    non-English page) before any other work; the PHASE_14 Finnish gate-floor additions
+    are withdrawn; v15 THE PICK-LEVEL TRANSLATE PREFERENCE (PHASE_15 UAT repair round 2)
+    — the Jev pick instruction names the Translate acceptance FIRST, and `VisionLoop`
+    CODE-PREFERS the proposer's Translate proposal on the image path before Jev's pick
+    or `none` (run 13: the proposer offered it at ground calls 032/035/038; Jev chose
+    the cookie consent/none); the plan surfaces say a conditional translation clause is
+    unnecessary). THE EDITABLE RESOLUTION (the sixth
     actual-app live-test repair, run `task-1792398381736`; JVM gates in
     `VisionLoopTypeEditableTest`): a TYPE (native or tap-converted) whose grounded node
     is NOT editable resolves the real field first — `VisionMath.editableNodeAt` at the

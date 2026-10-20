@@ -607,12 +607,70 @@ class VisionExperimentTest {
     }
 
     @Test
-    fun `the prompt version is vision-exp-v13`() {
-        assertEquals("vision-exp-v13", VisionPrompts.VISION_PROMPT_VERSION)
+    fun `the prompt version is vision-exp-v15`() {
+        assertEquals("vision-exp-v15", VisionPrompts.VISION_PROMPT_VERSION)
     }
 
     @Test
-    fun `the product-page CTA and scroll-churn law pins v13`() {
+    fun `the translate-first law pins v15`() {
+        // PHASE_15 — a non-English page is normalized by accepting the browser's
+        // translate-to-English prompt BEFORE any other work. The gate floor stays
+        // English/structural; the PHASE_14 Finnish dictionary additions are withdrawn.
+        // v15: the pick instruction names the Translate acceptance FIRST, and the loop
+        // code-prefers the proposer's Translate proposal on the image path (run 13).
+        assertTrue(
+            VisionPrompts.PLAN_SYSTEM.contains("Translate to English"),
+            "the planner names the English translation target",
+        )
+        assertTrue(
+            VisionPrompts.PLAN_SYSTEM.contains("never plan a flow"),
+            "the planner never plans around a non-English page",
+        )
+        assertTrue(
+            VisionPrompts.PLAN_SYSTEM.contains("CODE-PREFERS"),
+            "the planner knows the pick-level code preference",
+        )
+        assertTrue(
+            VisionPrompts.PROPOSE_SYSTEM.contains("TRANSLATE FIRST"),
+            "the proposer's translate-first rule",
+        )
+        assertTrue(
+            VisionPrompts.PROPOSE_SYSTEM.contains("Never propose \"Not now\""),
+            "the proposer never dismisses the translate prompt",
+        )
+        assertTrue(
+            VisionPrompts.REPLAN_SKILL.contains("ACCEPT the translation"),
+            "the re-plan accepts translation first",
+        )
+        assertTrue(
+            VisionPrompts.REPLAN_SKILL.contains("CODE-PREFERS"),
+            "the re-plan knows the pick-level code preference",
+        )
+        assertTrue(
+            VisionPrompts.pickInstructions().contains("choose that option FIRST"),
+            "the Jev pick instruction prefers the translate acceptance",
+        )
+        assertTrue(
+            VisionPrompts.pickInstructions().contains("never choose Not now"),
+            "the pick instruction never dismisses the prompt",
+        )
+        assertEquals(
+            listOf(
+                "p0" to "tap the Translate control",
+                "none" to "none of the proposals can advance the subtask",
+            ),
+            VisionPrompts.pickCriteria(
+                listOf(
+                    VisionPrompts.Proposal(
+                        "the Translate control", VisionPrompts.ProposalAction.TAP, null,
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun `the product-page CTA and scroll-churn law pins its prompt surfaces`() {
         // PHASE_VEXP8 WI2 — the run-7 product-page stall: the Celsius page scrolled for
         // steps 11-23 while the sticky add-to-cart CTA was visible. The three prompt
         // surfaces carry the CTA law; code carries the churn thresholds and the block.

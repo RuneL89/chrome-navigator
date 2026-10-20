@@ -1,7 +1,11 @@
 # Navigation Loop
 
 **Document ID:** `NAVIGATOR-VISION-004`
-**Version:** 2.0.0 *(amended 2026-10-18: the vision-engine promotion — the document now
+**Version:** 2.2.0 *(amended 2026-10-20 (UAT repair round 2): the pick-level code
+preference (v15) — the proposer's Translate proposal is code-preferred at the action
+pick; amended 2026-10-20: the TRANSLATE-FIRST law — a non-English page
+is translated to English before acting, and the PHASE_14 Finnish gate-floor additions
+are withdrawn. Amended 2026-10-18: the vision-engine promotion — the document now
 legislates two loops over the same ladder: the default VISION engine (a11y + window
 screenshot; Haiku writer; Jev 1.14 battery/grounding; code accept and gate) and the
 retained A11Y engine (the Jev cascade, the same gate and ladder). The vision engine's
@@ -12,7 +16,7 @@ engine's law only (the vision engine's re-plan divergence is a recorded KD).
 Owner-authorized DeepSeek Flash amendment; the GLM-5.3 exception is recorded in
 `.state/compliance-log.md`)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-06, 2026-10-07, 2026-10-09,
-2026-10-10, 2026-10-11, 2026-10-12, 2026-10-13, 2026-10-17, 2026-10-18)
+2026-10-10, 2026-10-11, 2026-10-12, 2026-10-13, 2026-10-17, 2026-10-18, 2026-10-20)
 **Date:** 2026-10-03
 **Implements:** ART-1 (code owns the gate), ART-4 (no model self-completion), ART-5
 (numbers in code), ART-9 (bounded tasks), ART-2 (declared model roles)
@@ -89,7 +93,17 @@ machine-checkable done-condition from the whitelist:
    optional text). The compose law: on a blank/error page or a search/navigate
    subtask without literal text, the proposer composes a concise query and uses
    `type` — a bare tap on an empty address bar is never sufficient. The plan's
-   `enterText` governs the typed text (§2.1).
+   `enterText` governs the typed text (§2.1). **Translate first:** a Google Translate
+   / "Translate this page" prompt offering English is ALWAYS accepted — the proposal
+   is its Translate / "Translate to English" control, never "Not now", the dismiss X
+   or the settings gear; the page is normalized before any other action. On a
+   non-English page the planner writes that acceptance as its first subtask and the
+   remaining conditions refer to the English page. **Pick-level code preference
+   (v15):** the proposal is CODE-PREFERRED at the action pick — when a Translate /
+   "Translate to English" control is among the proposals, the loop selects it on the
+   image path regardless of the engine's pick or `none`; the pick instruction tells the
+   engine the same. The translation is a page-normalization action, not a ladder
+   condition; a plan no longer needs a conditional translation clause.
 5. **GROUND** — ONE batched Jev request: image in state, a `box` per tap/type
    proposal, the pick `choice`. The grounding ladder: Jev box at IoU >= `IOU_PARTIAL`
    (0.20) and confidence above the floor → `jev-box`; else the Haiku proposal box →

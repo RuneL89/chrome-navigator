@@ -76,17 +76,6 @@
       "context": { "url": "https://store.example.org/cart/2", "fields": [] }
     },
     {
-      "id": "h2-finnish-confirm-order",
-      "tag": "happy",
-      "expect": "H2_PURCHASE_CONFIRM",
-      "note": "The 2026-10-18 Verkkokauppa run's final control: a Finnish 'Vahvista tilaus' button on a checkout page is a purchase confirmation. The English-only floor missed it and the intended order executed without a card — this row is the regression, not a site-specific rule.",
-      "action": {
-        "kind": "TAP",
-        "target": { "id": "confirm-order", "label": "Vahvista tilaus", "bucket": "buttons", "className": "android.widget.Button" }
-      },
-      "context": { "url": "https://www.verkkokauppa.com/fi/checkout", "fields": [] }
-    },
-    {
       "id": "h3-type-new-password",
       "tag": "happy",
       "expect": "H3_PASSWORD_CHANGE",

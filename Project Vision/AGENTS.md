@@ -18,13 +18,15 @@ implementation is checked against them for compliance.
   capture, node serialization/enumeration, the a11y canonical state + stage views, the
   vision prompt state, unusable-tree/failed-capture handling, privacy
 * `04_NAVIGATION_LOOP.md` — the shared ladder, the vision engine's step order (battery,
-  grounding, gate, act, verify), the retained a11y step order, exits/terminals, the
-  finality law, condition repair, CTA/churn, budgets, result/answer, re-plan integrity
+  grounding, gate, act, verify), the translate-first law and the pick-level code
+  preference, the retained a11y step order, exits/terminals, the finality law, condition
+  repair, CTA/churn, budgets, result/answer, re-plan integrity
 * `05_DECISION_LOG_AND_RLCD.md` — the evidence record and run-report law (the training
   program is retired; the a11y engine logs through `NoOpLogSink`)
-* `06_RISK_GATE_AND_SAFETY.md` — the risk gate: H1–H9, the multilingual floor and the
-  observed checkout regression, gate mechanics, credential law, the vision-loop
-  integration, additive-only engine check, operational policies, attribution
+* `06_RISK_GATE_AND_SAFETY.md` — the risk gate: H1–H9, the English/structural floor and
+  the translate-first normalization (the PHASE_14 Finnish floor is withdrawn), gate
+  mechanics, credential law, the vision-loop integration, additive-only engine check,
+  operational policies, attribution
 * `07_EVALUATION_HARNESS.md` — the JVM verification regime, the live-run evidence layer,
   the change-gate list, fixtures, acceptance goals, the retained a11y-engine checks
 

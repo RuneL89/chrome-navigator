@@ -1,0 +1,62 @@
+{
+  "phase": "15",
+  "title": "Translate First, Not a Language Dictionary",
+  "phaseDoc": "Implementation Plan/PHASE_15_translate_first.md",
+  "branch": "phase-15-translate (from master 09b87bc; uncommitted)",
+  "visionDocs": "Project Vision/03 v3.0.2, 04 v2.2.0, 06 v1.6.0, 07 v2.1.1 (prompt v15)",
+  "status": "CLOSED — owner accepted 2026-10-20; the translate-first FIRED (run14: the Translate tapped at step 2; the cart GOAL_ACHIEVED); the v15 pick guard and the key-store repairs stand; the residuals are KD-13/14/15",
+  "startedAt": "2026-10-18",
+  "verifiedAt": "2026-10-20",
+  "verification": ".state/phase-15-verification.md",
+  "verificationRound2": ".state/phase-15-verification-round2.md",
+  "goal": "Replace the PHASE_14 Finnish gate floor with the translate-first law; then (UAT repair round 2, Recommendation 2) put the law at the Jev pick: the proposer's Translate acceptance is code-preferred over Jev's pick/none on the image path, the pick instruction names it first, and no ladder-schema change is made.",
+  "gatesPassed": [
+    ":app:testDebugUnitTest --tests \"navigator.app.harness.vision.*\" — 148/148, 0 failures, 0 errors, 0 skipped (139 baseline + TranslatePromptTest 6 + VisionLoopTranslateFirstTest 3)",
+    ":app:testDebugUnitTest — 664/664, 0 failures, 0 errors, 0 skipped (655 baseline + 9)",
+    ":core:test --rerun-tasks — 318/318, 0 failures, 0 errors",
+    ":app:assembleDebug — SUCCESS",
+    "aapt2 badging — package navigator.app, versionName 0.1.0, APK app-debug.apk, 35,647,857 bytes (~34.0 MiB) < 40 MB",
+    "dex — vision-exp-v15 present, vision-exp-v14 absent; 'choose that option FIRST', 'TRANSLATE FIRST', 'Translate to English' present; the Finnish floor literal vahvista[ -]?tilaus absent; no navigator.app.visionexp",
+    "legacy retention — ProductRunRoute.Legacy -> NavigationLoop; NoOpLogSink; VISION_LOOP_DEFAULT = true; the route tests green",
+    "docs — Project Vision 03/04/06/07 current (v15 pick preference); app/AGENTS; .state/DEBUGGING.md v15; the Phase 15 doc v1.1.0; the run13 Recommendation 2 marked implemented",
+    "cold verifier round 2 independent re-run — 148/664/318, APK identity, dex v15/v14 absent, the pick-law literals present, the Finnish floor absent, the legacy retention, the docs; PASS with no blocking findings (N1 UAT scoping, N2 residual proposer-phrasing risk, N3 checklist fixed)"
+  ],
+  "gatesFailed": [],
+  "gatesPending": [],
+  "workItems": {
+    "WI1-prompt-law-v14": "DONE — the translate-first law in the plan/propose/replan prompts and the Finnish gate floor withdrawn (the earlier phase).",
+    "WI2-crash-save-repair": "DONE — the key store self-heal (v2 file/cache clear) and backup disabled; the app launches and saves keys.",
+    "WI3-pick-guard": "DONE — NEW TranslatePrompt matcher (TAP + box + accept label + prompt-bar context; dismiss/settings rejected); VisionPrompts v15 pickInstructions/pickCriteria; VisionLoop image-path code preference over Jev's pick/none with the (translate-first) step marker + evidence; the text-only path uses the new pick law without the override; the plan/replan wording names the code preference. Tests: TranslatePromptTest 6, VisionLoopTranslateFirstTest 3, the v15 pins.",
+    "WI4-docs": "DONE — 03 v3.0.2, 04 v2.2.0, 06 v1.6.0, 07 v2.1.1; app AGENTS; DEBUGGING; the Phase 15 doc v1.1.0; the run13 Recommendation 2 status; the compliance log.",
+    "WI5-verification": "PENDING — the cold verifier round 2."
+  },
+  "uatRepairRound2": {
+    "finding": "Run 13 Attempt 2 (task-1792476562080): the Haiku proposer DID offer the Translate control at the product-page ground calls 032/035/038 (b0, Finnish to English); the Jev pick chose p1 (the Hyväksy cookie consent, 0.88) at 032 or none (0.91/0.87) at 035/038 because the pick instruction asked only which proposal fulfills the active subtask. The v14 translate law lived only in the writer prompts; there was no pick rule and no code guard.",
+    "fix": "The v15 pick instruction names the Translate acceptance FIRST; TranslatePrompt recognizes the proposer's Translate proposal (TAP + usable box + accept label + prompt-bar context; dismiss/settings controls excluded; the 'right of the settings gear' context still matches); VisionLoop's image path code-prefers it over Jev's pick/none, marks the step (translate-first) and evidences it; the ground-exception fallback also prefers it; the text-only path uses the new pick law without the override. No ladder-schema change (owner Option 1).",
+    "evidence": "VisionLoopTranslateFirstTest: the cookie-pick case and the none case both execute the Translate tap with the translate-first marker; the no-translate page keeps Jev's pick. TranslatePromptTest: the run-032/035 descriptions accepted; the cookie, the dismiss/settings labels and the generic page link rejected; no-box/non-TAP rejected. The Jev ground request carries 'choose that option FIRST'.",
+    "outOfScope": "Recommendation 1 (site-entry/condition-repair integrity), the code-owned TranslationAccepted ladder condition, the a11y detector/hint, the a11y engine, the checkout/gate path."
+  },
+  "postVerificationRepair": {
+    "finding": "Fresh-install launch crash, then a save failure. The Android auto-backup restored navigator-secure-prefs.xml after the uninstall while the Keystore master key was destroyed; EncryptedSharedPreferences.create threw AEADBadTagException; the first file-only reset left the process prefs cache holding the corrupt keyset.",
+    "fix": "The key store uses a versioned v2 prefs file; an unreadable/restored keyset clears the cached legacy + current prefs (Context.deleteSharedPreferences), deletes the files and the default Keystore alias, and recreates; load/has/save are exception-safe (save returns Boolean); android:allowBackup=false.",
+    "evidence": "The fixed APK launches with no AndroidRuntime crash; the Setup renders; a non-secret test value saved (the v2 file written) — the owner then replaced it with the real keys."
+  },
+  "deviations": [
+    "The translate-first law at the pick is prompt-level plus a code preference over the PROPOSER's proposals; the code does not synthesize a Translate proposal. If the proposer never offers it, the guard is inert (the v14 proposer law worked in run 13).",
+    "The code preference is image-path only; the text-only path cannot see the screenshot-only Chrome translate bar and keeps the new pick law without the override.",
+    "The site-entry/repair issue (Recommendation 1) is out of scope per the owner; the ladder condition is deferred (owner Option 1).",
+    "No commit: the Phase 15 work remains on phase-15-translate, pending the verifier and the owner's UAT/commit request."
+  ],
+  "llmCost": 0,
+  "blocker": null,
+  "verificationFindings": [
+    "OWNER ACCEPTANCE (2026-10-20): the owner accepted the phase/run as it went — the translate-first law fired in run14 (the Translate control tapped at step 2; the cart goal GOAL_ACHIEVED); the v15 pick guard and the key-store crash/save repairs stand. The H2 checkout card (KD-14) and the matcher leading-label false positive (KD-13) are follow-ups; the site-entry/repair and the code-owned TranslationAccepted ladder condition are deferred (KD-15).",
+    "RUN14 UAT (2026-10-20, task-1792479513341, v15): the translate-first law FIRED — the proposer offered the Translate control and the loop tapped it at step 2 (`(translate-first)`, node n12, IoU 0.53, the 'Translate page?' bar; the Jev pick was p0 too), then the Finnish page was translated and the cart flow continued. The cart goal ended GOAL_ACHIEVED (61 steps, 6 re-plans, '2 products, total'). NEW DEFECT: at 39.9 s `TranslatePrompt` false-positived on the search-field proposal because its description quoted the 'Translate page?' bar as context later in the string; the first quoted label anywhere was the context, not the control. The action was the intended search (Jev p0 too), so no harm, but the matcher must require the LEADING control label. The H2 gate card was out of scope (cart goal); no crash/NavigatorKeys (host logcat 0). See .state/vision-iter/run14/REPORT.md.",
+    "COLD VERIFIER ROUND 2 (2026-10-20): PASS, no blocking findings. It independently re-ran 148/664/318, the APK/dex v15 identity, the pick-law literals, the Finnish-floor absence, the legacy retention and the docs; it corroborated the run-13 gap (the proposer offered, Jev chose the cookie 0.88/none 0.91/0.87) and the code preference. Non-blocking: N1 judge the UAT only on the translate-bar moment, not the deferred site-entry steps; N2 a future proposer phrasing without a quoted label/bar context leaves the guard inert (the pick law is the backup; the observed phrasings are pinned); N3 the phase-doc approval checklist still listed v14 items — FIXED to v15.",
+    "v15 UAT repair (2026-10-20): the pick guard implemented and tested; the run13 evidence shows the proposer offered the Translate and the Jev pick rejected it — the pick-layer gap is now closed by the code preference + the pick law.",
+    "RUN13 UAT: the cart goal succeeded (task-1792476562080: GOAL_ACHIEVED, 52 steps, 5 replans, two cases); the translation was not executed before this repair; the site-entry/repair issue is separate and deferred.",
+    "Key store: the v2 self-heal + backup disable live-verified (the app launches and saves; no NavigatorKeys failure).",
+    "The N1/N2 doc nits from the earlier verifier are fixed; the Finnish CTA prompt example remains illustrative, not a gate rule."
+  ],
+  "nextAction": "None — the phase is CLOSED. The residuals are KD-13 (the TranslatePrompt leading-label false positive + the search-field regression), KD-14 (the H2 checkout card re-test) and KD-15 (the site-entry/condition-repair integrity + the code-owned TranslationAccepted ladder condition, deferred) in BACKLOG_AND_KNOWN_DEFECTS.md. The phase branch phase-15-translate is committed; master remains at 09b87bc (the close-out is on the phase branch; a promotion is a separate owner decision)."
+}

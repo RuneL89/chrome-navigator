@@ -1,16 +1,16 @@
 # Risk Gate & Safety
 
 **Document ID:** `NAVIGATOR-VISION-006`
-**Version:** 1.5.0 *(amended 2026-10-18: the vision-engine promotion — the gate is
-transplanted into the vision loop (classify before every TAP/TYPE/SUBMIT; the same
-owner cards and credential path), and the H-class floor is explicitly multilingual:
-the 2026-10-18 Verkkokauppa run placed an intended order through a Finnish checkout
-whose "Vahvista tilaus" control the English-only dictionary missed. The law remains
-fail-to-confirm; the floor now covers the observed control and the regression is
-pinned. Owner-authorized DeepSeek Flash amendment; the GLM-5.3 exception is recorded
-in `.state/compliance-log.md`)*
+**Version:** 1.6.0 *(amended 2026-10-20: the TRANSLATE-FIRST law replaces the PHASE_14
+Finnish gate floor — the vision engine accepts a translate-to-English prompt before
+acting, so the English/structural floor applies to the translated page; the Finnish
+dictionary additions and their classifier-matrix row are withdrawn. Amended 2026-10-18:
+the vision-engine promotion — the gate is transplanted into the vision loop (classify
+before every TAP/TYPE/SUBMIT; the same owner cards and credential path). Owner-directed
+2026-10-20; the earlier DeepSeek Flash model-gate exception remains recorded in
+`.state/compliance-log.md`)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-03, 2026-10-06, 2026-10-10,
-2026-10-12, 2026-10-18)
+2026-10-12, 2026-10-18, 2026-10-20)
 **Date:** 2026-10-03
 **Implements:** ART-1 (code owns the gate), ART-4 (page text is untrusted), ART-5
 (numbers in code), ART-10 (attribution)
@@ -19,8 +19,9 @@ in `.state/compliance-log.md`)*
 user-acceptance gate — nothing is permanently blocked; the owner approves consequential
 actions. **2026-10-06:** H9 generalizes consequential-action detection to an open-ended
 class, and engine judgment is admitted **additive-only** — it may add gates, never
-remove one. **2026-10-18:** the gate rides the vision loop; the dictionary floor is
-multilingual and the observed Finnish checkout is a pinned regression case.
+remove one. **2026-10-18:** the gate rides the vision loop. **2026-10-20:** the
+translate-first law normalizes a non-English page to English before the gate reads it;
+the Finnish dictionary floor is withdrawn, not current law.
 
 ---
 
@@ -34,7 +35,7 @@ never fail-open).
 | # | High-stakes class | Detection (code) |
 |---|---|---|
 | H1 | Payment / checkout form entry-or-submission | Form semantics: card-number/expiry/CVV field patterns; checkout/payment keywords in form context |
-| H2 | Purchase confirmation | Button semantics: buy/purchase/checkout/place-order/confirm-order in a purchase context (the multilingual floor includes the observed Finnish `Vahvista tilaus`, `tilaa`, `osta`, `maksa` forms) |
+| H2 | Purchase confirmation | Button semantics: buy/purchase/checkout/place-order/confirm-order in a purchase context. The floor is English/structural; a non-English page is translated to English before acting (doc 04 §2), so the English control labels are what the gate reads. |
 | H3 | Password create/change — entry or submission | `type=password` fields (entry) or their submission |
 | H4 | Login form — credential entry or submission | identifier+secret pair typing, or account+credential submit (distinct from search) |
 | H5 | Account creation / deletion submission | signup keywords; delete-account confirmations |
@@ -54,12 +55,13 @@ list**:
   state (submissions on authenticated surfaces, state-word flips, confirm-dialog
   semantics).
 - **Illustrative verb/context dictionary** (subscribe, unsubscribe, follow, unfriend,
-  cancel, remove, delete, post, send, book, confirm-booking…, plus the observed
-  non-English purchase/confirmation forms): a maintained **floor** that is
-  illustrative, never the definition. A novel verb or a language not in the floor must
-  still be caught by the net's structure and by the additive engine check (§3). The
-  2026-10-18 Verkkokauppa run is the regression: a Finnish `Vahvista tilaus` control
-  in a checkout context must classify H2 even though no English purchase verb appears.
+  cancel, remove, delete, post, send, book, confirm-booking…): a maintained **floor**
+  that is illustrative, never the definition. A novel verb or a language the floor
+  cannot read must still be caught by the net's structure and by the additive engine
+  check (§3). The 2026-10-18 Verkkokauppa run is the motivating case: a Finnish
+  `Vahvista tilaus` control executed without a card because the English floor could not
+  read it. The product answer is the translate-first law (doc 04 §2), not a growing
+  language dictionary: the page is normalized to English before the gate reads it.
 - **Fail-to-confirm:** any ambiguous mutation-ish signal classifies as H9.
 The dictionary grows via additive classifier-matrix rows; it is test data, not product
 law. Store-specific wording never becomes navigation logic.
@@ -117,9 +119,10 @@ never carries a gate decision.
 - The gate reads the **resolved** target (the editable field a TYPE will land in, the
   button a TAP will hit), not the proposal's free text.
 - A gate miss is a **defect**, never an accepted limitation: the classifier floor, the
-  structural net and the additive check are the three layers that must catch a
-  consequential control. The 2026-10-18 Finnish checkout miss is the regression case
-  (§1a); the fix and its test are part of the promotion phase.
+  structural net and the additive check are the layers that must catch a consequential
+  control. The 2026-10-18 Finnish checkout is the motivating case; the product's answer
+  is the translate-first law (doc 04 §2) — the page is normalized to English before the
+  gate reads it, not a growing language dictionary.
 
 ## 3. Why code detects and the human decides — the additive-only engine role
 

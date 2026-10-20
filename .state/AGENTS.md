@@ -86,6 +86,9 @@ remembers."
   fixture HTML remains; the historical raw run data was deleted on the host (and is
   removed from the phone when the link allows). The phase
   status/verification/compliance/eval records are the durable memory.
+* `tools/navcap.sh` — the on-device run-capture script used by `DEBUGGING.md` §1. It is
+  a tool, not run data: the run folders' raw evidence is cleared; the `REPORT.md`
+  analyses and this script stay.
 
 ## Local Contracts
 
