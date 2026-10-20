@@ -19,7 +19,7 @@
     "R2": "find the wwe channel on rumble.com and press the latest video in Live tab",
     "R3": "buy SoundMagic E11C with delivery to koivuviita 7 B 5. Total budget including delivery: 60 euros",
     "R4": "open youtube.com and switch the active user channel to MrAwesome. Then find the Food Wishes channel from my subscriptions and play the latest posted video",
-    "rules": "R3 never completes a purchase (default deny at the order card; correctness from the checkout state). Per-run resets are binding (R1/R3 cart empty; R4 active channel reset to the starting account); a run with a failed reset is discarded. Correctness anchors are per goal and a GOAL_ACHIEVED that misses its anchor counts as a false completion."
+    "rules": "R3 keeps its goal text unchanged. The ORCHESTRATING AGENT monitors the run via navcap and stops it at the first screenshot showing a credit-card input screen, using the experiment-only EXPERIMENT_STOP_TASK broadcast (the same onStopTask/TaskCancelFlag path as the stop control, terminal USER_CANCEL). A monitor stop is NOT a failure: correctness is judged at the stop point and the run is recorded stop_reason=MONITOR_CARD_STOP. Per-run resets are binding (R1/R3 cart empty; R4 active channel reset to the starting account); a run with a failed reset is discarded. Correctness anchors are per goal and a GOAL_ACHIEVED that misses its anchor counts as a false completion."
   },
   "stages": {
     "0-observability": "PENDING — RunResult persistence + ExperimentProbe no-op seam + sampled frames + steps.csv/runs.csv",

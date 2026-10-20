@@ -299,7 +299,9 @@ observed anchor in `runs.csv` at the terminal:
 - **R2:** the player is on the **WWE channel's Live tab**, playing the latest live video;
   the observed title is the anchor.
 - **R3:** the checkout state holds **SoundMagic E11C ×1**, delivery address
-  **koivuviita 7 B 5**, total **≤ €60 including delivery**, no duplicate or extra items.
+  **koivuviita 7 B 5**, total **≤ €60 including delivery**, no duplicate or extra items —
+  judged at the **moment of the monitor stop** (the card screen), not from an order
+  number. A `MONITOR_CARD_STOP` with the right checkout state is a correct completion.
 - **R4:** the active channel is **MrAwesome**, Food Wishes is reached **from
   subscriptions**, and its latest video is playing; the observed title is the anchor.
 
@@ -307,14 +309,42 @@ A terminal that says `GOAL_ACHIEVED` but misses its anchor is a **false completi
 counts as incorrect — this is the correctness half of efficiency, and it is the reason
 these goals were chosen.
 
-#### 5.1b Purchase rule (R3 — binding)
+#### 5.1b Purchase rule (R3 — binding: the monitor stops at the card screen)
 
-R3 must **not** complete a real purchase during the experiment. The run stops at the
-payment/order card; the owner decides at the card if a purchase is ever made, and the
-default is **deny**. Correctness is judged from the checkout state at the terminal, not
-from an order number. The $15 program budget is LLM spend only; it does not authorize
-real money. If a purchase is ever intended, that is a separate explicit owner decision
-outside this experiment.
+**R3's goal text is unchanged.** The run is not reworded and the engine is not told to
+avoid the purchase; the safety comes from the monitoring agent.
+
+- **The stop condition:** the monitoring agent issues a stop as soon as a screenshot
+  shows a **credit-card input screen** (card-number / expiry / CVC fields, a pay or
+  confirm control) — before any card data could be entered, and regardless of the page's
+  wording or the engine's current step. The rule applies to **every arm** (T/H/V); the
+  stop is part of the protocol, not an arm-specific safeguard.
+- **Who monitors:** the orchestrating agent (the session), not the owner. The agent runs
+  the capture, reviews the newest frame, and issues the stop. The owner's presence is not
+  required for R3.
+- **The stop path:** the lawful ⏹ path (USER_CANCEL at the next step boundary), driven by
+  a new experiment-only broadcast action (**WI8**):
+  `adb shell am broadcast -a navigator.app.action.EXPERIMENT_STOP_TASK -n navigator.app/.overlay.OverlayDebugReceiver`
+  It reuses `OverlayManager.onStopTask` → `TaskCancelFlag.cancelActive()`, so the terminal
+  and the evidence are the same as an owner stop.
+- **Cadence:** navcap (~1.5 fps, `.state/tools/navcap.sh`) is armed before the run and
+  the newest frames are pulled and reviewed at least every ~5–10 s (poll the latest 2–3
+  frames; one pull per poll) for the whole R3 run. The card screen is a **visual**
+  judgment; do not rely on the a11y tree alone (payment iframes and canvas-drawn UIs hide
+  fields).
+- **A monitor stop is not a failure.** It is a successful run *up to the safe boundary*:
+  correctness is judged at the moment of the stop (the checkout state), and the run is
+  recorded as `stop_reason=MONITOR_CARD_STOP`, distinct from an owner cancel, an engine
+  terminal, and a failure. A run is discarded only if the stop could not be issued.
+- **Fail-safe:** if the stop cannot be issued (link lost), `adb shell am force-stop
+  navigator.app` is the fallback; that run is discarded and the incident recorded. A
+  purchase must never complete.
+- **The stop takes effect at the next step boundary.** The loop itself holds no card
+  data, but **Chrome's payment autofill is the residual risk** — a saved card could
+  populate a field and a later submit could complete the purchase without the engine ever
+  knowing the number. Therefore: disable Chrome's payment-method autofill for the R3
+  runs, keep the monitor cadence tight, and never leave an R3 run unattended.
+- The $15 program budget is LLM spend only; it does not authorize real money.
 
 #### 5.1c State resets (binding — without these the runs are not comparable)
 
@@ -414,7 +444,9 @@ real goals exist to validate it.
 `run_id`, `goal_id`, `arm` (T/H/V/shadow/rescue), `terminal`, `success`, `steps`,
 `elapsed_ms`, `t_first_action_ms`, `jev_calls`, `haiku_calls`, `images_sent`,
 `spend_usd`, `escalations`, `escalations_by_mode`, `interventions`,
-`interventions_correct`, `failure_class`.
+`interventions_correct`, `failure_class`, `reset_ok`,
+`stop_reason` (`ENGINE_TERMINAL` / `MONITOR_CARD_STOP` / `OWNER_CANCEL` /
+`FORCE_STOP` / `UNKNOWN`) and `stopped_at_ms`.
 
 Call counts are first-class: they are the causal variable (per Jev-Mobile), and they
 predict latency better than dollars do.
@@ -538,6 +570,7 @@ the apparatus before spending a full corpus.
 | WI5 | Rescue-on-failure arm: randomized balanced mode draw, gated execution, per-intervention correctness + latency | 3 |
 | WI6 | Synthetic probe pages S1–S8 | 1 |
 | WI7 | Iteration reports + status + the recommendation memo | all |
+| WI8 | Experiment stop action: `EXPERIMENT_STOP_TASK` in `OverlayDebugReceiver` (debuggable-only) → `OverlayManager.onStopTask` → the ⏹/`TaskCancelFlag` path; the R3 monitor stop and its `stop_reason` | 0 |
 
 ## 11. Non-goals
 
@@ -575,7 +608,10 @@ pay for modes we suspect will lose. Pause and report at 80%.
    correct.
 8. **Randomized mode draw:** the draw is deterministic under a seed and balanced across a
    class's applicable modes (no mode is starved by the sampler).
-9. **`assembleDebug`** succeeds; the APK stays under 40 MB.
+9. **Monitor stop:** `EXPERIMENT_STOP_TASK` routes to `OverlayManager.onStopTask` and
+   produces `USER_CANCEL` at the next step boundary; it is refused when the build is not
+   debuggable; the run row records `stop_reason=MONITOR_CARD_STOP`.
+10. **`assembleDebug`** succeeds; the APK stays under 40 MB.
 
 ## 14. UAT
 
@@ -605,14 +641,11 @@ pay for modes we suspect will lose. Pause and report at 80%.
 
 ## 16. Open questions for the owner
 
-1. **Purchase rule:** confirm that R3 always stops at the payment/order card and never
-   completes a purchase during the experiment (the goal says "buy"; the doc's default is
-   deny).
-2. **State resets:** R1/R3 need the cart emptied and R4 needs the active channel switched
+1. **State resets:** R1/R3 need the cart emptied and R4 needs the active channel switched
    back before every run. Should that stay a manual owner step, or does the experiment
    build a reset step? Manual resets make the runs dependent on the owner being present.
-3. **Rescue autonomy:** in the rescue arm, may the system act on a vision-proposed action
+2. **Rescue autonomy:** in the rescue arm, may the system act on a vision-proposed action
    without asking, subject to the existing gate? (Without this, Stage 3 measures nothing.)
-4. **Stop rule:** is "two consecutive iterations with no new class and no decision-table
+3. **Stop rule:** is "two consecutive iterations with no new class and no decision-table
    change" the right convergence test, or should the program stop at a fixed iteration
    count?
