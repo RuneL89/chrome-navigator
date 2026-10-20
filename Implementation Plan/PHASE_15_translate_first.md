@@ -153,7 +153,8 @@ offers it and Jev picks the cookie consent or `none`.
 - [x] The a11y engine retained and tested
 - [x] Docs 03/04/06/07 + AGENTS + DEBUGGING current; the Phase-15 records written
 - [x] Owner UAT accepted 2026-10-20 (the translate prompt tapped in run14; the H2
-      checkout card deferred → KD-14; the matcher leading-label false positive → KD-13)
+      checkout card and the matcher leading-label false positive noted but the
+      follow-up backlog was removed by owner directive — no residual KDs are tracked)
 
 ## Integration notes
 

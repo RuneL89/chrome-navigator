@@ -97,8 +97,8 @@ data class RunReport(
      */
     val ladder: LadderReport? = null,
     /**
-     * Phase 10: the extracted answer (vision 04 §6, doc 06 §4) — the Phase-11 result
-     * screen's input. Null when no extractor was wired or extraction failed.
+     * Phase 10: the extracted answer (vision 04 §6, doc 06 §4). Null when no
+     * extractor was wired or extraction failed.
      */
     val answer: AnswerReport? = null,
     /**
@@ -169,7 +169,7 @@ data class LadderSubtaskReport(
 
 /**
  * Phase 10: the extracted answer (vision 04 §6; doc 06 §4 "report data, not actions") —
- * the Phase-11 result screen's input, riding the run report until then. Present only
+ * riding the run report. Present only
  * when an extractor was wired AND extraction succeeded.
  */
 @Serializable

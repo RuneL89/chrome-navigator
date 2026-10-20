@@ -1318,9 +1318,7 @@ accuracy) and is NOT a deletion candidate.
     (email type → password type → "Submit sign in"); the typed text follows the
     TextSource law — stub phrase / the card's secret — and the interactive
     credential/submit cards resolve on-device, expected GOAL_ACHIEVED); the RUNNABLE
-    catalog is 11 —
-    the vision 07 §3 16-goal count is the Tier-B on-device measurement suite's law,
-    Phase 12's territory, never claimed in product or report code);
+    catalog is 11 — no product or report code claims 16);
     `GoalCatalog.customGoal(...)` builds a ONE-OFF custom goal
     at runtime for real-site diagnostics: launch with `--es customGoalText "..."` +
     `--es customStartUrl "https://..."` (+ optional `--es customGoalId`) — LIVE-only
@@ -1786,7 +1784,7 @@ tracked as last-known (normalized) and serves on an empty card URL, and garbage
   rows, zero secrets), and the bounded failure path executed live (3 consecutive
   subtask failures → owner escalation card → 30s timeout = STOP → STUCK_KILL). The
   completion leg (IS-DONE advancing over readable content → GOAL_ACHIEVED +
-  extraction on-device) is ENVIRONMENT-BLOCKED by KD-5 (webview-shell content a11y;
+  extraction on-device) is a known environment limitation (webview-shell content a11y;
   7 recovery attempts recorded) — JVM-proven by Gate 10.2; venue = UAT 10.1 on real
   Chrome. Phase live spend ≤ ~$0.03 of the $1/$3 caps
 * Gate 8J (on-device smoke): the `exit-reliability-1` harness goal (stub engine, auto

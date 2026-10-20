@@ -31,7 +31,7 @@ The verification regime has two layers:
 - **Live-run evidence (the acceptance layer):** an owner-run goal on the S25+ through
   the product overlay, analyzed into a run report (doc 05 §6). The promotion's live
   acceptance is the 2026-10-18 Verkkokauppa run; a new failure mode found live becomes
-  a new regression test or a KD entry, never a silently weakened law.
+  a new regression test, never a silently weakened law.
 
 The old **Tier A** deterministic replay harness (fixture replays, position-bias
 rotation, measurement reports) and **Tier B** 16-goal on-device suite are retired with

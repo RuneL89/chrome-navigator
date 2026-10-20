@@ -184,7 +184,7 @@ class NavigatorAccessibilityService : AccessibilityService() {
                 }
             }
         }
-        // Browser chrome = ANY Chrome-owned UI (v1.7.0, Phase 10C — the KD-3 upgrade): the
+        // Browser chrome = ANY Chrome-owned UI (v1.7.0, Phase 10C): the
         // whole `<browserPackage>:id/` namespace (toolbar, tab strip, menus) plus the
         // URL-bar ids; web-content nodes carry no browser view-id.
         val chromeById = browserPackage != null &&

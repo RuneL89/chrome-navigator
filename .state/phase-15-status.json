@@ -58,5 +58,5 @@
     "Key store: the v2 self-heal + backup disable live-verified (the app launches and saves; no NavigatorKeys failure).",
     "The N1/N2 doc nits from the earlier verifier are fixed; the Finnish CTA prompt example remains illustrative, not a gate rule."
   ],
-  "nextAction": "None — the phase is CLOSED. The residuals are KD-13 (the TranslatePrompt leading-label false positive + the search-field regression), KD-14 (the H2 checkout card re-test) and KD-15 (the site-entry/condition-repair integrity + the code-owned TranslationAccepted ladder condition, deferred) in BACKLOG_AND_KNOWN_DEFECTS.md. The phase branch phase-15-translate is committed; master remains at 09b87bc (the close-out is on the phase branch; a promotion is a separate owner decision)."
+  "nextAction": "None — the phase is CLOSED. The follow-up backlog (BACKLOG_AND_KNOWN_DEFECTS.md, incl. KD-13/KD-14/KD-15) was removed by owner directive 2026-10-20 — no residual KDs are tracked. The phase branch phase-15-translate is committed; master remains at 09b87bc (the close-out is on the phase branch; a promotion is a separate owner decision)."
 }

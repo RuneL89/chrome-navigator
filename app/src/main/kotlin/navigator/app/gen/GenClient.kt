@@ -93,7 +93,7 @@ data class RestructureResult(
     val generation: Int,
 )
 
-/** One completed answer extraction (Phase 11's result-screen input; rides the report). */
+/** One completed answer extraction (rides the report). */
 data class ExtractionResult(
     /** The phrased answer — content only (doc 06 §4), never navigation instructions. */
     val answer: String,

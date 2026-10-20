@@ -16,8 +16,8 @@ package navigator.app.observe
  *    page's identity, and a browser whose focused window carries no title still has
  *    its root application window's).
  *
- * "" when nothing lawful exists (no allowlisted window, or none exposes a title — the
- * KD-5 webview-shell caveat): the state builder renders an empty TITLE and the v3
+ * "" when nothing lawful exists (no allowlisted window, or none exposes a title, e.g.
+ * webview-shell serving no web-content title): the state builder renders an empty TITLE and the v3
  * PAGE IDENTITY line carries the URL excerpt instead. Pure, JVM-pinnable — no Android
  * types cross this boundary.
  */

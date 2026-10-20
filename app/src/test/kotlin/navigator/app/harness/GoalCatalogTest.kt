@@ -20,9 +20,7 @@ import kotlin.test.assertTrue
  *
  * Count law (pre-check directive): the RUNNABLE scripted catalog is 11 (the pre-UAT2
  * automated on-device credential run added the `credential` family's `credential-login-1`
- * on the harness login fixture page). The vision §3 16-goal count is the Tier-B
- * on-device measurement suite's law — Phase 12's territory; no product or report code
- * may claim 16.
+ * on the harness login fixture page). No product or report code may claim 16.
  */
 class GoalCatalogTest {
 

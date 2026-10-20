@@ -102,9 +102,8 @@ When the user requests a durable behavior change, record it here or in the relev
 
 ## Child DOX Index
 
-* `BACKLOG_AND_KNOWN_DEFECTS.md` — the durable backlog of known-but-deferred defects, environment limitations, and parked owner-UAT items (KD-1…KD-n), each with evidence, impact, and recovery candidates; pick up from here before re-deriving. Owner-owned triage.
 * `Project Vision/` — canonical vision and specification documents (01–07; the 2026-10-18 vision-engine promotion amendment is current law); the source of truth for implementation compliance. See `Project Vision/AGENTS.md`
-* `Implementation Plan/` — phased implementation plan (Phases 0–14; Phase 14 is the vision-engine promotion), master index, and agent prompts. See `Implementation Plan/AGENTS.md`
+* `Implementation Plan/` — phased implementation plan (Phases 0–10D + 14–15; Phases 11–13 removed by owner directive 2026-10-20), master index, and agent prompts. See `Implementation Plan/AGENTS.md`
 * `.state/` — phase status files, compliance log, verification reports, eval reports; the project's durable memory. See `.state/AGENTS.md`
 * `handoff/` — source documents (handoff v1, handoff v2 Road L) and feasibility research; input material, not law. The Road L program is retired
 * `core/` — `:core`, the pure-JVM decision core: the `DecisionEngine` interface + `JevEngine` (the retained a11y engine's cascade — intents-v1, the stage-2 rubric, banding), the systemone wire client + engine configs, observation/enumeration types, the state-text builder + stage views, the task-ladder types + the code done-condition checker (`urlHost`/`urlContains`/`markerText`/`elementPresent`/`count`/`answerExtracted`), the informed-re-plan types (`ReplanRule`/`ReplanContext`), and the H1–H9 risk gate (the multilingual floor + the additive-only engine check). The training/eval surfaces (Laya shadow, RLCD, shadow rows, Tier-A replay) are RETIRED; the surviving tokenizer resource is the a11y state-budget law, not a model. See `core/AGENTS.md`

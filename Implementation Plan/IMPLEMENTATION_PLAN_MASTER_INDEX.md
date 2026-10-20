@@ -9,7 +9,8 @@
 
 ## Overview
 
-This implementation plan breaks Chrome Navigator into 16 phases (0–15), carrying the
+This implementation plan breaks Chrome Navigator into phases 0–10D plus 14–15
+(Phases 11–13 removed by owner directive 2026-10-20), carrying the
 project from an empty repo through **v1**, the 2026-10-18 **vision-engine promotion**,
 and the 2026-10-20 translate-first follow-up. Each phase is a standalone deliverable that
 can be tested in isolation and integrated with previously accepted phases. **You do not
@@ -47,20 +48,17 @@ human-verifiable steps), a hard sign-off checklist, and integration notes.
 | 8F | [PHASE_08F_credential_entry_redaction.md](PHASE_08F_credential_entry_redaction.md) | credential entry law: local secret input, TextSource, redaction everywhere — **gates verified 2026-10-07 (549 tests; secrets proven absent everywhere); UAT 8F.1 owner-gated pending** | $0 | 3-4h |
 | 8G | [PHASE_08G_working_memory_guard_plansource.md](PHASE_08G_working_memory_guard_plansource.md) | **ACCEPTED 2026-10-07**: TargetTracker (the action-multi memory of record, deterministic re-identification), real tracker-drained guards (08D vacuous interim replaced), PlanSource deterministic-null default + additive plan provenance (Room v7) | $0 | 3-4h |
 | 8H | [PHASE_08H_state_format_v2.md](PHASE_08H_state_format_v2.md) | **ACCEPTED 2026-10-07**: STATE_FORMAT_VERSION=2 (content excerpt + PLAN + TASK PROGRESS), dual-view budgets (canonical ≤960 + laya view ≤319, ART-5-derived), silent marker truncation outlawed (loud), corpus law (format-scoped export, laya-view view, authoritative gold), Tier A re-pinned at v2 — UAT 8H.1 scheduled (owner demo) | $0 | 5-7h |
-| 8I | [PHASE_08I_eval_fixture_goals.md](PHASE_08I_eval_fixture_goals.md) | **ACCEPTED 2026-10-07 — foundations batch (08D–08I+08J) COMPLETE**: 4 generic fixture pages + 3 new goals (multi-action-gated, H9 bait, cheapest-compare); runnable catalog 10 (the 16-count measures at Phase 12) — UAT 8I.1 scheduled (owner demo) | $0 | 2-3h |
+| 8I | [PHASE_08I_eval_fixture_goals.md](PHASE_08I_eval_fixture_goals.md) | **ACCEPTED 2026-10-07 — foundations batch (08D–08I+08J) COMPLETE**: 4 generic fixture pages + 3 new goals (multi-action-gated, H9 bait, cheapest-compare); runnable catalog 10 — UAT 8I.1 scheduled (owner demo) | $0 | 2-3h |
 | 9 | [PHASE_09_overlay_ux.md](PHASE_09_overlay_ux.md) | **ACCEPTED 2026-10-09** (owner on-device): overlay UX — goal input (blur), live log (✕ close + ⏹ task-stop, IME/system-bar-aware), gate card, setup wizard. Gates 9.1–9.4 PASS via the adb-driven in-app runner (instrumented JUnit shell platform-blocked — sanctioned deviation); UATs 9.1/9.2 approved with revisions; R1–R5 + R2-IME + W1 (URL-goal exit) + W2 (nav-bar clearance) fixed and verified on-device | $0.50 | 5-7h (+~4h revisions) |
 | 10 | [PHASE_10_cloud_llm_roles.md](PHASE_10_cloud_llm_roles.md) | Goal restructuring (task ladder w/ per-subtask IS-DONE) + answer extraction; state-format v3 — gates 10.1-10.3 PASS (verifier cold-check, 783→788 tests); Gate 10.4 CONDITIONAL (evidence confirmed, completion leg carried); **UAT 10.1-a on the S25+ = REVISION REQUIRED** (IS-DONE hostage to engine `finish` + escalation-card race → R1 fixes shipped & verified, re-run surfaced the deeper root cause) — **superseded by Phase 10B (the decision cascade); the Gate 10.4 label decision rides UAT 10B.1** | ≤ ~$0.35 live | 8-12h (+R1) |
 | 10B | [PHASE_10B_decision_cascade.md](PHASE_10B_decision_cascade.md) | **The decision cascade** (owner-ratified 2026-10-10 after the UAT root-cause analysis): stage-1 fixed 9-intent choice + stage-2 batched score-per-candidate; uncertainty handshake (bounded writer assist + one re-ask); writer-phrased typed text; shadow migrates to the same shapes; finish retires (verify-done); title reader + ANCHORED_NOUL v3 + Path B re-keying; state v4 stage views; Tier A re-pin; question-schema counter restart — **Rounds 1/2 verifier-PASS (872), Round 2.1/2.1b fixed the gate-105 defects (879/0; orchestrator-as-implementer, quota deviation, owner-authorized); definitive on-device suite 10/11 mode-aware (exit-reliability-1 env-bound); LIVE cascade run proven (restructure→intents→handshake→re-plans→card)**; UAT resume pending on the S25+ | $2.50 | 12-18h |
 | 10C | [PHASE_10C_acting_correctly.md](PHASE_10C_acting_correctly.md) | **Acting correctly** (owner-ratified scope 2026-10-11, after the 9-run on-device battery): honest conditions (ladder-build validation — no condition already true at subtask entry; Path A requires `guard=STRONG`), redirect/landing-host reconciliation, functional targets (editable-by-role detection regardless of label, text-less control descriptions, full Chrome-UI exclusion, per-intent stage-2 rubric framing so enablement targets can pass the floor, no-good-target → bounded stage-1 re-ask, stage-1 band on the chosen probability + margin with a live calibration probe), report-goal completion (`answerExtracted`), evidence persistence (targetScores/targetStateText, terminal row, assist text) + per-run live-log reset. **OUT of scope per owner: no-progress kill / budget watchdog.** Spec v1.0.0 DRAFT — §4 vision amendments (02/03/04/05/07) await ratification. UAT bar: the same 8-goal battery, zero false completions, ≥1 executed tap, ≥1 executed type+submit, the redirect goal completes, the read goal reports a headline | live legs only | 10-16h |
 | 10D | [PHASE_10D_informed_replan.md](PHASE_10D_informed_replan.md) | **Informed re-plan** (owner-ratified 2026-10-12, after UAT 10C Test 1: three byte-identical re-plans → `STUCK_KILL` with zero actions): the failure re-plan carries a bounded failure-context block (failing subtask + its condition, the code's failure reason, the page and its action buckets, history, assist text); CODE enforces plan integrity — verified subtasks immutable except ONE declared `rollback` step with its lesson, growth (split the failing subtask) allowed, resume-never-restart; failing-slate evidence persisted on the no-good-target path; general placeholder/blank-label field legibility (the search-box wall). Three stages, one verifier+emulator loop each, then the owner battery | live legs only | 10-17h |
-| 11 | [PHASE_11_result_screen.md](PHASE_11_result_screen.md) | Result screen: replay log, counters, agreement bar | $1.00 | 3-5h |
-| 12 | [PHASE_12_eval_tier_b.md](PHASE_12_eval_tier_b.md) | 16-goal on-device suite, perf law, v1 evidence pack | $4.00 | 5-7h |
-| 13 | [PHASE_13_hardening_release.md](PHASE_13_hardening_release.md) | Self-checks, attribution, privacy sweep, kill-resilience, `v1` tag | $1.00 | 2-4h |
 | 14 | [PHASE_14_vision_promotion.md](PHASE_14_vision_promotion.md) | **The vision-engine promotion (2026-10-18)**: promote the vision engine to the product default; the a11y engine retained behind the explicit toggle; product identity `navigator.app` (no `.visionexp`); Project Vision 01–07 rewritten; master fast-forward | $0 | 2-3h |
 | 15 | [PHASE_15_translate_first.md](PHASE_15_translate_first.md) | **Translate first, not a language dictionary (2026-10-20)**: the vision engine always accepts the browser's translate-to-English prompt before acting; the PHASE_14 Finnish gate floor and matrix row withdrawn; prompt v14; the English/structural gate floor applies to the translated page | $0 | 1-2h |
 
-**Total Estimated LLM Cost (all phases):** ≈ $12 (hard caps; expected well under)
-**Total Estimated Time:** ≈ 55–80h of agent+device work
+**Total Estimated LLM Cost (all phases):** ≈ $6 (hard caps; expected well under)
+**Total Estimated Time:** ≈ 45–64h of agent+device work
 
 **Commands:** build `./gradlew assembleDebug` · JVM gates `./gradlew test` · on-device
 gates `./gradlew connectedDebugAndroidTest`
@@ -96,7 +94,6 @@ any budget and report.
 |---|---|
 | Phase 6 budget | Harness is calling LIVE where STUB suffices — re-read the gate |
 | Phase 10 budget | Prompts are bloated or a role is looping — fix prompts, not budget |
-| Phase 12 budget | Suite re-runs burning spend — cache transcripts, re-run only deltas |
 
 ---
 
@@ -127,9 +124,6 @@ Before starting each phase, read the mapped vision documents (all in `Project Vi
 | 8 | 02 §4/§5, 05 §6 | ShadowRouter semantics, checkpoint/precision |
 | 9 | 01 §1, 06 §2 | Overlay UX law, gate card |
 | 10 | 01 §3, 04, 06 §4 | Role boundaries, budgets, policies |
-| 11 | 04 §6, 05 §3 | Result presentation, agreement metric |
-| 12 | 07 (+04 §5) | Full suite law, perf law, v1 acceptance |
-| 13 | 06 §6, 01 §5 | Attribution, self-checks, non-goal sweep |
 | 14 | 01–07 (2026-10-18 promotion amendment), 06 §1a/§2b | Two-engine product law, product identity, gate floor, legacy retention |
 | 15 | 04 §2, 06 §1a/§2b, 03 §4.2 | Translate-first law; the Finnish floor withdrawn; prompt v14 |
 
@@ -163,9 +157,6 @@ isolation tests → integration tests → Verifier cold-check with evidence → 
 | 8B | Late shadow answers still count toward agreement (joined view + coverage) |
 | 9 | Use the product overlay end-to-end (input → live log → gate cards) |
 | 10 | Full happy path incl. phrasing/extraction/rescue |
-| 11 | **v1 done-bar**: result screen with replay, counters, agreement |
-| 12 | 16-goal suite evidence + perf law measured |
-| 13 | **v1 released** — daily driver; Road L Phase 2 (Accumulate) begins |
 | 14 | **The promoted product**: vision engine default, a11y engine retained, product identity, rewritten vision law |
 | 15 | **Translate-first**: a non-English page is translated to English before acting; the gate floor stays English/structural |
 

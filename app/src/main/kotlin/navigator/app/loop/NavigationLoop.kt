@@ -174,7 +174,7 @@ class NavigationLoop(
     /**
      * The answer-extraction seam (Phase 10, phase doc §2.1): ONE writer call at a
      * GOAL_ACHIEVED terminal over the goal + the code-MASKED final state (doc 06 §2a);
-     * the answer rides the run report until Phase 11. Null = no extraction
+     * the answer rides the run report. Null = no extraction
      * (byte-identical).
      */
     private val answerExtractor: AnswerExtractor? = null,
@@ -4318,7 +4318,7 @@ data class RunResult(
     val ladder: LadderRunReport? = null,
     /**
      * Phase 10: the extracted answer (vision 04 §6) — content, not instructions (doc 06
-     * §4); rides the run report until the Phase-11 result screen consumes it. Null when
+     * §4); rides the run report. Null when
      * no extractor was wired or extraction failed (the goal can still be GOAL_ACHIEVED).
      */
     val answer: ExtractedAnswer? = null,

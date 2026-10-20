@@ -61,8 +61,7 @@ machinery all work (0.94–0.98 every generation).
 - (a) Observation: editable fields detected by ROLE (EditText/role=searchbox) regardless of
   label, with the container/placeholder as description; text-less controls described by
   role + container relation ("button inside the dialog 'We Care About Your Privacy'");
-  browser-chrome exclusion extended to ALL Chrome UI (toolbar, tab strip, menus — the KD-3
-  upgrade).
+  browser-chrome exclusion extended to ALL Chrome UI (toolbar, tab strip, menus).
 - (b) Stage-2 rubric: per-intent framing ("for `fill-field`: is this the field the
   subtask's goal needs filled?"), so enablement targets can score ≥ the floor; a
   no-good-target now triggers ONE bounded stage-1 re-ask per page-hash (with the fact

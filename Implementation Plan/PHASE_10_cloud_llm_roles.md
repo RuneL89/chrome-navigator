@@ -17,7 +17,7 @@ goal enters through ONE writer-LLM call that produces a **task ladder** — orde
 subtasks, each = free-text instruction + one machine-checkable IS-DONE condition — which
 the loop then executes over the ACTIVE subtask with the exit law applied at subtask
 granularity. Plus **answer extraction** (the writer phrases the final answer for the
-Phase-11 result screen). The machinery is **task-independent**: "open Wikipedia and open
+run report). The machinery is **task-independent**: "open Wikipedia and open
 the world war 2 page" and "follow 5 new accounts on YouTube that make videos about
 nature" run through identical code paths — **no site- or scenario-specific logic
 anywhere** (doc 01 §5).
@@ -54,8 +54,7 @@ counter restart) · scope = restructuring + answer extraction.
     ≤ N subtasks cap (code config), total ladder size — invalid output = one bounded
     retry, then a clean pre-navigation refusal (nothing navigates on an invalid ladder).
 - `extractAnswer(goal, finalState): answer` — result phrasing; reports content, not
-  instructions (doc 06 §4). The Phase-11 result screen consumes it; until Phase 11 the
-  answer rides the run report.
+  instructions (doc 06 §4). The answer rides the run report.
 - Retry law identical to the wire client (transport only, ≤2). No secrets EVER enter a
   writer prompt (doc 06 §2a).
 
@@ -195,9 +194,8 @@ naturally phrased. Approve or request revision.
 ## 6. Integration Notes
 
 - **Depends on Phases 6/9.**
-- **Produces:** the task-ladder layer + answer extraction. Phase 11 (result screen)
-  consumes `extractAnswer`; Phase 12 (Tier B) measures ladder economics (restructure
-  calls per goal, replan rates).
+- **Produces:** the task-ladder layer + answer extraction, consumed by the run
+  report.
 - **Contract with the evaluator law:** the restructure prompt version + ladder
   provenance ride every DecisionLog row (doc 05); the counter restart means the fine-
   tune accumulation starts fresh at v3 (doc 05 §4 — expected, not a bug).

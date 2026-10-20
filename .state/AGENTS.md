@@ -68,8 +68,7 @@ remembers."
 * `eval/` — measurement-report artifacts, git-tracked: `tier-a-report.{md,json}` (Tier A
   deterministic replay, Phase 7 — FROZEN HISTORY since PHASE_VEXP3 retired the eval
   harness with the training program: the `:core:generateTierAReport` generator no
-  longer exists and the committed bytes are the historical record only); Tier B reports
-  (Phase 12) extend the same schema prefix
+  longer exists and the committed bytes are the historical record only)
 * `DEBUGGING.md` — the standing on-device run-monitoring procedure (owner-ratified
   2026-10-17; updated for the 2026-10-18 promotion): one product identity
   (`navigator.app` / `app-debug.apk` / the `vision-exp-v…` dex marker — no

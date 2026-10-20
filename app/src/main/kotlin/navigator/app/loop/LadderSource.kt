@@ -89,8 +89,7 @@ data class RestructuredLadder(
 )
 
 /**
- * The answer-extraction seam (Phase 10, phase doc §2.1; the Phase-11 result screen's
- * input): ONE writer call over the goal and the code-MASKED final state (doc 06 §2a —
+ * The answer-extraction seam (Phase 10, phase doc §2.1): ONE writer call over the goal and the code-MASKED final state (doc 06 §2a —
  * the loop masks sanctioned secrets out before the call), phrasing the answer.
  * "Report data, not actions" (doc 06 §4). Null default = no extraction: every existing
  * path stays byte-identical until a run wires the writer.

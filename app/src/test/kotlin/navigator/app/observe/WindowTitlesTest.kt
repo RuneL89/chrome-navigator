@@ -7,7 +7,7 @@ import kotlin.test.assertTrue
 /**
  * Phase 10B (Gate 10B.4, the pure half): the page-title reader's lawful-window decision
  * — focused, then active, then the root-application-window fallback, allowlisted only,
- * "" when nothing lawful exists (the KD-5 webview-shell caveat).
+ * "" when nothing lawful exists (the webview-shell no-title caveat).
  */
 class WindowTitlesTest {
 
@@ -80,7 +80,7 @@ class WindowTitlesTest {
     }
 
     @Test
-    fun `no lawful window renders the empty title (the KD-5 caveat is honest input)`() {
+    fun `no lawful window renders the empty title (the no-title caveat is honest input)`() {
         assertEquals("", WindowTitles.lawfulTitle(emptyList()))
         assertEquals(
             "",
