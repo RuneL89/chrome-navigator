@@ -94,7 +94,9 @@ remembers."
   evidence live on the `exp/tree-first` branch; `master` receives nothing until the owner
   accepts a recommendation and a separate phase is written there. Its iteration reports
   live in `vision-iter/vexp9/iteration-N.md`; raw frames are ephemeral (deleted after each
-  iteration), the step/run CSVs are scrubbed and durable.
+  iteration), the step/run CSVs are scrubbed and durable. **All R\* live runs are attended
+  by the orchestrating agent — no unattended, overnight, batch, or scheduled runs; an
+  interrupted run is discarded.**
 
 ## Local Contracts
 

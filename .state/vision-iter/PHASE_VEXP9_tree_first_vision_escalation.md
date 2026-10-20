@@ -283,6 +283,35 @@ only R1 has a report in the repo (runs 13/14). The vision arm must be **re-measu
 current build** in Stage 4 — do not use remembered results, and do not compare against
 pre-v15 runs.
 
+#### 5.0 Attendance rule (binding — owner, 2026-10-20: "All R* tests should only be run with you attached")
+
+**Every R\* run is attended by the orchestrating agent.** No R\* run is started unless the
+agent is attached, capturing, and able to stop it. There are no unattended, overnight,
+batch, or scheduled R\* runs.
+
+Why: the four goals touch the owner's real accounts, carts, and subscriptions. A run can
+enter a card form (R3), leave a changed active channel (R4), or corrupt the next run's
+preconditions (R1/R3 carts). The agent is also the only reliable observer for the per-run
+reset and the failure-class annotation. R1's Finnish capability confound and R3's stop
+point both require a human-readable frame at the moment they happen.
+
+The agent's duties for **every** R\* run:
+
+1. verify the reset before the start and record `reset_ok`;
+2. arm navcap and confirm frames are landing **before** the goal is submitted;
+3. watch the frames for the whole run — R3's card-screen stop is one instance of this
+   rule, not the only thing to watch for;
+4. stop on any unsafe or clearly wrong action (wrong site, wrong account, a purchase
+   flow, a card form), not only the card screen;
+5. record the terminal, the stop reason, and the observed anchors.
+
+**An interrupted run is discarded, not counted.** If the agent detaches or loses the
+device link mid-run, the run is marked `stop_reason=UNKNOWN` and excluded from every
+metric. Do not resume it and do not use its partial data.
+
+Synthetic probe pages (S1–S8) are local fixtures with no accounts and no external side
+effects; they may run unattended. The attendance rule covers R\* only.
+
 | # | Goal | What it exercises | Known history | Reset before every run |
 |---|---|---|---|---|
 | **R1** | open verkkokauppa.com and add two cases of lemon lime celsius energy drink to the shopping cart | the safe benchmark: Finnish → translate, product page, cart quantity | vision: the cart goal `GOAL_ACHIEVED` in runs 13/14 (52 and 61 steps) | cart emptied; Chrome front on the store homepage |
@@ -343,7 +372,7 @@ avoid the purchase; the safety comes from the monitoring agent.
   data, but **Chrome's payment autofill is the residual risk** — a saved card could
   populate a field and a later submit could complete the purchase without the engine ever
   knowing the number. Therefore: disable Chrome's payment-method autofill for the R3
-  runs, keep the monitor cadence tight, and never leave an R3 run unattended.
+  runs, keep the monitor cadence tight, and never leave any R\* run unattended (§5.0).
 - The $15 program budget is LLM spend only; it does not authorize real money.
 
 #### 5.1c State resets (binding — without these the runs are not comparable)
@@ -509,6 +538,10 @@ Two things this is not:
 ## 7. The continuous loop
 
 This phase runs as repeated iterations, not one batch.
+
+**Every iteration is an attended session (§5.0).** The orchestrating agent starts the
+runs, watches every R* frame, and closes the session before writing the report. Nothing
+is scheduled, queued, or left running between sessions.
 
 **Each iteration**
 
