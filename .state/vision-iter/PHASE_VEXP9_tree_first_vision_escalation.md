@@ -158,8 +158,9 @@ Each stage has an exit criterion. Do not start the next stage until it is met.
    §6.2). Write rows through the loop's existing redaction fold; `StepFacts.label` is
    already masked at source, but the intent/slate fields must be scrubbed the same way.
 
-**Run:** one tree-only run of the BBC-headline goal (proves the path still works after
-Phase 15's changes) plus one vision run (proves the probe is inert when armed off).
+**Run:** one tree-only run of **R1** (the safe benchmark) — it proves the path still works
+after Phase 15's changes and produces the first tree-arm datapoint — plus one vision run
+(proves the probe is inert when armed off).
 
 **Exit:** `run.json`, `steps.csv`, `runs.csv`, and `frames/` exist for both runs; the
 existing JVM suites are green and byte-identical with the probe unarmed.
@@ -277,22 +278,97 @@ Written to `iteration-4.md`.
 
 ### 5.1 Real goals (validity)
 
-| # | Goal | Why it is here | History |
-|---|---|---|---|
-| R1 | open bbc.com and tell me the top news headline | search-and-read; short | a11y achieved 2 steps / 25–40 s (emulator) |
-| R2 | open google.com and search for mushroom recipes | fill + submit on a plain input | a11y achieved 5 steps / 49 s (emulator) |
-| R3 | open wikipedia.org and open the world war 2 page | navigation + link selection | a11y achieved 2 steps / 82 s (emulator) |
-| R4 | open allrecipes.com and open the DINNER category, then open the first recipe shown | multi-step, same-host identity | a11y failed (`STUCK_KILL` / budget) |
-| R5 | open verkkokauppa.com and add two cases of lemon lime celsius energy drink to the shopping cart | Finnish → translate; product page; cart | vision 3/3 achieved on phone |
-| R6 | book a hotel for next weekend in Tallinn | custom combobox (SET_TEXT/PASTE rejected) | a11y `STUCK_KILL` on phone |
+These are the owner's four benchmark goals. All four have been run on the vision engine;
+only R1 has a report in the repo (runs 13/14). The vision arm must be **re-measured on the
+current build** in Stage 4 — do not use remembered results, and do not compare against
+pre-v15 runs.
 
-R5 is deliberately a **capability** case, not a speed case: the tree engine has no
-translate code at all (grep of `app/src/main/kotlin/navigator/app/loop/` for translate is
-empty), so the tree arm is expected to lose here. Record it as a class, not as a bug.
+| # | Goal | What it exercises | Known history | Reset before every run |
+|---|---|---|---|---|
+| **R1** | open verkkokauppa.com and add two cases of lemon lime celsius energy drink to the shopping cart | the safe benchmark: Finnish → translate, product page, cart quantity | vision: the cart goal `GOAL_ACHIEVED` in runs 13/14 (52 and 61 steps) | cart emptied; Chrome front on the store homepage |
+| **R2** | find the wwe channel on rumble.com and press the latest video in Live tab | obscure video site; weak/sparse tree; site-specific logic; video state | vision only, owner-tested; no repo record | fresh tab on rumble.com; record the observed live-video title as the anchor |
+| **R3** | buy SoundMagic E11C with delivery to koivuviita 7 B 5. Total budget including delivery: 60 euros | risky, high-value: multi-parameter planning (product, quantity 1, address, budget), checkout, gate card | vision only, owner-tested; no repo record | cart empty; see the purchase rule below |
+| **R4** | open youtube.com and switch the active user channel to MrAwesome. Then find the Food Wishes channel from my subscriptions and play the latest posted video | popular site; long multi-step flow; account state; subscriptions; playback | vision only, owner-tested; no repo record | the active channel reset to the **starting** account; record the observed video title as the anchor |
 
-### 5.2 Synthetic probe pages (isolation)
+#### 5.1a Correctness anchors (goal level)
 
-Add to `app/src/main/assets/harness/pages/` and drive them with
+The efficiency metric needs an unambiguous "correct completion" per goal. Record the
+observed anchor in `runs.csv` at the terminal:
+
+- **R1:** the cart holds exactly **2 units** of the specified product (not 1, not 4).
+- **R2:** the player is on the **WWE channel's Live tab**, playing the latest live video;
+  the observed title is the anchor.
+- **R3:** the checkout state holds **SoundMagic E11C ×1**, delivery address
+  **koivuviita 7 B 5**, total **≤ €60 including delivery**, no duplicate or extra items.
+- **R4:** the active channel is **MrAwesome**, Food Wishes is reached **from
+  subscriptions**, and its latest video is playing; the observed title is the anchor.
+
+A terminal that says `GOAL_ACHIEVED` but misses its anchor is a **false completion** and
+counts as incorrect — this is the correctness half of efficiency, and it is the reason
+these goals were chosen.
+
+#### 5.1b Purchase rule (R3 — binding)
+
+R3 must **not** complete a real purchase during the experiment. The run stops at the
+payment/order card; the owner decides at the card if a purchase is ever made, and the
+default is **deny**. Correctness is judged from the checkout state at the terminal, not
+from an order number. The $15 program budget is LLM spend only; it does not authorize
+real money. If a purchase is ever intended, that is a separate explicit owner decision
+outside this experiment.
+
+#### 5.1c State resets (binding — without these the runs are not comparable)
+
+Three of the four goals are stateful, so a "repeat" is not a repeat unless it starts from
+the same state:
+
+- **R1:** the cart accumulates. Empty it before every run (owner on the site, or a
+  dedicated fresh browser profile — do not clear Chrome data, the owner's tabs).
+- **R2:** the live video changes over time. Record the title each run; the anchor is
+  "the latest live video at run time", not a fixed URL.
+- **R3:** the cart and the address book are stateful. Empty the cart; the saved address
+  is part of the fixed precondition.
+- **R4:** the active user channel is the whole point of the goal — after a successful run
+  it is already `MrAwesome`. **Switch back to the starting account before every run**, or
+  the next run starts mid-goal and the measurement is meaningless.
+
+Record the reset in the run row (`reset_ok`). A run whose reset failed is discarded, not
+counted as a failure of the engine.
+
+#### 5.1d What this corpus can and cannot answer
+
+This is a **failure-rich, success-poor** corpus: all four goals are hard, long, and
+multi-step. That is deliberate — they are how the app will actually be used, and the old
+easy goals (BBC headline, Wikipedia page) were testing a usage pattern that will not
+occur.
+
+The consequence must be stated in the report, not hidden:
+
+- **Stages 1–3 are well served.** Failures are what they measure, and these goals are
+  likely to produce them in every class.
+- **Stage 4's time-to-success is at risk.** It needs at least 3 successful runs per arm
+  to report a median. If an arm cannot produce them, report time-to-success as **not
+  estimable** and decide from correctness plus per-step latency — do not substitute a
+  mean over mixed successes and failures.
+- **R1 is the only control.** It is the safe benchmark; if the tree arm cannot do R1, the
+  finding is not "vision is needed for obscure sites", it is "the tree path is not viable
+  yet", which is a different road.
+
+**R1 has a known capability confound — separate it from perception.** The tree engine has
+no translate code at all (the vision loop's translate-first law is vision-only). On the
+Finnish store the tree arm therefore fails for a reason unrelated to perception. Run R1 in
+two variants and report them separately, never averaged:
+
+- **R1-cold** — the goal exactly as written; records the capability gap.
+- **R1-pre-translated** — the owner taps Translate on the page **before** the run starts,
+  so both arms face an English tree; this is the perception comparison.
+
+The same rule applies to any goal whose first step is a page normalization the tree engine
+does not own.
+
+### 5.2 Synthetic probe pages (isolation — secondary)
+
+Used only to isolate a failure class that cannot be identified cleanly from the four real
+goals. Add to `app/src/main/assets/harness/pages/` and drive them with
 `GoalCatalog.customGoal(...)` (`customGoalText` + `customStartUrl`) against
 `HarnessPagesServer` on `127.0.0.1:8099` (`HarnessPagesServer.kt:120`) — **no goal-catalog
 edit**, so the pinned catalog count is untouched.
@@ -412,7 +488,7 @@ This phase runs as repeated iterations, not one batch.
    questions. Stale rows are deleted, not annotated.
 5. Update `.state/phase-vexp9-status.json` (stage, runs, spend, blocker, next action).
 
-**Iteration 1 is fixed:** Stage 0 + Stage 1 on R1–R3 plus one synthetic page, to prove
+**Iteration 1 is fixed:** Stage 0 + Stage 1 on R1–R2 plus one synthetic page, to prove
 the apparatus before spending a full corpus.
 
 **Stop conditions (any one):**
@@ -434,6 +510,12 @@ the apparatus before spending a full corpus.
   post-injection echo. Frames are **ephemeral**: pull them for the iteration's analysis,
   write the analysis, then delete the run directory. The durable artifacts are
   `iteration-N.md`, `steps.csv`/`runs.csv` (scrubbed), and the recommendation.
+- **Personal data (R3/R4).** The goal texts and page content carry the owner's delivery
+  address, account e-mails, and subscription list. These are not credentials, but they
+  are personal data: the durable iteration reports quote the *outcome* (item ×1, address
+  matched, total ≤ €60; channel switched; video title) rather than the raw address or
+  account details, and the host copy of the CSVs is deleted after the iteration report is
+  written. Only the aggregate tables and the finding persist.
 - This matches the project retention practice (raw run evidence is not kept).
 
 ## 9. Branch and merge policy
@@ -523,10 +605,14 @@ pay for modes we suspect will lose. Pause and report at 80%.
 
 ## 16. Open questions for the owner
 
-1. **Corpus scope:** is R6 (Booking.com) acceptable as a real-site probe, given it needs
-   a destination but not a purchase? It is the cleanest known tree failure.
-2. **Rescue autonomy:** in the rescue arm, may the system act on a vision-proposed action
+1. **Purchase rule:** confirm that R3 always stops at the payment/order card and never
+   completes a purchase during the experiment (the goal says "buy"; the doc's default is
+   deny).
+2. **State resets:** R1/R3 need the cart emptied and R4 needs the active channel switched
+   back before every run. Should that stay a manual owner step, or does the experiment
+   build a reset step? Manual resets make the runs dependent on the owner being present.
+3. **Rescue autonomy:** in the rescue arm, may the system act on a vision-proposed action
    without asking, subject to the existing gate? (Without this, Stage 3 measures nothing.)
-3. **Stop rule:** is "two consecutive iterations with no new class and no decision-table
+4. **Stop rule:** is "two consecutive iterations with no new class and no decision-table
    change" the right convergence test, or should the program stop at a fixed iteration
    count?
