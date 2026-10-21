@@ -1,0 +1,36 @@
+{
+  "phase": 16,
+  "title": "Goal Fidelity & Loop Guards",
+  "phaseDoc": "Implementation Plan/PHASE_16_goal_fidelity_and_loop_guards.md",
+  "branch": "exp/tree-first (master stays at 1a0af26; the merge is deferred to UAT 16.2)",
+  "status": "IN PROGRESS — Stage A DONE (gates 16.1-16.3 green); Stage B next",
+  "startedAt": "2026-10-21",
+  "source": "PHASE_VEXP9 iteration 2 corpus (R1–R4, tree + vision); the owner accepted the findings and the fix plan",
+  "ownerDecisions": {
+    "purchase": "A 'buy' goal completes only when the order is placed (gated); the gate/owner card govern; a real order is owner-approved per run.",
+    "packaging": "One phase, two stages, built on exp/tree-first with a master-ready doc and a merge checklist.",
+    "canonGate": "Owner exception: DeepSeek Flash drafts the vision-law amendment (Phase 14 precedent)."
+  },
+  "stages": {
+    "A-goal-fidelity": "DONE — GoalFidelity (core) + the error-fed wiring at both ladder builds + vision prompt v16 / gen restructure-v5 + the goldens v5 + the hatch sixth guard + the final-WEAK empty-battery rule + the tests",
+    "B-loop-guards": "PENDING — binding same-action ban (both engines), same-URL site-entry guard, strategy-progress guard, the product launcher package fix, tests",
+    "gates": "16.1-16.3 PASS; 16.4-16.6 pending",
+    "uat": "PENDING — the attended R1–R4 re-run (owner), then the merge decision"
+  },
+  "gatesPassed": [
+    "16.1 GoalFidelityTest 12/12 (core)",
+    "16.2 VisionLoopEscapeHatchTest 7/7 — including the R3b empty-checkout and R4 unverified-account regressions",
+    "16.3 GenClientTest 17/17 — the R3b/R4 build refusals + the good-purchase acceptance; full :app + :core suites green"
+  ],
+  "gatesFailed": [],
+  "gatesPending": [
+    "16.4 the loop-guard suites",
+    "16.5 the launcher/site-entry tests",
+    "16.6 full suites + assembleDebug + method-size"
+  ],
+  "deviations": [],
+  "llmCost": 0,
+  "blocker": null,
+  "nextAction": "Stage B: the binding same-action ban (a11y class-field counter + the vision consecutiveSameAction filter), the same-URL/site-entry guard, the strategy-progress guard, and the product launcher package fix, with their tests and the method-size measurement.",
+  "mergePolicy": "The branch merges to master only after the whole experiment (this phase + the re-scoped hybrid) is accepted; the doc's section 7 lists the exact files and order."
+}

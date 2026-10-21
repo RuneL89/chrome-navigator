@@ -43,6 +43,9 @@ implementation is checked against them for compliance.
   for the vision-engine promotion amendment because the GLM-5.3 credits were exhausted.
   The exception is one-time and is recorded in `.state/compliance-log.md`; the GLM-5.3
   rule remains the default for future vision law
+* **Recorded exception (2026-10-21):** the owner authorized DeepSeek Flash for the
+  PHASE_16 goal-fidelity amendment (docs 04 §4.1/§4.2 and 06 §4) for the same reason.
+  The exception is recorded in `.state/compliance-log.md`; the GLM-5.3 default remains
 
 ## Work Guidance
 

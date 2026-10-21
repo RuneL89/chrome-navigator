@@ -614,11 +614,21 @@ class VisionLoop(
                 // step's results when it already measured this screen, otherwise run it
                 // now. Code = condition satisfied; battery = outcome visible; BOTH.
                 val batteryChecks = batteries[pointer].orEmpty()
-                val concurs = batteryChecks.isEmpty() || batteryConcurs(
-                    batteryResults(batteryChecks, obs, shot),
-                    config.redFlagAbove,
-                    config.noulAgreeAbove,
-                )
+                // PHASE_16: an ABSENT verify battery is not concurrence on a FINAL WEAK
+                // condition — the planner must author the final battery (the prompt law),
+                // and a missing one can no longer accept a code-satisfied weak final.
+                val finalWeak = pointer == ladder.subtasks.lastIndex &&
+                    DoneConditionChecker.guardStrength(active.done) ==
+                    DoneConditionChecker.GuardStrength.WEAK
+                val concurs = if (batteryChecks.isEmpty()) {
+                    !finalWeak
+                } else {
+                    batteryConcurs(
+                        batteryResults(batteryChecks, obs, shot),
+                        config.redFlagAbove,
+                        config.noulAgreeAbove,
+                    )
+                }
                 if (!concurs) {
                     // The existing refusal path: no advance; feeds failure/re-plan
                     // (for the FINAL subtask this prevents a false GOAL_ACHIEVED).
@@ -903,7 +913,34 @@ class VisionLoop(
                 // (REPLANS_EXHAUSTED when that budget is spent).
                 val proposerExhausted = proposerExhaustedLast
                 if (proposerExhausted) {
+                    // PHASE_16 — the SIXTH guard: the goal's OWN end state must be evidenced
+                    // on this page before ANY model confirmation. A purchase goal needs an
+                    // order-confirmation marker; an account-switch goal needs the target
+                    // account. (R3b: a checkout page with a cart total passed every earlier
+                    // guard while the order was never placed.)
+                    val fidelity = navigator.core.ladder.GoalFidelity.check(goal, ladder)
+                    val obsText = navigator.core.ladder.GoalFidelity.normalize(
+                        obs.title + " " + obs.url + " " + obs.lines.joinToString(" "),
+                    )
+                    val goalEndStateEvidenced = when {
+                        navigator.core.ladder.GoalFidelity.GoalClass.PURCHASE in fidelity.classes ->
+                            navigator.core.ladder.GoalFidelity.evidencesOrderConfirmation(obsText)
+                        navigator.core.ladder.GoalFidelity.GoalClass.ACCOUNT_SWITCH in fidelity.classes ->
+                            navigator.core.ladder.GoalFidelity.switchTarget(goal)
+                                ?.let { navigator.core.ladder.GoalFidelity.evidencesAccount(obsText, it) }
+                                ?: true
+                        else -> true
+                    }
                     val suppressed = when {
+                        !goalEndStateEvidenced -> {
+                            val line = "MODELS_CONFIRM_DONE suppressed: the goal's end state is " +
+                                "not evidenced on this page (${fidelity.classes.joinToString(",")}) - " +
+                                "a weakened final condition cannot complete it"
+                            outcomes.add(line)
+                            log("[vision] $line")
+                            evidence.event(line)
+                            true
+                        }
                         pointer != ladder.subtasks.lastIndex -> {
                             val line = "MODELS_CONFIRM_DONE suppressed: subtask " +
                                 "${pointer + 1}/${ladder.subtasks.size} is not final - the hatch " +
@@ -2210,6 +2247,15 @@ class VisionLoop(
                 val battery = VisionPrompts.parseVerifyBlocks(content, "plan")
                 val enterText = VisionPrompts.parseEnterTexts(content, "plan")
                 val ladder = LadderSchema.parse(content, maxSubtasks = 8)
+                // PHASE_16 — GOAL FIDELITY: the ladder is bound to the GOAL. A "buy" planned
+                // as "review the order", a dropped parameter or a missing account/playback
+                // evidence is refused here and fed to the error-fed retry.
+                val fidelity = navigator.core.ladder.GoalFidelity.check(goal, ladder)
+                if (!fidelity.ok) {
+                    throw navigator.core.ladder.LadderValidationException(
+                        "goal fidelity: " + fidelity.violations.joinToString("; "),
+                    )
+                }
                 return PlannedLadder(ladder, battery, enterText)
             } catch (e: Exception) {
                 correction = "Your previous JSON was refused: ${e.message?.take(300)} — fix exactly that and return the STRICT JSON again."

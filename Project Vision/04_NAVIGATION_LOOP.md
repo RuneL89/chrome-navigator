@@ -1,7 +1,12 @@
 # Navigation Loop
 
 **Document ID:** `NAVIGATOR-VISION-004`
-**Version:** 2.2.0 *(amended 2026-10-20 (UAT repair round 2): the pick-level code
+**Version:** 2.3.0 *(amended 2026-10-21 (PHASE_16): the GOAL-FIDELITY law — the ladder is
+bound to the goal, not to its plan; a purchase goal ends on the order confirmation; the
+finality hatch gains the sixth guard (the goal's own end state must be evidenced on the
+page); an absent verify battery is not concurrence on a FINAL WEAK condition. Owner
+exception: DeepSeek Flash drafted the amendment (recorded in `Project Vision/AGENTS.md` and
+`.state/compliance-log.md`). Amended 2026-10-20 (UAT repair round 2): the pick-level code
 preference (v15) — the proposer's Translate proposal is code-preferred at the action
 pick; amended 2026-10-20: the TRANSLATE-FIRST law — a non-English page
 is translated to English before acting, and the PHASE_14 Finnish gate-floor additions
@@ -16,7 +21,8 @@ engine's law only (the vision engine's re-plan divergence is a recorded KD).
 Owner-authorized DeepSeek Flash amendment; the GLM-5.3 exception is recorded in
 `.state/compliance-log.md`)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-06, 2026-10-07, 2026-10-09,
-2026-10-10, 2026-10-11, 2026-10-12, 2026-10-13, 2026-10-17, 2026-10-18, 2026-10-20)
+2026-10-10, 2026-10-11, 2026-10-12, 2026-10-13, 2026-10-17, 2026-10-18, 2026-10-20,
+2026-10-21)
 **Date:** 2026-10-03
 **Implements:** ART-1 (code owns the gate), ART-4 (no model self-completion), ART-5
 (numbers in code), ART-9 (bounded tasks), ART-2 (declared model roles)
@@ -192,13 +198,35 @@ when ALL hold:
    checker calls false is authoritative;
 3. no report answer is pending (an `answerExtracted` subtask while `answer == null`
    shuts the hatch);
-4. the existing Jev-noul + Haiku-confirm pair agrees, AND ONE goal-level Jev noul over
+4. the GOAL's own end state is evidenced on the page (§4.2's goal-fidelity guard): a
+   purchase goal needs an order-confirmation marker, an account-switch goal needs the
+   target account. A weakened plan can never be ratified by the models;
+5. the existing Jev-noul + Haiku-confirm pair agrees, AND ONE goal-level Jev noul over
    the goal + final subtask agrees (`>= noulAgreeAbove = 0.70`).
 
-Checks 1–3 run BEFORE any opinion call, so a shut hatch costs zero calls. Every
+Checks 1–4 run BEFORE any opinion call, so a shut hatch costs zero calls. Every
 suppression records `MODELS_CONFIRM_DONE suppressed: …` (not final / STRONG / report
-pending / goal-disagree). A non-final exhausted subtask never terminates and never
-advances; it takes the informed re-plan path (`REPLANS_EXHAUSTED` when spent).
+pending / goal end state not evidenced / goal-disagree). A non-final exhausted subtask
+never terminates and never advances; it takes the informed re-plan path
+(`REPLANS_EXHAUSTED` when spent). On a FINAL WEAK condition an ABSENT verify battery is
+NOT concurrence — the planner must author the final battery, and a missing one routes to
+the existing refusal (the 2026-10-21 R3b false completion passed exactly that hole).
+
+**4.2 The goal-fidelity law (PHASE_16).** The ladder is bound to the GOAL, not to its own
+plan, and the binding is code-enforced at every ladder build (initial and re-plan) in BOTH
+engines (`navigator.core.ladder.GoalFidelity`):
+- a PURCHASE goal's final condition must show the ORDER PLACED — a confirmation page/URL,
+  an order number, "order confirmed" / "tilausnumero" / "kiitos tilauksestasi". A cart,
+  checkout, order-summary or review condition is NOT completion, and the writer may never
+  weaken "buy" into "review" or write "without placing the order";
+- every explicit goal parameter (delivery address, budget number + currency, quantity,
+  named account/channel) must appear in the ladder;
+- an ACCOUNT_SWITCH goal names the target account; a PLAYBACK goal ends on playback
+  evidence; a READ_REPORT goal carries an `answerExtracted` condition.
+
+A violation feeds ONE bounded retry carrying the violations, then the existing loud
+refusal (the a11y engine refuses pre-navigation; the vision engine installs no plan and
+the re-plan budget governs). Unknown goal classes carry no extra rule.
 
 **Condition repair (vision engine):** exactly the battery's `OutcomeAchieved` branch
 spends ONE repair turn per (active subtask, plan): a repair-only writer call (strict

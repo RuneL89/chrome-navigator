@@ -24,7 +24,7 @@ import kotlin.test.assertTrue
 /**
  * Gate 10.1 (isolation): the restructure schema + hardening, $0 — NO live provider call.
  * Pinned here:
- * - the GOLDEN request/response per prompt version (`/gen/golden-restructure-v4.json` —
+ * - the GOLDEN request/response per prompt version (`/gen/golden-restructure-v5.json` —
  *   the prompt text is fixture law; a PROMPT_VERSION/wording change adds a version and
  *   retires the old one, never mutates it). Phase 10D: ONE version covers BOTH request
  *   variants — the initial restructure and the INFORMED re-plan (`replanRequest`, the
@@ -45,7 +45,7 @@ import kotlin.test.assertTrue
 class GenClientTest {
 
     private val fixtureJson: String by lazy {
-        javaClass.getResourceAsStream("/gen/golden-restructure-v4.json")!!
+        javaClass.getResourceAsStream("/gen/golden-restructure-v5.json")!!
             .readBytes().decodeToString()
     }
 
@@ -73,6 +73,12 @@ class GenClientTest {
         )
 
     private fun prim(value: String) = JsonPrimitive(value)
+
+    /** The same body as [ok], as a raw string for MockWebServer. */
+    private fun okBody(content: String): String =
+        """{"id":"x","model":"writer-model-1","choices":[{"index":0,"finish_reason":"stop",""" +
+            """"message":{"role":"assistant","content":${prim(content)}}}],""" +
+            """"usage":{"prompt_tokens":100,"completion_tokens":50,"total_tokens":150}}"""
 
     private fun validLadderJson(): String =
         """{"summary":"Open the encyclopedia article.",""" +
@@ -115,8 +121,8 @@ class GenClientTest {
             sentMessages[1].jsonObject["content"]!!.jsonPrimitive.content,
             "the user message carries the goal verbatim",
         )
-        assertEquals("restructure-v4", result.promptVersion, "the prompt version rides the result")
-        assertEquals("restructure-v4", Prompts.PROMPT_VERSION, "the fixture pins the CURRENT version")
+        assertEquals("restructure-v5", result.promptVersion, "the prompt version rides the result")
+        assertEquals("restructure-v5", Prompts.PROMPT_VERSION, "the fixture pins the CURRENT version")
         assertEquals(LadderTaskClass.READ, result.ladder.taskClass)
         assertEquals(2, result.ladder.subtasks.size)
         assertTrue(result.ladder.subtasks[0].done is DoneCondition.UrlHost)
@@ -187,7 +193,7 @@ class GenClientTest {
             sent["messages"]!!.jsonArray[1].jsonObject["content"]!!.jsonPrimitive.content,
             "the informed user message (goal + <failure> block) is fixture law — byte-identical",
         )
-        assertEquals("restructure-v4/gen2", result.ladder.versionTag(result.promptVersion, result.generation))
+        assertEquals("restructure-v5/gen2", result.ladder.versionTag(result.promptVersion, result.generation))
         val rollback = result.ladder.rollback
         assertTrue(rollback != null, "the informed re-plan's declared rollback parses")
         assertEquals(1, rollback.steps)
@@ -202,7 +208,7 @@ class GenClientTest {
         // must change the ROUTE, not the wording. Additive fixture: the v4 goldens above
         // stay byte-identical (retire-and-add, doc 07 §2).
         val mechanismFixtureJson: String by lazy {
-            javaClass.getResourceAsStream("/gen/golden-restructure-v4-mechanism.json")!!
+            javaClass.getResourceAsStream("/gen/golden-restructure-v5-mechanism.json")!!
                 .readBytes().decodeToString()
         }
         val mechanismFixture by lazy { Json.parseToJsonElement(mechanismFixtureJson).jsonObject }
@@ -243,7 +249,7 @@ class GenClientTest {
             "change the ROUTE, not the wording" in sentUser && "Guidance: Typing into the failing" in sentUser,
             "the strategy-change hint must ride the sent bytes",
         )
-        assertEquals("restructure-v4/gen2", result.ladder.versionTag(result.promptVersion, result.generation))
+        assertEquals("restructure-v5/gen2", result.ladder.versionTag(result.promptVersion, result.generation))
         assertEquals(null, result.ladder.rollback, "a strategy change needs no rollback")
         assertEquals(3, result.ladder.subtasks.size, "the re-plan splits the failing step (growth is lawful)")
         assertTrue(result.ladder.subtasks.last().done is DoneCondition.AnswerExtracted)
@@ -387,7 +393,7 @@ class GenClientTest {
         val transport = CountingTransport { ok(if (calls <= 1) opinion else validLadderJson()) }
         val result = runBlocking { client(transport).restructure("goal", generation = 1) }
         assertEquals(2, transport.calls)
-        assertEquals("restructure-v4/gen1", result.ladder.versionTag(result.promptVersion, result.generation))
+        assertEquals("restructure-v5/gen1", result.ladder.versionTag(result.promptVersion, result.generation))
     }
 
     // -- adversarial rows (hostile goal texts) ---------------------------------------------
@@ -521,6 +527,83 @@ class GenClientTest {
         }
         assertNull(nulled)
         assertEquals(1, bad.calls, "no retry on an invalid repair")
+    }
+
+    // -- PHASE_16: goal fidelity at the a11y build --------------------------------------
+
+    private val purchaseGoal =
+        "buy SoundMagic E11C with delivery to koivuviita 7 B 5. Total budget including delivery: 60 euros"
+
+    @Test
+    fun `the R3b review ladder is refused at build - a purchase must end on the order confirmation`() {
+        val reviewLadder = """
+            {"summary":"review the order","taskClass":"action","subtasks":[
+              {"instruction":"Review the order summary to koivuviita 7 B 5 within the 60 euro budget",
+               "done":{"elementPresent":"order summary listing SoundMagic E11C with total including delivery"}}]}
+        """.trimIndent()
+        val server = MockWebServer()
+        server.start()
+        repeat(GenClient.CONTENT_ATTEMPTS) { server.enqueue(MockResponse().setBody(okBody(reviewLadder))) }
+        val client = GenClient(
+            transport = OkHttpTransport(server.url("/api/v1/chat/completions").toString()),
+            config = GenEngineConfigs.generative("test-key-not-a-secret"),
+            retryDelay = {},
+        )
+        val error = assertFailsWith<GenRefusedException> {
+            runBlocking { client.restructure(purchaseGoal) }
+        }
+        assertTrue(
+            error.message!!.contains("goal fidelity"),
+            "the refusal names the law: ${error.message}",
+        )
+        server.shutdown()
+    }
+
+    @Test
+    fun `the R4 account-switch ladder without the account token is refused at build`() {
+        val noAccountLadder = """
+            {"summary":"play the video","taskClass":"action","subtasks":[
+              {"instruction":"Play the latest Food Wishes video","done":{"elementPresent":"the video player is playing"}}]}
+        """.trimIndent()
+        val server = MockWebServer()
+        server.start()
+        repeat(GenClient.CONTENT_ATTEMPTS) { server.enqueue(MockResponse().setBody(okBody(noAccountLadder))) }
+        val client = GenClient(
+            transport = OkHttpTransport(server.url("/api/v1/chat/completions").toString()),
+            config = GenEngineConfigs.generative("test-key-not-a-secret"),
+            retryDelay = {},
+        )
+        val error = assertFailsWith<GenRefusedException> {
+            runBlocking {
+                client.restructure(
+                    "open youtube.com and switch the active user channel to MrAwesome. Then find " +
+                        "the Food Wishes channel from my subscriptions and play the latest posted video",
+                )
+            }
+        }
+        assertTrue(error.message!!.contains("mrawesome"), "the refusal names the account: ${error.message}")
+        server.shutdown()
+    }
+
+    @Test
+    fun `a purchase ladder ending on the confirmation with every parameter is accepted at build`() {
+        val goodLadder = """
+            {"summary":"place the order","taskClass":"action","subtasks":[
+              {"instruction":"Place the order for SoundMagic E11C to koivuviita 7 B 5 within the 60 euro budget",
+               "done":{"markerText":"Order confirmed"}}]}
+        """.trimIndent()
+        val server = MockWebServer()
+        server.start()
+        server.enqueue(MockResponse().setBody(okBody(goodLadder)))
+        val client = GenClient(
+            transport = OkHttpTransport(server.url("/api/v1/chat/completions").toString()),
+            config = GenEngineConfigs.generative("test-key-not-a-secret"),
+            retryDelay = {},
+        )
+        val result = runBlocking { client.restructure(purchaseGoal) }
+        assertEquals(1, result.ladder.subtasks.size)
+        assertTrue(result.ladder.subtasks.single().done is DoneCondition.MarkerText)
+        server.shutdown()
     }
 
 }

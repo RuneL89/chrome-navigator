@@ -358,4 +358,96 @@ class VisionLoopEscapeHatchTest {
         val events = eventsFile.readText()
         assertTrue("goal noul refused" in events, "the refusal is recorded loudly: $events")
     }
+
+    @Test
+    fun `the R3b empty-checkout shape can never hatch - the goal's end state must be evidenced`() =
+        runBlocking {
+            // PHASE_16 sixth guard: the R3b run (task-1792584388905) reported
+            // MODELS_CONFIRM_DONE on an empty CDON checkout. The plan passes the build-time
+            // goal-fidelity check (the final condition names the order confirmation), but the
+            // PAGE shows only a basket — the hatch must shut before any pair call.
+            val purchasePlan = """
+                {"summary":"place the order","taskClass":"action","subtasks":[
+                  {"instruction":"Place the order for SoundMagic E11C to koivuviita 7 B 5 within the 60 euro budget",
+                   "done":{"markerText":"Order confirmed"}}]}
+            """.trimIndent()
+            val transport = ScriptedVisionTransport(
+                chatResponses = ArrayDeque(listOf(chatContent(purchasePlan), chatContent(proposeEmpty))),
+                jevResponses = ArrayDeque(listOf(jevNoul("done", 0.96), jevNoul("goal", 0.92))),
+            )
+            val (evidence, eventsFile) = newEvidence("hatch-r3b")
+
+            val result = loop(
+                transport,
+                listOf(
+                    observation("Shopping basket", "Celsius Lemon Lime 24-pack", "2 products, total 42,00"),
+                    observation("Shopping basket", "1 tuote", "Yhteytestosi", "Postinumero"),
+                ),
+                evidence,
+                VisionLoop.Config(settleMs = 0, maxReplans = 0, stepFailuresBeforeReplan = 1),
+            ).run(
+                "buy SoundMagic E11C with delivery to koivuviita 7 B 5. " +
+                    "Total budget including delivery: 60 euros",
+                "hatch-r3b",
+            ) { false }
+
+            assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal)
+            assertTrue(
+                result.subtaskOutcomes.any {
+                    it.contains("the goal's end state is not evidenced on this page")
+                },
+                "the sixth guard suppresses the hatch: ${result.subtaskOutcomes}",
+            )
+            assertTrue(
+                result.subtaskOutcomes.none { it.contains("MODELS_CONFIRM_DONE (code") },
+                "no hatch may fire on an empty checkout: ${result.subtaskOutcomes}",
+            )
+            assertEquals(2, transport.chatCalls, "plan + propose only — the guard runs before the pair")
+            assertEquals(0, transport.jevCalls, "no battery, no noul, no goal noul")
+            assertTrue("the goal's end state is not evidenced" in eventsFile.readText())
+        }
+
+    @Test
+    fun `the R4 unverified-account shape can never hatch - the account must be evidenced`() =
+        runBlocking {
+            // PHASE_16 sixth guard: the R4 run (task-1792586283606) completed with the
+            // MrAwesome switch unverified. The page shows the subscriptions/list, not the
+            // switched account — the hatch must shut.
+            val playPlan = """
+                {"summary":"play the latest Food Wishes video","taskClass":"action","subtasks":[
+                  {"instruction":"From the MrAwesome channel's subscriptions, play the latest Food Wishes video",
+                   "done":{"elementPresent":"the video player is playing"}}]}
+            """.trimIndent()
+            val transport = ScriptedVisionTransport(
+                chatResponses = ArrayDeque(listOf(chatContent(playPlan), chatContent(proposeEmpty))),
+                jevResponses = ArrayDeque(listOf(jevNoul("done", 0.96), jevNoul("goal", 0.92))),
+            )
+            val (evidence, eventsFile) = newEvidence("hatch-r4")
+
+            val result = loop(
+                transport,
+                listOf(
+                    observation("YouTube", "Subscriptions", "Food Wishes"),
+                    observation("YouTube", "Subscriptions", "Food Wishes", "Videos"),
+                ),
+                evidence,
+                VisionLoop.Config(settleMs = 0, maxReplans = 0, stepFailuresBeforeReplan = 1),
+            ).run(
+                "open youtube.com and switch the active user channel to MrAwesome. Then find the " +
+                    "Food Wishes channel from my subscriptions and play the latest posted video",
+                "hatch-r4",
+            ) { false }
+
+            assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal)
+            assertTrue(
+                result.subtaskOutcomes.any {
+                    it.contains("the goal's end state is not evidenced on this page")
+                },
+                "the account precondition suppresses the hatch: ${result.subtaskOutcomes}",
+            )
+            assertTrue(result.subtaskOutcomes.none { it.contains("MODELS_CONFIRM_DONE (code") })
+            assertEquals(2, transport.chatCalls)
+            assertEquals(0, transport.jevCalls)
+            assertTrue("the goal's end state is not evidenced" in eventsFile.readText())
+        }
 }

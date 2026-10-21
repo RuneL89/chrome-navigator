@@ -607,8 +607,19 @@ class VisionExperimentTest {
     }
 
     @Test
-    fun `the prompt version is vision-exp-v15`() {
-        assertEquals("vision-exp-v15", VisionPrompts.VISION_PROMPT_VERSION)
+    fun `the prompt version is vision-exp-v16`() {
+        assertEquals("vision-exp-v16", VisionPrompts.VISION_PROMPT_VERSION)
+    }
+
+    @Test
+    fun `the goal-fidelity law pins v16`() {
+        // PHASE_16 — the ladder is bound to the goal: a purchase ends on the order
+        // confirmation, every explicit parameter stays, and a re-plan may not weaken it.
+        assertTrue(VisionPrompts.PLAN_SYSTEM.contains("GOAL FIDELITY"))
+        assertTrue(VisionPrompts.PLAN_SYSTEM.contains("order confirmation"))
+        assertTrue(VisionPrompts.PLAN_SYSTEM.contains("never write \"review the"))
+        assertTrue(VisionPrompts.PLAN_SYSTEM.contains("Every explicit goal parameter"))
+        assertTrue(VisionPrompts.REPLAN_SKILL.contains("GOAL FIDELITY"))
     }
 
     @Test

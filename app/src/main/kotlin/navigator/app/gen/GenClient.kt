@@ -182,9 +182,18 @@ class GenClient(
             ?.let { Prompts.replanUser(goal, maxSubtasks, it) }
             ?: Prompts.restructureUser(goal, maxSubtasks)
         val body = chatBody(Prompts.RESTRUCTURE_SYSTEM, user)
-        var lastError: LadderSchema.LadderSchemaException? = null
+        var lastError: String? = null
         for (attempt in 1..CONTENT_ATTEMPTS) {
-            val (content, usage) = post(body, "restructure")
+            // PHASE_16: the retry is ERROR-FED — a goal-fidelity or schema refusal tells the
+            // writer exactly what was wrong (a blind retry repeated the same plan shape).
+            val attemptUser = if (attempt == 1) {
+                user
+            } else {
+                user + "\n\n<correction>Your previous ladder was refused: " +
+                    "${lastError?.take(400)} — fix exactly that and return the STRICT JSON again.</correction>"
+            }
+            val attemptBody = if (attempt == 1) body else chatBody(Prompts.RESTRUCTURE_SYSTEM, attemptUser)
+            val (content, usage) = post(attemptBody, "restructure")
             try {
                 val ladder = LadderSchema.parse(content, maxSubtasks)
                 if (generation == 1 && ladder.rollback != null) {
@@ -193,15 +202,30 @@ class GenClient(
                             "there is no verified step to rewrite",
                     )
                 }
+                // PHASE_16 — GOAL FIDELITY: the ladder is bound to the GOAL, not to its own
+                // plan. A weakened final condition (a "buy" planned as "review the order"),
+                // a dropped parameter, a missing account token or a missing playback evidence
+                // is refused here, before any navigation.
+                val fidelity = navigator.core.ladder.GoalFidelity.check(goal, ladder)
+                if (!fidelity.ok) {
+                    throw navigator.core.ladder.LadderValidationException(
+                        "goal fidelity: " + fidelity.violations.joinToString("; "),
+                    )
+                }
                 onUsage(usage)
                 return RestructureResult(ladder, usage, Prompts.PROMPT_VERSION, generation)
-            } catch (e: LadderSchema.LadderSchemaException) {
-                lastError = e
+            } catch (e: Exception) {
+                if (e !is LadderSchema.LadderSchemaException &&
+                    e !is navigator.core.ladder.LadderValidationException
+                ) {
+                    throw e
+                }
+                lastError = e.message
             }
         }
         throw GenRefusedException(
             "the goal could not be restructured into a valid task ladder after " +
-                "$CONTENT_ATTEMPTS attempts (${lastError?.message}) — refusing cleanly, " +
+                "$CONTENT_ATTEMPTS attempts (${lastError}) — refusing cleanly, " +
                 "nothing navigates on an invalid ladder",
         )
     }
