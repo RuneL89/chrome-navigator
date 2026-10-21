@@ -623,6 +623,22 @@ class VisionExperimentTest {
     }
 
     @Test
+    fun `the same-action binding renders its proposer block`() {
+        val rendered = VisionPrompts.proposeUser(
+            "do the thing", "the page shows it", "digest", null, null,
+            VisionPrompts.SameAction(3, "type"),
+        )
+        assertTrue(rendered.contains("<same-action>"), rendered)
+        assertTrue(rendered.contains("SAME ACTION x3"), rendered)
+        assertTrue(rendered.contains("'type'"), rendered)
+        assertFalse(
+            VisionPrompts.proposeUser("do the thing", "the page shows it", "digest", null)
+                .contains("<same-action>"),
+            "no block without a same-action payload",
+        )
+    }
+
+    @Test
     fun `the translate-first law pins v15`() {
         // PHASE_15 — a non-English page is normalized by accepting the browser's
         // translate-to-English prompt BEFORE any other work. The gate floor stays

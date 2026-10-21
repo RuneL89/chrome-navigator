@@ -210,6 +210,44 @@ New a11y state as class fields; logic in non-suspend helpers, never inline. Meas
 `NavigationLoop.run()` after each change (target ≥ 6 KB headroom) and record it. The vision
 loop uses class fields per its KDoc discipline.
 
+### Stage B implementation status (2026-10-21): DONE
+
+- `NavigatorService.openBrowser` targets the allowlisted browser **package** explicitly
+  (the harness's `setPackage` precedent); a no-browser install refuses loudly.
+- `openSiteStep` **fails the subtask loudly** when the landed front window is not a browser
+  (the R4 defect); the same normalized URL may be opened **twice** per subtask, a repeat
+  fails into the re-plan, and a refused landing (`landingCoheres` false) **bans** the URL.
+- **a11y same-action binding:** `StuckDetector` exposes `sameActionRun()` (hash-scoped) and
+  `bindsSameAction()`; at 4 identical TAP/TYPE/fill/SUBMIT actions on the same screen the
+  next decision is forced to the recovery set. Verify-done, scrolling, site entry and the
+  recovery set never bind.
+- **vision same-action binding:** `consecutiveSameActions` (acted TAP/TYPE/SUBMIT + target
+  node); at 3 the proposer message carries a `<same-action>` block and the repeated verb is
+  refused in code (the step fails into the re-plan); resets on a different action, URL
+  change, subtask advance and plan install.
+- **a11y strategy guard:** a second NO-GOOD-TARGET on the same intent in a subtask forces
+  the recovery set.
+- **vision strategy guard:** after two battery re-plans on a subtask the failure context
+  carries a CHANGE STRATEGY block, and a re-plan returning the SAME failing subtask
+  (instruction + rendered condition) is refused (no install; `REPLANS_EXHAUSTED`).
+- Tests: `StuckDetectorTest` gains the run/eligibility pins; `VisionExperimentTest` pins
+  the `<same-action>` block; the existing suites were updated only where the binding
+  changes the stuck-law sequence (the L3 owner-card count is 2–3).
+- Method size: `NavigationLoop.run()` **57,387 / 65,535** (8,148 headroom).
+- APK: 35,879,231 bytes; dex `vision-exp-v16`, the new literals present.
+
+**Deviations (recorded):**
+1. A refused landing **bans** the URL for the subtask rather than killing the subtask on
+   the spot: `SiteEntry.landingCoheres` is a title heuristic and can false-negative; the
+   ban removes the repeat while leaving another route open.
+2. The a11y same-action binding fires at **4** identical actions (the `same-action-3x`
+   hint stays at 3) — the scroll-churn split's precedent (hint 3 / stop 4).
+3. The vision same-action filter refuses the **verb** (not a candidate id): the proposer's
+   proposals carry descriptions, not node ids, so the target is matched at the acted key
+   and the refusal is verb-level.
+4. The product launcher package fix has no JVM test (Android service); the UAT exercises
+   it on R4.
+
 ---
 
 ## 4. Technical Approval Gates

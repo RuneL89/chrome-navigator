@@ -262,6 +262,23 @@ class NavigationLoop(
     private val typeMechFailedLegs = mutableMapOf<String, MutableSet<TypeMechanism.Mechanism>>()
     private val typeMechAttemptCauses = mutableListOf<TextEntryFailure>()
 
+    /**
+     * PHASE_16 — the per-subtask site-entry URL counts (the R2 same-URL loop guard): the
+     * same normalized URL may be opened at most [MAX_SITE_ENTRY_OPENS] times in a subtask.
+     * CLASS field (the method-size discipline); cleared on run start, subtask advance and
+     * plan install.
+     */
+    private val siteEntryOpens = mutableMapOf<String, Int>()
+
+    /**
+     * PHASE_16 — the intent that produced a NO-GOOD-TARGET in this subtask (the strategy
+     * guard): a SECOND no-good-target on the same intent forces the recovery set instead
+     * of re-asking the same question (the R3 tree fill-field loop). CLASS fields; reset on
+     * run start, subtask advance and plan install.
+     */
+    private var noGoodIntent: String? = null
+    private var noGoodIntentCount = 0
+
     data class Config(
         /** Vision 03 §5: fewer meaningful nodes than this = unusable tree. */
         val minUsableNodes: Int = 5,
@@ -415,6 +432,9 @@ class NavigationLoop(
         typeMechPageHash = null
         typeMechSubtaskKey = null
         typeMechFailedLegs.clear()
+        siteEntryOpens.clear()
+        noGoodIntent = null
+        noGoodIntentCount = 0
 
         // -- the task ladder (Phase 10, vision 04 §1 v1.4.0) ---------------------------
         // When [ladderSource] is wired, EVERY goal restructures before any navigation:
@@ -892,6 +912,16 @@ class NavigationLoop(
                 1 -> {
                     line("stuck: L1 hint injected (${assessment.signals})")
                     hints.add(StuckDetector.HINT)
+                    // PHASE_16: the same-action signal is BINDING — the next decision comes
+                    // from the recovery set, so the identical action cannot be repeated (the
+                    // R1-PT five-submit loop: the hint alone changed nothing).
+                    if (assessment.signals.any { it == StuckDetector.SIGNAL_SAME_ACTION } &&
+                        StuckDetector.bindsSameAction(stuck.lastActionKey()) &&
+                        stuck.sameActionRun() >= SAME_ACTION_BIND_AFTER
+                    ) {
+                        line("stuck: same action repeated - the next decide comes from the recovery set")
+                        recoveryArmed = true
+                    }
                     // Sixth signal (vision 04 §3 v1.2.0): the exit-conflict note rides
                     // the L1 hint so the engine re-orients to evidence, not finishing.
                     assessment.exitConflictEvidence?.let { evidence ->
@@ -952,6 +982,9 @@ class NavigationLoop(
             guards = CompletionGuards(triageClass!!, entity, taskTracker)
             exitPolicy = ExitPolicy()
             consecutiveSubtaskFailures = 0
+            siteEntryOpens.clear() // a new plan: fresh site-entry budget
+            noGoodIntent = null // a new plan: fresh intent-strategy memory
+            noGoodIntentCount = 0
             lastCodeCheck = null // a fresh ladder: the code-check rate bound starts clean
             codeCheckHash = null
             codeCheckCountOnHash = 0
@@ -1097,11 +1130,11 @@ class NavigationLoop(
                 )
                 return
             }
-            line(
-                "site-entry: VIEW intent for ${entryPlan.url} (${entryPlan.source}) - " +
-                    "subtask ${p.activeOrdinal}/${p.total}",
-            )
-            launcher.launch(entryPlan.url)
+        line(
+            "site-entry: VIEW intent for ${entryPlan.url} (${entryPlan.source}) - " +
+                "subtask ${p.activeOrdinal}/${p.total}",
+        )
+        launcher.launch(entryPlan.url)
             pendingLandingReconcile = true
             delay(config.restoreSettleMs)
             waitForBrowserReadiness()
@@ -1442,6 +1475,9 @@ class NavigationLoop(
             activePointer.advance()
             exitPolicy = ExitPolicy() // fresh per-subtask exit discipline
             consecutiveSubtaskFailures = 0
+            siteEntryOpens.clear() // a new subtask: fresh site-entry budget
+            noGoodIntent = null // a new subtask: fresh intent-strategy memory
+            noGoodIntentCount = 0
             lastCodeCheck = null // the ordinal changed: the code-check rate bound re-arms
             codeCheckHash = null
             codeCheckCountOnHash = 0
@@ -2892,6 +2928,16 @@ class NavigationLoop(
                     return cascadeFallbackStep("open-site could not resolve a URL to open", withStage2 = false)
                 }
                 line("open-site: VIEW intent for ${entryPlan.url} (${entryPlan.source}) - code opens the URL directly")
+                // PHASE_16 (the R2 loop): the same URL may be opened at most
+                // MAX_SITE_ENTRY_OPENS times in a subtask; a repeat fails the subtask into
+                // the re-plan path instead of re-firing the intent forever.
+                if (!recordSiteEntry(entryPlan.url)) {
+                    line(
+                        "open-site: ${entryPlan.url} already opened $MAX_SITE_ENTRY_OPENS times " +
+                            "in this subtask - no-good-target fallback, nothing launched",
+                    )
+                    return handleSubtaskFailureOrKill("site entry repeated the same URL (${entryPlan.url})")
+                }
                 launcher.launch(entryPlan.url)
                 pendingLandingReconcile = true
                 delay(config.restoreSettleMs)
@@ -2900,6 +2946,17 @@ class NavigationLoop(
                 val post = observer.observe()
                 notePageUrl(post)
                 lastPost = post
+                // PHASE_16: a URL taken by a native app's handler leaves the browser —
+                // the R4 defect. Fail the subtask loudly instead of continuing blind.
+                if (!BrowserPackages.isBrowser(post.windowPackage)) {
+                    line(
+                        "open-site: the URL was taken outside the browser " +
+                            "(front=${post.windowPackage}) - the site entry failed",
+                    )
+                    return handleSubtaskFailureOrKill(
+                        "open-site landed outside the browser (${post.windowPackage})",
+                    )
+                }
                 // Landing coherence (post-UAT repair 2, doc 04 §1 v1.8.2): a path-bearing
                 // arrival whose landed title shares nothing with the requested path is a
                 // Not-Found-shaped landing (the battery's allrecipes 404) — the condition's
@@ -2909,6 +2966,9 @@ class NavigationLoop(
                         "open-site: the landed page's title is not coherent with the requested " +
                             "path (${entryPlan.url}) - the arrival's condition cannot verify here",
                     )
+                    // PHASE_16: a refused landing bans the URL for this subtask — the
+                    // next route must differ (the engine's own intents / a re-plan).
+                    banSiteEntry(entryPlan.url)
                 }
                 val outcome = when {
                     post.lines == obs.lines -> Outcome.NO_CHANGE
@@ -3121,6 +3181,29 @@ class NavigationLoop(
                     "decide: stage-2 NO-GOOD-TARGET (${s2.reason}) - " +
                         "handshake/fallback, never a tap",
                 )
+                // PHASE_16 — THE STRATEGY GUARD: a SECOND no-good-target on the SAME
+                // intent in this subtask forces the recovery set. The one bounded re-ask
+                // below already asks for a DIFFERENT intent; repeating the same one means
+                // the intent itself is wrong (the R3 tree: fill-field on a results page,
+                // six times). Code-owned, no extra model call.
+                if (noGoodIntent == intentId) {
+                    noGoodIntentCount += 1
+                } else {
+                    noGoodIntent = intentId
+                    noGoodIntentCount = 1
+                }
+                if (noGoodIntentCount >= 2) {
+                    line(
+                        "decide: the '$intentId' intent has no good target TWICE on this " +
+                            "subtask - the recovery set is forced (the intent is wrong, not the page)",
+                    )
+                    noGoodIntent = null
+                    noGoodIntentCount = 0
+                    recoveryArmed = true
+                    logNoChangeRow(state, question, choice, candidates, targetScores, targetViewText)
+                    stepIndex += 1
+                    return null
+                }
                 // Phase 10C (vision 04 §2 v1.7.0): ONE bounded stage-1 re-ask
                 // with the fact, instead of failing the subtask.
                 val reaskedFlat = reaskIntent(
@@ -3845,6 +3928,28 @@ class NavigationLoop(
         usable(obs) && BrowserPackages.isBrowser(obs.windowPackage)
 
     /**
+     * PHASE_16 — records one site-entry launch of [url]. False when the URL already
+     * reached [MAX_SITE_ENTRY_OPENS] in the current subtask (the caller must not launch
+     * again). A deliberately simple normalization (scheme, case, trailing slash): the
+     * same URL is what matters, not query noise.
+     */
+    private fun recordSiteEntry(url: String): Boolean {
+        val key = siteEntryKey(url)
+        val opens = siteEntryOpens[key] ?: 0
+        if (opens >= MAX_SITE_ENTRY_OPENS) return false
+        siteEntryOpens[key] = opens + 1
+        return true
+    }
+
+    /** PHASE_16 — a refused landing bans the URL for the rest of the subtask. */
+    private fun banSiteEntry(url: String) {
+        siteEntryOpens[siteEntryKey(url)] = MAX_SITE_ENTRY_OPENS
+    }
+
+    private fun siteEntryKey(url: String): String =
+        url.trim().lowercase().removePrefix("https://").removePrefix("http://").removeSuffix("/")
+
+    /**
      * The state-truthful observe-refusal detail (2026-10-17, doc 03 §5 v2.7.0): when NO
      * browser window was ever front this run, "I can't read this site" misattributes the
      * failure — there was no SITE in front of the lens at all (the 2026-10-17 hotel
@@ -4042,6 +4147,16 @@ class NavigationLoop(
          * the owner card's Re-plan draws the SAME cap.
          */
         const val MAX_REPLANS = 2
+
+        /** PHASE_16: the same site-entry URL may be opened this many times per subtask. */
+        const val MAX_SITE_ENTRY_OPENS = 2
+
+        /**
+         * PHASE_16: the identical acted action binds the next decision to the recovery set
+         * at this run length (3 repeats are the L1 hint; 4 force a change — the
+         * scroll-churn split's precedent).
+         */
+        const val SAME_ACTION_BIND_AFTER = 4
 
         /**
          * Phase 10 (vision 04 §1 v1.4.0, ART-5): consecutive subtask failures before the

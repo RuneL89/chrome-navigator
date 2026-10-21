@@ -250,6 +250,30 @@ paths are unchanged by the promotion.
 
 ## 5. Recovery, stuck detection and budgets
 
+**The loop-guard law (PHASE_16 — binding, code-owned).** Repetition is a code problem, not
+a model problem; a hint alone is not a guard.
+
+- **Same action (a11y):** `StuckDetector` keeps the 6-signal / 8-step escalation, and its
+  `same-action-3x` signal now BINDS: when the identical action key has been acted **4**
+  times on the SAME screen (a screen-hash change is progress), the next decision comes from
+  the recovery set — the action cannot repeat. Only TAP/TYPE/fill/SUBMIT keys bind;
+  verify-done, scrolling, site entry and the recovery set never do.
+- **Same action (vision):** consecutive ACTED TAP/TYPE/SUBMIT actions on the same target
+  are counted; at **3** the proposer message carries a `<same-action>` block, and the
+  repeated verb is REFUSED in code (the step fails into the re-plan path). Reset on a
+  different action, a URL change, a subtask advance and a new plan.
+- **Same URL (a11y site entry):** the same normalized URL may be opened at most **twice**
+  per subtask; a repeat fails the subtask into the re-plan path, and a refused landing
+  (`SiteEntry.landingCoheres` false) **bans** that URL for the subtask.
+- **Strategy (a11y):** a SECOND NO-GOOD-TARGET on the same intent in a subtask forces the
+  recovery set — the intent is wrong, not the page.
+- **Strategy (vision):** after two battery re-plans on the same subtask the failure context
+  carries a CHANGE STRATEGY block, and a re-plan that returns the SAME failing subtask
+  (instruction + rendered condition) is REFUSED — no install, no further capacity.
+- **Site entry never leaves the browser:** the product's VIEW intent targets the
+  allowlisted browser PACKAGE explicitly; a landing whose front window is not a browser
+  fails the subtask loudly.
+
 **Vision engine budgets (owner directive 2026-10-19: 100× product values — "models are
 dirt cheap; runs may span days"):**
 

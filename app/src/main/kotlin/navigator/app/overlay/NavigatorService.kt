@@ -528,9 +528,19 @@ class NavigatorService : Service() {
     // -- notification + browser edges -------------------------------------------------------
 
     private fun openBrowser(url: String) {
+        // PHASE_16: target the allowlisted browser PACKAGE explicitly (the harness's
+        // precedent). A bare ACTION_VIEW lets a native app's URL handler take the intent
+        // (VEXP9 R4: youtube.com opened the YouTube app and the loop never saw Chrome).
         runCatching {
+            val browser = HarnessObserver.installedBrowser(this)
+            if (browser == null) {
+                Log.e(TAG, "openBrowser refused: no allowlisted browser is installed (url hidden)")
+                return
+            }
             startActivity(
-                Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                    .setPackage(browser)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
             )
         }.onFailure { Log.w(TAG, "openBrowser failed: ${it::class.simpleName}: ${it.message}") }
     }

@@ -117,7 +117,7 @@ class StuckDetector(private val windowSize: Int = WINDOW) {
     fun assess(): Assessment? {
         var exitConflictEvidence: String? = null
         val tripped = buildList {
-            if (sameActionTripped()) add("same-action-3x")
+            if (sameActionTripped()) add(SIGNAL_SAME_ACTION)
             if (hashUnchangedTripped()) add("screen-hash-unchanged-3x")
             if (zeroTextDiffTripped()) add("zero-text-diff-3x")
             if (highRepetitionTripped()) add("high-repetition")
@@ -161,6 +161,26 @@ class StuckDetector(private val windowSize: Int = WINDOW) {
     /** Sixth signal (vision 04 §3 v1.2.0): consecutive refused finishes. */
     private fun exitConflictTripped(): Boolean = exitConflictStreak >= EXIT_CONFLICT_CHECKS
 
+    /**
+     * PHASE_16 — the most recent recorded action key (the loop's same-action binder
+     * inspects it). Null before any footprint.
+     */
+    fun lastActionKey(): String? = window.lastOrNull()?.actionKey
+
+    /**
+     * PHASE_16 — the length of the CURRENT trailing run of identical action keys ON THE
+     * SAME SCREEN (0 when the newest footprint has no key). A screen-hash change is
+     * progress and resets the run. The loop binds at 4: 3 repeats are the hint, the 4th
+     * forces the recovery set (the scroll-churn split's precedent, hint 3 / stop 4).
+     */
+    fun sameActionRun(): Int {
+        val last = window.lastOrNull() ?: return 0
+        val key = last.actionKey ?: return 0
+        return window.reversed()
+            .takeWhile { it.actionKey == key && it.screenHash == last.screenHash }
+            .count()
+    }
+
     companion object {
         /** Vision 04 §4: the rolling window. */
         const val WINDOW = 8
@@ -177,6 +197,23 @@ class StuckDetector(private val windowSize: Int = WINDOW) {
 
         /** The sixth signal's name in an assessment's signal list. */
         const val EXIT_CONFLICT_SIGNAL = "exit-conflict-3x"
+
+        /** The same-action signal's name (PHASE_16: the loop binds on it). */
+        const val SIGNAL_SAME_ACTION = "same-action-3x"
+
+        /**
+         * PHASE_16 — whether a repeated [key] is a BINDING-eligible navigation action.
+         * Verify-done checks, the code-triggered readiness rows, scrolling (legitimate on
+         * long pages) and the recovery set itself are NOT bound: repeating them is lawful.
+         */
+        fun bindsSameAction(key: String?): Boolean =
+            key != null && (
+                key.startsWith("SUBMIT:") ||
+                    key.startsWith("fill-field:") ||
+                    key.startsWith("fill-yield:") ||
+                    key.startsWith("TAP:") ||
+                    key.startsWith("TYPE:")
+                )
 
         /** The L1 hint line injected into HISTORY (app-authored line, ART-4-safe). */
         const val HINT =

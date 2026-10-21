@@ -216,4 +216,33 @@ class StuckDetectorTest {
         val hint = StuckDetector.exitConflictHint("WEAK")
         assertTrue(hint.contains("engine wants to finish, evidence says WEAK"))
     }
+
+    // -- PHASE_16: the same-action binding primitives -----------------------------------
+
+    @Test
+    fun `the same-action run counts only the trailing run on the same screen`() {
+        val detector = StuckDetector()
+        repeat(3) { detector.record(footprint(action = "SUBMIT:n12", hash = 7)) }
+        assertEquals(3, detector.sameActionRun(), "three identical submits on one screen")
+        assertEquals("SUBMIT:n12", detector.lastActionKey())
+
+        // A screen change is progress: the trailing run restarts at 1.
+        detector.record(footprint(action = "SUBMIT:n12", hash = 8))
+        assertEquals(1, detector.sameActionRun())
+    }
+
+    @Test
+    fun `only navigation actions are binding-eligible`() {
+        assertTrue(StuckDetector.bindsSameAction("SUBMIT:n12"))
+        assertTrue(StuckDetector.bindsSameAction("TAP:n2"))
+        assertTrue(StuckDetector.bindsSameAction("TYPE:n4"))
+        assertTrue(StuckDetector.bindsSameAction("fill-field:n3"))
+        // Verify-done checks, site entry (its own guard), scrolling (legitimate) and the
+        // recovery set are NOT bound.
+        assertFalse(StuckDetector.bindsSameAction("VERIFY_DONE"))
+        assertFalse(StuckDetector.bindsSameAction("open-site"))
+        assertFalse(StuckDetector.bindsSameAction("scroll:n3"))
+        assertFalse(StuckDetector.bindsSameAction("go-back"))
+        assertFalse(StuckDetector.bindsSameAction(null))
+    }
 }

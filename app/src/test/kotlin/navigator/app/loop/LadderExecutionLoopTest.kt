@@ -474,7 +474,12 @@ class LadderExecutionLoopTest {
             assertEquals(TerminalState.STUCK_KILL, result.terminal, "resolution #$index")
             assertTrue(presenter.presented.isNotEmpty(), "the card fired (resolution #$index)")
             presenter.presented.forEach { card ->
-                assertEquals(2, card.failureCount, "the give-up failure + the intercepted L3 kill")
+                // PHASE_16: the 4-repeat same-action binding can add one give-up failure
+                // before the intercepted L3 kill, so the count is 2 or 3 per resolution.
+                assertTrue(
+                    card.failureCount in 2..3,
+                    "the give-up failure(s) + the intercepted L3 kill: ${card.failureCount}",
+                )
                 assertEquals(0, card.rePlansRemaining, "the exhausted cap is disclosed")
                 assertEquals("an impossible marker", card.subtaskInstruction, "the card shows the ACTIVE subtask")
             }

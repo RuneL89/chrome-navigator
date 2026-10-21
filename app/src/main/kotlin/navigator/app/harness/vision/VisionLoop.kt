@@ -209,6 +209,13 @@ class VisionLoop(
          * CTA only the soft hint fires (long results pages may legitimately scroll).
          */
         val scrollChurnReplanAfter: Int = 4,
+        /**
+         * PHASE_16 — the SAME-ACTION binding: after this many consecutive identical ACTED
+         * TAP/TYPE/SUBMIT actions the proposer is told to change and the repeated verb is
+         * REFUSED in code (the step fails into the re-plan path). The scroll-churn law
+         * handles scrolls; a Failed proposal never counts.
+         */
+        val sameActionFilterAfter: Int = 3,
     ) {
         init {
             require(scrollChurnReplanAfter >= scrollChurnHintAfter) {
@@ -410,6 +417,18 @@ class VisionLoop(
     /** Whether the one-per-churn-episode soft-hint evidence line already fired. */
     private var churnHintLogged = false
 
+    /**
+     * PHASE_16 — the SAME-ACTION counter (the binding loop guard). It follows ACTED
+     * TAP/TYPE/SUBMIT proposals only (verb + target node); scroll/back and a Failed
+     * proposal never touch it. At [Config.sameActionFilterAfter] the proposer is told to
+     * change and the repeated verb is REFUSED in code — the step fails into the re-plan
+     * path instead of looping (the R3 vision type/clear/submit loop, 74 steps).
+     * Resets on any different acted action, a URL change, a subtask advance and a new plan.
+     */
+    private var sameActionKey: String? = null
+    private var sameActionVerb: VisionPrompts.ProposalAction? = null
+    private var consecutiveSameActions = 0
+
     /** This step's visible-purchase-control detection (set once per observation). */
     private var stepPurchaseControlVisible = false
 
@@ -512,6 +531,7 @@ class VisionLoop(
         // PHASE_VEXP8: the scroll-churn counter never crosses runs/tasks.
         consecutiveScrolls = 0
         churnHintLogged = false
+        resetSameAction() // PHASE_16: the same-action memory never crosses runs/tasks
         lastObservedUrl = obs.url
         stepPurchaseControlVisible = PurchaseControl.hasVisible(obs.nodes)
 
@@ -548,6 +568,7 @@ class VisionLoop(
             // PHASE_VEXP8: a subtask advance resets the scroll-churn counter.
             consecutiveScrolls = 0
             churnHintLogged = false
+            resetSameAction() // PHASE_16: a new subtask is a new action space
             step += 1
             return null
         }
@@ -574,6 +595,7 @@ class VisionLoop(
             if (lastObservedUrl != null && obs.url != lastObservedUrl) {
                 consecutiveScrolls = 0
                 churnHintLogged = false
+                resetSameAction() // PHASE_16: a URL change is progress
             }
             lastObservedUrl = obs.url
             // The purchase-CTA boolean is computed ONCE per observation (pure, no click).
@@ -1010,11 +1032,23 @@ class VisionLoop(
                 // WI1a) — it replaces the old prose "Last outcomes" line so the re-plan
                 // sees Jev's actual findings (battery verdicts, the code verdict, the
                 // typed escalation, the best grounding, the action route).
-                val failureCtx = failureContext(pointer, active, doneText)
+                val failureCtx = failureContext(pointer, active, doneText, batteryReplans)
                 val fresh = captureSafely(screenshots++)
                 val rePlan = planLadder(goal, obs, failure = failureCtx, shot = fresh)
                 if (rePlan == null) {
                     evidence.event("re-plan refused: no valid ladder — stopping")
+                    return terminal(Terminal.REPLANS_EXHAUSTED, ladder)
+                }
+                // PHASE_16 — the strategy guard: after TWO prior battery re-plans on this
+                // subtask, a re-plan that returns the SAME failing subtask is refused —
+                // no install, no further capacity (a wording change is not a strategy).
+                if (batteryReplans >= 2 && unchangedFailingSubtask(rePlan.ladder, ladder, pointer)) {
+                    val line = "re-plan refused: the failing subtask is UNCHANGED after " +
+                        "${batteryReplans + 1} battery re-plans on the same failure - the plan " +
+                        "must change the APPROACH, not the wording"
+                    outcomes.add(line)
+                    log("[vision] $line")
+                    evidence.event(line)
                     return terminal(Terminal.REPLANS_EXHAUSTED, ladder)
                 }
                 if (batteryReplanQueued) {
@@ -1045,6 +1079,7 @@ class VisionLoop(
                 // PHASE_VEXP8: a new plan install resets the scroll-churn counter.
                 consecutiveScrolls = 0
                 churnHintLogged = false
+                resetSameAction() // PHASE_16: a new plan is a new action space
                 // A battery-escalation re-plan must be given an action attempt before
                 // the battery re-fires (the live-run starvation defect): arm the guard.
                 if (stepEscalation != null) batteryEscalatedWithoutAction = true
@@ -1101,6 +1136,7 @@ class VisionLoop(
                     VisionPrompts.PROPOSE_SYSTEM,
                     VisionPrompts.proposeUser(
                         active.instruction, doneText, digest(obs), typedSoFar, scrollChurn,
+                        sameActionGuidance(),
                     ),
                     shot?.base64,
                     "propose",
@@ -1212,6 +1248,17 @@ class VisionLoop(
         }
 
         val proposal = proposals.getOrNull(pickIndex) ?: proposals.first()
+        // PHASE_16 — the same-action binding: at the filter threshold a repeated verb is
+        // refused in code (the proposer was guided to change; if it did not, fail into the
+        // re-plan path rather than looping — the R3 vision type/clear/submit loop).
+        sameActionGuidance()?.let { guidance ->
+            if (proposal.action == sameActionVerb) {
+                return Attempted.Failed(
+                    "the same '${guidance.verb}' action was acted ${guidance.count} times " +
+                        "with no progress - refusing to repeat it",
+                )
+            }
+        }
 
         // -- MATCH: the EXPLICIT grounding-quality ladder --------------------------------
         // (the fourth actual-app live-test repair, 2026-10-19, task-1792397135186): the
@@ -1778,6 +1825,25 @@ class VisionLoop(
                 churnHintLogged = false
             }
         }
+        // PHASE_16 — the same-action counter (acted TAP/TYPE/SUBMIT only; scroll/back and
+        // a Failed proposal never touch it). A different action resets the run.
+        val bindingAction = effectiveAction == VisionPrompts.ProposalAction.TAP ||
+            effectiveAction == VisionPrompts.ProposalAction.TYPE ||
+            effectiveAction == VisionPrompts.ProposalAction.SUBMIT
+        val actedKey = if (executed && bindingAction) {
+            "${effectiveAction.name}:${target?.node?.id ?: "-"}"
+        } else {
+            null
+        }
+        if (actedKey != null && actedKey == sameActionKey) {
+            consecutiveSameActions += 1
+        } else if (actedKey != null) {
+            sameActionKey = actedKey
+            sameActionVerb = effectiveAction
+            consecutiveSameActions = 1
+        } else {
+            resetSameAction()
+        }
         return Attempted.Acted(detail, target?.node?.id, typed, progresses, effectiveAction)
     }
 
@@ -1855,10 +1921,35 @@ class VisionLoop(
             "in this task - task aborted"
 
     /** The informed re-plan's failure context: the failing subtask + the evidence block. */
-    private fun failureContext(index: Int, active: Subtask, doneText: String): String = buildString {
+    private fun failureContext(
+        index: Int,
+        active: Subtask,
+        doneText: String,
+        batteryReplans: Int,
+    ): String = buildString {
         append("subtask ${index + 1}: \"${active.instruction}\" (done: $doneText).")
+        // PHASE_16 — the strategy-change constraint: when this subtask has already been
+        // battery-re-planned once after the SAME failure, the next plan must change the
+        // APPROACH, not the wording (the R3 vision loop: 23 identical search escalations).
+        if (batteryReplans >= 1) {
+            append("\n\nCHANGE STRATEGY: this subtask has already been re-planned after the " +
+                "SAME failure (battery re-plan #${batteryReplans + 1}). Change the APPROACH — " +
+                "a different site, route or control class — not the wording of the failing subtask.")
+        }
         append("\n\n")
         append(VisionPrompts.jevEvidenceBlock(currentEvidence(doneText)))
+    }
+
+    /**
+     * PHASE_16 — whether a re-planned ladder leaves the failing subtask byte-identical
+     * (instruction + rendered condition). The strategy guard refuses such a re-plan after
+     * the same failure repeated: it would loop on the same approach.
+     */
+    private fun unchangedFailingSubtask(next: Ladder, previous: Ladder, index: Int): Boolean {
+        val was = previous.subtasks.getOrNull(index) ?: return false
+        val now = next.subtasks.getOrNull(index) ?: return false
+        return was.instruction.trim() == now.instruction.trim() &&
+            DoneConditionChecker.render(was.done) == DoneConditionChecker.render(now.done)
     }
 
     /** Assembles the evidence block from the per-step cache — ZERO extra model calls. */
@@ -1889,6 +1980,23 @@ class VisionLoop(
         } else {
             null
         }
+
+    /** PHASE_16 — the same-action guidance block at/after the filter threshold. */
+    private fun sameActionGuidance(): VisionPrompts.SameAction? {
+        val verb = sameActionVerb
+        return if (consecutiveSameActions >= config.sameActionFilterAfter && verb != null) {
+            VisionPrompts.SameAction(consecutiveSameActions, verb.name.lowercase())
+        } else {
+            null
+        }
+    }
+
+    /** PHASE_16 — resets the same-action memory (a different action, URL, subtask or plan). */
+    private fun resetSameAction() {
+        sameActionKey = null
+        sameActionVerb = null
+        consecutiveSameActions = 0
+    }
 
     /** The GROUND request's state: the subtask and the code-readable page, plus the screenshot reference when the image rides. */
     private fun groundState(active: Subtask, doneText: String, obs: StepObservation, imageRef: String?): String =

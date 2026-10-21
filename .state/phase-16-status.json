@@ -3,7 +3,7 @@
   "title": "Goal Fidelity & Loop Guards",
   "phaseDoc": "Implementation Plan/PHASE_16_goal_fidelity_and_loop_guards.md",
   "branch": "exp/tree-first (master stays at 1a0af26; the merge is deferred to UAT 16.2)",
-  "status": "IN PROGRESS — Stage A DONE (gates 16.1-16.3 green); Stage B next",
+  "status": "IN PROGRESS — Stages A+B DONE (gates 16.1-16.6 green); owner UAT pending",
   "startedAt": "2026-10-21",
   "source": "PHASE_VEXP9 iteration 2 corpus (R1–R4, tree + vision); the owner accepted the findings and the fix plan",
   "ownerDecisions": {
@@ -13,24 +13,31 @@
   },
   "stages": {
     "A-goal-fidelity": "DONE — GoalFidelity (core) + the error-fed wiring at both ladder builds + vision prompt v16 / gen restructure-v5 + the goldens v5 + the hatch sixth guard + the final-WEAK empty-battery rule + the tests",
-    "B-loop-guards": "PENDING — binding same-action ban (both engines), same-URL site-entry guard, strategy-progress guard, the product launcher package fix, tests",
-    "gates": "16.1-16.3 PASS; 16.4-16.6 pending",
+    "B-loop-guards": "DONE — the product launcher package fix + the non-browser landing check; the same-URL site-entry guard (2 per subtask, a refused landing bans); the a11y same-action binding (4 identical TAP/TYPE/fill/SUBMIT on the same screen -> the recovery set); the vision same-action filter (3 -> <same-action> block + the code refusal); the a11y strategy guard (a second NO-GOOD-TARGET on the same intent -> the recovery set); the vision strategy guard (after 2 battery re-plans, CHANGE STRATEGY + an identical failing subtask refused); the tests",
+    "gates": "16.1-16.6 PASS",
     "uat": "PENDING — the attended R1–R4 re-run (owner), then the merge decision"
   },
   "gatesPassed": [
     "16.1 GoalFidelityTest 12/12 (core)",
     "16.2 VisionLoopEscapeHatchTest 7/7 — including the R3b empty-checkout and R4 unverified-account regressions",
-    "16.3 GenClientTest 17/17 — the R3b/R4 build refusals + the good-purchase acceptance; full :app + :core suites green"
+    "16.3 GenClientTest 17/17 — the R3b/R4 build refusals + the good-purchase acceptance",
+    "16.4 the loop guards: StuckDetectorTest (the run/eligibility pins) + the updated stuck-law suites green; the vision same-action prompt pin",
+    "16.5 the launcher/site-entry: the non-browser landing check + the same-URL guard (UAT exercises the package targeting on R4)",
+    "16.6 full :app + :core suites green; assembleDebug SUCCESS; APK 35,879,231 bytes; dex vision-exp-v16 + the new literals; run() 57,387/65,535 (8,148 headroom)"
   ],
   "gatesFailed": [],
   "gatesPending": [
-    "16.4 the loop-guard suites",
-    "16.5 the launcher/site-entry tests",
-    "16.6 full suites + assembleDebug + method-size"
+    "UAT 16.1 — the attended R1–R4 corpus re-run (owner)",
+    "UAT 16.2 — the merge decision"
   ],
-  "deviations": [],
+  "deviations": [
+    "A refused landing BANS the URL for the subtask rather than killing the subtask on the spot: SiteEntry.landingCoheres is a title heuristic and can false-negative.",
+    "The a11y same-action binding fires at 4 identical actions (the same-action-3x hint stays at 3) — the scroll-churn split's precedent (hint 3 / stop 4).",
+    "The vision same-action filter refuses the VERB (the proposals carry descriptions, not node ids); the target is matched at the acted key.",
+    "The product launcher package fix has no JVM test (Android service); the UAT exercises it on R4."
+  ],
   "llmCost": 0,
   "blocker": null,
-  "nextAction": "Stage B: the binding same-action ban (a11y class-field counter + the vision consecutiveSameAction filter), the same-URL/site-entry guard, the strategy-progress guard, and the product launcher package fix, with their tests and the method-size measurement.",
+  "nextAction": "Owner UAT 16.1: the attended R1–R4 corpus re-run on the Phase 16 build (agent attached, resets, navcap); R3's ladder must end on the order confirmation (an actual order is owner-approved per run); then UAT 16.2, the merge decision.",
   "mergePolicy": "The branch merges to master only after the whole experiment (this phase + the re-scoped hybrid) is accepted; the doc's section 7 lists the exact files and order."
 }
