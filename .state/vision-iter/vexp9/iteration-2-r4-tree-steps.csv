@@ -1,0 +1,2 @@
+run_id,step_index,t_ms,subtask,intent,p_chosen,margin,route,slate_size,target_id,target_score,action,outcome,page_changed,advanced,seam,shadow_sampled,shadow_mode,shadow_proposal,shadow_target_id,shadow_iou,shadow_confidence,shadow_agrees,escalated,escalation_mode,escalation_result,correctness,correctness_basis,recovery_cost_ms
+task-1792582999425,0,17986,,open-site,0.810,0.640,HIGH,,,,,,unknown,false,UNREADABLE,,,,,,,,,,,,,

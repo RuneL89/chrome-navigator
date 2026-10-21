@@ -55,7 +55,22 @@
   "stopRule": "Stage 5 reached and the owner decided, OR two consecutive iterations with no new failure class and no decision-table change, OR the owner calls it.",
   "budgetHardCapUsd": 15,
   "llmCost": 0,
-  "runs": 3,
+  "runs": 10,
+  "iteration2": {
+    "report": ".state/vision-iter/vexp9/iteration-2.md",
+    "tree": {
+      "R2": "task-1792582512866 — SITE_ENTRY_LOOP, USER_CANCEL, 35 steps / 149.5 s; 33 x open-site on the same /c/WWE/live URL, landing refused each time, stuck detector blind (screen hash changes)",
+      "R3": "task-1792582841781 — WRONG_INTENT, STUCK_KILL, 9 steps / 45.5 s; fill-field chosen 6x on a results page, form-fields slate 1.4 < 3.0 floor, no intent-level escape",
+      "R4": "task-1792582999425 — APP_ROUTING, REFUSED, 1 step / 58.6 s; the VIEW intent for youtube.com was handled by the native YouTube app; never reached Chrome; 20 unusable reads"
+    },
+    "vision": {
+      "R2": "task-1792583186163 — GOAL_ACHIEVED, 19 steps / 127.0 s; typed rumble.com, searched WWE, Live tab, WWE Main Event video; player state not visually confirmed",
+      "R3": "task-1792583535017 — WRONG_SITE/SEARCH_LOOP, CANCELLED, 74 steps / 506.2 s; the new-tab shortcut anchored the plan on Verkkokauppa.com (which does not carry the item); 23 battery escalations, type/clear/submit loop",
+      "R3b": "task-1792584388905 — FALSE COMPLETION (MODELS_CONFIRM_DONE), 29 steps / 202.9 s; plan said 'review the order summary WITHOUT placing the order yet'; checkout empty (no address, no order), cart 42 EUR; the finality law validated the plan's last condition, goal noul 0.74 passed",
+      "R4": "PENDING"
+    },
+    "criticalFinding": "R3b is a product-level safety defect: a 'buy' goal can be reported GOAL_ACHIEVED on an empty checkout. Two layers: (1) the writer weakened 'buy' into 'review the order summary' in both the plan and the re-plan, so the final condition is satisfiable without an order; (2) MODELS_CONFIRM_DONE validates the plan's final condition, not the goal's end state, and the goal noul (0.74) agreed with the weakened condition. No perception escalation fixes this. Counts as INCORRECT for the R3 anchor (address and order absent)."
+  },
   "iteration1": {
     "report": ".state/vision-iter/vexp9/iteration-1.md",
     "tree": "task-1792579625273 — R1-cold, STUCK_KILL, 12 steps / 59.6 s / $0.057; 8 decisions, 5 UNCERTAIN; subtask 1 verified in 9 s; died on the untranslated page + search affordance",
@@ -76,6 +91,6 @@
     ]
   },
   "blocker": null,
-  "nextAction": "Iteration 2: (1) fix the ExitPolicy refusal wording; (2) fix the TranslatePrompt leading-label (KD-13); (3) implement the Stage-3 rescue hook at UNCERTAIN and same-action-3x-unchanged with the seeded mode draw; (4) decide budget parity for Stage 4; (5) run the rescue arm on R1 cold and pre-translated. Attended session.",
+  "nextAction": "Finish the corpus: R4 vision (last arm). Then the fix-design discussion, with the R3b false completion FIRST (goal-fidelity in the plan + a goal-level finality guard), ahead of the hybrid rescue work. Attended session; owner present for the R4 channel reset.",
   "masterPolicy": "master receives no experiment code. If the recommendation is accepted, the change is written as its own phase doc and implemented on master."
 }

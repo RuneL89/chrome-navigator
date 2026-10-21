@@ -422,6 +422,12 @@ the same state:
 - **R4:** the active user channel is the whole point of the goal — after a successful run
   it is already `MrAwesome`. **Switch back to the starting account before every run**, or
   the next run starts mid-goal and the measurement is meaningless.
+- **R3 is site-agnostic, so the STARTING PAGE is part of the precondition.** The planner
+  reads the visible page as context (iteration 2: Chrome's new-tab shortcut grid chose
+  `Verkkokauppa.com` for R3, and the store did not carry the product — an eight-minute
+  search loop). Start R3 on the retailer the run should use, and record which one in the
+  run row. Do not start it on a generic new tab and attribute the store choice to the
+  engine.
 
 Record the reset in the run row (`reset_ok`). A run whose reset failed is discarded, not
 counted as a failure of the engine.
