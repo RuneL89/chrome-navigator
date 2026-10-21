@@ -50,6 +50,49 @@ The question, stated exactly:
 H4 is the hypothesis that makes this worth doing for a performance-first owner. If H4 is
 false, tree-first with escalation is not worth the complexity.
 
+## 1a. Iteration 2 findings against the hypotheses (2026-10-21, corpus complete)
+
+The four-goal corpus (R1–R4, tree + vision) is analyzed in `vexp9/iteration-2.md`. It
+answers the diagnostic half of the program and changes two hypotheses' premises.
+
+- **H1 — SUPPORTED.** Tree per-step: 4.27–5.06 s (R2 149.5/35, R1c 59.6/12, R3 45.5/9).
+  Vision: 6.68–7.65 s (R2 127/19, R1 294.4/42, R3b 202.9/29, R4 519.9/68). The tree is
+  ~30–40% faster per action, as the call-count difference predicts.
+- **H2 — SUPPORTED, but the taxonomy was incomplete.** Every tree failure was classifiable;
+  none was random. But the six seams in §3.2 did not cover the actual failures: the corpus
+  produced `SITE_ENTRY_LOOP` (R2), `WRONG_INTENT` (R3), `APP_ROUTING` (R4) and, on the
+  vision arm, `WRONG_SITE` (R3) and two goal-fidelity classes (R3b false completion, R4
+  partial). The seam list is a floor, not the set.
+- **H3 — NOT ANSWERED, and its scope shrinks.** No shadow or rescue arm ran, so no
+  intervention was measured. More important: at most two of the seven classes are plausibly
+  vision-repairable (`UNCERTAIN` — the translate bar; `NO_GOOD_TARGET`/`NO_PROGRESS` — a
+  target repair). `SITE_ENTRY_LOOP`, `WRONG_INTENT`, `APP_ROUTING` and the goal-fidelity
+  classes are code/plan failures; no perception mode fixes them.
+- **H4 — NOT ANSWERED, and its premise is contradicted on the phone.** The tree's failed
+  runs were the *fastest* outcomes (45.5–149.5 s); the vision successes were the slow ones
+  (127–520 s). The 358–648 s failures in the premise were emulator-era data. On the current
+  build the tree fails fast and cheaply; escalation buys **correctness**, not time, on these
+  goals — and the tree's failures are not a slow tail to rescue.
+
+### What the corpus did NOT answer
+
+- **Which vision mode is most efficient (ETCR).** No intervention was measured.
+- **Coverage / precision of any trigger.** The triggers are observed; their precision is not.
+- **A/B/C.** Not run.
+- **The ≥3 instances per class** exit criterion. Most classes have one instance per arm.
+- **The recommendation memo (Stage 5).**
+
+### The findings that outrank the hybrid
+
+1. **Goal fidelity** — R3b reported success on an empty checkout; R4 declared done with the
+   account switch unverified and the subscriptions path dropped. The plan's final condition
+   does not carry the goal's end state, and the finality law validates the plan, not the
+   goal. This is a product safety defect and cannot be fixed by escalation.
+2. **Loop guards** — same-URL repeat (R2), same-action-3× (R1 pre-translated), and
+   strategy-level escapes (wrong store, wrong intent).
+3. **Site entry** — the VIEW intent can leave the browser (R4 tree); typing into the omnibox
+   does not.
+
 ## 2. Starting evidence (already in the repo)
 
 | Source | What it shows |
@@ -211,6 +254,12 @@ the subtask advanced. Per run: terminal, `elapsedMs`, `steps`, spend.
 **Exit:** every failure class in §3.2 either has ≥3 observed instances or is recorded as
 "not observed"; the distribution of failures by class, and which classes end runs, is
 written into `iteration-1.md`.
+
+**Iteration 2 outcome:** the corpus produced SEVEN classes with one instance each (plus the
+vision-arm classes), so the ≥3 bar is **not met**, and the class list is larger than §3.2:
+`SITE_ENTRY_LOOP`, `WRONG_INTENT`, `APP_ROUTING`, `WRONG_SITE`, and the goal-fidelity
+classes are now part of the taxonomy. Extending the class counts is deferred until the fix
+work decides which classes still matter.
 
 **This stage alone may answer the question.** If one class accounts for most terminal
 failures, the policy's *shape* is known — but not yet its mode; efficiency is measured
