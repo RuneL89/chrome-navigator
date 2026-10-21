@@ -211,9 +211,19 @@ class ExitPolicy(private val config: ExitPolicyConfig = ExitPolicyConfig()) {
             completionCardsShown += 1
             return ExitDecision.AskOwner(guardLevel, noul, guardPassRefusalStreak)
         }
+        // The truthful cause (the old wording claimed a low noul even when the noul
+        // cleared the floor and the GUARD was the blocker — seen in every VEXP9 tree run).
+        val cause = when {
+            noul <= config.highFloor ->
+                "noul=${noul} at/below the high floor ${config.highFloor}"
+            ladderRun && guardLevel != GuardLevel.STRONG ->
+                "the guard is $guardLevel (Path A needs STRONG on a ladder run)"
+            else ->
+                "the sustained streak did not reach ${config.sustainedChecks}"
+        }
         return ExitDecision.Refuse(
-            reason = "noul=${noul} below the high floor ${config.highFloor} and the sustained " +
-                "streak is $sustainedStreak/${config.sustainedChecks}",
+            reason = "finish refused: $cause (noul=${noul}, guard=$guardLevel; " +
+                "sustained streak $sustainedStreak/${config.sustainedChecks})",
             guardLevel = guardLevel,
             noul = noul,
         )

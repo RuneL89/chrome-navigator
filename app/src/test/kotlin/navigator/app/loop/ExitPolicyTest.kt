@@ -45,6 +45,10 @@ class ExitPolicyTest {
         assertIs<ExitDecision.Refuse>(decision)
         assertEquals(GuardLevel.WEAK, decision.guardLevel)
         assertEquals(1, policy.finishChecks)
+        // The refusal must name the REAL cause: the noul cleared the floor and the GUARD
+        // is the blocker (VEXP9 runs 1 and 3 printed the opposite and misled the analysis).
+        assertTrue(decision.reason.contains("the guard is WEAK"), decision.reason)
+        assertFalse(decision.reason.contains("below the high floor"), decision.reason)
     }
 
     @Test

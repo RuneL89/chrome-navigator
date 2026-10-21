@@ -159,9 +159,67 @@ this report (the project retention rule); the tables and this analysis are the r
 
 ---
 
+## Run 3 — tree arm, R1-pre-translated (page already in English)
+
+| Field | Value |
+|---|---|
+| Run id | `task-1792580893403` |
+| Terminal | **`BUDGET_EXHAUSTED`** — cloud spend 263,967 µ$ ≥ hard limit 250,000 µ$ |
+| Steps / wall clock | 23 steps / **80.7 s** |
+| Spend | **$0.264** (over the Action profile's $0.25 hard cap) |
+| Ladder | gen1 3 → gen2 4 → gen3 3 subtasks; subtask 1 verified at t+8.8 s |
+| Failure class | `NO_GOOD_TARGET` (after the submit loop) |
+
+### Timeline
+
+- `t+4.8` gen1, 3 subtasks; site entry; subtask 1 verified at `t+8.8` (STRONG).
+- `t+9.7`–`t+12.2` `fill-field` p=0.34 → assist → re-ask p=0.36 → still UNCERTAIN → FAILED → re-plan 2.
+- `t+19.4` gen2; `fill-field` p=0.60, target **"Search in store" [n11]** 3.69 → **TEXT_NOT_LANDED**.
+- `t+22.9` `fill-field` p=0.61, target **"Celsius lemon lime energy drink" [n10]** 4.09 → **dispatched** (the text landed).
+- `t+26.6`–`t+45.9` **five `submit` decisions, all targeting "Search" [n12] at (964,315)**, scores 3.91–3.98 of 12, p 0.87–0.92, every one **dispatched with no page change**. The stuck detector fired at `t+41.4` (`same-action-3x, screen-hash-unchanged-3x, zero-text-diff-3x`), then forced the L2 recovery set at `t+46.9` → `scroll` at `t+47.8`.
+- `t+49.6`–`t+51.9` three guard-pass refusals → completion card → owner chose **Keep going**.
+- `t+52.3` another `submit` on n12 (dispatched); `t+58.2`–`t+62.6` five `verify-done` rounds (p 0.38–0.60, noul 0.94–0.99) all **REFUSED (ART-4)**.
+- `t+60.7` budget soft warning; `t+80.7` **hard cap reached** → `BUDGET_EXHAUSTED`.
+
+### What this run establishes
+
+1. **Translation was only the first blocker.** With the page in English the engine found the search field and typed the query by t+22.9 s — the cold run's opening UNCERTAIN was gone. The wall moved to the **submit**.
+2. **The submit is a target/mechanism failure, not a planning failure.** The slate scored "Search" [n12] at 3.91–3.98 of 12 candidates and the cascade picked it consistently; dispatching it did nothing five times. This is the class vision was built to repair: the tree names a control, the action does not take effect.
+3. **The stuck machinery is too slow here.** It injected the L1 hint after three identical actions and forced the recovery set at L2 — but the loop had already spent five submits. A same-action-3× + unchanged-screen condition is a strong, cheap escalation trigger.
+4. **The budget asymmetry is now a measured confound.** The tree died on the Action profile's $0.25 hard cap after 80.7 s. The vision engine's cap is 100× that. For the reliability comparison, the caps must be equalised (or the tree's run declared budget-limited, not capability-limited).
+5. **The exit refusal message was wrong (FIXED in this iteration).** Five refusals printed `noul=0.94…0.99 below the high floor 0.7`. The noul is *above* the floor; the real cause was the **WEAK guard** (Path A needs STRONG on a ladder run). The decision was correct; the wording was not. `ExitPolicy` now names the real cause (`the guard is WEAK (Path A needs STRONG on a ladder run)`) and the test pins it.
+
+---
+
+## Cross-run comparison (R1)
+
+| Run | Arm | Terminal | Steps | Time | Spend | Where it broke |
+|---|---|---|---|---|---|---|
+| 1 | tree, cold (Finnish) | `STUCK_KILL` | 12 | 59.6 s | $0.057 | 5 × UNCERTAIN on the untranslated page; search field never reached cleanly |
+| 3 | tree, pre-translated | `BUDGET_EXHAUSTED` | 23 | 80.7 s | $0.264 | **5 × submit on "Search" [n12]** with no page change; NO_GOOD_TARGET after the recovery set |
+| 2 | vision | **`GOAL_ACHIEVED`** | 42 | 294.4 s | unrecorded | — (12 accept refusals; translate at step 4; cart verified) |
+
+**Two distinct tree failure classes, same goal, both at subtask 2:**
+- **`UNCERTAIN` (cold)** — the page's purpose is not legible to the tree; the translate bar is the visible cause.
+- **`NO_PROGRESS` (pre-translated)** — the tree picks a plausible control and the action does not take effect; it repeats until the stuck machinery or the budget stops it.
+
+Neither is fixed by a ladder re-plan. Both are in the escalation taxonomy, and they need **different modes**: the first wants a full vision step (L4) to interpret the page; the second wants grounding/proposal of a *different* target (L2/L3).
+
+### Implications for the hybrid
+
+- **The escalation trigger now has two clear shapes:** `UNCERTAIN` (interpret) and `same-action-3× + screen unchanged` (repair the target). The second is the cheaper, more deterministic trigger and should be tested first.
+- **A rescue at the first UNCERTAIN (t+10 s) would have faced the Translate bar**, which the vision engine answered at t+49 s. A rescue at the third identical submit would have faced the search control the vision engine eventually solved via a suggestion row.
+- **Budget parity must be decided before Stage 4.** The tree arm is 1/100th of the vision budget; run 3 shows it matters.
+- **The `ExitPolicy` refusal wording must be fixed** so the completion refusals are diagnosable.
+
+---
+
 ## Next iteration (proposed)
 
-1. **R1-pre-translated, tree arm** — the owner taps Translate first, then submits R1 unchanged. Isolates the translation capability gap from perception.
-2. **R1 repeat, tree arm (cold)** — a second sample of the same failure (Stage 1 needs ≥3 instances per class).
-3. Then the **rescue arm** (Stage 3) at the first UNCERTAIN: one vision step, randomized mode L4 vs L3, and record whether it rescues.
+1. ~~Fix the `ExitPolicy` refusal wording~~ — DONE in this iteration (the message now names the WEAK guard; the test pins it).
+2. **Implement the Stage-3 rescue hook** at the two triggers above (UNCERTAIN and same-action-3×-unchanged), with the seeded mode draw (L4 vs L2/L3).
+3. **Fix the `TranslatePrompt` leading-label defect** (KD-13) before any code preference uses it in rescue.
+4. **Equalise or explicitly report the budget caps** for the Stage-4 arms.
+5. Then run the rescue arm on R1 (cold and pre-translated) and compare against these two baselines.
+
 

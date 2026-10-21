@@ -55,10 +55,11 @@
   "stopRule": "Stage 5 reached and the owner decided, OR two consecutive iterations with no new failure class and no decision-table change, OR the owner calls it.",
   "budgetHardCapUsd": 15,
   "llmCost": 0,
-  "runs": 2,
+  "runs": 3,
   "iteration1": {
     "report": ".state/vision-iter/vexp9/iteration-1.md",
     "tree": "task-1792579625273 — R1-cold, STUCK_KILL, 12 steps / 59.6 s / $0.057; 8 decisions, 5 UNCERTAIN; subtask 1 verified in 9 s; died on the untranslated page + search affordance",
+    "treePreTranslated": "task-1792580893403 — R1 with the page in English, BUDGET_EXHAUSTED, 23 steps / 80.7 s / $0.264; subtask 1 verified in 8.8 s; typed the query by 22.9 s, then FIVE submits on 'Search' [n12] at (964,315) with no page change; stuck L1/L2 fired at 41.4/46.9 s; NO_GOOD_TARGET then the $0.25 hard cap",
     "vision": "task-1792580024536 — R1, GOAL_ACHIEVED, 42 steps / 294.4 s, ~85 calls; translate-first fired at step 4 (t+49.3 s); final cart frame shows 2 units (anchor PASS); final model pair DISAGREE(0.17) but the code count is authoritative",
     "findings": [
       "H1 supported: tree 4.97 s/step vs vision 7.01 s/step",
@@ -67,10 +68,14 @@
       "the vision spent 12 steps on ACCEPT REFUSED (battery non-concurrence) — verification, not action, dominates its cost",
       "TEXT_NOT_LANDED hit both engines — the typing mechanism is a shared weakness",
       "vision spend unrecorded (all-zero usage) — the cost comparison is not measurable",
-      "TranslatePrompt false-positived again (step 9, search icon) — the KD-13 defect"
+      "TranslatePrompt false-positived again (step 9, search icon) — the KD-13 defect",
+      "translation is not the whole story: with the page in English the tree still died — five submits on n12 'Search' with no page change, then the stuck machinery and the budget cap",
+      "two distinct tree failure classes: UNCERTAIN (cold: interpret the page) and NO_PROGRESS/same-action-3x (pre-translated: repair the target) — they need different rescue modes",
+      "the budget asymmetry is measured: the tree died on the $0.25 hard cap; vision's cap is 100x that — equalise for Stage 4",
+      "the ExitPolicy refusal said 'noul=0.9x below the high floor 0.7' when the noul was above it; the real cause is the WEAK guard — FIXED in iteration 1 (message + test)"
     ]
   },
   "blocker": null,
-  "nextAction": "Iteration 2: (1) R1-pre-translated tree run (owner taps Translate first) to isolate the translation gap; (2) a second R1-cold tree sample for the class count; (3) then the Stage-3 rescue arm at the first UNCERTAIN (randomized L4 vs L3). Attended session; owner present for the cart reset.",
+  "nextAction": "Iteration 2: (1) fix the ExitPolicy refusal wording; (2) fix the TranslatePrompt leading-label (KD-13); (3) implement the Stage-3 rescue hook at UNCERTAIN and same-action-3x-unchanged with the seeded mode draw; (4) decide budget parity for Stage 4; (5) run the rescue arm on R1 cold and pre-translated. Attended session.",
   "masterPolicy": "master receives no experiment code. If the recommendation is accepted, the change is written as its own phase doc and implemented on master."
 }
