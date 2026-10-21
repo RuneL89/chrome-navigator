@@ -67,9 +67,13 @@
       "R2": "task-1792583186163 — GOAL_ACHIEVED, 19 steps / 127.0 s; typed rumble.com, searched WWE, Live tab, WWE Main Event video; player state not visually confirmed",
       "R3": "task-1792583535017 — WRONG_SITE/SEARCH_LOOP, CANCELLED, 74 steps / 506.2 s; the new-tab shortcut anchored the plan on Verkkokauppa.com (which does not carry the item); 23 battery escalations, type/clear/submit loop",
       "R3b": "task-1792584388905 — FALSE COMPLETION (MODELS_CONFIRM_DONE), 29 steps / 202.9 s; plan said 'review the order summary WITHOUT placing the order yet'; checkout empty (no address, no order), cart 42 EUR; the finality law validated the plan's last condition, goal noul 0.74 passed",
-      "R4": "PENDING"
+      "R4": "task-1792586283606 — GOAL_ACHIEVED, 68 steps / 519.9 s, but PARTIAL: the Food Wishes video (Pumpkin Focaccia Donuts, 6 days ago) is genuinely playing at 0:27; the MrAwesome switch was accepted on a DISAGREE (noul 0.21) and the re-plans name the current account as Rune Lauritzen; the subscriptions path was replaced by a search"
     },
-    "criticalFinding": "R3b is a product-level safety defect: a 'buy' goal can be reported GOAL_ACHIEVED on an empty checkout. Two layers: (1) the writer weakened 'buy' into 'review the order summary' in both the plan and the re-plan, so the final condition is satisfiable without an order; (2) MODELS_CONFIRM_DONE validates the plan's final condition, not the goal's end state, and the goal noul (0.74) agreed with the weakened condition. No perception escalation fixes this. Counts as INCORRECT for the R3 anchor (address and order absent)."
+    "abortedAttempts": [
+      "task-1792584977510 — CANCELLED after 64 steps / 616.6 s, 15 re-plans; the run left the browser and the plan drifted into 'switch the YouTube app's active account' (evidence cleared)",
+      "task-1792585781917 — GUARD_ABORT after 22 steps / 235.7 s; an H7_DOWNLOAD gate on 'browser youtube update' was refused, then the same class refused twice (the gate working as designed; evidence cleared)"
+    ],
+    "criticalFinding": "The corpus shows SEVEN failure classes and two dubious vision successes. Most serious: goal fidelity. R3b reported MODELS_CONFIRM_DONE on an empty checkout because the plan's final subtask was a review ('without placing the order yet') and the finality law validates the plan's last condition, not the goal (goal noul 0.74 passed). R4 reported GOAL_ACHIEVED with the video playing but the MrAwesome switch accepted on a DISAGREE (0.21) and the subscriptions path dropped in the re-plans. No perception escalation fixes these; the fix is plan/goal fidelity plus a goal-level finality guard. This outranks the hybrid."
   },
   "iteration1": {
     "report": ".state/vision-iter/vexp9/iteration-1.md",
@@ -91,6 +95,6 @@
     ]
   },
   "blocker": null,
-  "nextAction": "Finish the corpus: R4 vision (last arm). Then the fix-design discussion, with the R3b false completion FIRST (goal-fidelity in the plan + a goal-level finality guard), ahead of the hybrid rescue work. Attended session; owner present for the R4 channel reset.",
+  "nextAction": "Corpus COMPLETE. Next: the fix-design discussion, in the recorded order — (1) goal fidelity (R3b false completion + R4 partial; plan end state + a goal-level finality guard), (2) loop guards (same-URL repeat, same-action-3x, strategy-level wrong-store/wrong-intent escapes), (3) site entry via the omnibox (R4 tree app routing), (4) the hybrid escalation design scoped by the seven observed classes. No code until the owner picks the order.",
   "masterPolicy": "master receives no experiment code. If the recommendation is accepted, the change is written as its own phase doc and implemented on master."
 }

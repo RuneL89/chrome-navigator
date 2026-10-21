@@ -335,5 +335,63 @@ plan's end state, and the plan's end state was a review.
 
 ### R4 — vision arm
 
-PENDING — the tree arm could not reach Chrome (the YouTube app took the URL); the vision
-arm's omnibox typing may avoid that.
+| Field | Value |
+|---|---|
+| Run id | `task-1792586283606` |
+| Terminal | **`GOAL_ACHIEVED`** after 68 steps / **519.9 s** (~8.7 min) |
+| Re-plans | many battery re-plans (log: #2–#6 cycles; the terminal counts 1) |
+| Video anchor | **"Pumpkin Focaccia Donuts (Grandma's Fried Donuts)"** by **@foodwishes**, playing at 0:27 / 8:20, 6 days ago — the final frame shows the pause control and the progress bar at 0:27 |
+| Account switch | **NOT VERIFIED** — the switch subtask was accepted with `noul=0.21, confirm=false (DISAGREE)`; the re-plans name the current account as **Rune Lauritzen** and say its subscriptions feed is empty |
+| Source path | **NOT THE SUBSCRIPTIONS** — the re-plans redirect to "Submit the Food Wishes channel search" and the channel's Videos tab |
+| Correctness | **PARTIAL** — the video genuinely plays; the MrAwesome channel and the "from my subscriptions" path are unconfirmed |
+
+### What happened
+
+- The plan: *"Open YouTube, switch the active channel to MrAwesome, then open the latest Food Wishes video from subscriptions and play it."* (4 subtasks)
+- Subtask 1 (open youtube.com) done, noul 0.79 AGREE.
+- Subtask 2 (switch the channel via the profile avatar → MrAwesome) was marked done with **`noul=0.21, confirm=false (DISAGREE)`** — the code condition was satisfied but the models said no. The run continued at subtask 3.
+- Repeated battery re-plans kept re-stating "Switch the active YouTube channel to MrAwesome" / "the current account's subscriptions feed is empty", then switched strategy: search the Food Wishes channel, open its Videos tab, play the newest video.
+- The final frame: `m.youtube.com/watch` playing the Food Wishes **Pumpkin Focaccia Donuts** video (6 days ago), 0:27 / 8:20, "Subscribed".
+
+### Why the completion is only partial
+
+The goal has three parts: the **MrAwesome** channel, **from subscriptions**, and the **latest video playing**. Only the third is evidenced.
+- The switch subtask was accepted against a model disagreement — the account at the verdict is not visible in the frame, and the re-plans' own text names **Rune Lauritzen** as the current account with an empty subscriptions feed.
+- The source was changed to a **search** in the re-plans; "from my subscriptions" was dropped.
+- The final accept (`noul=0.70, confirm=true`) was at the exact agreement threshold, on a final condition about the player.
+
+This is the **same goal-fidelity pattern as R3b**: the ladder's final condition covers the last observable outcome (the video playing), not the goal's preconditions (which account, which navigation path). The re-plans quietly dropped them.
+
+### Aborted attempts (recorded, evidence cleared)
+
+- Attempt 1 (`task-1792584977510`): `CANCELLED` after 64 steps / 616.6 s, 15 re-plans; the plan drifted into "Switch the **YouTube app's** active account" — the run had left the browser.
+- Attempt 2 (`task-1792585781917`): **`GUARD_ABORT`** after 22 steps / 235.7 s — an **H7_DOWNLOAD** gate on "browser youtube update" was refused, and the same class refused twice → the gate aborted the task (the gate working as designed).
+
+---
+
+## Iteration 2 summary — the corpus is complete
+
+| Goal | Tree arm | Vision arm |
+|---|---|---|
+| R1 cold | `STUCK_KILL` 12/59.6 s — `UNCERTAIN` | `GOAL_ACHIEVED` 42/294 s (R1) |
+| R1 pre-translated | `BUDGET_EXHAUSTED` 23/80.7 s — `NO_PROGRESS` | — |
+| R2 | `USER_CANCEL` 35/149.5 s — `SITE_ENTRY_LOOP` | `GOAL_ACHIEVED` 19/127 s (video page; playback ambiguous) |
+| R3 | `STUCK_KILL` 9/45.5 s — `WRONG_INTENT` | `FALSE COMPLETION` 29/202.9 s (empty checkout) |
+| R4 | `REFUSED` 1/58.6 s — `APP_ROUTING` | `GOAL_ACHIEVED` 68/519.9 s — **partial** (account/source unverified) |
+
+**Seven distinct failure classes, and two of the vision "successes" are not fully correct.**
+The failures are layered: translation (R1 cold), action mechanics (R1 pre-translated),
+loop guards (R2), intent selection (R3), Android routing (R4), store selection (R3 vision),
+and **goal fidelity** (R3b false completion, R4 partial). The last two are the most serious
+and cannot be repaired by any perception escalation.
+
+## Next — the fix discussion (recommended order)
+
+1. **Goal fidelity (R3b, R4).** The plan must carry the goal's own end state and
+   preconditions into the final condition; the writer must not weaken "buy" to "review" or
+   drop the account/subscription path; the finality law needs a goal-level evidence check,
+   not a plan-level one. This is a safety fix and outranks the hybrid.
+2. **Loop guards (R2, R3 tree, R3 vision).** Same-URL repeat, same-action-3×, and
+   strategy-level (wrong store / wrong intent) escapes.
+3. **Site entry (R4 tree).** The VIEW intent can leave the browser; typing the URL does not.
+4. **The hybrid escalation design** — now scoped by seven classes instead of one.
