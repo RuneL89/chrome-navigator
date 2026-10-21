@@ -1682,3 +1682,9 @@ a new dated entry. Format per `Implementation Plan/MASTER_IMPLEMENTATION_PROMPT.
 * Gates 16.4–16.6: suites green; `assembleDebug` SUCCESS; APK 35,879,231 bytes; dex `vision-exp-v16` + the new literals; `run()` **57,387/65,535** (8,148 headroom).
 * Deviations recorded: a refused landing BANS the URL rather than killing the subtask (the coherence check is a title heuristic); the a11y binding fires at 4 (the hint stays at 3); the vision filter refuses the verb (proposals carry descriptions, not node ids); the launcher package fix has no JVM test (the UAT exercises it on R4).
 * Compliance: COMPLIANT. No key values; no live model call. `master` untouched; the merge stays deferred to UAT 16.2.
+
+## 2026-10-21 — PHASE_16 PURCHASE-POLICY CLARIFICATION (owner)
+* Owner correction: the app **SHOULD generally be able to place real orders** — insert the delivery address and use the browser's saved credit-card/payment data. The restriction belongs to **this test only**: the monitoring agent manually halts the run **right before the order is completed** (the order-review / place-order control visible, before the engine activates it).
+* Docs amended: the Phase 16 doc's objective and UAT 16.1 (the halt point and the correctness anchor at the halt, `MONITOR_CARD_STOP` not a failure); `Project Vision/06` §4 (the app is expected to complete real orders, saved payment data included; the gate/owner card authorize; the UAT withholds the final placement); the VEXP9 §5.1b (the stale "disable Chrome autofill for R3" instruction corrected — autofill stays ON; the Phase 16 UAT halt rule added; the card-screen rule remains the safety proxy where the final control is not clearly identified).
+* Code: UNCHANGED — the goal-fidelity law still requires a purchase ladder to end on the order confirmation, and the finality sixth guard still requires that evidence before any model completion.
+* Compliance: COMPLIANT. No key values; no live model call.

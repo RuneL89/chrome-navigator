@@ -453,8 +453,17 @@ avoid the purchase; the safety comes from the monitoring agent.
 - **The stop takes effect at the next step boundary.** The loop itself holds no card
   data, but **Chrome's payment autofill is the residual risk** — a saved card could
   populate a field and a later submit could complete the purchase without the engine ever
-  knowing the number. Therefore: disable Chrome's payment-method autofill for the R3
-  runs, keep the monitor cadence tight, and never leave any R\* run unattended (§5.0).
+  knowing the number. **Owner correction (2026-10-21):** autofill stays ON and the app is
+  generally ALLOWED to complete real orders (insert the address, use the saved card); the
+  run is what must be halted. Keep the monitor cadence tight and never leave any R\* run
+  unattended (§5.0).
+- **PHASE_16 UAT exception (owner, 2026-10-21 — the current test protocol):** the monitor
+  halts the run **right before the order is completed** — when the order-review /
+  place-order control is visible and BEFORE the engine activates it (the earlier
+  card-screen rule remains the safety proxy on any page where the final control is not
+  clearly identified). The run ends as `MONITOR_CARD_STOP`, not a failure; the correctness
+  anchor is judged at the halt (the item/quantity, the address, the total, the final order
+  control visible).
 - The $15 program budget is LLM spend only; it does not authorize real money.
 
 #### 5.1c State resets (binding — without these the runs are not comparable)

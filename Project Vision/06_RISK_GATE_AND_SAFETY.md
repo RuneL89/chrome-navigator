@@ -163,10 +163,12 @@ These govern the model roles and are NOT safety substitutes:
   backstop, not a code-executed purchase.
 - **A "buy" goal ends on the order placed (PHASE_16, doc 04 §4.2).** The ladder's final
   condition must show the order confirmation; a cart, checkout, order-summary or review
-  condition is not completion, and the planner may not weaken "buy" into "review". The
-  H1/H2/H9 gate and the owner card still judge every high-stakes action: the goal's
-  meaning is the order, and the card is its authorization — never a code-executed
-  purchase bypass. An actual order is owner-approved per run.
+  condition is not completion, and the planner may not weaken "buy" into "review". The app
+  is expected to complete real orders when the goal says so, including inserting the
+  delivery address and using the browser's saved payment data. The H1/H2/H9 gate and the
+  owner card still judge every high-stakes action: the goal's meaning is the order, and the
+  card is its authorization — never a code-executed purchase bypass. An actual order is
+  owner-approved per run; the Phase 16 UAT withholds the final placement.
 
 ## 5. Numeric logic (ART-5)
 

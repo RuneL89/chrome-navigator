@@ -7,7 +7,7 @@
   "startedAt": "2026-10-21",
   "source": "PHASE_VEXP9 iteration 2 corpus (R1–R4, tree + vision); the owner accepted the findings and the fix plan",
   "ownerDecisions": {
-    "purchase": "A 'buy' goal completes only when the order is placed (gated); the gate/owner card govern; a real order is owner-approved per run.",
+    "purchase": "A 'buy' goal completes only when the order is placed (gated). The app is GENERALLY allowed to place real orders — insert the address, use the browser's saved card/payment data. During THIS test the monitoring agent manually halts the run right before the order is completed (the order-review/place-order control visible, before the engine activates it); the halt is recorded MONITOR_CARD_STOP and judged at that point, not as a failure.",
     "packaging": "One phase, two stages, built on exp/tree-first with a master-ready doc and a merge checklist.",
     "canonGate": "Owner exception: DeepSeek Flash drafts the vision-law amendment (Phase 14 precedent)."
   },

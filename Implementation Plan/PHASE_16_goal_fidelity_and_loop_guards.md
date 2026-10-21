@@ -19,7 +19,9 @@
 
 Close the two failure families the four-goal corpus exposed, in this order:
 
-1. **Goal fidelity (safety).** A "buy" goal must complete only when the order is placed;
+1. **Goal fidelity (safety).** A "buy" goal must complete only when the order is placed —
+   the app may insert the address and use saved payment data to do it; the experiment
+   withholds only the final placement (§5 UAT 16.1);
    the plan must carry the goal's own end state and every explicit parameter, and the
    vision finality hatch must not ratify a weakened plan. This fixes the R3b false
    completion (an empty checkout reported `GOAL_ACHIEVED`) and the R4 partial completion
@@ -318,8 +320,13 @@ literals; `run()` below 65,535 with ≥ 6 KB headroom recorded.
 **The owner runs** the four goals on the fixed build under the R* attendance rule (agent
 attached, resets, navcap), and judges the results against the anchors:
 - **R3** — the ladder ends on the order confirmation; the gate card governs the purchase.
-  An actual order is **owner-approved per run** (the action-goal safety law); the monitor
-  stop applies at any card screen. The owner decides whether the live purchase is made.
+  **The app is generally allowed to complete real orders** (insert the address, use the
+  browser's saved card/payment data). **During THIS test the monitoring agent halts the run
+  right before the order is completed**: when the order-review / place-order control is
+  visible and BEFORE the engine activates it. The run ends as a monitor stop
+  (`MONITOR_CARD_STOP`), not a failure; the correctness anchor is judged at the halt —
+  SoundMagic ×1, the address, the total ≤ €60, and the final order control visible. The
+  force-stop fail-safe remains if the stop cannot be issued in time.
 - **R4** — the account is verified before the video; the video plays from the drawn path.
 - **R1/R2** — no repeat loop; the run either completes or fails loudly with a classified
   cause.
