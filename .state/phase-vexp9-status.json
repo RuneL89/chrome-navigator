@@ -3,9 +3,9 @@
   "title": "Tree-first with vision escalation — the experiment program",
   "phaseDoc": ".state/vision-iter/PHASE_VEXP9_tree_first_vision_escalation.md",
   "branch": "exp/tree-first (off master @ 1a0af26; master untouched)",
-  "status": "OPEN — Stage 0 IMPLEMENTED on exp/tree-first (gates green); device evidence pending the attended iteration-1 runs. No product change, no default flip, no prompt bump.",
+  "status": "OPEN — Stage 0 DONE (both arms captured + analyzed); iteration 1 complete (R1 tree + R1 vision). No product change, no default flip, no prompt bump.",
   "stage0": {
-    "state": "IMPLEMENTED — device evidence pending",
+    "state": "DONE — both arms captured + analyzed (iteration-1.md)",
     "landed": [
       "experiment/ExperimentEvidence.kt — run.json (whole RunResult + probe seam hits), steps.csv (log-derived decision rows), runs.csv, under external files run-reports/a11y-exp/<taskId>/",
       "loop/ExperimentProbe.kt — no-op seam + Recorder; called at EMPTY_SLATE, NO_GOOD_TARGET, UNCERTAIN, NO_PROGRESS, UNREADABLE; never read back by the loop",
@@ -38,7 +38,7 @@
   "attendanceRule": "Every R* run is attended by the orchestrating agent (owner directive 2026-10-20: 'All R* tests should only be run with you attached'). No unattended, overnight, batch, or scheduled R* runs. The agent verifies the reset, arms navcap and confirms frames before the goal is submitted, watches every frame, and may stop for any unsafe or clearly wrong action. An interrupted run is discarded (stop_reason=UNKNOWN) and never counted. Synthetic S1-S8 probe pages are local fixtures with no accounts and may run unattended.",
   "stages": {
     "0-observability": "IMPLEMENTED (device evidence pending) — RunResult persistence + ExperimentProbe no-op seam + steps.csv/runs.csv + the monitor stop; in-app frames deferred to Stage 2",
-    "1-tree-taxonomy": "PENDING — real corpus (R1-R6) + synthetic probes (S1-S8); every failure class >=3 instances or marked unobserved",
+    "1-tree-taxonomy": "IN PROGRESS — 1 tree sample (R1-cold, STUCK_KILL) + the vision comparison; UNCERTAIN/NO_PROGRESS classes observed; needs >=3 instances per class",
     "2-shadow-vision": "PENDING — shadow consult at 100% non-HIGH + 20% HIGH control; rescue potential per class",
     "3-rescue-on-failure": "PENDING — BLOCKED->vision handoff at EMPTY_SLATE / NO_GOOD_TARGET / NO_PROGRESS; paired vs tree-only",
     "4-rule-and-ABC": "PENDING — derived decision table; interleaved T/H/V on the full corpus",
@@ -55,8 +55,22 @@
   "stopRule": "Stage 5 reached and the owner decided, OR two consecutive iterations with no new failure class and no decision-table change, OR the owner calls it.",
   "budgetHardCapUsd": 15,
   "llmCost": 0,
-  "runs": 0,
+  "runs": 2,
+  "iteration1": {
+    "report": ".state/vision-iter/vexp9/iteration-1.md",
+    "tree": "task-1792579625273 — R1-cold, STUCK_KILL, 12 steps / 59.6 s / $0.057; 8 decisions, 5 UNCERTAIN; subtask 1 verified in 9 s; died on the untranslated page + search affordance",
+    "vision": "task-1792580024536 — R1, GOAL_ACHIEVED, 42 steps / 294.4 s, ~85 calls; translate-first fired at step 4 (t+49.3 s); final cart frame shows 2 units (anchor PASS); final model pair DISAGREE(0.17) but the code count is authoritative",
+    "findings": [
+      "H1 supported: tree 4.97 s/step vs vision 7.01 s/step",
+      "the tree's time-to-correct-completion is undefined (never completed)",
+      "the Translate bar is the cleanest escalation case: the tree's first UNCERTAIN is t+10 s; the vision's answer was a translate tap at t+49 s",
+      "the vision spent 12 steps on ACCEPT REFUSED (battery non-concurrence) — verification, not action, dominates its cost",
+      "TEXT_NOT_LANDED hit both engines — the typing mechanism is a shared weakness",
+      "vision spend unrecorded (all-zero usage) — the cost comparison is not measurable",
+      "TranslatePrompt false-positived again (step 9, search icon) — the KD-13 defect"
+    ]
+  },
   "blocker": null,
-  "nextAction": "Stage 0 device evidence: install the exp/tree-first APK and run the attended iteration-1 pair (one R1 tree-only run + one R1 vision run) with the agent attached, then write .state/vision-iter/vexp9/iteration-1.md. The owner must be present for the R1 cart reset (open question #1).",
+  "nextAction": "Iteration 2: (1) R1-pre-translated tree run (owner taps Translate first) to isolate the translation gap; (2) a second R1-cold tree sample for the class count; (3) then the Stage-3 rescue arm at the first UNCERTAIN (randomized L4 vs L3). Attended session; owner present for the cart reset.",
   "masterPolicy": "master receives no experiment code. If the recommendation is accepted, the change is written as its own phase doc and implemented on master."
 }

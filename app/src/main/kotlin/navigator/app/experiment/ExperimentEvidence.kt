@@ -8,6 +8,7 @@ import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import navigator.app.loop.Cascade
 import navigator.app.loop.ExperimentProbe
 import navigator.app.loop.RunResult
 import navigator.app.loop.TerminalState
@@ -298,6 +299,7 @@ object ExperimentEvidence {
 
     private val STAMP = Regex("""^\[t\+(\d+)ms] (.*)$""")
     private val INTENT = Regex("""^decide: intent '([^']+)' \(p=([-0-9.eE+]+), margin=([-0-9.eE+]+)\)""")
+    private val REASK = Regex("""^decide: re-ask intent '([^']+)' \(p=([-0-9.eE+]+), margin=([-0-9.eE+]+)\)""")
     private val INTENT_LOW = Regex("""^decide: intent '([^']+)' LOW \(p=([-0-9.eE+]+)\)""")
     private val INTENT_PINNED = Regex("""^decide: intent '([^']+)' \(the stage-1 re-ask""")
     private val RECOVERY = Regex("""^decide: recovery set -> '([^']+)'""")
@@ -309,18 +311,23 @@ object ExperimentEvidence {
     private val UNUSABLE = Regex("""^observe: (tree still unusable|unusable tree)""")
     private val STUCK = Regex("""^stuck: """)
     private val UNCERTAIN = Regex("""^decide: (UNCERTAIN|still UNCERTAIN)""")
+    private val SUBMIT = Regex("""^submit: """)
 
     /**
      * Parses the loop's step log into decision rows. Only the lines the loop's own code
      * emits are recognised — each pattern is pinned by a test against a real log sample.
      *
-     * Step boundary: a `decide: intent`/`decide: recovery set` line closes the previous
-     * row only once that row has an executed action; otherwise it UPDATES the row's
-     * decision (the uncertainty handshake's re-ask must not become a second step).
+     * Step boundary: every `decide: intent` line starts a decision row — including a
+     * decision that failed without acting and was followed by a re-plan (the run-1
+     * sequence). The ONE merge is the uncertainty handshake's `decide: re-ask intent`
+     * line, which refines the CURRENT row rather than starting a second one.
      */
     fun parseSteps(runId: String, log: List<String>): List<StepRow> {
         val out = mutableListOf<StepRow>()
         var cur: StepRow? = null
+        // The ACTIVE subtask ordinal carried forward: the loop logs it on ladder events,
+        // not on every decision, so a decision row inherits the last one seen.
+        var lastSubtask = -1
 
         fun close() {
             cur?.let { out.add(it) }
@@ -334,6 +341,41 @@ object ExperimentEvidence {
             val match = STAMP.matchEntire(raw) ?: return@forEach
             val t = match.groupValues[1].toLongOrNull() ?: 0L
             val line = match.groupValues[2]
+
+            val reaskMatch = REASK.find(line)
+            if (reaskMatch != null) {
+                // The handshake's re-ask refines the same decision.
+                val rp = reaskMatch.groupValues[2].toDoubleOrNull()
+                val rm = reaskMatch.groupValues[3].toDoubleOrNull()
+                val reaskRoute = if (rp != null && rm != null) Cascade.route(rp, rm).name else null
+                val existing = cur
+                cur = if (existing != null) {
+                    existing.copy(
+                        tMs = t,
+                        intent = reaskMatch.groupValues[1],
+                        pChosen = rp,
+                        margin = rm,
+                        route = reaskRoute ?: existing.route,
+                    )
+                } else {
+                    StepRow(
+                        runId = runId,
+                        stepIndex = out.size,
+                        tMs = t,
+                        subtask = lastSubtask,
+                        intent = reaskMatch.groupValues[1],
+                        pChosen = rp,
+                        margin = rm,
+                        route = reaskRoute ?: "HIGH",
+                        slateSize = null,
+                        targetId = "",
+                        targetScore = null,
+                        action = "",
+                        outcome = "",
+                    )
+                }
+                return@forEach
+            }
 
             val intentMatch = INTENT.find(line)
             val lowMatch = INTENT_LOW.find(line)
@@ -350,7 +392,13 @@ object ExperimentEvidence {
                         id = intentMatch.groupValues[1]
                         p = intentMatch.groupValues[2].toDoubleOrNull()
                         margin = intentMatch.groupValues[3].toDoubleOrNull()
-                        route = "HIGH"
+                        // The band the loop itself would compute; a later explicit
+                        // UNCERTAIN/LOW log line still overrides it.
+                        route = if (p != null && margin != null) {
+                            Cascade.route(p, margin).name
+                        } else {
+                            "HIGH"
+                        }
                     }
                     lowMatch != null -> {
                         id = lowMatch.groupValues[1]
@@ -371,35 +419,22 @@ object ExperimentEvidence {
                         route = "HIGH"
                     }
                 }
-                val existing = cur
-                cur = if (existing != null && existing.action.isEmpty()) {
-                    // The same decision refined (the handshake re-ask): keep the row, take
-                    // the latest decision, and keep a seam already observed.
-                    existing.copy(
-                        tMs = t,
-                        intent = id,
-                        pChosen = p,
-                        margin = margin,
-                        route = if (existing.route == "UNCERTAIN") "UNCERTAIN" else route,
-                    )
-                } else {
-                    close()
-                    StepRow(
-                        runId = runId,
-                        stepIndex = out.size,
-                        tMs = t,
-                        subtask = -1,
-                        intent = id,
-                        pChosen = p,
-                        margin = margin,
-                        route = route,
-                        slateSize = null,
-                        targetId = "",
-                        targetScore = null,
-                        action = "",
-                        outcome = "",
-                    )
-                }
+                close()
+                cur = StepRow(
+                    runId = runId,
+                    stepIndex = out.size,
+                    tMs = t,
+                    subtask = lastSubtask,
+                    intent = id,
+                    pChosen = p,
+                    margin = margin,
+                    route = route,
+                    slateSize = null,
+                    targetId = "",
+                    targetScore = null,
+                    action = "",
+                    outcome = "",
+                )
             }
 
             val row = cur ?: return@forEach
@@ -417,6 +452,10 @@ object ExperimentEvidence {
                 cur = row.copy(action = m.groupValues[1], outcome = m.groupValues[2].trim())
                 return@forEach
             }
+            if (SUBMIT.containsMatchIn(line)) {
+                cur = row.copy(action = "submit", outcome = "fired")
+                return@forEach
+            }
             UNUSABLE.find(line)?.let { cur = seam(row, "UNREADABLE"); return@forEach }
             UNCERTAIN.find(line)?.let {
                 cur = seam(row, "UNCERTAIN").copy(route = "UNCERTAIN")
@@ -431,22 +470,18 @@ object ExperimentEvidence {
                 return@forEach
             }
             ADVANCE.find(line)?.let { m ->
-                cur = row.copy(
-                    subtask = m.groupValues[1].toIntOrNull() ?: row.subtask,
-                    advanced = true,
-                )
+                lastSubtask = m.groupValues[1].toIntOrNull() ?: lastSubtask
+                cur = row.copy(subtask = lastSubtask, advanced = true)
                 return@forEach
             }
             SUBTASK_FAILED.find(line)?.let { m ->
-                cur = seam(row, "NO_PROGRESS").copy(
-                    subtask = m.groupValues[1].toIntOrNull() ?: row.subtask,
-                )
+                lastSubtask = m.groupValues[1].toIntOrNull() ?: lastSubtask
+                cur = seam(row, "NO_PROGRESS").copy(subtask = lastSubtask)
                 return@forEach
             }
             SUBTASK_SEEN.find(line)?.let { m ->
-                if (row.subtask < 0) {
-                    cur = row.copy(subtask = m.groupValues[1].toIntOrNull() ?: row.subtask)
-                }
+                lastSubtask = m.groupValues[1].toIntOrNull() ?: lastSubtask
+                if (row.subtask < 0) cur = row.copy(subtask = lastSubtask)
                 return@forEach
             }
             if (STUCK.containsMatchIn(line)) {

@@ -78,8 +78,8 @@ class ExperimentEvidenceTest {
     fun `the handshake re-ask updates the row instead of becoming a second step`() {
         val log = listOf(
             "[t+100ms] decide: intent 'follow-link' (p=0.34, margin=0.10)",
-            "[t+200ms] decide: stage-1 re-ask (the page is ambiguous) - ONE bounded re-ask on this page-hash",
-            "[t+300ms] decide: intent 'activate-control' (p=0.72, margin=0.40)",
+            "[t+200ms] handshake: assist applied (360 chars, assist-v1) - ONE stage-1 re-ask with the ASSIST (untrusted) block",
+            "[t+300ms] decide: re-ask intent 'activate-control' (p=0.72, margin=0.40)",
             "[t+400ms] execute: tap \"the button\" at (10,20) -> dispatched",
         )
         val rows = ExperimentEvidence.parseSteps("task-1", log)
@@ -87,6 +87,33 @@ class ExperimentEvidenceTest {
         assertEquals("activate-control", rows.single().intent)
         assertEquals(0.72, rows.single().pChosen)
         assertEquals("tap", rows.single().action)
+    }
+
+    @Test
+    fun `a failed decision followed by a re-plan starts a NEW row (the run-1 sequence)`() {
+        val log = listOf(
+            "[t+10222ms] decide: intent 'follow-link' (p=0.35, margin=0.16)",
+            "[t+13440ms] handshake: assist applied (360 chars, assist-v1) - ONE stage-1 re-ask with the ASSIST (untrusted) block",
+            "[t+13768ms] decide: re-ask intent 'follow-link' (p=0.32, margin=0.10)",
+            "[t+13769ms] decide: still UNCERTAIN after the handshake - code fallback " +
+                "(recovery/stuck machinery -> re-plan -> escalation card)",
+            "[t+13776ms] ladder: subtask 2/2 FAILED (the cascade stayed uncertain after the handshake (assist spent)) - consecutive failures: 1",
+            "[t+19576ms] decide: intent 'fill-field' (p=0.47, margin=0.33)",
+            "[t+19577ms] decide: UNCERTAIN - the assist already ran on this page-hash - code fallback",
+            "[t+19577ms] decide: still UNCERTAIN after the handshake - code fallback " +
+                "(recovery/stuck machinery -> re-plan -> escalation card)",
+            "[t+19577ms] ladder: subtask 2/4 FAILED (the cascade stayed uncertain after the handshake (assist spent)) - consecutive failures: 1",
+        )
+        val rows = ExperimentEvidence.parseSteps("task-1", log)
+        assertEquals(2, rows.size)
+        assertEquals("follow-link", rows[0].intent)
+        assertEquals(0.32, rows[0].pChosen) // the re-ask refined the same decision
+        assertEquals("UNCERTAIN", rows[0].route)
+        assertEquals("UNCERTAIN", rows[0].seam)
+        assertEquals(2, rows[0].subtask)
+        assertEquals("fill-field", rows[1].intent)
+        assertEquals(0.47, rows[1].pChosen)
+        assertEquals("UNCERTAIN", rows[1].seam)
     }
 
     @Test
