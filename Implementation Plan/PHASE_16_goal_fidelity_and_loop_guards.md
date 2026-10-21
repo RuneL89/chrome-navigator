@@ -273,10 +273,12 @@ the existing finality pins stay green.
 ### Gate 16.3: The a11y build refusal (isolation)
 
 ```
-./gradlew :app:testDebugUnitTest --tests "navigator.app.loop.LadderExecutionLoopTest"
+./gradlew :app:testDebugUnitTest --tests "navigator.app.gen.GenClientTest"
 ```
 **Pass Criteria:** the R3b/R4 ladders are refused at build with the exact violations; a
-re-plan that drops a parameter is refused; every existing ladder scenario stays green.
+re-plan that drops a parameter is refused; the good-purchase ladder is accepted. (The
+refusal lives in `GenClient.restructure`; the a11y loop reaches it through
+`GenLadderSource`. The `LadderExecutionLoopTest` suite must also stay green.)
 
 ### Gate 16.4: Loop guards (isolation)
 

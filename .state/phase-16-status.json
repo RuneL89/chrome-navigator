@@ -30,6 +30,14 @@
     "UAT 16.1 — the attended R1–R4 corpus re-run (owner)",
     "UAT 16.2 — the merge decision"
   ],
+  "verification": {
+    "report": ".state/phase-16-verification.md",
+    "verdict": "PASS — cold verifier, no blocking findings; all gates independently re-run (12/7/17/25/16/52 targeted; full suites 1,023 tests 0 failures; APK 35,879,231 bytes; dex v16; run() 57,387/65,535)",
+    "nonBlocking": [
+      "NB-1 (FIXED): the phase doc's Gate 16.3 named LadderExecutionLoopTest; the refusal pins live in GenClientTest. The doc now names GenClientTest and keeps the ladder suite as a required green.",
+      "NB-2 (DEFERRED to before the master merge): no dedicated end-to-end JVM pins for the 33-open-site cap firing, the non-browser landing, the a11y recovery forcing, the vision verb refusal and the identical-subtask refusal. The helpers are unit-tested and the full suite is green; add the runtime-shape regressions at UAT 16.2 before the merge."
+    ]
+  },
   "deviations": [
     "A refused landing BANS the URL for the subtask rather than killing the subtask on the spot: SiteEntry.landingCoheres is a title heuristic and can false-negative.",
     "The a11y same-action binding fires at 4 identical actions (the same-action-3x hint stays at 3) — the scroll-churn split's precedent (hint 3 / stop 4).",
