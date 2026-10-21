@@ -1,0 +1,9 @@
+run_id,step_index,t_ms,subtask,intent,p_chosen,margin,route,slate_size,target_id,target_score,action,outcome,page_changed,advanced,seam,shadow_sampled,shadow_mode,shadow_proposal,shadow_target_id,shadow_iou,shadow_confidence,shadow_agrees,escalated,escalation_mode,escalation_result,correctness,correctness_basis,recovery_cost_ms
+task-1792579625273,0,13768,2,follow-link,0.320,0.100,UNCERTAIN,,,,,,unknown,false,UNCERTAIN,,,,,,,,,,,,,
+task-1792579625273,1,19576,2,fill-field,0.470,0.330,UNCERTAIN,,,,,,unknown,false,UNCERTAIN,,,,,,,,,,,,,
+task-1792579625273,2,28414,2,fill-field,0.850,0.790,HIGH,1,n11,4.410,type,FAILED (TEXT_NOT_LANDED),unknown,false,NONE,,,,,,,,,,,,,
+task-1792579625273,3,32448,2,fill-field,0.810,0.770,HIGH,1,n10,4.590,type,dispatched,unknown,false,NONE,,,,,,,,,,,,,
+task-1792579625273,4,36617,2,submit,0.910,0.830,HIGH,,,,submit,fired,unknown,false,NONE,,,,,,,,,,,,,
+task-1792579625273,5,44578,2,verify-done,0.310,0.010,UNCERTAIN,,,,,,unknown,false,UNCERTAIN,,,,,,,,,,,,,
+task-1792579625273,6,55044,2,fill-field,0.410,0.180,UNCERTAIN,,,,,,unknown,false,UNCERTAIN,,,,,,,,,,,,,
+task-1792579625273,7,56736,2,fill-field,0.400,0.140,UNCERTAIN,,,,,,unknown,false,UNCERTAIN,,,,,,,,,,,,,

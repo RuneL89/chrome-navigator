@@ -2,7 +2,10 @@
 
 **Goal (R1):** `open verkkokauppa.com and add two cases of lemon lime celsius energy drink to the shopping cart`
 **Mode:** attended session, owner at the device, agent monitoring navcap at ~1.5 fps.
-**Status:** tree arm DONE; vision arm PENDING.
+**Status:** tree arm DONE; vision arm DONE.
+**Durable tables:** `iteration-1-tree-steps.csv`, `iteration-1-tree-runs.csv`,
+`iteration-1-vision-steps.csv`. Raw frames, call bodies, and logcat were cleared after
+this report (the project retention rule); the tables and this analysis are the record.
 
 ---
 
