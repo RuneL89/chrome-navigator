@@ -3,7 +3,21 @@
   "title": "Tree-first with vision escalation — the experiment program",
   "phaseDoc": ".state/vision-iter/PHASE_VEXP9_tree_first_vision_escalation.md",
   "branch": "exp/tree-first (off master @ 1a0af26; master untouched)",
-  "status": "OPEN — research phase; no product change, no default flip, no prompt bump",
+  "status": "OPEN — Stage 0 IMPLEMENTED on exp/tree-first (gates green); device evidence pending the attended iteration-1 runs. No product change, no default flip, no prompt bump.",
+  "stage0": {
+    "state": "IMPLEMENTED — device evidence pending",
+    "landed": [
+      "experiment/ExperimentEvidence.kt — run.json (whole RunResult + probe seam hits), steps.csv (log-derived decision rows), runs.csv, under external files run-reports/a11y-exp/<taskId>/",
+      "loop/ExperimentProbe.kt — no-op seam + Recorder; called at EMPTY_SLATE, NO_GOOD_TARGET, UNCERTAIN, NO_PROGRESS, UNREADABLE; never read back by the loop",
+      "experiment/ExperimentStop.kt + OverlayDebugReceiver ACTION_EXPERIMENT_STOP_TASK — the monitor stop through OverlayManager.onStopTask (the stop-control/TaskCancelFlag path, USER_CANCEL)",
+      "NavigatorService — wires the recorder, resets the monitor marker per run, writes the evidence after the run, records MONITOR_CARD_STOP / OWNER_CANCEL / ENGINE_TERMINAL"
+    ],
+    "gates": "18 new JVM tests (ExperimentEvidenceTest, ExperimentProbeTest, ExperimentStopTest); :app:testDebugUnitTest + :core:test green; assembleDebug SUCCESS; APK 35,879,231 bytes; dex literals EXPERIMENT_STOP_TASK / run-reports/a11y-exp / steps.csv / runs.csv / MONITOR_CARD_STOP present; run() 57,367/65,535 bytes (8,168 headroom)",
+    "deviations": [
+      "steps.csv is log-derived in Stage 0: page_changed, the call counts, the shadow columns and the intervention/correctness columns are EMPTY until their stages land (empty = not measured yet, never zero)",
+      "In-app sampled frame capture is deferred to Stage 2 (Stage 1 needs no frames; the monitor stop uses navcap ~1.5 fps; the exact decision-point frame ships with the shadow consult)"
+    ]
+  },
   "startedAt": "2026-10-20",
   "question": "With the accessibility tree as the default actor, when must vision be invoked, which vision mode is the most efficient one (fastest to a CORRECT resolution, not least spend), and does the resulting policy beat both pure-tree and pure-vision on correctness-weighted time-to-completion?",
   "objective": "Maximise the rate of correct completions; then minimise median and p90 time-to-correct-completion, subject to correctness >= the pure-vision arm. Mode choice per class = lowest expected time-to-correct-resolution (ETCR), not lowest spend.",
@@ -23,7 +37,7 @@
   },
   "attendanceRule": "Every R* run is attended by the orchestrating agent (owner directive 2026-10-20: 'All R* tests should only be run with you attached'). No unattended, overnight, batch, or scheduled R* runs. The agent verifies the reset, arms navcap and confirms frames before the goal is submitted, watches every frame, and may stop for any unsafe or clearly wrong action. An interrupted run is discarded (stop_reason=UNKNOWN) and never counted. Synthetic S1-S8 probe pages are local fixtures with no accounts and may run unattended.",
   "stages": {
-    "0-observability": "PENDING — RunResult persistence + ExperimentProbe no-op seam + sampled frames + steps.csv/runs.csv",
+    "0-observability": "IMPLEMENTED (device evidence pending) — RunResult persistence + ExperimentProbe no-op seam + steps.csv/runs.csv + the monitor stop; in-app frames deferred to Stage 2",
     "1-tree-taxonomy": "PENDING — real corpus (R1-R6) + synthetic probes (S1-S8); every failure class >=3 instances or marked unobserved",
     "2-shadow-vision": "PENDING — shadow consult at 100% non-HIGH + 20% HIGH control; rescue potential per class",
     "3-rescue-on-failure": "PENDING — BLOCKED->vision handoff at EMPTY_SLATE / NO_GOOD_TARGET / NO_PROGRESS; paired vs tree-only",
@@ -43,6 +57,6 @@
   "llmCost": 0,
   "runs": 0,
   "blocker": null,
-  "nextAction": "Stage 0: implement WI1-WI3 on exp/tree-first, then run the iteration-1 warm-up (one tree-only BBC run + one vision run) and write .state/vision-iter/vexp9/iteration-1.md.",
+  "nextAction": "Stage 0 device evidence: install the exp/tree-first APK and run the attended iteration-1 pair (one R1 tree-only run + one R1 vision run) with the agent attached, then write .state/vision-iter/vexp9/iteration-1.md. The owner must be present for the R1 cart reset (open question #1).",
   "masterPolicy": "master receives no experiment code. If the recommendation is accepted, the change is written as its own phase doc and implemented on master."
 }

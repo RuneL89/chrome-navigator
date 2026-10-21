@@ -33,6 +33,7 @@ import navigator.app.harness.vision.VisionMath
 import navigator.app.loop.BrowserHomeLauncher
 import navigator.app.loop.BrowserLauncher
 import navigator.app.loop.BrowserProbe
+import navigator.app.loop.ExperimentProbe
 import navigator.app.loop.GestureExecutor
 import navigator.app.loop.LoopUiListener
 import navigator.app.loop.NavigationLoop
@@ -207,6 +208,9 @@ class NavigatorService : Service() {
         // step boundary — the lawful owner exit, vision 04 §3; the flag only ever
         // STOPS the loop, it never decides or acts).
         manager.onStopTask = { taskCancelFlag.cancelActive() }
+        // PHASE_VEXP9: a monitor stop's provenance is per-run (a stale marker must never
+        // label the next run), reset beside the cancel flag it shares.
+        navigator.app.experiment.ExperimentStop.reset()
         // The recovery row's wiring (2026-10-17): a tap on "Open the browser and retry"
         // (offered only on browser-fixable refusals — LiveLogRecovery decides purely)
         // fires the browser's home launch and re-runs the SAME goal through the exact
@@ -309,6 +313,9 @@ class NavigatorService : Service() {
             // persisted (the writeTerminal below no-ops: the terminal's channel is the
             // corner log + notification, per .state/DEBUGGING.md).
             val sink = NoOpLogSink
+            // PHASE_VEXP9 Stage 0: the experiment probe records the failure seams the
+            // loop reaches. A fire-and-forget recorder — it never steers a decision.
+            val experimentProbe = ExperimentProbe.Recorder()
             val loop = NavigationLoop(
                 engine = engine,
                 observer = HarnessObserver(a11y),
@@ -339,6 +346,7 @@ class NavigatorService : Service() {
                 // code fallback / fill-field-to-recovery, never raw-goal typing.
                 assistSource = genClient?.asAssistSource(),
                 phraseSource = genClient?.asPhraseSource(),
+                experimentProbe = experimentProbe,
             )
             val result = loop.run(
                 goal = goalText,
@@ -360,6 +368,32 @@ class NavigatorService : Service() {
                     ),
                 )
             }.onFailure { Log.w(TAG, "terminal row write failed: ${it::class.simpleName}") }
+            // PHASE_VEXP9 Stage 0: persist the a11y run's evidence beside the vision
+            // engine's. The RunResult's step log is already scrubbed at the loop's finish
+            // boundary, so this file never carries a sanctioned secret. A recorder only —
+            // a write failure is logged, never allowed to fail the finished run.
+            runCatching {
+                val baseDir = getExternalFilesDir(null)
+                    ?.let { File(it, navigator.app.experiment.ExperimentEvidence.SUBDIR) }
+                val monitorStop = navigator.app.experiment.ExperimentStop.isMonitorStop()
+                val stopReason = when {
+                    monitorStop -> "MONITOR_CARD_STOP"
+                    result.terminal == navigator.app.loop.TerminalState.USER_CANCEL -> "OWNER_CANCEL"
+                    else -> "ENGINE_TERMINAL"
+                }
+                navigator.app.experiment.ExperimentEvidence.write(
+                    baseDir = baseDir,
+                    runId = result.taskId,
+                    result = result,
+                    meta = navigator.app.experiment.ExperimentEvidence.Meta(
+                        goalId = stubGoal?.id,
+                        arm = "tree",
+                        stopReason = stopReason,
+                        monitorStop = monitorStop,
+                    ),
+                    seams = experimentProbe.snapshot(),
+                )
+            }.onFailure { Log.w(TAG, "a11y experiment evidence write failed: ${it::class.simpleName}") }
         } finally {
             // The terminal (whichever it is, including the owner's USER_CANCEL) hides
             // the ⏹ control; the log itself STAYS up showing the task-state line.

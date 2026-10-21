@@ -162,8 +162,41 @@ Each stage has an exit criterion. Do not start the next stage until it is met.
 after Phase 15's changes and produces the first tree-arm datapoint — plus one vision run
 (proves the probe is inert when armed off).
 
-**Exit:** `run.json`, `steps.csv`, `runs.csv`, and `frames/` exist for both runs; the
-existing JVM suites are green and byte-identical with the probe unarmed.
+**Exit:** `run.json`, `steps.csv`, and `runs.csv` exist for both runs (the monitor's
+frames come from navcap); the existing JVM suites are green and byte-identical with the
+probe unarmed.
+
+**Stage 0 implementation status (2026-10-20):** IMPLEMENTED on `exp/tree-first`; device
+evidence pending the attended iteration-1 runs.
+
+- `app/src/main/kotlin/navigator/app/experiment/ExperimentEvidence.kt` — the writer:
+  `run.json` (the whole `RunResult` + the probe's structured seam hits), `steps.csv`,
+  `runs.csv`, under `<external files>/run-reports/a11y-exp/<taskId>/`.
+- `app/src/main/kotlin/navigator/app/loop/ExperimentProbe.kt` — the no-op seam +
+  `Recorder`; called at the five failure seams (`EMPTY_SLATE`, `NO_GOOD_TARGET`,
+  `UNCERTAIN`, `NO_PROGRESS`, `UNREADABLE`). It is never read back by the loop.
+- `app/src/main/kotlin/navigator/app/experiment/ExperimentStop.kt` + the
+  `EXPERIMENT_STOP_TASK` action in `OverlayDebugReceiver` — the monitor stop, routed
+  through `OverlayManager.onStopTask` (the ⏹ path).
+- `NavigatorService` wires the recorder, writes the evidence after the run, resets the
+  monitor marker per run, and records `MONITOR_CARD_STOP` / `OWNER_CANCEL` /
+  `ENGINE_TERMINAL`.
+- Gates: 18 new JVM tests (`ExperimentEvidenceTest`, `ExperimentProbeTest`,
+  `ExperimentStopTest`); `:app:testDebugUnitTest` + `:core:test` green; `assembleDebug`
+  SUCCESS; APK 35,879,231 bytes; the new literals present in the dex; `run()` is
+  57,367/65,535 bytes (8,168 headroom).
+
+**Stage-0 fidelity note (binding for the analysis):** `steps.csv` is derived from the
+loop's step log, so only the log-derivable columns are filled in Stage 0. `page_changed`,
+the call counts (`jev_calls`/`haiku_calls`/`images_sent`), the shadow columns and the
+intervention/correctness columns are **EMPTY until their stages land**. Empty means "not
+measured yet", never zero — the analysis must not treat a blank as a null result. The
+Stage-2 probe adds the structured pre-action hook and fills them.
+
+**Deferred to Stage 2 (recorded):** in-app sampled frame capture. Stage 1 needs no
+frames, and the monitor stop is served by navcap (`.state/tools/navcap.sh`, ~1.5 fps);
+the exact decision-point frame is only needed for the shadow consult, so it ships with
+the Stage-2 probe rather than adding capture latency to every Stage-1 run.
 
 ### Stage 1 — Tree-only corpus: the failure taxonomy
 
@@ -598,7 +631,7 @@ the apparatus before spending a full corpus.
 |---|---|---|
 | WI1 | `RunResult` persistence on the a11y product path | 0 |
 | WI2 | `ExperimentProbe` no-op seam on `NavigationLoop` (extracted helpers only) | 0 |
-| WI3 | Sampled frame capture + `steps.csv` / `runs.csv` writers (scrubbed) | 0 |
+| WI3 | `steps.csv` / `runs.csv` writers (scrubbed, log-derived in Stage 0); sampled in-app frames deferred to Stage 2 | 0 → 2 |
 | WI4 | Shadow consult (deferred, post-action, never steering) | 2 |
 | WI5 | Rescue-on-failure arm: randomized balanced mode draw, gated execution, per-intervention correctness + latency | 3 |
 | WI6 | Synthetic probe pages S1–S8 | 1 |

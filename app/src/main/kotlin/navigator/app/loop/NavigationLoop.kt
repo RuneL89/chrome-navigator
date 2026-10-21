@@ -203,6 +203,14 @@ class NavigationLoop(
      * the pre-step never fires: every existing path is byte-identical.
      */
     private val homeLauncher: BrowserHomeLauncher? = null,
+    /**
+     * PHASE_VEXP9 Stage 0: the experiment probe seam. Records the failure seams the loop
+     * already reaches (the escalation policy's trigger candidates). The default
+     * ([ExperimentProbe.None]) is a no-op: an unwired probe leaves every existing path
+     * byte-identical and the loop never reads anything back from it — it can never steer
+     * a decision (the same fire-and-forget discipline as [uiListener]).
+     */
+    private val experimentProbe: ExperimentProbe = ExperimentProbe.None,
 ) {
 
     /**
@@ -1239,6 +1247,9 @@ class NavigationLoop(
          * ladder) keeps the old task-level STUCK_KILL.
          */
         suspend fun handleSubtaskFailureOrKill(cause: String): RunResult? {
+            experimentProbe.onSeam(
+                ExperimentProbe.SeamHit("NO_PROGRESS", stepIndex, pointer?.activeOrdinal ?: -1, cause),
+            )
             val p = pointer ?: return finish(TerminalState.STUCK_KILL, cause, stepIndex)
             consecutiveSubtaskFailures += 1
             lastFailureCause = cause // Phase 10D: the informed re-plan's cause (doc 04 §1 v1.8.0)
@@ -1992,7 +2003,17 @@ class NavigationLoop(
                     o = observer.observe()
                     notePageUrl(o)
                 }
-                return if (usable(o)) o else null
+                return if (usable(o)) {
+                    o
+                } else {
+                    experimentProbe.onSeam(
+                        ExperimentProbe.SeamHit(
+                            "UNREADABLE", stepIndex, pointer?.activeOrdinal ?: -1,
+                            "tree unusable after $unusableReads reads",
+                        ),
+                    )
+                    null
+                }
             }
 
             /**
@@ -2523,6 +2544,9 @@ class NavigationLoop(
                 /** The target state view the failing batch rode (Phase 10D). */
                 stage2ViewText: String? = null,
             ): RunResult? {
+                experimentProbe.onSeam(
+                    ExperimentProbe.SeamHit("UNCERTAIN", stepIndex, pointer?.activeOrdinal ?: -1, cause),
+                )
                 logRow(
                     stepIndex, state, question, choice, candidates,
                     ExecutedAction(null, LoggedActionKind.FINISH, ActionDisposition.EXECUTED),
@@ -3023,6 +3047,12 @@ class NavigationLoop(
              * task must end, null when the loop continues.
              */
             suspend fun emptySlateStep(intentId: String, graceUsed: Int): RunResult? {
+                experimentProbe.onSeam(
+                    ExperimentProbe.SeamHit(
+                        "EMPTY_SLATE", stepIndex, pointer?.activeOrdinal ?: -1,
+                        "empty slate for '$intentId' (grace $graceUsed)",
+                    ),
+                )
                 if (graceUsed <= EMPTY_SLATE_GRACE_STEPS) {
                     // The page's tree is still materializing (or the bucket is
                     // genuinely empty on a healthy page — the grace is short and
@@ -3082,6 +3112,11 @@ class NavigationLoop(
              * the loop continues.
              */
             suspend fun stage2NoGoodStep(intentId: String, s2: Stage2Outcome.NoGoodTarget): RunResult? {
+                experimentProbe.onSeam(
+                    ExperimentProbe.SeamHit(
+                        "NO_GOOD_TARGET", stepIndex, pointer?.activeOrdinal ?: -1, s2.reason,
+                    ),
+                )
                 line(
                     "decide: stage-2 NO-GOOD-TARGET (${s2.reason}) - " +
                         "handshake/fallback, never a tap",

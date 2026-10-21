@@ -784,9 +784,22 @@ accuracy) and is NOT a deletion candidate.
     deliberately not suspend — every executor call in it is a plain dispatch) and
     (d) the two big stage-2 branches (`emptySlateStep`/`stage2NoGoodStep`) plus the
     additive-consult block (`additiveEngineConsult`) moved wholesale into local funs,
-    byte-identical lines. run() measured 57,364/65,535 (~8.2 KB headroom; the 2026-10-17
+    byte-identical lines. run() measured 57,367/65,535 after the PHASE_VEXP9 probe seam
+    (~8.2 KB headroom; 57,364 before it; the 2026-10-17
     pre-repair HEAD baseline was 63,330 (the verifier's javap reproduces both numbers) — the extraction round left run() SMALLER than
     it found it).
+  * `src/main/kotlin/navigator/app/experiment/` — PHASE_VEXP9's branch-scoped experiment
+    apparatus (RESEARCH: no product law; the product default is untouched).
+    `ExperimentEvidence` writes the a11y engine's run evidence the product path used to
+    discard — `<external files>/run-reports/a11y-exp/<taskId>/` with `run.json` (the whole
+    `RunResult`, already scrubbed at the loop's finish boundary, plus the probe's seam
+    hits), `steps.csv` (decision rows derived from the step log; later-stage columns are
+    EMPTY, never zero), and `runs.csv`. `ExperimentStop` carries the monitor stop's
+    provenance (`MONITOR_CARD_STOP`) and routes it through the same
+    `OverlayManager.onStopTask` the ⏹ control uses. The seam itself is
+    `loop/ExperimentProbe` (no-op default; the loop never reads it back). `NavigatorService`
+    wires the recorder and writes the evidence after an a11y run; the vision path is
+    unchanged.
   * `src/main/kotlin/navigator/app/stub/` — `StubEngine` (Phase 6; Phase 10B: the
     cascade scripting): a `DecisionEngine` replaying a `StubScript` deterministically
     ($0 spend); answers select by option id, `labelContains`, `bucketFirst`(+ordinal),

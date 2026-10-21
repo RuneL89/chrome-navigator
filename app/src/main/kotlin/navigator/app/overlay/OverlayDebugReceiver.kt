@@ -7,6 +7,7 @@ import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import navigator.app.experiment.ExperimentStop
 import navigator.app.observe.CaptureMode
 import navigator.app.observe.NavigatorAccessibilityService
 
@@ -49,6 +50,18 @@ class OverlayDebugReceiver : BroadcastReceiver() {
                 GateScenarios.TAG,
                 "PROBE_TOUCH_COUNT: ${OverlayProbeActivity.current?.touchCount() ?: -1}",
             )
+            // PHASE_VEXP9: the attended-run monitor stop. It is the product's lawful
+            // stop-control path (OverlayManager.onStopTask -> TaskCancelFlag ->
+            // USER_CANCEL at the next step boundary); this object only marks the
+            // PROVENANCE so the evidence records MONITOR_CARD_STOP. Debuggable-only,
+            // like every action on this receiver.
+            ACTION_EXPERIMENT_STOP_TASK -> {
+                ExperimentStop.noteMonitorStop()
+                val wired = ExperimentStop.invoke(
+                    NavigatorAccessibilityService.instance?.overlayManager?.onStopTask,
+                )
+                Log.i(TAG, "experiment stop: monitor=true wired=$wired")
+            }
             else -> runWindowCommand(context, intent)
         }
     }
@@ -195,6 +208,9 @@ class OverlayDebugReceiver : BroadcastReceiver() {
          * unlike the a11y service's own gestures).
          */
         const val ACTION_PROBE_TOUCH_COUNT = "navigator.app.action.PROBE_TOUCH_COUNT"
+
+        /** PHASE_VEXP9: the attended-run monitor stop (the R3 card-screen safeguard). */
+        const val ACTION_EXPERIMENT_STOP_TASK = ExperimentStop.ACTION
 
         const val EXTRA_LINE = "line"
         const val EXTRA_PLAN = "plan"
