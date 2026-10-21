@@ -15,7 +15,11 @@ package navigator.app.harness.vision
  * - TAP only, with a usable screenshot box — the image-path override. The Chrome
  *   translate bar is browser chrome and is not in the a11y state; its location comes
  *   from the proposer's screenshot box.
- * - The CONTROL's own label (the first quoted label) must be the translate acceptance.
+ * - The CONTROL's own label is the description's LEADING segment (before the first
+ *   comma or parenthesis) and it must be the translate acceptance. A quoted context
+ *   mention later in the string is never the control: run 14 false-positived on a
+ *   search-field description that quoted the "Translate page?" bar as context after its
+ *   own leading label ("Search edit field in the store header …").
  * - A prompt-bar context is required ("bar"/"prompt"/"Translate page?"/"Finnish to
  *   English"/"Google Translate"), so a page's generic "Translate" navigation link never
  *   matches.
@@ -23,8 +27,6 @@ package navigator.app.harness.vision
  *   control: the run-035 description "right of the settings gear" must still match.
  */
 object TranslatePrompt {
-
-    private val QUOTED_LABEL = Regex("\"([^\"]+)\"")
 
     /** The control label / description must carry one of these acceptance words. */
     private val ACCEPT_LABEL = Regex("translate|google translate|finnish to english")
@@ -41,14 +43,19 @@ object TranslatePrompt {
     fun acceptIndex(proposals: List<VisionPrompts.Proposal>): Int? =
         proposals.indexOfFirst(::isAccept).takeIf { it >= 0 }
 
-    /** Whether one proposal is the translate acceptance (TAP + box + accept label + bar context). */
+    /** Whether one proposal is the translate acceptance (TAP + box + leading label + bar context). */
     fun isAccept(proposal: VisionPrompts.Proposal): Boolean {
         if (proposal.action != VisionPrompts.ProposalAction.TAP) return false
         if (proposal.box == null) return false
-        val label = QUOTED_LABEL.find(proposal.description)?.groupValues?.get(1)?.lowercase()
-        val target = label ?: proposal.description.lowercase()
-        if (DISMISS_LABEL.containsMatchIn(target)) return false
-        if (!ACCEPT_LABEL.containsMatchIn(target)) return false
+        // KD-13 (run 14): the control is the LEADING label, never a context quote later
+        // in the description. The proposer's convention is "<label> <context>"; the first
+        // comma/parenthesis ends the control's own phrase.
+        val leading = proposal.description
+            .substringBefore(',')
+            .substringBefore('(')
+            .lowercase()
+        if (DISMISS_LABEL.containsMatchIn(leading)) return false
+        if (!ACCEPT_LABEL.containsMatchIn(leading)) return false
         return PROMPT_CONTEXT.containsMatchIn(proposal.description.lowercase())
     }
 }

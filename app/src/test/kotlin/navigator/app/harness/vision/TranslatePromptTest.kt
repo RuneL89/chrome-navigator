@@ -86,6 +86,24 @@ class TranslatePromptTest {
     }
 
     @Test
+    fun `the run 14 search-field false positive is rejected - a context quote is not the control`() {
+        // KD-13 (run 14): the search-field proposal quoted the "Translate page?" bar as
+        // CONTEXT later in the string; the matcher took the first quoted label anywhere
+        // and marked the search field translate-first. The control is the LEADING label.
+        assertNull(
+            TranslatePrompt.acceptIndex(
+                listOf(
+                    proposal(
+                        "Search edit field in the store header (unlabeled text field at top of " +
+                            "the page, just right of the Verkkokauppa logo), past the " +
+                            "\"Translate page?\" bar",
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
     fun `no proposals means no acceptance`() {
         assertNull(TranslatePrompt.acceptIndex(emptyList()))
     }
