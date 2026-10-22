@@ -1,17 +1,28 @@
 # Evidence & Run Reports
 
 **Document ID:** `NAVIGATOR-VISION-005`
-**Version:** 2.0.0 *(amended 2026-10-18: the vision-engine promotion — the
+**Version:** 2.1.0 *(amended 2026-10-22: the tree-first TARGET evidence shape — one run
+record with a modality field per step and the escalation cause, plus the raw dual
+evidence at Haiku events. The target is explicitly NOT implemented; the shipped record
+remains the vision `events.log` plus the a11y `steps.csv`. Owner-authorized DeepSeek
+Flash amendment; the GLM-5.3 exception is recorded in `Project Vision/AGENTS.md` and
+`.state/compliance-log.md`. Amended 2026-10-18: the vision-engine promotion — the
 DecisionLog/Room/RLCD/shadow program is retired; the durable record is the per-run
 EVIDENCE directory plus the run report. The a11y engine logs through `NoOpLogSink`;
-nothing writes a database. Owner-authorized DeepSeek Flash amendment; the GLM-5.3
-exception is recorded in `.state/compliance-log.md`)*
+nothing writes a database. That amendment was owner-authorized in a DeepSeek Flash
+session; the GLM-5.3 exception is recorded in `.state/compliance-log.md`)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-04, 2026-10-06, 2026-10-10,
-2026-10-18)
+2026-10-18; tree-first target recorded 2026-10-22 — target, not current capability)
 **Date:** 2026-10-03
 **Implements:** ART-3 (everything a run decides is evidenced), ART-8 (privacy boundary)
 
 ---
+
+**Implementation status (2026-10-22).** Shipped: the vision `events.log` + raw call
+bodies + screenshots under `run-reports/vision-exp/`, and the a11y `steps.csv` +
+`runs.csv` under `run-reports/a11y-exp/`. **Not implemented:** the unified record and the
+`modality`/escalation fields of the tree-first target; the event-level raw dual evidence
+is not captured.
 
 ## 1. Purpose
 
@@ -33,6 +44,12 @@ the adb harness's is `vision-loop-<ts>`.
 | `call-NNN-<kind>.req.json` / `.res.json` | the raw request/response bodies of every model call. Image calls record `endpoint=… model=…` on their event line. |
 | `screen-NNNN.jpg` | every model-bound screenshot, with its `scope=…` and `sha256` recorded in the event line. |
 | summary JSON | the grounding metrics + event tail (doc 05 §5). |
+
+**Target (2026-10-22 — NOT IMPLEMENTED):** one run record with a `modality` field per
+step (`tree|vision`), the escalation cause on a flip, the tool-level outcome, and the raw
+dual evidence at each Haiku event (the full a11y state + the screenshot as the call
+body). The existing two formats remain until the unified loop lands; the target must not
+lose the current vision call/screenshot evidence.
 
 **The terminal line is mandatory:** every run ends with
 `terminal=<TERMINAL> steps=<n> replans=<n> [answer=…]` in `events.log`, including
@@ -89,6 +106,12 @@ Run-level metrics: steps, replans (task-level and battery), wall clock, spend
 (decision + writer), terminal, and the answer. The retired metrics — agreement
 exact-match, KL, shadowMiss, graduation — are not computed.
 
+**Target metrics (2026-10-22 — NOT IMPLEMENTED):** steps and wall clock by modality;
+escalations by cause; image-carrying calls; battery calls; boundary catches (a wrong
+action caught at the subtask boundary rather than by a signal); and the correctness
+anchor per goal. These are the hybrid's decision evidence; the correctness anchor is
+judged first (doc 07 §6).
+
 ## 6. Run report format
 
 A run report (`.state/vision-iter/runN/REPORT.md`) is the owner-facing analysis. It
@@ -104,6 +127,9 @@ must contain:
 5. **Findings** — defects, divergences, and residuals with evidence line references.
 6. **Recommendations** — ranked, with the law/code section each touches.
 7. **Disposition** — raw evidence cleared or retained, and why.
+
+**Target note (2026-10-22 — not implemented):** a report's timeline gains the modality
+per step and the escalation cause, so a hybrid run's tool choices are auditable.
 
 A report is an analysis, not law; a finding that changes a contract becomes a phase
 doc, a KD entry, or a vision amendment — never a silent law change.

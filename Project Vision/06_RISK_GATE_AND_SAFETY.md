@@ -1,12 +1,16 @@
 # Risk Gate & Safety
 
 **Document ID:** `NAVIGATOR-VISION-006`
-**Version:** 1.7.0 *(amended 2026-10-21 (PHASE_16): a "buy" goal completes on the ORDER
-PLACED — the ladder's final condition must show the order confirmation; a cart/checkout/
-review is not completion; the H1/H2/H9 gate and the owner card remain the authorization
-for every high-stakes action. Owner exception: DeepSeek Flash drafted the amendment
-(recorded in `Project Vision/AGENTS.md` and `.state/compliance-log.md`). Amended 2026-10-20:
-the TRANSLATE-FIRST law replaces the PHASE_14
+**Version:** 1.8.0 *(amended 2026-10-22: the tree-first TARGET keeps this gate
+modality-agnostic — vision is perception, never authorization; the tool switch cannot
+launder a denial. The target is explicitly NOT implemented. Owner-authorized DeepSeek
+Flash amendment; the GLM-5.3 exception is recorded in `Project Vision/AGENTS.md` and
+`.state/compliance-log.md`. Amended 2026-10-21 (PHASE_16): a "buy" goal completes on the
+ORDER PLACED — the ladder's final condition must show the order confirmation; a
+cart/checkout/review is not completion; the H1/H2/H9 gate and the owner card remain the
+authorization for every high-stakes action. That amendment was drafted by DeepSeek Flash
+(recorded in `Project Vision/AGENTS.md` and `.state/compliance-log.md`). Amended
+2026-10-20: the TRANSLATE-FIRST law replaces the PHASE_14
 Finnish gate floor — the vision engine accepts a translate-to-English prompt before
 acting, so the English/structural floor applies to the translated page; the Finnish
 dictionary additions and their classifier-matrix row are withdrawn. Amended 2026-10-18:
@@ -15,10 +19,15 @@ before every TAP/TYPE/SUBMIT; the same owner cards and credential path). Owner-d
 2026-10-20; the earlier DeepSeek Flash model-gate exception remains recorded in
 `.state/compliance-log.md`)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-03, 2026-10-06, 2026-10-10,
-2026-10-12, 2026-10-18, 2026-10-20, 2026-10-21)
+2026-10-12, 2026-10-18, 2026-10-20, 2026-10-21; tree-first target recorded 2026-10-22 —
+target, not current capability)
 **Date:** 2026-10-03
 **Implements:** ART-1 (code owns the gate), ART-4 (page text is untrusted), ART-5
 (numbers in code), ART-10 (attribution)
+
+**Implementation status (2026-10-22).** The gate is unchanged by the tree-first target;
+this document's law applies to both tools. The target is NOT implemented, and no target
+text may be read as a weaker gate.
 
 **Amendment note (2026-10-03):** the original hard blocklist (G1–G7) became the
 user-acceptance gate — nothing is permanently blocked; the owner approves consequential
@@ -169,6 +178,11 @@ These govern the model roles and are NOT safety substitutes:
   owner card still judge every high-stakes action: the goal's meaning is the order, and the
   card is its authorization — never a code-executed purchase bypass. An actual order is
   owner-approved per run; the Phase 16 UAT withholds the final placement.
+- **The tree-first target keeps the gate modality-agnostic (2026-10-22 — target, not
+  implemented).** Vision is perception, never authorization. A gated action in tree or
+  vision mode faces the same card; the tool switch cannot launder a denial; the finality
+  and goal-fidelity laws apply to both tools. The implementing phase may not weaken this
+  section.
 
 ## 5. Numeric logic (ART-5)
 

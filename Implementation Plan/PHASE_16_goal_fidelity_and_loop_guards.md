@@ -1,8 +1,14 @@
 # Phase 16: Goal Fidelity & Loop Guards
 
 **Document ID:** `NAVIGATOR-IMPL-PHASE-16`
-**Version:** 1.0.0
-**Status:** Draft — BUILT ON `exp/tree-first` (merge to `master` only after the whole experiment is accepted)
+**Version:** 1.1.1 *(amended 2026-10-22: the R3 site-agnostic start rule — when the goal
+names no website, the first step is a Google search for the product/entity — joins the
+UAT 16.2 goal/site classification; the R3 tree reset stop is recorded. Amended 2026-10-22:
+the closeout evaluation + the plan of what is possible is a binding end-of-phase
+deliverable (UAT 16.2); the merge decision becomes UAT 16.3. Owner directive: the phase
+ends on the evaluation, not on the corpus alone.)*
+**Status:** Draft — BUILT ON `exp/tree-first` (merge to `master` only after the closeout
+evaluation/plan and the whole experiment are accepted)
 **Date:** 2026-10-21
 **Dependencies:** Phase 15 (the promoted product), PHASE_VEXP9 (the corpus that produced this phase)
 **Estimated Time:** 12–18h
@@ -331,10 +337,55 @@ attached, resets, navcap), and judges the results against the anchors:
 - **R1/R2** — no repeat loop; the run either completes or fails loudly with a classified
   cause.
 
-### UAT 16.2: the merge decision — human-verifiable
+### UAT 16.2: the vision/implementation evaluation and the plan of what is possible — binding closeout
 
-The owner reviews the phase record and the **§7 merge checklist** and decides when the whole
-experiment (this phase + the re-scoped hybrid) is ready to merge to `master`.
+The phase does not close on the corpus alone. After UAT 16.1 the agent produces, and the
+owner reviews, TWO artifacts. The merge decision (UAT 16.3) cannot be taken without them.
+
+**1. The evaluation — `.state/phase-16-closeout.md`.** The target model in
+`Project Vision/01 §1a` and `04 §8` set against the code as it stands:
+- a mechanism-by-mechanism map — the target mechanism, the current implementation
+  (file/function), what is missing, and what the R1–R4 evidence showed;
+- the **possible now** column: what the existing model roles and primitives can do
+  without a new capability (the Haiku writer; Jev `choice`/`noul`/`score`/`box`; the
+  existing capture, battery, cascade, gate, ladder and evidence);
+- the **not possible without a new role or amendment** column: free-form Jev action
+  authoring, a new model or transport, or a policy the vision docs do not authorize;
+- the R1–R4 residuals classified by the target's mechanism — **perception** (the tree
+  cannot see/act; vision is the candidate), **condition/accept** (the tree saw it; the
+  condition shape or the accept law refused; a code/law fix, not vision), **plan**
+  (wrong site/route; Haiku re-plan), **goal/site** (a site-agnostic goal's first step: the
+  Google-search-first rule; the R3 2026-10-22 finding), **judgment**, **evidence** — with
+  the known seam (a confident wrong tree action that changes the screen) and the **R1
+  tree accept-vs-perception open question** answered against the whole corpus (deferred
+  2026-10-22);
+- the open decisions: the hybrid's budget profile, the product-toggle semantics, the
+  exact thresholds of the three signals, and the absence of site memory;
+- the risk and build cost of each next step.
+
+**2. The implementation plan of what is possible** —
+`Implementation Plan/PHASE_17_tree_first_hybrid.md` (draft). The next phase's proposed
+scope, stages, gates, UAT and merge notes, built from the evaluation:
+- stage the build in the order the evidence supports (e.g. modality state + the three
+  signals, then event-driven Haiku/raw evidence, then the toggle semantics);
+- every stage is labeled **possible with the current primitives** or **needs a new
+  capability/amendment**;
+- the acceptance criteria follow `Project Vision/07 §6` (correctness anchors first, then
+  time per correct run, image calls, escalation rate, boundary catches);
+- the plan is a draft: the owner accepts it before implementation starts; no Phase 17
+  code lands on `exp/tree-first` or `master` as part of this phase.
+
+**Binding rule.** The closeout is the phase's end: the corpus UAT (16.1) plus these two
+artifacts. The evaluation is not a diary — it maps the target to the code and says what is
+possible; the plan is not a wish list — every stage is bounded by the primitives and the
+law. A merge decision taken without them is out of contract.
+
+### UAT 16.3: the merge decision — human-verifiable
+
+After the closeout evaluation and the plan are accepted, the owner reviews the phase record
+and the **§7 merge checklist** and decides when the branch (this phase plus the eventual
+hybrid) is ready to merge to `master`. The merge does not make the Phase 17 plan product:
+the plan is the next phase's contract, not shipped behaviour.
 
 ---
 
@@ -350,11 +401,13 @@ experiment (this phase + the re-scoped hybrid) is ready to merge to `master`.
 - [ ] Vision docs 04/06 amended; the DeepSeek Flash exception recorded
 - [ ] DOX pass (root/app/core + the status/compliance records)
 - [ ] UAT 16.1 accepted (or its residual recorded)
-- [ ] `master` untouched; the branch merge deferred to UAT 16.2
+- [ ] UAT 16.2 accepted: the evaluation and the plan of what is possible exist and are
+      reviewed
+- [ ] `master` untouched; the branch merge deferred to UAT 16.3
 
 ---
 
-## 7. Merge to master (deferred until the whole experiment is accepted)
+## 7. Merge to master (deferred until the closeout and the whole experiment are accepted)
 
 Merge `exp/tree-first` → `master` as one reviewed change, in this order:
 
@@ -367,15 +420,21 @@ Merge `exp/tree-first` → `master` as one reviewed change, in this order:
 3. **Tests/gates** — the full suites and the APK identity on the merged tree.
 4. **AGENTS/index** — root `AGENTS.md` (phases 0–10D + 14–16), `app/AGENTS.md`,
    `core/AGENTS.md`; the master index gains Phase 16.
-5. **Records** — `.state/phase-16-status.json`, `.state/phase-16-verification.md`; the
+5. **Records** — `.state/phase-16-status.json`, `.state/phase-16-verification.md`, the
+   closeout evaluation `.state/phase-16-closeout.md`, and the Phase 17 plan draft; the
    VEXP9 findings summary and the branch note.
 6. **Not merged as product** — the VEXP9 experiment evidence/tables stay on the branch; the
-   hybrid is the next phase after the merge.
+   Phase 17 plan is the next phase's contract, not product code; the hybrid is implemented
+   after the merge.
 
 ---
 
 ## 8. Integration Notes
 
+- **The closeout is the planning gate (2026-10-22).** The hybrid phase is planned from the
+  evaluation, not from the interview alone: every planned stage marks what the current
+  Haiku/Jev primitives can do and what needs an amendment. The phase does not close, and
+  the merge decision is not taken, without UAT 16.2.
 - **Prerequisite for the hybrid.** The re-scoped hybrid (the two perception-repairable
   classes: `UNCERTAIN`/translate and target repair) starts only after this phase's guards
   exist; otherwise every rescue would repair a repeat the code already knew about.

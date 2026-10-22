@@ -5,7 +5,7 @@
 
 ## Project
 
-* This folder is the project root for **Chrome Navigator (working title; doc slug `NAVIGATOR`)** — a personal, sideloaded Android app that autonomously drives Chrome. The default engine is the multimodal vision loop (a11y + browser-window screenshot; Haiku writer + Jev 1.14 judgment engine); the a11y decision engine is retained as the explicit second engine for the hybrid speed/accuracy direction
+* This folder is the project root for **Chrome Navigator (working title; doc slug `NAVIGATOR`)** — a personal, sideloaded Android app that autonomously drives Chrome. The default engine is the multimodal vision loop (a11y + browser-window screenshot; Haiku writer + Jev 1.14 judgment engine); the a11y decision engine is retained as the explicit second engine for the hybrid speed/accuracy direction. The owner's target for the next engine phase is the tree-first toolbox (one loop; tree default; three code-owned escalation signals; vision for the rest of the subtask; Haiku event-driven) — recorded as a **target, not implemented** in `Project Vision/01 §1a` and `04 §8`
 * Canonical vision documents live in `Project Vision/`; the phased implementation plan lives in `Implementation Plan/`
 * All implementation artifacts are created directly in this project root. Never create a separate project directory here or elsewhere
 
@@ -104,10 +104,18 @@ When the user requests a durable behavior change, record it here or in the relev
   change suggested by an experiment is written as a separate phase on `master` only
   after the owner accepts the experiment's recommendation. An experiment build is
   disposable; its finding and recommendation are not.
+* TREE-FIRST TOOLBOX TARGET (owner, 2026-10-22): the next engine phase's target is one
+  loop with tree and vision as perception tools — tree default; three code-owned stuck
+  signals (no unique ground, thin/empty tree, no screen change); vision for the rest of
+  the subtask; tree at the next; Haiku event-driven with raw dual evidence; Jev reports,
+  Haiku judges, code gates. It is NOT implemented: the shipped app remains the
+  two-engine model. The vision docs are the target record and mark current vs target
+  everywhere; no phase may claim the target as shipped until it is implemented and the
+  owner accepts it.
 
 ## Child DOX Index
 
-* `Project Vision/` — canonical vision and specification documents (01–07; the 2026-10-18 vision-engine promotion amendment is current law); the source of truth for implementation compliance. See `Project Vision/AGENTS.md`
+* `Project Vision/` — canonical vision and specification documents (01–07; the 2026-10-18 vision-engine promotion amendment is current law; the 2026-10-22 tree-first target is recorded in 01 §1a / 04 §8 and marked **NOT IMPLEMENTED**; every doc carries a current-vs-target status line); the source of truth for implementation compliance. See `Project Vision/AGENTS.md`
 * `Implementation Plan/` — phased implementation plan (Phases 0–10D + 14–15; Phases 11–13 removed by owner directive 2026-10-20), master index, and agent prompts. See `Implementation Plan/AGENTS.md`
 * `.state/` — phase status files, compliance log, verification reports, eval reports, and the experiment-program docs (`.state/vision-iter/PHASE_VEXP*`, open programs carry their own status file); the project's durable memory. See `.state/AGENTS.md`
 * `handoff/` — source documents (handoff v1, handoff v2 Road L) and feasibility research; input material, not law. The Road L program is retired

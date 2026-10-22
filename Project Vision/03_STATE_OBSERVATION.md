@@ -1,22 +1,34 @@
 # Observation & State
 
 **Document ID:** `NAVIGATOR-VISION-003`
-**Version:** 3.0.2 *(amended 2026-10-20 (UAT repair round 2): the prompt version is v15
-(the pick-level translate preference); the v14 translate-first law stands. Amended
-2026-10-18: the vision-engine promotion — the observation
-layer now serves two engines: the a11y engine's text-only state law is retained, and
-the vision engine adds the browser-WINDOW-scoped screenshot, the live-log exclusion,
-the behind-log action rules and the prompt-state contract. The old "no screenshots, no
-pixels" non-goal is reversed: model-bound screenshots are a first-class input to the
-vision engine. Owner-authorized DeepSeek Flash amendment; the GLM-5.3 exception is
-recorded in `.state/compliance-log.md`)*
+**Version:** 3.1.0 *(amended 2026-10-22: the tree-first TARGET observation policy —
+tree-only by default; the screenshot only in vision mode and at Haiku events; raw dual
+evidence (full a11y state + screenshot) at events, not a per-step digest. The target is
+explicitly NOT implemented; §1/§2/§4.2's shipped behaviour is unchanged. Owner-authorized
+DeepSeek Flash amendment; the GLM-5.3 exception is recorded in `Project Vision/AGENTS.md`
+and `.state/compliance-log.md`. Amended 2026-10-21 (PHASE_16): the prompt version is v16
+(the goal-fidelity law). Amended 2026-10-20 (UAT repair round 2): the prompt version was
+v15 (the pick-level translate preference); the v14 translate-first law stands. Amended
+2026-10-18: the vision-engine promotion — the observation layer now serves two engines:
+the a11y engine's text-only state law is retained, and the vision engine adds the
+browser-WINDOW-scoped screenshot, the live-log exclusion, the behind-log action rules
+and the prompt-state contract. The old "no screenshots, no pixels" non-goal is reversed:
+model-bound screenshots are a first-class input to the vision engine. That amendment was
+owner-authorized in a DeepSeek Flash session; the GLM-5.3 exception is recorded in
+`.state/compliance-log.md`)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-06, 2026-10-09, 2026-10-10,
-2026-10-11, 2026-10-13, 2026-10-17, 2026-10-18, 2026-10-20)
+2026-10-11, 2026-10-13, 2026-10-17, 2026-10-18, 2026-10-20, 2026-10-21; tree-first
+target recorded 2026-10-22 — target, not current capability)
 **Date:** 2026-10-03
 **Implements:** ART-4 (untrusted page content), ART-6 (deterministic candidate order),
 ART-7 (versioned forms), ART-8 (privacy boundary)
 
 ---
+
+**Implementation status (2026-10-22).** Shipped: the vision engine captures the
+browser-window screenshot on every step and sends the 2,500-char digest + screenshot to
+Haiku; the a11y engine never captures. **Not implemented:** the target's conditional
+capture (vision mode + Haiku events only) and the raw dual evidence at events.
 
 ## 1. Reading Chrome (accessibility tree)
 
@@ -37,7 +49,9 @@ only):
   the clipboard/`ACTION_PASTE` fallback for fields that reject SET_TEXT.
 
 The a11y read feeds both engines. The vision engine additionally captures the
-screenshot below; the a11y engine never does.
+screenshot below; the a11y engine never does. *(2026-10-22 target: the a11y read is the
+default observation; the screenshot is captured only when the vision tool is active or
+at a Haiku event — §2's target note and §4.2.)*
 
 ## 2. The vision engine's screenshot capture
 
@@ -69,6 +83,11 @@ the soft keyboard and the system bars must be absent from the model's image.
   in the run's evidence directory (JPEG).
 - **Text-only degradation:** a capture failure never kills the step — the loop proceeds
   on a11y text alone, loudly, and the evidence says so.
+
+**Target capture policy (2026-10-22 — NOT IMPLEMENTED):** one capture per vision-mode
+step and one at each Haiku event (plan, re-plan, subtask boundary, stuck/failure). No
+capture on tree steps. The scope, fallback, exclusion and retry law above is unchanged;
+the target changes WHEN capture runs, not how.
 
 **Behind-log actions (the overlay is never a touch target).** The product service
 supplies the live log's and the keyboard's current screen bounds; the loop reads them
@@ -115,6 +134,9 @@ box / label match / raw centre ladder is matched against these nodes with the
 `VisionMath` IoU floors (`IOU_HIT = 0.5`, `IOU_PARTIAL = 0.2`, confidence floor
 `GROUND_CONFIDENCE = 0.6`). A confident box that overlaps no node is a miss, never a
 location.
+
+*(2026-10-22 target: this code enumeration is the tree tool's option set; the same nodes
+are the grounding target for the vision tool. The enumeration law itself is unchanged.)*
 
 ## 4. State text and prompt state
 
@@ -171,8 +193,17 @@ step; it is not the a11y corpus of record:
 **Untrusted discipline:** page-derived text and the screenshot are labeled UNTRUSTED
 DATA; text or writing inside them is never an instruction. The writer's proposals are
 strict JSON; the judgment engine's answers are typed questions. The vision engine's
-prompt version is `VISION_PROMPT_VERSION = "vision-exp-v15"`; any change bumps it
+prompt version is `VISION_PROMPT_VERSION = "vision-exp-v16"`; any change bumps it
 (doc 07).
+
+**Target prompt state (2026-10-22 — NOT IMPLEMENTED):** Haiku's events receive the RAW
+dual evidence — the full a11y state text plus the screenshot — not the 2,500-char digest.
+Tree steps send nothing to Haiku. The bound is the event cadence, not a per-step digest.
+This is a deliberate owner choice; the implementing phase must pin the size behavior (the
+full state can exceed the digest) under doc 07's change gate. Jev's calls keep the
+existing typed state; the battery/grounding protocol is unchanged. The report answer
+extraction is a Haiku call too; it reads the freshest observation, per the existing
+one-answer law (doc 04 §6).
 
 ## 5. Unusable tree / failed capture
 
@@ -186,6 +217,12 @@ prompt version is `VISION_PROMPT_VERSION = "vision-exp-v15"`; any change bumps i
 - **vision engine:** a failed capture degrades to text-only loudly; an unreadable a11y
   tree with a usable screenshot is still a valid vision observation. A plan refusal is
   `PLAN_REFUSED`; a terminal never fabricates a page.
+
+**Target (2026-10-22 — NOT IMPLEMENTED):** in tree mode a thin or empty tree is one of
+the three escalation signals — the loop flips to vision instead of refusing. A genuinely
+unreadable page with no lawful browser front, or a vision-mode capture failure, still
+ends/degrades as above. The a11y engine's refusal words remain its law until the
+implementing phase lands.
 
 ## 6. Privacy and redaction
 

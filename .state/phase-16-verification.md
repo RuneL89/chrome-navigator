@@ -6,7 +6,12 @@
 **Law:** `Project Vision/04_NAVIGATION_LOOP.md` v2.3.0 (§4.1/§4.2/§5), `Project Vision/06_RISK_GATE_AND_SAFETY.md` v1.7.0 (§4)
 **Status file read:** `.state/phase-16-status.json` (IN PROGRESS — Stages A+B DONE, UAT pending)
 
-## Verdict: PASS (mechanical gates) — UAT 16.1/16.2 remain owner-pending
+**Amendment note (2026-10-22):** the contract is now v1.1.0 — UAT 16.2 is the binding
+closeout (the vision/implementation evaluation + the plan of what is possible), and the
+merge decision is UAT 16.3. This report's mechanical verdict covers v1.0.0's code/law
+gates; no code changed in the amendment.
+
+## Verdict: PASS (mechanical gates) — UAT 16.1, the UAT 16.2 closeout and the UAT 16.3 merge decision remain owner-pending
 
 All six technical gates re-ran green from a cold checkout. No blocking findings.
 Two non-blocking findings are recorded below (a doc citation slip in Gate 16.3;
@@ -88,5 +93,5 @@ Commands were run from the project root (`C:\Users\atavi\Documents\projects\chro
 
 ## Non-blocking findings
 - **NB-1 (doc citation slip, no behavior impact):** Gate 16.3's pass criterion names `LadderExecutionLoopTest` for "the R3b/R4 ladders are refused at build", but those refusals are pinned in `GenClientTest` (3 tests), which is the layer where the check runs. `LadderExecutionLoopTest` (25/25 green) uses a scripted `LadderSource` that bypasses `GenClient`, so it cannot pin the fidelity refusal. Recommend amending the phase doc's Gate 16.3 to name `GenClientTest` for the refusal pins.
-- **NB-2 (test-coverage thinness, disclosed by the contract itself):** no dedicated JVM tests exist for (a) the same-URL cap firing end-to-end (33-opens shape), (b) the non-browser landing failure, (c) the launch `setPackage` (Android service — deviation #4, UAT covers on R4), (d) the a11y same-action recovery forcing and the second-NO-GOOD-TARGET path, (e) the vision verb-refusal and identical-subtask-refusal paths. The helpers they rest on (`sameActionRun`, `bindsSameAction`, `recordSiteEntry`/`banSiteEntry`, `unchangedFailingSubtask`, `batteryConcurs`) are unit-tested or exercised by the green suites, and the contract's status record already discloses (c) plus the three guard-shape deviations. Recommend adding runtime-shape regression tests before the master merge (UAT 16.2 gate).
-- **UAT pending (not findings):** UAT 16.1 (attended R1–R4 re-run) and UAT 16.2 (merge decision) are owner actions and remain pending per the status file. The branch merge stays deferred per the experiment branch rule.
+- **NB-2 (test-coverage thinness, disclosed by the contract itself):** no dedicated JVM tests exist for (a) the same-URL cap firing end-to-end (33-opens shape), (b) the non-browser landing failure, (c) the launch `setPackage` (Android service — deviation #4, UAT covers on R4), (d) the a11y same-action recovery forcing and the second-NO-GOOD-TARGET path, (e) the vision verb-refusal and identical-subtask-refusal paths. The helpers they rest on (`sameActionRun`, `bindsSameAction`, `recordSiteEntry`/`banSiteEntry`, `unchangedFailingSubtask`, `batteryConcurs`) are unit-tested or exercised by the green suites, and the contract's status record already discloses (c) plus the three guard-shape deviations. Recommend adding runtime-shape regression tests before the master merge (UAT 16.3 gate, after the UAT 16.2 closeout).
+- **UAT pending (not findings):** UAT 16.1 (attended R1–R4 re-run), UAT 16.2 (the closeout evaluation + plan) and UAT 16.3 (the merge decision) are owner actions and remain pending per the status file. The branch merge stays deferred per the experiment branch rule.

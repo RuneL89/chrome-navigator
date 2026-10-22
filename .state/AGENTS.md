@@ -15,6 +15,11 @@ remembers."
   `Implementation Plan/MASTER_IMPLEMENTATION_PROMPT.md` §3: timestamp, changed files, vision
   docs/sections checked, result, checker)
 * `phase-N-verification.md` — Verifier sub-agent's independent per-gate report
+* `phase-16-closeout.md` — the UAT 16.2 closeout evaluation: the target model
+  (`Project Vision/01 §1a`, `04 §8`) mapped mechanism-by-mechanism to the code, the
+  possible-now vs needs-a-new-role/amendment split, the R1–R4 residuals classified, the
+  answered open questions, the owner decisions, and the risk/cost of the next steps. The
+  binding companion of the draft `Implementation Plan/PHASE_17_tree_first_hybrid.md`.
 * `preUAT2-emulator/` — the `fix-record.md` from the owner-ordered pre-UAT automation
   pass (2026-10-08, the implementer's defect-fix record); the emulator prepass run
   reports were removed with the historical run data (owner request 2026-10-19)

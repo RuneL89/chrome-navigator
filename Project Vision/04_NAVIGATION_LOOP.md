@@ -1,7 +1,12 @@
 # Navigation Loop
 
 **Document ID:** `NAVIGATOR-VISION-004`
-**Version:** 2.3.0 *(amended 2026-10-21 (PHASE_16): the GOAL-FIDELITY law — the ladder is
+**Version:** 2.4.0 *(amended 2026-10-22: the tree-first TARGET loop — §8 records the
+owner's one-loop model (tree default, three code-owned escalation signals, vision for the
+rest of the subtask, tree at the next, Haiku event-driven with raw dual evidence). It is
+explicitly NOT implemented; §2/§3 remain the shipped loops. Owner-authorized DeepSeek
+Flash amendment; the GLM-5.3 exception is recorded in `Project Vision/AGENTS.md` and
+`.state/compliance-log.md`. Amended 2026-10-21 (PHASE_16): the GOAL-FIDELITY law — the ladder is
 bound to the goal, not to its plan; a purchase goal ends on the order confirmation; the
 finality hatch gains the sixth guard (the goal's own end state must be evidenced on the
 page); an absent verify battery is not concurrence on a FINAL WEAK condition. Owner
@@ -22,12 +27,19 @@ Owner-authorized DeepSeek Flash amendment; the GLM-5.3 exception is recorded in
 `.state/compliance-log.md`)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-06, 2026-10-07, 2026-10-09,
 2026-10-10, 2026-10-11, 2026-10-12, 2026-10-13, 2026-10-17, 2026-10-18, 2026-10-20,
-2026-10-21)
+2026-10-21; tree-first target recorded 2026-10-22 — target, not current capability)
 **Date:** 2026-10-03
 **Implements:** ART-1 (code owns the gate), ART-4 (no model self-completion), ART-5
 (numbers in code), ART-9 (bounded tasks), ART-2 (declared model roles)
 
 ---
+
+**Implementation status (2026-10-22).** Shipped: §2's vision step, §3's a11y step, §4's
+exits/finality/goal fidelity, §5's loop guards, §6's result/evidence, §7's re-plan. The
+PHASE_16 goal-fidelity and loop-guard laws are implemented on `exp/tree-first` and not yet
+merged to `master`. **Not implemented:** §8's tree-first target loop — no tree↔vision
+switching, no subtask-scoped modality, no event-driven Haiku, no raw dual evidence. §2/§3
+are the current engines; §8 is the committed target.
 
 ## 1. Task lifecycle
 
@@ -250,6 +262,11 @@ paths are unchanged by the promotion.
 
 ## 5. Recovery, stuck detection and budgets
 
+**Target note (2026-10-22 — NOT IMPLEMENTED):** §8 adds the three escalation signals;
+this section's guards are unchanged and apply in both tools. The known seam — a confident
+wrong action that changes the screen — is not caught by any guard immediately; §8 records
+it and the evaluation measures the boundary catches.
+
 **The loop-guard law (PHASE_16 — binding, code-owned).** Repetition is a code problem, not
 a model problem; a hint alone is not a guard.
 
@@ -335,3 +352,83 @@ card. (The a11y engine is not on the vision engine's 100× ledger.)
 - **A11y engine:** `ReplanRule` — verified prefix frozen; one declared one-step
   rollback with its lesson; growth lawful; resume-never-restart; violations refused
   loudly and count as no capacity.
+
+## 8. The tree-first target loop (owner vision, 2026-10-22 — NOT IMPLEMENTED)
+
+> This section is the committed target for the next engine phase, not current law. It
+> supersedes §2/§3's two separate steps when implemented; the shared ladder (§1), exits
+> (§4), guards (§5), evidence (§6) and re-plan integrity (§7) survive. Doc 01 §1a is the
+> product-level statement; this is the loop-level one.
+
+**The target in one sentence.** One loop, two perception tools, tree-first: the tree
+carries ordinary steps; one of three code-owned signals flips the subtask to vision;
+vision carries the rest of that subtask; the tree resumes at the next; Haiku is called
+only at events, with raw dual evidence.
+
+**Step order.**
+
+1. **PLAN (Haiku event).** Goal + raw dual evidence (full a11y state + screenshot) →
+   ladder. Code validates with the goal-fidelity law (§4.2); one bounded retry, then
+   refusal. The browser-readiness pre-step (§6) precedes the plan; readiness is not
+   navigation.
+2. **TREE STEP (default).** OBSERVE a11y → ENUMERATE (code) → Jev intent + per-candidate
+   scores → code resolves the slate → GATE → EXECUTE → Jev reports. Code checks the
+   condition and the three signals. No writer call, no image on the happy path. An
+   UNCERTAIN handshake is one of the stuck/failure events, not a silent per-step writer
+   call.
+3. **ESCALATION (code-owned; tree mode only).** Flip to vision only on:
+   - **no unique candidate/ground** — an empty slate, an UNCERTAIN intent, or a
+     flat/no-good-target score;
+   - **thin or empty tree** — the a11y observation has too little actionable content
+     (the current unusable-tree test: fewer than 5 meaningful nodes, one undifferentiated
+     node, or a root walk that fails twice);
+   - **no screen change** — an acted step whose page hash did not change (the existing
+     no-progress/same-action signals; the exact count is a code config value — the
+     current same-action hint is 3 and its binding is 4).
+
+   A model never requests the flip. The flip is logged with its cause. It is
+   subtask-scoped: vision carries the rest of the current subtask. A failed Box/pick
+   while ALREADY in vision mode takes the existing battery/failure re-plan, not a flip.
+4. **VISION STEP (rest of the subtask).** Capture the screenshot → Haiku authors 1..3
+   proposals → ONE Jev call picks and boxes them → GATE → EXECUTE → battery (Jev over
+   text+image + a Haiku image pass; code max-gate) → repeat. The current battery order is
+   kept: it runs before acting and on the accept. The subtask stays in vision mode until
+   it ends.
+5. **SUBTASK END.** Code checks the condition and resets the modality to tree. Haiku
+   gets the raw dual evidence and judges the plan. A met condition advances; a failed
+   one takes the existing failure/re-plan path. A re-planned subtask starts on tree (no
+   site memory).
+6. **Haiku events only:** plan, re-plan, subtask boundary, stuck/failure, and the report
+   answer extraction. Each pays one screenshot + the full a11y state. No per-step Haiku on
+   tree steps.
+
+**Authority.** Jev reports (picks, scores, boxes, battery answers); Haiku judges the plan
+and authors the vision options; code executes, detects stuck, flips, gates and accepts.
+The finality and goal-fidelity laws (§4) apply unchanged to both tools.
+
+**The seam.** The three signals detect "the tree cannot act", not "the tree acted on the
+wrong thing". A confident wrong tree action that changes the screen is caught at the
+subtask boundary by the condition check and Haiku's judgment — or not at all. The
+implementing phase must measure these boundary catches (doc 07 §6).
+
+**What must change (the delta).**
+- **One loop.** The a11y cascade becomes the TREE TOOL; the vision step becomes the
+  VISION TOOL; the active modality is subtask state.
+- **The three signals and the flip are new code.** The existing loop guards (§5) stay;
+  they are the tree tool's failure signals and the vision tool's guards.
+- **Haiku becomes event-driven.** The vision-mode propose call remains; the per-step
+  propose on tree steps is removed, and the a11y UNCERTAIN writer-assist handshake
+  becomes a stuck event.
+- **The accept is modality-aware.** The tree rubric in tree mode, the battery in vision
+  mode; code still owns it.
+- **Evidence gains the modality and the escalation cause** (doc 05).
+- **The product toggle becomes a policy selector** (tree-first default / always-vision
+  reference / tree-only retained) or is retired.
+- **The budget profile is an open decision.** The a11y and vision budgets currently
+  differ by 100×; the implementing phase must set the hybrid's profile rather than
+  inherit either silently.
+
+**What survives unchanged.** The ladder and goal-fidelity law (§1, §4.2), the finality
+law (§4.1), the risk gate (doc 06), the same-action/site-entry/strategy guards (§5), the
+capture law (doc 03 §2), the battery's max-gate, the one-answer extraction law (§6), the
+browser-readiness pre-step (§6) and the evidence truthfulness (doc 05).

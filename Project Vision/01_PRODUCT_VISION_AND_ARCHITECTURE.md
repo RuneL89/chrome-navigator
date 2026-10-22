@@ -1,17 +1,32 @@
 # Chrome Navigator (working title) — Product Vision and Architecture
 
 **Document ID:** `NAVIGATOR-VISION-001`
-**Version:** 2.0.0 *(amended 2026-10-18: the vision-engine promotion — the multimodal
-VisionLoop becomes the product's default engine and the a11y decision engine is retained
-as the explicit second engine; the Road L training program (Laya shadow, RLCD,
-graduation) is retired by owner directive; the owner authorized this amendment in a
-DeepSeek Flash session because the GLM-5.3 credits were exhausted — the exception is
-recorded in `.state/compliance-log.md`)*
-**Status:** Ratified (2026-10-03; vision-engine promotion ratified 2026-10-18)
+**Version:** 2.1.0 *(amended 2026-10-22: the owner's TREE-FIRST TARGET — one loop with
+tree and vision as perception tools. It is recorded as the committed target for the next
+engine phase and is explicitly NOT the shipped engine; each amended doc carries an
+implementation-status line. Owner-authorized DeepSeek Flash amendment; the GLM-5.3
+exception is recorded in `Project Vision/AGENTS.md` and `.state/compliance-log.md`.
+Amended 2026-10-18: the vision-engine promotion — the multimodal VisionLoop becomes the
+product's default engine and the a11y decision engine is retained as the explicit second
+engine; the Road L training program (Laya shadow, RLCD, graduation) is retired by owner
+directive; that amendment was owner-authorized in a DeepSeek Flash session because the
+GLM-5.3 credits were exhausted — the exception is recorded in
+`.state/compliance-log.md`)*
+**Status:** Ratified (2026-10-03; vision-engine promotion 2026-10-18; tree-first target
+recorded 2026-10-22 — target, not current capability)
 **Date:** 2026-10-03
 
 > Working title per locked decision #9 ("naming deferred; 'Navigator' is a placeholder").
 > Document IDs use the slug `NAVIGATOR` until naming is ratified.
+
+**Implementation status (2026-10-22).** Shipped: the two-engine model of §1/§3 — the
+vision engine is the default (a11y + screenshot on every step; Haiku proposes every step;
+Jev grounds and runs the battery; code owns the ladder, goal fidelity, guards, gate and
+finality) and the a11y engine is retained behind the Setup toggle (text-only cascade; no
+vision; no escalation). The PHASE_16 goal-fidelity and loop-guard laws are implemented on
+`exp/tree-first` and not yet merged to `master`. **Not implemented:** the tree-first
+target of §1a — no tree↔vision switching, no subtask-scoped modality, no event-driven
+Haiku, no raw dual evidence at events, no unified evidence record.
 
 ---
 
@@ -64,12 +79,101 @@ in the phase-14 status and the backlog, not hidden.
 | Stage | What ships | Why |
 |---|---|---|
 | Now | Vision engine default + a11y engine retained behind the toggle | The vision engine is the working product; the a11y engine preserves the speed/accuracy option |
-| Next | Hybrid work: a11y-first steps with image escalation (and image-first steps with a11y verification) | The owner's stated direction: a11y is fast, images are accurate; the final app should use both |
-| Later | Whichever mixture the live evidence favours | No on-device decision-model graduation requirement; the training program is retired |
+| Next (specified 2026-10-22) | The tree-first toolbox of §1a: one loop, tree default, three code-owned escalation signals, vision for the rest of the subtask, tree at the next; Haiku event-driven; Jev reports, Haiku judges, code gates | The owner's target after the VEXP9 corpus; **not implemented** — the two-engine model remains the shipped state |
+| Later | Tune the tree/vision policy from live evidence | No on-device decision-model graduation requirement; the training program is retired |
 
 The Road L lifecycle (shadow student, RLCD accumulation, fine-tune, graduation) is
 **retired** by owner directive 2026-10-19 ("remove that noise completely"). No phase may
 assume an on-device Laya engine, a shadow, a training corpus, or a graduation flip.
+
+### 1a. The tree-first target (owner vision 2026-10-22 — NOT IMPLEMENTED)
+
+> **Status:** this is the committed target for the next engine phase; it is not what the
+> app does today. The shipped behaviour is §1/§3's two-engine model. A phase that
+> implements the target must amend this section into law and update every
+> implementation-status line. The source is the owner's 2026-10-22 interview after the
+> PHASE_VEXP9 corpus.
+
+**The claim.** One loop, two perception tools, tree-first. The tree carries ordinary steps
+at a11y cost; when it cannot, one of three code-owned signals fires and vision carries the
+rest of that subtask at image cost; the tree resumes at the next subtask. Haiku is the
+brain (plan, vision-path options, judgment at events); Jev is the hands (pick, score, box,
+report); code is the body (enumerate, execute, detect stuck, flip tools, gate, accept,
+evidence).
+
+**The cast.**
+
+- **Haiku (writer).** Four jobs: (1) write the ladder from the goal; (2) in vision
+  mode, author up to three proposals for the current screenshot; (3) at events, judge
+  plan progress and re-plan; (4) extract the report answer (the one-answer law, doc 04
+  §6). It is not called per step on tree steps.
+- **Jev (judgment engine).** Answers the four primitives only (`choice`, `noul`, `score`,
+  `box`). It picks among offered options, scores a code-enumerated slate, boxes a described
+  target and answers verification nouls. It does not author actions, plan, or complete a
+  task.
+- **Code (the loop).** Owns the a11y read, the screenshot capture, the candidate
+  enumeration, the gesture execution, the done-condition check, the three stuck signals,
+  the subtask modality, the ladder + goal-fidelity validation, the guards, the risk gate,
+  the finality gates and the evidence.
+
+**The step.**
+
+1. **Plan (Haiku event).** Goal + raw dual evidence (full a11y state + screenshot) →
+   ladder; code validates with the goal-fidelity law (one bounded retry, then refusal).
+   The browser-readiness pre-step (doc 04 §6) precedes the plan; readiness is not
+   navigation.
+2. **Tree step (default).** Code enumerates the a11y candidates; Jev answers the intent and
+   scores the slate; code resolves the winner, executes, checks the condition and the
+   three signals. No writer call, no image on the happy path. An UNCERTAIN handshake is one
+   of the stuck/failure events, not a silent per-step writer call.
+3. **Escalation (code-owned).** A flip to vision happens only on: no unique
+   candidate/ground; a thin or empty tree; or an acted step whose screen did not change.
+   No model requests the flip.
+4. **Vision step (rest of the subtask).** Screenshot; Haiku authors ≤3 proposals; one Jev
+   call picks and boxes them; code executes; the battery (Jev over text+image + a Haiku
+   image pass, code max-gate) reports. The current battery order is kept: it runs before
+   acting and on the accept. Vision stays until the subtask ends.
+5. **Subtask end.** Code checks the condition and resets the modality to tree; Haiku gets
+   the raw dual evidence and judges the plan. A failed condition takes the existing
+   failure/re-plan path; a re-planned subtask starts on tree (no site memory).
+6. **Haiku events only:** plan, re-plan, subtask boundary, stuck/failure, and the report
+   answer extraction. Each event pays one screenshot + the full a11y state. No per-step
+   Haiku on tree steps.
+
+**Authority.**
+
+| Decision | Owner |
+|---|---|
+| The plan, and the vision-path options | Haiku |
+| Which offered option, and where it is | Jev (tree: scores; vision: pick + Box) |
+| Executing the gesture; whether the screen changed | Code |
+| Whether the subtask condition is met | Code checks; Haiku judges at the boundary |
+| When to switch tools | Code — the three signals |
+| Whether the task is complete | Code — finality + goal fidelity |
+
+**Deliberately absent.** No per-step Haiku on tree steps; no model-requested vision; no
+site memory; no free-form Jev actions; no model-accepted completion; no per-step vision on
+tree steps.
+
+**The known seam.** The three signals all say "the tree cannot act"; none says "the tree
+acted on the wrong thing". A confident wrong tree action that changes the screen can look
+like progress until the subtask boundary, where the condition check and Haiku's judgment
+must catch it. The evaluation must count these boundary catches.
+
+**Navigation** (opening URLs, choosing a site, entering an address) stays with code; it is
+not one of the two perception tools.
+
+**Current capability vs the target.**
+
+| Capability | Shipped (2026-10-22) | Target (not implemented) |
+|---|---|---|
+| Perception | Vision engine: a11y + screenshot every step; a11y engine: tree only | Tree by default; screenshot in vision mode and at Haiku events |
+| Tool switching | None; the Setup toggle selects an engine | Code-owned; three signals; subtask-scoped |
+| Haiku calls | Every vision step (plan/propose/repair/opinion/extract) | Events only |
+| Jev calls | Vision: battery + ground per step; a11y: intent + scores per step | Tree: intent + scores; vision: pick + Box + battery |
+| Per-step judgment | Battery (vision) / rubric (a11y) | Jev reports; Haiku judges at events; code gates |
+| Evidence | Two formats (vision `events.log`; a11y `steps.csv`) | Unified, with modality and escalation cause |
+| Completion | Code finality + goal fidelity | Unchanged |
 
 ## 2. Core Principles (the inviolable articles)
 
@@ -98,7 +202,7 @@ assume an on-device Laya engine, a shadow, a training corpus, or a graduation fl
 6. **Deterministic candidate order** — the a11y enumeration order is produced by code
    only; the vision engine's grounding is matched to that deterministic node set.
 7. **Versioned prompts and state** — `VISION_PROMPT_VERSION` (currently
-   `vision-exp-v13`), `STATE_FORMAT_VERSION`, the ladder schema and the question forms
+   `vision-exp-v16`), `STATE_FORMAT_VERSION`, the ladder schema and the question forms
    are versioned; changes gate on the verification suite (doc 07).
 8. **Privacy and consent boundary** — API keys live only in the app's encrypted store;
    page text and the window-scoped screenshot travel only to the two configured model
@@ -113,7 +217,10 @@ assume an on-device Laya engine, a shadow, a training corpus, or a graduation fl
 11. **The two-engine endgame.** No change may delete or silently bypass the a11y engine
     while the hybrid direction is open. The vision engine may become the only default,
     but the a11y engine's code, toggle, tests and law stay alive until an explicit
-    owner amendment retires it.
+    owner amendment retires it. *(2026-10-22 target note: §1a absorbs the a11y engine's
+    cascade as the loop's TREE TOOL — a role change, not a deletion. Its code, toggle,
+    tests and law stay alive until the implementing phase lands and the owner accepts.
+    The target is not implemented.)*
 
 ## 3. Architecture Overview
 
@@ -158,6 +265,25 @@ GOAL → ladder → per step: OBSERVE (a11y) → ENUMERATE → DECIDE (Jev casca
 stage-1 9-intent choice + stage-2 batched score) → GATE (same RiskGate) → EXECUTE →
 LOG (NoOpLogSink; the training store is retired) → ladder pointer advances only on a
 verified IS-DONE
+```
+
+**The target (2026-10-22 — NOT IMPLEMENTED; the two diagrams above remain the shipped
+architecture):**
+
+```
+GOAL → PLAN (Haiku event; raw dual evidence; code validates)
+   ▼
+PER SUBTASK: TREE MODE (default)
+   OBSERVE a11y → ENUMERATE (code) → JEV intent + scores → code resolves
+   → GATE → EXECUTE → Jev reports → code condition + three signals
+   │
+   ├── a signal fires (no unique ground | thin/empty tree | no screen change)
+   │      ▼
+   │   VISION MODE for the REST OF THE SUBTASK
+   │      capture → Haiku ≤3 proposals → JEV pick + Box → GATE → EXECUTE
+   │      → battery (Jev + Haiku image pass; code max-gate) → repeat
+   ▼
+SUBTASK END → code condition → Haiku event (raw dual evidence) → TREE MODE
 ```
 
 **The product split (the load-bearing table):**
@@ -276,7 +402,21 @@ per-task class trust. The vision engine's live acceptance run (Verkkokauppa, ord
 - **CTA / scroll churn** — a visible purchase control is tapped; 3 acted scrolls carry
   the soft hint; 4 + a visible control force a re-plan; never a forced click.
 
-## 7. Locked-Decision Register (as amended through 2026-10-18)
+**Target vocabulary (2026-10-22 — not implemented):**
+
+- **Tree tool** — the a11y read + code enumeration + the Jev intent/score cascade, used
+  as the default mode of the target loop.
+- **Vision tool** — the screenshot + Haiku proposals + Jev pick/Box + battery, used for
+  the rest of a subtask after an escalation.
+- **Modality** — the active perception tool for a subtask (tree or vision).
+- **Escalation** — the code-owned flip from tree to vision on one of the three stuck
+  signals; vision stays for the subtask, tree resumes at the next.
+- **Haiku event** — plan, re-plan, subtask boundary, stuck/failure; the only points Haiku
+  is called in the target.
+- **Raw dual evidence** — the full a11y state plus the screenshot supplied to Haiku at an
+  event (not a digest).
+
+## 7. Locked-Decision Register (as amended through 2026-10-22)
 
 | # | Original (handoff v1) | Status after the promotion |
 |---|---|---|
@@ -290,6 +430,7 @@ per-task class trust. The vision engine's live acceptance run (Verkkokauppa, ord
 | 8 | Log every decision fine-tuning-compatible from day one | **AMENDED 2026-10-18:** evidence replaces the training corpus; the RLCD requirement is retired |
 | 9 | Naming deferred | STANDS; slug `NAVIGATOR` |
 | — | (Road L, handoff v2) | **RETIRED 2026-10-18:** Laya shadow, RLCD, graduation and the on-device endgame are not v1 requirements; the a11y engine is retained for the hybrid direction |
+| — | (tree-first target) | **RECORDED 2026-10-22 — target, not implemented:** one loop with tree and vision as perception tools; tree first; three code-owned signals; vision for the rest of the subtask; tree at the next; Haiku event-driven with raw dual evidence; Jev reports, Haiku judges, code gates. The two-engine model remains the shipped law until a phase lands and the owner accepts. |
 
 **Provenance:** the 2026-10-03 interview record and the 2026-10-18 promotion
 authorization (owner message; DeepSeek Flash exception) live in the compliance log and

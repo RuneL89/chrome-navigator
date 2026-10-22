@@ -1,24 +1,36 @@
 # Verification & Evaluation
 
 **Document ID:** `NAVIGATOR-VISION-007`
-**Version:** 2.1.1 *(amended 2026-10-20 (UAT repair round 2): the pick-level translate
-preference (v15) joins the change gate; amended 2026-10-20: the translate-first prompt
-law (v14) joins the
+**Version:** 2.2.0 *(amended 2026-10-22: the tree-first TARGET evaluation — the
+switching-policy gates and the acceptance criteria (correctness first, then time per
+correct run, image calls and escalation rate) are recorded as target gates; they are
+explicitly NOT implemented. Owner-authorized DeepSeek Flash amendment; the GLM-5.3
+exception is recorded in `Project Vision/AGENTS.md` and `.state/compliance-log.md`.
+Amended 2026-10-21 (PHASE_16): the prompt version is v16 and the goal-fidelity/loop-guard
+tests join the gates. Amended 2026-10-20 (UAT repair round 2): the pick-level translate
+preference (v15) joins the change gate; the translate-first prompt law (v14) joins the
 change gate through VISION_PROMPT_VERSION; the PHASE_14 Finnish classifier-matrix row is
-withdrawn. Amended 2026-10-18: the vision-engine promotion — the Tier-A replay
-harness, the Tier-B 16-goal suite, the RLCD/agreement measurements and the
-exit-calibration corpus are retired with the training program. The verification regime
-is now the JVM suites plus the owner's live-run evidence and run reports. The prompt
-version, model pins, capture law, gate floor and ladder schema join the change-gate
-list. Owner-authorized DeepSeek Flash amendment; the GLM-5.3 exception is recorded in
-`.state/compliance-log.md`)*
+withdrawn. Amended 2026-10-18: the vision-engine promotion — the Tier-A replay harness,
+the Tier-B 16-goal suite, the RLCD/agreement measurements and the exit-calibration
+corpus are retired with the training program. The verification regime is now the JVM
+suites plus the owner's live-run evidence and run reports. The prompt version, model
+pins, capture law, gate floor and ladder schema join the change-gate list. That
+amendment was owner-authorized in a DeepSeek Flash session; the GLM-5.3 exception is
+recorded in `.state/compliance-log.md`)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-06, 2026-10-10, 2026-10-11,
-2026-10-12, 2026-10-17, 2026-10-18, 2026-10-20)
+2026-10-12, 2026-10-17, 2026-10-18, 2026-10-20, 2026-10-21; tree-first target recorded
+2026-10-22 — target, not current capability)
 **Date:** 2026-10-03
 **Implements:** ART-7 (versioned forms gate), doc 02 §5 (pins), doc 03 §3 (taxonomy),
 doc 04 (loop laws)
 
 ---
+
+**Implementation status (2026-10-22).** Shipped: the JVM suites and the live-run layer
+for the two engines; the PHASE_16 goal-fidelity/loop-guard tests are current on
+`exp/tree-first`. **Not implemented:** the tree-first target's gates and acceptance (the
+switching policy, the three signals, the subtask reset, event-driven Haiku, raw dual
+evidence).
 
 ## 1. Purpose and regime
 
@@ -45,6 +57,13 @@ the training program. Their historical `.state/eval/` artifacts are frozen recor
 | App suite | `./gradlew :app:testDebugUnitTest` | the whole app: vision + retained a11y loop + overlay + setup + service + notification |
 | Core suite | `./gradlew :core:test` | types, wire client, enumeration, ladder + checker, risk gate (H1–H9), state views, retained cascade |
 
+**Target gates (2026-10-22 — NOT IMPLEMENTED):** the switching policy's tests — each of
+the three signals fires the flip; vision carries the rest of the subtask; the tree
+resumes at the next; Haiku is called only at the events; the raw dual evidence is what
+the event prompt carries; no per-step Haiku on tree steps; the authority split holds
+(Jev reports, Haiku judges, code gates). These join the existing suites when the
+implementing phase lands; the target does not retire any current test.
+
 **Hermeticity:** the vision suites inject scripted `WireTransport`s and fabricated
 captures; a unit test never calls a live provider or needs a key. The baseline counts
 are recorded in the phase status files; a change that reduces a suite must explain
@@ -58,7 +77,7 @@ per-path terminal detection, the pull/analysis, the `REPORT.md` format, and the
 three-surface cleanup. A live run is monitored as follows:
 
 1. **Identity:** the app id is `navigator.app`; the debug APK is `app-debug.apk`; the
-   dex marker is the current `VISION_PROMPT_VERSION` (currently `vision-exp-v13`).
+   dex marker is the current `VISION_PROMPT_VERSION` (currently `vision-exp-v16`).
    There is no `.visionexp` suffix after the promotion.
 2. **Terminal:** an overlay-submitted goal runs the product route. With the vision
    toggle ON, the authoritative end is the corner log's task-state line + the READY
@@ -85,7 +104,10 @@ Any change to the following requires a full JVM run green **and** a live-run rev
   finality/accept law;
 - the budgets, step/re-plan/retry ceilings or the terminal vocabulary;
 - the product route (`ProductRunRoute`) or the vision-loop toggle default;
-- the evidence schema, retention or redaction law.
+- the evidence schema, retention or redaction law;
+- the tree-first target's modality policy (the three signals, the subtask reset, the
+  Haiku event cadence, raw dual evidence) — when implemented; the target text itself is
+  not a change to the shipped behaviour.
 
 A prompt change is never "just wording": it re-pins the prompt fixtures and runs the
 vision suite. A model pin bump is a commit of its own with the evidence review.
@@ -119,6 +141,15 @@ real goals run through the product overlay; the standing families are:
   credentials, owner-designated test site).
 - **The retained a11y engine** — the same goal with the toggle OFF must still run its
   cascade and gate.
+
+**Target acceptance (2026-10-22 — NOT IMPLEMENTED):** the VEXP9 corpus (R1–R4) under the
+attendance rule, judged in this order: (1) the correctness anchors; (2) wall-clock time
+per correct run; (3) image-carrying calls and battery calls; (4) the escalation rate and
+its causes; (5) boundary catches — wrong actions caught at the subtask boundary rather
+than by a signal. A hybrid that is correct but not faster on the corpus is not yet an
+acceptance; a hybrid that is faster but misses an anchor is a failure. The 100× vision
+budgets and the a11y profiles are not the hybrid's profile; the implementing phase sets
+it (doc 04 §8).
 
 A live failure that reveals a new mode becomes a new fixture/test or a KD; the suite
 does not shrink.

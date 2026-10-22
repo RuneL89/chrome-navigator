@@ -2,8 +2,8 @@
   "phase": 16,
   "title": "Goal Fidelity & Loop Guards",
   "phaseDoc": "Implementation Plan/PHASE_16_goal_fidelity_and_loop_guards.md",
-  "branch": "exp/tree-first (master stays at 1a0af26; the merge is deferred to UAT 16.2)",
-  "status": "IN PROGRESS — Stages A+B DONE (gates 16.1-16.6 green); owner UAT pending",
+  "branch": "exp/tree-first (master stays at 1a0af26; the merge is deferred to UAT 16.3, after the UAT 16.2 closeout)",
+  "status": "STAGES A+B DONE (gates 16.1-16.6 green); UAT 16.1 COMPLETE — R1 tree failed (condition/accept), R1 vision passed (anchor 2 units); R2 tree failed (landing false negative + tab selection), R2 vision failed (lost site/pointer); R4 tree failed (app-routing fix PASSED; account-switcher loop), R4 vision passed (anchor; scroll/video/account gaps); R3 tree discarded (reset failure), R3 vision monitor-stopped (checkout correct; the sixth guard fired twice; the tab switcher; no order), R3 vision retry monitor-stopped (checkout correct; the email autofill worked; the Etunimi name field looped; no order). UAT 16.2 ARTIFACTS WRITTEN — .state/phase-16-closeout.md and Implementation Plan/PHASE_17_tree_first_hybrid.md; awaiting the owner's review before UAT 16.3 (the merge decision).",
   "startedAt": "2026-10-21",
   "source": "PHASE_VEXP9 iteration 2 corpus (R1–R4, tree + vision); the owner accepted the findings and the fix plan",
   "ownerDecisions": {
@@ -15,7 +15,7 @@
     "A-goal-fidelity": "DONE — GoalFidelity (core) + the error-fed wiring at both ladder builds + vision prompt v16 / gen restructure-v5 + the goldens v5 + the hatch sixth guard + the final-WEAK empty-battery rule + the tests",
     "B-loop-guards": "DONE — the product launcher package fix + the non-browser landing check; the same-URL site-entry guard (2 per subtask, a refused landing bans); the a11y same-action binding (4 identical TAP/TYPE/fill/SUBMIT on the same screen -> the recovery set); the vision same-action filter (3 -> <same-action> block + the code refusal); the a11y strategy guard (a second NO-GOOD-TARGET on the same intent -> the recovery set); the vision strategy guard (after 2 battery re-plans, CHANGE STRATEGY + an identical failing subtask refused); the tests",
     "gates": "16.1-16.6 PASS",
-    "uat": "PENDING — the attended R1–R4 re-run (owner), then the merge decision"
+    "uat": "UAT 16.1 COMPLETE — R1 tree FAILED (condition/accept), R1 vision PASSED (anchor 2 units); R2 tree FAILED (landing false negative + tab selection), R2 vision FAILED (lost site/pointer; prefix-revalidation proposed); R4 tree FAILED (the launcher package fix PASSED; account-switcher loop), R4 vision PASSED (the Food Wishes latest playing; scroll/video/account gaps); R3 tree DISCARDED (reset failure), R3 vision MONITOR-STOPPED (the CDON checkout correct: SoundMagic E11C ×1, Koivuviita 7 B 5, 43,92 €; the sixth guard suppressed two false completions; the 'Jatka maksamaan' tap opened the tab switcher; REPLAN #4 proposed a full purchase redo; no order), R3 vision retry MONITOR-STOPPED (the checkout correct again; the email autofill chip worked; the required Etunimi was not filled; the engine looped on the saved-address chip/scrolls; no order). The UAT 16.2 closeout is next: the evaluation + the Phase 17 plan; then UAT 16.3."
   },
   "gatesPassed": [
     "16.1 GoalFidelityTest 12/12 (core)",
@@ -27,15 +27,173 @@
   ],
   "gatesFailed": [],
   "gatesPending": [
-    "UAT 16.1 — the attended R1–R4 corpus re-run (owner)",
-    "UAT 16.2 — the merge decision"
+    "UAT 16.1 — the attended R1–R4 corpus re-run (owner) — COMPLETE; the results are in uatRuns",
+    "UAT 16.2 — the closeout: the artifacts are written; the owner's review is pending (binding)",
+    "UAT 16.3 — the merge decision"
+  ],
+  "closeout": {
+    "ownerDirective": "2026-10-22 — the end of the phase is the evaluation of the vision and the implementation plan of what is possible, not the corpus alone.",
+    "uat": "UAT 16.2",
+    "status": "WRITTEN 2026-10-22; owner review pending",
+    "artifacts": [
+      ".state/phase-16-closeout.md — the target model (Project Vision/01 §1a, 04 §8) mapped to the code: mechanism, current implementation, gap, R1–R4 evidence; possible-now vs needs-new-capability/amendment; the open decisions; the known seam",
+      "Implementation Plan/PHASE_17_tree_first_hybrid.md — the draft next-phase plan: staged scope, gates, UAT and acceptance order; each stage labeled possible-now or needs-an-amendment"
+    ],
+    "findings": {
+      "R1": "condition/accept — the tree saw the results; the WEAK-condition accept law refused (Path A needs STRONG); the fix is the condition shape + the mid-ladder accept decision + the same-action ban, not a vision flip.",
+      "R2": "ladder integrity — the Google detour changed the screen, so no signal fired; the completed prefix was never re-audited; adopt the code-side prefix rollback (a11y ReplanRule amendment) + the optional host guard.",
+      "R3": "goal/site (site-agnostic search-first) + checkout integrity (tab switcher/off-page/no redo/order control) + field-level forms (empty required fields, per-field facts, autofill-chip rule) + the Finnish label mapping.",
+      "R4": "ACCOUNT_SWITCH end state at GOAL_ACHIEVED (the hatch-only guard) + the long-list scroll + the safe recovery back; the launcher package fix and the playback law passed.",
+      "seam": "two boundary catches observed (R1 quantity, R3 finality); one live miss (R2 Google drift) — the prefix audit is the mitigation."
+    },
+    "binding": "The phase does not close and the UAT 16.3 merge decision is not taken without both artifacts existing and the owner reviewing them."
+  },
+  "uatRuns": [
+    {
+      "goal": "R1",
+      "arm": "tree (pre-translated)",
+      "runId": "task-1792666968193",
+      "terminal": "BUDGET_EXHAUSTED",
+      "success": false,
+      "steps": 23,
+      "elapsedMs": 95254,
+      "spendUsd": 0.252288,
+      "anchor": "FAILED — the cart was never reached; the search results loaded ('3 results for Celsius lemon lime energy drink'), but subtask 2 never advanced (WEAK guard; the accept refused) and subtask 3 (cart) never activated",
+      "finding": "primary: the a11y exit policy refused the code-satisfied WEAK condition `page contains 'Celsius'` at +26.7s and later (verify-done noul 0.86-0.98; Path A needs STRONG); the pointer stayed 2/3 and the cart never activated; the condition self-satisfied on the storefront/autocomplete at +8.5s. Secondary: the Phase 16 same-action binding did not fire (screen-scoped run 3 at L1; L2 bypasses) and the recovery set is one decision. The a11y Action $0.25 cap ended the run.",
+      "report": ".state/phase-16-uat/R1-tree-pretranslated/REPORT.md"
+    },
+    {
+      "goal": "R1",
+      "arm": "vision (cold)",
+      "runId": "task-1792669443843",
+      "terminal": "GOAL_ACHIEVED",
+      "success": true,
+      "steps": 14,
+      "elapsedMs": 164793,
+      "anchor": "PASS — the Added-to-cart drawer shows the Celsius Lemon Lime 24-pack, quantity 2, '2 products, total 44,99'; the cart page itself was not opened",
+      "finding": "translate-first at +50.9s (n14); two battery accept refusals (homepage/search) that the engine re-planned through; the add-to-cart drawer quantity 1 -> battery red flag -> battery re-plan #2 -> + tap -> quantity 2; the final subtask accepted on the drawer (noul 0.25, confirm=true; code/battery authoritative); the spend is unrecorded (all-zero usage except the plan)",
+      "report": ".state/phase-16-uat/R1-vision-cold/REPORT.md"
+    },
+    {
+      "goal": "R2",
+      "arm": "tree",
+      "runId": "task-1792669926632",
+      "terminal": "STUCK_KILL",
+      "success": false,
+      "steps": 8,
+      "elapsedMs": 57025,
+      "spendUsd": 0.044694,
+      "anchor": "FAILED — the WWE channel page was reached; the Videos tab URL loaded the correct Videos tab but the landing-coherence heuristic false-negatived; the Live tab/latest video was not reached; the owner stopped on the escalation card",
+      "finding": "the tab selection failed first (stage-2 NO-GOOD-TARGET 2.8 < 3.0); the re-plan wrote URL conditions; the code opened /c/wwe/videos and the page was the Videos tab, but SiteEntry.landingCoheres rejected the title (false negative) and banned the URL; the re-plan reset the ban and the URL returned; the owner stopped. The same-URL/landing ban does not persist across re-plans; the tab selection is a perception/grounding case for the vision tool.",
+      "report": ".state/phase-16-uat/R2-tree/REPORT.md"
+    },
+    {
+      "goal": "R2",
+      "arm": "vision",
+      "runId": "task-1792670218181",
+      "terminal": "CANCELLED",
+      "success": false,
+      "steps": 107,
+      "elapsedMs": 914400,
+      "anchor": "FAILED — the engine left Rumble for Google; the pointer stayed on subtask 2 for 15 re-plans; the Live tab/latest video was not reached; the owner stopped",
+      "finding": "ladder-integrity/pointer: subtask 1 (urlHost rumble.com) was completed, then the WWE search went to the Google omnibox; subtask 1's condition was false but the pointer never rolled back; all 15 re-plans resume at subtask 2; the battery and the re-plan writer named the Google page; the type grounding on the address bar failed (NO_FIELD_AT_POINT); the owner stopped at 914s. The proposed prefix revalidation (audit the completed conditions after 3 failures; roll back to the earliest false; location conditions first) is recorded for the closeout/Phase 17.",
+      "report": ".state/phase-16-uat/R2-vision/REPORT.md"
+    },
+    {
+      "goal": "R4",
+      "arm": "tree",
+      "runId": "task-1792671650905",
+      "terminal": "REFUSED",
+      "success": false,
+      "steps": 31,
+      "elapsedMs": 87654,
+      "spendUsd": 0.201876,
+      "anchor": "FAILED — the site entry stayed in Chrome (m.youtube.com; the Phase 16 package fix PASSED), but the account-switcher subtask got stuck in a verify-done loop (guard NONE) and the recovery back left the tree unreadable; 'I can't read this site'",
+      "finding": "the launcher package fix is validated (the R4 tree's known app-routing failure is fixed: youtube.com opened in Chrome's m.youtube.com, not the native app). The failure moved to subtask 2: the a11y cascade chose verify-done repeatedly (p 0.86-0.91; guard NONE; exit-conflict), the recovery scroll/back, the back produced an unusable tree (0 lines), and the engine refused. The account switcher was never acted on; the vision tool is the candidate for the account UI. The gen1 open-site also could not resolve a URL from its done-condition; the re-plan fixed it.",
+      "report": ".state/phase-16-uat/R4-tree/REPORT.md"
+    },
+    {
+      "goal": "R4",
+      "arm": "vision",
+      "runId": "task-1792671972181",
+      "terminal": "GOAL_ACHIEVED",
+      "success": true,
+      "steps": 126,
+      "elapsedMs": 1228171,
+      "anchor": "PASS — the Food Wishes latest video 'Crime Scene Chicken' is playing (m.youtube.com/watch; 0:26/8:18; the pause icon); the Food Wishes channel page is the path; the account switch to MrAwesome is per the ladder and the owner's confirmation (the final frame does not show the active account name)",
+      "finding": "the GoalFidelity playback law worked (two plan attempts refused for a non-playback final); the run took 126 steps/1228s/3 task re-plans + many battery re-plans. The subscriptions scroll stopped early (repeated scrolls/battery red flags, then re-plans to search/channel); the video started, the engine navigated away and back (watch-page battery refusals, an ad, the final player tap). The account end state is not independently visible in the final frame; the ACCOUNT_SWITCH accept evidence is a gap. The spend is unrecorded; the navcap 20-min cap is shorter than the 20.5-min run.",
+      "report": ".state/phase-16-uat/R4-vision/REPORT.md"
+    },
+    {
+      "goal": "R3",
+      "arm": "tree",
+      "runId": "task-1792673616957",
+      "terminal": "USER_CANCEL",
+      "success": false,
+      "discarded": true,
+      "discardReason": "reset failed: the start page was Google's new tab (not the retailer); the Verkkokauppa cart held 2 items (the R1 Celsius); the engine planned 'the Finnish online electronics store' and chose Verkkokauppa, which has no SoundMagic E11C ('Ei tuloksia')",
+      "steps": 15,
+      "elapsedMs": 45710,
+      "spendUsd": 0.074,
+      "stopReason": "MONITOR_CARD_STOP (the monitor stop; the reset failure, not the order card)",
+      "report": ".state/phase-16-uat/R3-tree/RESET-STOP.md"
+    },
+    {
+      "goal": "R3",
+      "arm": "vision",
+      "runId": "task-1792674073530",
+      "terminal": "MONITOR_CARD_STOP (the monitor stop; the tab switcher; no order)",
+      "success": false,
+      "anchor": "PARTIAL — the CDON checkout held the SoundMagic E11C ×1, the address Rune Lauritzen / Koivuviita 7 B 5 / 02130 Espoo, and 43,92 € ≤ 60; the 'Jatka maksamaan' tap opened Chrome's tab switcher, the checkout was lost, and the final order control was never visible; no order.",
+      "finding": "the sixth guard suppressed two false completions (the 'Maksettavaa:' condition repair; the tab switcher); the payment-step tap opened the tab switcher; the engine tried the 'Kassa | CDON' tab, then the New tab; REPLAN #4 proposed a full purchase redo; the monitor stopped. The checkout state was correct (the email was a keyboard autofill gap, now saved).",
+      "report": ".state/phase-16-uat/R3-vision/REPORT.md"
+    },
+    {
+      "goal": "R3",
+      "arm": "vision retry",
+      "runId": "task-1792675663617",
+      "terminal": "MONITOR_CARD_STOP (the monitor stop; the address form; no order)",
+      "success": false,
+      "anchor": "PARTIAL — the CDON checkout held the SoundMagic E11C ×1, the street Koivuviita 7 B 5, the postal 02130, and 43,92 € ≤ 60; the required Etunimi (first name) stayed empty; the autofill chip was tapped repeatedly; the final order control was never reached; no order.",
+      "finding": "the retry confirmed the Google → CDON checkout path and the email autofill chip; the delivery-address name field (Etunimi) was the blocker; the engine never targeted Etunimi — it kept filling the street and tapping the address autofill chip (which fills the focused field, not the separate name input); the battery is page-level ('still a checkout form') and gave no field-level fact; the street type hit SET_TEXT_REJECTED/TEXT_NOT_LANDED and the focus tap was skipped; the Finnish checkout labels (Etunimi/Katuosoite/Postitoimipaikka) contributed to the mapping miss; the re-plan named the name fields only after the loop; the monitor stopped. No order.",
+      "report": ".state/phase-16-uat/R3-vision-retry/REPORT.md"
+    }
+  ],
+  "openQuestions": [
+    {
+      "id": "R1-tree-accept-vs-perception",
+      "recordedAt": "2026-10-22",
+      "question": "R1 tree: was the failure a perception failure (the tree could not see the Celsius results) or a condition/accept failure (the tree saw them, the code refused)?",
+      "evidence": "The code condition `page contains 'Celsius'` was satisfied at +26.7s and again at +63.1/+69.2/+73.4s; verify-done noul 0.86-0.98; the condition is WEAK (markerText) and the a11y Path A needs STRONG on a ladder run, so the pointer stayed 2/3 and the cart subtask never activated. The target's no-screen-change signal would flip to vision at the submit loop, and the vision engine's codeDone + battery accept would likely advance; but that would rescue a condition/law defect, not a perception gap. The R1 vision arm then completed the goal (GOAL_ACHIEVED, 14 steps, 164.8s, anchor 2 units) via the translate-first + battery; the tree's failure was the accept/condition.",
+      "deferredTo": "UAT 16.2 closeout, after the remaining arms (R4, R3)",
+      "whyDeferred": "The correct fix (condition/accept vs vision escalation) can only be judged against the whole corpus; one tree run cannot separate a law defect from a perception gap.",
+      "report": ".state/phase-16-uat/R1-tree-pretranslated/REPORT.md"
+    },
+    {
+      "id": "R2-prefix-revalidation",
+      "recordedAt": "2026-10-22",
+      "question": "Should the loop audit the completed subtasks' end conditions after repeated failures and roll back to an invalidated one?",
+      "evidence": "R2 vision: the engine left Rumble for Google; subtask 1's `urlHost rumble.com` was false; the pointer stayed on subtask 2 for 15 re-plans (all 'resume at subtask 2'); the battery repeatedly flagged the Google page; the re-plan writer named it; the type grounding on the address bar failed; the run looped 107 steps/914s until the owner stopped.",
+      "proposed": "A code-side prefix revalidation: after 3 failures on the active subtask, re-check the completed subtasks' conditions (location conditions first) on the current observation; roll back to the earliest false; clear the later completed flags; the proposer re-enters that subtask. A host guard can trigger earlier. Never roll back past a completed order-confirmation final. The a11y `ReplanRule` prefix freeze needs an owner amendment.",
+      "deferredTo": "UAT 16.2 closeout -> the Phase 17 plan (the target loop's ladder integrity)",
+      "report": ".state/phase-16-uat/R2-vision/REPORT.md"
+    },
+    {
+      "id": "site-agnostic-goal-search-first",
+      "recordedAt": "2026-10-22",
+      "question": "When the goal names no website, should the first step be a web search (Google) for the product/entity, with the store chosen from the results?",
+      "evidence": "R3 tree (task-1792673616957): the goal names no site; the writer's plan picked 'the Finnish online electronics store' from the page/history (Verkkokauppa); the store has no SoundMagic E11C ('Ei tuloksia'); the run was stopped. The owner's rule: a site-agnostic goal starts with a Google search.",
+      "proposed": "A plan law + code check: if the goal has no explicit host/domain, the first subtask must be a search-engine query (google.com/search?q=<product>) and a store-first ladder is refused with a bounded retry; the store is chosen from the results; site-named goals unchanged. Both writers + GoalFidelity/LadderValidator + tests.",
+      "deferredTo": "UAT 16.2 closeout / Phase 17 (site resolution)",
+      "report": ".state/phase-16-uat/R3-tree/RESET-STOP.md"
+    }
   ],
   "verification": {
     "report": ".state/phase-16-verification.md",
     "verdict": "PASS — cold verifier, no blocking findings; all gates independently re-run (12/7/17/25/16/52 targeted; full suites 1,023 tests 0 failures; APK 35,879,231 bytes; dex v16; run() 57,387/65,535)",
     "nonBlocking": [
       "NB-1 (FIXED): the phase doc's Gate 16.3 named LadderExecutionLoopTest; the refusal pins live in GenClientTest. The doc now names GenClientTest and keeps the ladder suite as a required green.",
-      "NB-2 (DEFERRED to before the master merge): no dedicated end-to-end JVM pins for the 33-open-site cap firing, the non-browser landing, the a11y recovery forcing, the vision verb refusal and the identical-subtask refusal. The helpers are unit-tested and the full suite is green; add the runtime-shape regressions at UAT 16.2 before the merge."
+      "NB-2 (DEFERRED to UAT 16.3 before the master merge): no dedicated end-to-end JVM pins for the 33-open-site cap firing, the non-browser landing, the a11y recovery forcing, the vision verb refusal and the identical-subtask refusal. The helpers are unit-tested and the full suite is green; add the runtime-shape regressions at UAT 16.3 before the merge."
     ]
   },
   "deviations": [
@@ -46,6 +204,6 @@
   ],
   "llmCost": 0,
   "blocker": null,
-  "nextAction": "Owner UAT 16.1: the attended R1–R4 corpus re-run on the Phase 16 build (agent attached, resets, navcap); R3's ladder must end on the order confirmation (an actual order is owner-approved per run); then UAT 16.2, the merge decision.",
-  "mergePolicy": "The branch merges to master only after the whole experiment (this phase + the re-scoped hybrid) is accepted; the doc's section 7 lists the exact files and order."
+  "nextAction": "UAT 16.2 owner review: read .state/phase-16-closeout.md (the target model vs the code; the R1–R4 residuals classified; the answers: R1 condition/accept, R2 prefix rollback, the site-agnostic search-first rule, the R3 checkout/tab-switcher/redo and the field-level form/autofill; the owner decisions in §8) and Implementation Plan/PHASE_17_tree_first_hybrid.md (the staged plan: Stage 0 prerequisites, Stage 1 the one loop/modality/signals, Stage 2 event-driven Haiku/dual evidence, Stage 3 policy/budget, Stage 4 the corpus). Then UAT 16.3 (the merge decision). Reports: .state/phase-16-uat/R1-tree-pretranslated/REPORT.md, R1-vision-cold/REPORT.md, R2-tree/REPORT.md, R2-vision/REPORT.md, R4-tree/REPORT.md, R4-vision/REPORT.md, R3-tree/RESET-STOP.md, R3-vision/REPORT.md and R3-vision-retry/REPORT.md.",
+  "mergePolicy": "The branch merges to master only after the UAT 16.2 closeout, the whole experiment (this phase + the re-scoped hybrid) is accepted, and the owner takes the UAT 16.3 merge decision; the doc's section 7 lists the exact files and order."
 }

@@ -11,37 +11,41 @@ Device: the S25+ over wireless ADB — adb is NOT on PATH, use
 `$LOCALAPPDATA/Android/Sdk/platform-tools/adb.exe`; confirm the link with `adb devices`
 (serial looks like `adb-R5CY601ENFY-…._adb-tls-connect._tcp`).
 
-**Current test build (Phase 15, 2026-10-20):**
+**Current test build (Phase 16, 2026-10-22):**
 
 | Field | Value |
 |---|---|
-| Branch | `phase-15-translate` (the uncommitted Phase 15 working tree; `master` is at `09b87bc`) |
+| Branch | `exp/tree-first` (the Phase 16 build; `master` is at `1a0af26`) |
 | App id | `navigator.app` (the `.visionexp` app is retired/uninstalled) |
-| APK | `app-debug.apk` — versionName 0.1.0, installed 2026-10-20 08:52 |
-| Dex | `vision-exp-v15` present, v14 absent; `TRANSLATE FIRST`, `Translate to English` and the pick-level preference present; the Finnish floor literal `vahvista[ -]?tilaus` absent |
+| APK | `app-debug.apk` — versionName 0.1.0, the Phase 16 build installed for the UAT |
+| Dex | `vision-exp-v16` present; the Phase 16 literals (`GoalFidelity`, `same-action`, `goal end state not evidenced`) present; the v13/v14 prompt markers absent |
 | Key store | `navigator-secure-prefs-v2.xml` (the v1 legacy file absent); `android:allowBackup="false"` |
 | Backup | `ALLOW_BACKUP` must be ABSENT from the installed package |
 
-**Setup must show 4 of 4 required checks and the vision-loop toggle ON.** The two keys
-live in the v2 encrypted store; never read, print or log them. The key store now
-self-heals a restored/unreadable keyset; a non-secret `NavigatorKeys` logcat warning
-names a store failure if one recurs. The old VisionExp app and its keys are gone; the
-owner re-entered the keys in this app.
+**Setup must show 4 of 4 required checks.** The vision-loop toggle is set per arm: **OFF
+for the tree arm, ON for the vision arm**. The two keys are unchanged; never read, print
+or log them. A non-secret `NavigatorKeys` logcat warning names a store failure if one
+recurs.
 
 **Never `am force-stop navigator.app`** — that kills its accessibility service. Use the
 in-app ⏹ stop / the WORKING notification's "Stop task".
 
-**Today's test — the translate-first law.** Run a goal on a non-English site where
-Chrome/Google offers the translate-to-English prompt (the Verkkokauppa reference goal is
-suitable; the goal is the owner's). Expected, in order:
+**Today's test — the Phase 16 UAT.** The contract is
+`Implementation Plan/PHASE_16_goal_fidelity_and_loop_guards.md` §5 (UAT 16.1): the
+four-goal corpus, attended, both arms, with R3 halted **before the order is completed**.
+After the corpus, UAT 16.2 is the closeout evaluation plus the plan of what is possible
+(the merge decision is UAT 16.3). Expected, in order:
 
-1. the plan/propose step chooses the **Translate / "Translate to English"** control
-   first — never "Not now", the dismiss X, or the gear;
-2. the page becomes **English** (URL/title/locale/content change) and the subtask
-   continues;
-3. the English checkout's purchase confirmation shows the **H2 gate card** (the gate
-   floor is English/structural again; the Finnish dictionary is gone);
-4. the run ends with the corner-log terminal + the evidence `terminal=` line.
+1. **R1/R2** — no repeat loop; the same-action and same-URL guards bind; the run completes
+   or fails loudly with a classified cause.
+2. **R3** — the ladder ends on the order confirmation; the monitor halts when the
+   order-review/place-order control is visible and before the engine activates it; the
+   anchor is judged at the halt (SoundMagic ×1, the address, total ≤ €60, the control
+   visible), recorded `MONITOR_CARD_STOP`.
+3. **R4** — the account is verified before the video; the site entry stays in Chrome (the
+   launcher package fix).
+4. The finality hatch's sixth goal-end-state guard and the goal-fidelity refusals hold.
+5. The run ends with the corner-log terminal + the evidence `terminal=` line.
 
 ## 1 · Arm the capture
 
@@ -113,14 +117,12 @@ owner intended it), the findings, the recommendations, the disposition.
 
 **Signals specific to this test:**
 
-* the v15 prompt text (`TRANSLATE FIRST`, `Translate to English`, `choose that option
-  FIRST`) in the
-  `call-*-plan/propose.req.json` bodies;
-* a step tapping the Translate control, then the page becoming English;
-* the English checkout control and the gate line / the H2 card (the gate event in the
-  evidence);
-* `NavigatorKeys` — expected absent; if present, the key store failed (the app will not
-  crash; the key card stays red);
+* the guard lines — `same-action`, the same-URL ban, `CHANGE STRATEGY`,
+  `REPLANS_EXHAUSTED`;
+* the goal-fidelity suppression — `goal end state not evidenced` — and the ladder-build
+  refusals;
+* the R3 halt and the anchor at the halt; `MONITOR_CARD_STOP` is not a failure;
+* the R4 non-browser landing failure / the launcher's package targeting;
 * the final `terminal=` line and the answer.
 
 ## 5 · Retention and cleanup
