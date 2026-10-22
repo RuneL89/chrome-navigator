@@ -289,6 +289,15 @@ class NavigationLoop(
      */
     private var failuresSinceAdvance = 0
 
+    /**
+     * PHASE_17 Stage 0.8 — the action key banned for the current subtask (the R1-PT
+     * five-submit loop, NB-2). Set when the same-action binding trips (at L1 or L2); the
+     * stage-2 slate excludes its candidate for the rest of the subtask, so the recovery
+     * scroll cannot re-open the repeat. CLASS field; cleared on run start, a new plan, a
+     * subtask advance and the owner's Retry.
+     */
+    private var bannedActionKey: String? = null
+
     data class Config(
         /** Vision 03 §5: fewer meaningful nodes than this = unusable tree. */
         val minUsableNodes: Int = 5,
@@ -446,6 +455,7 @@ class NavigationLoop(
         noGoodIntent = null
         noGoodIntentCount = 0
         failuresSinceAdvance = 0
+        bannedActionKey = null
 
         // -- the task ladder (Phase 10, vision 04 §1 v1.4.0) ---------------------------
         // When [ladderSource] is wired, EVERY goal restructures before any navigation:
@@ -911,6 +921,21 @@ class NavigationLoop(
             if (gateEvent != null) gateEvents += 1
         }
 
+        /** PHASE_17 Stage 0.8: ban the last acted key for the rest of the subtask. */
+        fun banLastAction() {
+            val key = stuck.lastActionKey() ?: return
+            // The R1-PT submit loop and the R3 tree fill loop are the form-action loops the
+            // corpus exposed; a TAP loop keeps the Phase-16 L1/L2 recovery behavior.
+            if (!key.startsWith("SUBMIT:") && !key.startsWith("fill-field:") &&
+                !key.startsWith("fill-yield:")
+            ) {
+                return
+            }
+            if (bannedActionKey == key) return
+            bannedActionKey = key
+            line("stuck: same action banned for this subtask: $key")
+        }
+
         /** Assesses the stuck window; L1 injects a hint, L2 arms the recovery set,
          *  L3 returns true (the would-be auto-kill — the rescue coach is Phase 10). On a
          *  LADDER run the L3 call sites route through [handleStuckKill] (v1.5.0: the
@@ -919,17 +944,17 @@ class NavigationLoop(
          *  path keeps the direct task-level kill. */
         fun assessStuck(): Boolean {
             val assessment = stuck.assess() ?: return false
+            // PHASE_17 Stage 0.8: the same-action binding is evaluated at BOTH levels. The
+            // L2 branch used to bypass the L1-only check (the R1-PT five-submit loop), and
+            // the ban must persist for the subtask (the recovery scroll must not re-open
+            // the repeat).
+            val binding = StuckDetector.bindsSameAction(stuck.lastActionKey()) &&
+                stuck.sameActionRun() >= SAME_ACTION_BIND_AFTER
             when (assessment.level) {
                 1 -> {
                     line("stuck: L1 hint injected (${assessment.signals})")
                     hints.add(StuckDetector.HINT)
-                    // PHASE_16: the same-action signal is BINDING — the next decision comes
-                    // from the recovery set, so the identical action cannot be repeated (the
-                    // R1-PT five-submit loop: the hint alone changed nothing).
-                    if (assessment.signals.any { it == StuckDetector.SIGNAL_SAME_ACTION } &&
-                        StuckDetector.bindsSameAction(stuck.lastActionKey()) &&
-                        stuck.sameActionRun() >= SAME_ACTION_BIND_AFTER
-                    ) {
+                    if (binding) {
                         line("stuck: same action repeated - the next decide comes from the recovery set")
                         recoveryArmed = true
                     }
@@ -953,11 +978,19 @@ class NavigationLoop(
                 2 -> {
                     line("stuck: L2 - next decide comes from the recovery set (${assessment.signals})")
                     recoveryArmed = true
+                    // PHASE_17 Stage 0.8: on a LADDER run the L2 branch also persists the
+                    // same-action ban (the R1-PT five-submit loop; NB-2). The legacy path
+                    // keeps its Phase-16 behavior (recovery set only).
+                    if (binding && ladder != null) banLastAction()
                 }
                 else -> return true
             }
             return false
         }
+
+        /** PHASE_17 Stage 0.8: the candidate id named by the banned action key. */
+        fun bannedCandidateId(): String? =
+            bannedActionKey?.substringAfter(':', missingDelimiterValue = "")?.takeIf { it.isNotBlank() }
 
         // -- the task ladder machinery (Phase 10, vision 04 §1 v1.4.0) ----------------
 
@@ -994,6 +1027,7 @@ class NavigationLoop(
             exitPolicy = ExitPolicy()
             consecutiveSubtaskFailures = 0
             siteEntryOpens.clear() // a new plan: fresh site-entry budget
+            bannedActionKey = null // a new plan: a fresh action space
             noGoodIntent = null // a new plan: fresh intent-strategy memory
             noGoodIntentCount = 0
             lastCodeCheck = null // a fresh ladder: the code-check rate bound starts clean
@@ -1291,6 +1325,7 @@ class NavigationLoop(
                 EscalationResolution.RETRY -> {
                     consecutiveSubtaskFailures = 0
                     failuresSinceAdvance = 0 // the owner granted a fresh attempt
+                    bannedActionKey = null // a fresh attempt may use the same control again
                     stuck.resetEscalations()
                     line("ladder: the owner said RETRY - the same subtask is re-attempted (stuck escalations reset)")
                     return null
@@ -1542,6 +1577,7 @@ class NavigationLoop(
             consecutiveSubtaskFailures = 0
             failuresSinceAdvance = 0 // a verified advance: the prefix audit starts clean
             siteEntryOpens.clear() // a new subtask: fresh site-entry budget
+            bannedActionKey = null // a new subtask: a fresh action space
             noGoodIntent = null // a new subtask: fresh intent-strategy memory
             noGoodIntentCount = 0
             lastCodeCheck = null // the ordinal changed: the code-check rate bound re-arms
@@ -2469,7 +2505,22 @@ class NavigationLoop(
                 val keys = redactionKeys()
                 val subtask = redactedLabel(subtaskInstruction(), keys)
                 val doneWhen = redactedLabel(doneWhenText(), keys)
-                val maskedSlate = slate.map {
+                // PHASE_17 Stage 0.8: the banned candidate is excluded for the subtask.
+                val banned = bannedCandidateId()
+                val effectiveSlate = if (banned == null) {
+                    slate
+                } else {
+                    slate.filterNot { it.id == banned }
+                }
+                if (effectiveSlate.isEmpty()) {
+                    return Stage2Outcome.NoGoodTarget(
+                        "the only candidates are banned for this subtask",
+                        if (banned != null) mapOf(banned to 1.0) else emptyMap(),
+                        "SUBTASK: $subtask\nDONE WHEN: $doneWhen\n" +
+                            "TARGETS: (all candidates banned for this subtask)",
+                    )
+                }
+                val maskedSlate = effectiveSlate.map {
                     it.copy(label = redactedLabel(it.label, keys))
                 }
                 val view = stageViews.targetView(subtask, doneWhen, maskedSlate)
@@ -2494,10 +2545,10 @@ class NavigationLoop(
                         view.text,
                     )
                 }
-                val target = slate.first { it.id == resolution.top.candidateId }
+                val target = effectiveSlate.first { it.id == resolution.top.candidateId }
                 line(
                     "decide: stage-2 target \"${redactedLabel(target.label, redactionKeys())}\" " +
-                        "[${target.id}] (${resolution.top.expectedLevel} of ${slate.size} scored)",
+                        "[${target.id}] (${resolution.top.expectedLevel} of ${effectiveSlate.size} scored)",
                 )
                 return Stage2Outcome.Target(target, expectedLevels, view.text)
             }

@@ -1776,3 +1776,8 @@ a new dated entry. Format per `Implementation Plan/MASTER_IMPLEMENTATION_PROMPT.
 * Tests: `PrefixAuditTest` 6/6 (core), `PrefixRollbackLoopTest` 1/1 (a11y), `VisionLoopPrefixRollbackTest` 1/1 (vision). Full `:app` + `:core` suites green (2m 3s). `NavigationLoop.run()` 57,409 / 65,535 (8,126 headroom, +22 bytes).
 * Law: `Project Vision/04_NAVIGATION_LOOP.md` v2.5.0 — §7 gains the completed-prefix audit; the a11y `ReplanRule` freeze remains the re-plan acceptance law. The owner approved the amendment (the 2026-10-22 decision).
 * Phase records: `Implementation Plan/PHASE_17_tree_first_hybrid.md` (0.1 status), `.state/phase-17-status.json` (Gate 17.0.1). No live model call; no key value; `master` untouched; the branch is `phase-17-tree-first`. COMPLIANT.
+
+## 2026-10-22 — PHASE_17 STAGE 0.8 (the same-action binding; partial)
+* `NavigationLoop.assessStuck`: the same-action binding is now evaluated at BOTH levels (the L2 branch used to bypass the L1-only check); on a LADDER run the L2 trip bans the action key for the subtask (`bannedActionKey`, cleared on run start/new plan/subtask advance/Retry) and `runStage2` excludes its candidate from the slate. A TAP loop keeps the Phase-16 L1/L2 recovery behavior; the persistent ban is scoped to `SUBMIT:`/`fill-field:`/`fill-yield:` (the R1-PT and R3 form-action loops) so the existing stuck-law pins stay green.
+* Tests: `TreeAcceptTest` 1/1 (the 5-submit shape → the `SUBMIT` ban line). Full `:app` + `:core` suites green. `NavigationLoop.run()` 57,416 / 65,535 (8,119 headroom; +7 bytes).
+* Pending in 0.8: the condition-honesty half (the R1 self-satisfied WEAK condition) and its `TreeAcceptTest` pin. No live model call; no key value; `master` untouched. COMPLIANT.

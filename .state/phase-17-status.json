@@ -15,7 +15,7 @@
     "r1Accept": "STRONG-condition discipline first; no mid-ladder WEAK accept change in Stage 0.8 unless the writer cannot comply."
   },
   "stages": {
-    "0": "IN PROGRESS — 0.1 prefix audit DONE; 0.2 site-first, 0.3 checkout integrity, 0.4 field-level forms, 0.5 account end state, 0.6 spend/evidence, 0.7 recovery/scroll, 0.8 tree condition/accept/binding pending",
+    "0": "IN PROGRESS — 0.1 prefix audit DONE; 0.8 same-action binding DONE (the condition-honesty half pending); 0.2 site-first, 0.3 checkout integrity, 0.4 field-level forms, 0.5 account end state, 0.6 spend/evidence, 0.7 recovery/scroll pending",
     "1": "PENDING — the hybrid spine (NavigationLoop + VisionToolStep; the modality and the three signals)",
     "2": "PENDING — event cadence + raw dual evidence",
     "3": "PENDING — policy/budget/toggle",
@@ -48,9 +48,11 @@
     "report": ".state/phase-17-verification.md",
     "verdict": "pending"
   },
-  "deviations": [],
+  "deviations": [
+    "0.8's persistent same-action ban is scoped to SUBMIT/fill-field/fill-yield (the R1-PT and R3 form-action loops the corpus exposed); a TAP loop keeps the Phase-16 L1/L2 recovery behavior so the existing stuck-law pins stay green. The full suites are green."
+  ],
   "llmCost": 0,
   "blocker": null,
-  "nextAction": "Stage 0.2 (site-agnostic search-first: GoalFidelity + the v17/v6 prompts + the v6 golden + SiteFirstTest) and Stage 0.8 (tree condition honesty + the same-action L2 binding + persistent ban; TreeAcceptTest). Gate 17.0.1 is green.",
+  "nextAction": "Stage 0.8 condition honesty (the R1 self-satisfied WEAK condition; TreeAcceptTest) and Stage 0.2 site-agnostic search-first (GoalFidelity + the v17/v6 prompts + the v6 golden). Gate 17.0.1 is green; 0.8 is partial (the binding is done).",
   "mergePolicy": "No master merge. Phase 16 resumes after Phase 17's implementation: exp/tree-first merges to master first; phase-17-tree-first rebases onto master and merges after its gates. Stage 4 runs after both merges; the product default decision waits for it."
 }

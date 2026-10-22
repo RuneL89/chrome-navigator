@@ -234,6 +234,15 @@ not found → re-plan); the scroll counter reset.
 L2 binding fires; the banned action does not return after the recovery scroll; the
 mid-ladder accept decision is pinned both ways (the chosen branch and the refusal).
 
+**0.8 implementation status (2026-10-22): PARTIAL — the same-action binding is DONE.**
+The binding is evaluated at L1 and L2; on a ladder run the L2 trip bans the action key for
+the subtask and the stage-2 slate excludes its candidate (the R1-PT five-submit loop).
+`TreeAcceptTest` pins the `SUBMIT` ban. The persistent ban is scoped to
+`SUBMIT:`/`fill-field:`/`fill-yield:` — the form-action loops the corpus exposed; a TAP
+loop keeps the Phase-16 L1/L2 recovery behavior (the existing stuck-law pins stay green).
+The full suites are green; `NavigationLoop.run()` 57,416/65,535 (8,119 headroom).
+**Pending: the condition-honesty half (the R1 self-satisfied WEAK condition).**
+
 ---
 
 ### Stage 1 — the one loop, the modality, the three signals — **possible now**
