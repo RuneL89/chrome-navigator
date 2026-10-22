@@ -64,6 +64,7 @@ import navigator.core.ladder.DoneCondition
 import navigator.core.ladder.DoneConditionChecker
 import navigator.core.ladder.Ladder
 import navigator.core.ladder.LadderTaskClass
+import navigator.core.ladder.PrefixAudit
 import navigator.core.ladder.ReplanRule
 import navigator.core.ladder.ReplanVerdict
 import navigator.core.ladder.SubtaskPointer
@@ -279,6 +280,15 @@ class NavigationLoop(
     private var noGoodIntent: String? = null
     private var noGoodIntentCount = 0
 
+    /**
+     * PHASE_17 Stage 0.1 — the consecutive failures since the last verified advance (the
+     * prefix audit's trigger). Unlike [consecutiveSubtaskFailures] (which a re-plan
+     * resets), this counter SURVIVES re-plans: a re-plan does not repair a lost site. A
+     * CLASS field (the method-size discipline); reset on run start, on a subtask advance,
+     * on the audit's rollback and on the owner's Retry.
+     */
+    private var failuresSinceAdvance = 0
+
     data class Config(
         /** Vision 03 §5: fewer meaningful nodes than this = unusable tree. */
         val minUsableNodes: Int = 5,
@@ -435,6 +445,7 @@ class NavigationLoop(
         siteEntryOpens.clear()
         noGoodIntent = null
         noGoodIntentCount = 0
+        failuresSinceAdvance = 0
 
         // -- the task ladder (Phase 10, vision 04 §1 v1.4.0) ---------------------------
         // When [ladderSource] is wired, EVERY goal restructures before any navigation:
@@ -1211,6 +1222,49 @@ class NavigationLoop(
         }
 
         /**
+         * PHASE_17 Stage 0.1 — the completed-prefix audit (the R2 lost-site fix). After
+         * [PrefixAudit.FAILURES_BEFORE_AUDIT] failures since the last verified advance,
+         * re-check the completed conditions against the CURRENT page and roll the pointer
+         * back to the earliest false. The audit never runs a writer and never spends a
+         * re-plan: it is a code invariant, not a strategy change. Returns true when a
+         * rollback happened (the caller continues the loop instead of the card/re-plan).
+         */
+        suspend fun auditPrefixOrNull(): Boolean {
+            val currentLadder = ladder ?: return false
+            val p = pointer ?: return false
+            if (p.completedCount == 0) return false
+            val obs = lastPost ?: lastObserved ?: return false
+            val evidence = ladderEvidence(obs, CandidateEnumerator.enumerate(obs.nodes))
+            val invalid = PrefixAudit.earliestInvalid(
+                currentLadder,
+                p.completedCount,
+                evidence,
+            ) { index ->
+                val subtask = currentLadder.subtasks[index]
+                val plan = SiteEntry.plan(goalText, subtask.instruction, subtask.done, obs.url)
+                val targetHost = plan?.url?.let {
+                    DoneConditionChecker.normalizeUrl(it)?.substringBefore('/')
+                }
+                val currentHost = DoneConditionChecker.normalizeUrl(obs.url)?.substringBefore('/')
+                targetHost != null && currentHost != null &&
+                    DoneConditionChecker.sameSiteFamily(targetHost, currentHost)
+            }
+            if (invalid == null) return false
+            val condition = DoneConditionChecker.render(currentLadder.subtasks[invalid].done)
+            line(
+                "ladder: PREFIX ROLLBACK: subtask ${invalid + 1}/${p.total} - \"$condition\" " +
+                    "no longer holds on the current page - re-entering it",
+            )
+            history.add("step $stepIndex: prefix rollback to subtask ${invalid + 1} - $condition")
+            applyLadder(currentLadder, ladderVersion ?: "unknown", reKeyTo = invalid)
+            failuresSinceAdvance = 0
+            lastFailureCause = null
+            publishLadderSurfaces()
+            enterSubtask()
+            return true
+        }
+
+        /**
          * The owner escalation card (vision 04 §1 v1.4.0 + the v1.5.0 guarantee), shared
          * by both failure entries: it discloses the ACTIVE subtask, the failure count,
          * and the remaining bounded re-plan capacity. Retry resets the failure streak AND
@@ -1236,6 +1290,7 @@ class NavigationLoop(
             return when (resolution) {
                 EscalationResolution.RETRY -> {
                     consecutiveSubtaskFailures = 0
+                    failuresSinceAdvance = 0 // the owner granted a fresh attempt
                     stuck.resetEscalations()
                     line("ladder: the owner said RETRY - the same subtask is re-attempted (stuck escalations reset)")
                     return null
@@ -1285,9 +1340,15 @@ class NavigationLoop(
             )
             val p = pointer ?: return finish(TerminalState.STUCK_KILL, cause, stepIndex)
             consecutiveSubtaskFailures += 1
+            failuresSinceAdvance += 1
             lastFailureCause = cause // Phase 10D: the informed re-plan's cause (doc 04 §1 v1.8.0)
             line("ladder: subtask ${p.activeOrdinal}/${p.total} FAILED ($cause) - consecutive failures: $consecutiveSubtaskFailures")
             history.add("step $stepIndex: subtask ${p.activeOrdinal} failed - $cause")
+            // PHASE_17 Stage 0.1: after the third failure since the last advance, audit the
+            // completed prefix BEFORE the card/re-plan (the R2 lost-site fix).
+            if (failuresSinceAdvance >= PrefixAudit.FAILURES_BEFORE_AUDIT && auditPrefixOrNull()) {
+                return null
+            }
             if (consecutiveSubtaskFailures >= SUBTASK_FAILURE_CARD_THRESHOLD) {
                 return arbitrateSubtaskFailure(stuckCause = cause)
             }
@@ -1309,6 +1370,7 @@ class NavigationLoop(
         suspend fun handleStuckKill(cause: String): RunResult? {
             val p = pointer ?: return finish(TerminalState.STUCK_KILL, cause, stepIndex)
             consecutiveSubtaskFailures += 1
+            failuresSinceAdvance += 1
             lastFailureCause = cause // Phase 10D: the informed re-plan's cause (doc 04 §1 v1.8.0)
             line(
                 "ladder: subtask ${p.activeOrdinal}/${p.total} STUCK-KILL intercepted - " +
@@ -1316,6 +1378,9 @@ class NavigationLoop(
                     "$consecutiveSubtaskFailures",
             )
             history.add("step $stepIndex: subtask ${p.activeOrdinal} stuck - $cause")
+            if (failuresSinceAdvance >= PrefixAudit.FAILURES_BEFORE_AUDIT && auditPrefixOrNull()) {
+                return null
+            }
             return arbitrateSubtaskFailure(stuckCause = cause)
         }
 
@@ -1475,6 +1540,7 @@ class NavigationLoop(
             activePointer.advance()
             exitPolicy = ExitPolicy() // fresh per-subtask exit discipline
             consecutiveSubtaskFailures = 0
+            failuresSinceAdvance = 0 // a verified advance: the prefix audit starts clean
             siteEntryOpens.clear() // a new subtask: fresh site-entry budget
             noGoodIntent = null // a new subtask: fresh intent-strategy memory
             noGoodIntentCount = 0

@@ -1,7 +1,13 @@
 # Navigation Loop
 
 **Document ID:** `NAVIGATOR-VISION-004`
-**Version:** 2.4.0 *(amended 2026-10-22: the tree-first TARGET loop — §8 records the
+**Version:** 2.5.0 *(amended 2026-10-22 (PHASE_17 Stage 0.1): the completed-prefix
+audit — after 3 failures since the last verified advance the code re-checks the completed
+conditions on the current observation and rolls the pointer back to the earliest false;
+location conditions always, content conditions only on the subtask's landing host; never
+past a completed order confirmation; it runs before the re-plan and spends no re-plan
+budget. The a11y `ReplanRule` freeze remains the re-plan acceptance law. Owner-approved
+amendment. Amended 2026-10-22: the tree-first TARGET loop — §8 records the
 owner's one-loop model (tree default, three code-owned escalation signals, vision for the
 rest of the subtask, tree at the next, Haiku event-driven with raw dual evidence). It is
 explicitly NOT implemented; §2/§3 remain the shipped loops. Owner-authorized DeepSeek
@@ -344,14 +350,26 @@ card. (The a11y engine is not on the vision engine's 100× ledger.)
 
 ## 7. Re-plan integrity
 
+- **PHASE_17 Stage 0.1 — the completed-prefix audit (both engines).** After 3 consecutive
+  failures since the last verified advance, the code re-checks the completed subtasks'
+  conditions on the CURRENT observation (`PrefixAudit`): location conditions
+  (`urlHost`/`urlContains`) always; content conditions (`markerText`/`elementPresent`)
+  only when the caller confirms the current page is the subtask's landing host. The
+  earliest false subtask becomes active again; the pointer and the per-subtask counters
+  reset; the re-entry runs the normal site entry. The audit is a code invariant, not a
+  strategy change: it runs BEFORE the re-plan, spends no re-plan budget, and never rolls
+  back past a completed order-confirmation final. The R2 vision run (the lost site) is
+  the fixture.
 - **Vision engine:** the informed re-plan re-installs the writer's validated ladder and
   resumes at the coerced pointer. The writer is instructed to preserve verified
   subtasks; the vision engine does NOT yet enforce a code-frozen prefix (KD; the a11y
-  engine's `ReplanRule` is the stricter law). A re-plan is never an authorization: a
-  denied action faces the same gate on the new route (doc 06 §4).
+  engine's `ReplanRule` is the stricter law). The prefix audit above is the code-side
+  rollback. A re-plan is never an authorization: a denied action faces the same gate on
+  the new route (doc 06 §4).
 - **A11y engine:** `ReplanRule` — verified prefix frozen; one declared one-step
   rollback with its lesson; growth lawful; resume-never-restart; violations refused
-  loudly and count as no capacity.
+  loudly and count as no capacity. The freeze is unchanged; the prefix audit is the
+  code-side rollback the freeze does not cover (owner amendment 2026-10-22).
 
 ## 8. The tree-first target loop (owner vision, 2026-10-22 — NOT IMPLEMENTED)
 

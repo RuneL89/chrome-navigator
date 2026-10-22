@@ -1,14 +1,15 @@
 # Phase 17: The tree-first hybrid (the one loop)
 
 **Document ID:** `NAVIGATOR-IMPL-PHASE-17`
-**Version:** 0.1.0-DRAFT
-**Status:** **DRAFT — NOT STARTED.** Written as the UAT 16.2 closeout's "plan of what is
-possible"; the owner accepts (or amends) it before any implementation. No Phase 17 code
-lands on `exp/tree-first` or `master` as part of Phase 16.
-**Date:** 2026-10-22
-**Dependencies:** Phase 16 (UAT 16.3 merge decision) and PHASE_VEXP9 (the R1–R4 corpus)
-**Estimated Time:** 47–67 h (Stage 0 ≈ 10–14 h; Stage 1 ≈ 20–30 h; Stage 2 ≈ 8–12 h;
-Stage 3 ≈ 4–6 h; plus the attended UAT)
+**Version:** 0.2.0
+**Status:** **APPROVED — STAGES 0–3 IN IMPLEMENTATION** on `phase-17-tree-first` (branched
+from `exp/tree-first` at the Phase 16 records commit). **Stage 4 (the full hybrid corpus and
+the product-acceptance verdict) is deferred to the post-Phase-17 testing program.**
+**Date:** 2026-10-22 (scope amendment 2026-10-22)
+**Dependencies:** Phase 16 (the code on `exp/tree-first`; UAT 16.3 resumes after Phase 17's
+implementation) and PHASE_VEXP9 (the R1–R4 corpus)
+**Estimated Time:** Stages 0–3 ≈ 42–62 h (Stage 0 ≈ 10–14 h; Stage 1 ≈ 20–30 h; Stage 2 ≈
+8–12 h; Stage 3 ≈ 4–6 h); Stage 4 is a separate post-phase program.
 **LLM Token Budget:** $0 deterministic (the live UAT is the owner's attended runs)
 
 > **What this document is.** The evaluation (`.state/phase-16-closeout.md`) maps the
@@ -19,7 +20,15 @@ Stage 3 ≈ 4–6 h; plus the attended UAT)
 >
 > **What this document is not.** It is not an acceptance of the hybrid, and it makes no
 > efficiency claim. The corpus cannot support one yet (the vision spend is unrecorded; the
-> tree arms ended on law defects). Stage 4 produces the measurement that decides.
+> tree arms ended on law defects). **Stage 4 — the full tree-first vs always-vision corpus
+> and the product-acceptance verdict — is deferred to the post-Phase-17 testing program.**
+>
+> **Scope (owner, 2026-10-22).** This phase implements Stages 0–3: the prerequisites, the
+> hybrid spine, the event cadence/raw dual evidence, and the policy/budget/toggle. Phase
+> 17's own UAT is the Stage 0 corpus plus a bounded hybrid smoke, not the efficiency
+> verdict. The hybrid host is `NavigationLoop` + a `VisionToolStep` seam (not a new
+> `TreeFirstLoop`); `VisionLoop` remains the always-vision reference. The prefix-rollback
+> amendment is approved.
 
 ---
 
@@ -106,6 +115,12 @@ Stage 1 fuses the loops, the audit moves into the shared loop and runs for both 
 **Tests:** the R2 Google fixture (subtask 1's `urlHost` false → rollback → the proposer
 navigates); a content condition false on a different page → no rollback; the final
 order-confirmation guard; the a11y `ReplanRule` interaction; the evidence line.
+
+**0.1 implementation status (2026-10-22): DONE.** `PrefixAudit` (core) + the a11y and
+vision wiring; `PrefixAuditTest` 6/6, `PrefixRollbackLoopTest` 1/1,
+`VisionLoopPrefixRollbackTest` 1/1; the full `:app` + `:core` suites green;
+`NavigationLoop.run()` 57,409/65,535 (8,126 headroom). The owner approved the doc 04 §7
+amendment.
 
 #### 0.2 Site-agnostic search-first — **possible now**
 
@@ -223,21 +238,27 @@ mid-ladder accept decision is pinned both ways (the chosen branch and the refusa
 
 ### Stage 1 — the one loop, the modality, the three signals — **possible now**
 
-**The migration shape.** A new `TreeFirstLoop` (file
-`app/src/main/kotlin/navigator/app/harness/hybrid/TreeFirstLoop.kt`) owns the goal, the
-ladder, the pointer, the modality, the budget and the evidence. It calls:
+**The migration shape.** `NavigationLoop` becomes the hybrid host. It already owns the
+ladder, pointer, exit law, gate, re-plan, site entry and evidence; the hybrid adds a
+**vision-mode branch** and one new seam:
 
-- `TreeToolStep` — the a11y cascade extracted **behavior-preserving** from
-  `NavigationLoop`: observe → `CandidateEnumerator` → Jev intent + stage-2 scores →
-  argmax/banding → gate → execute → `DoneConditionChecker` → `ExitPolicy`/rubric.
-- `VisionToolStep` — the vision step extracted **behavior-preserving** from
-  `VisionLoop.attemptStep`: capture → Haiku propose → Jev pick+Box → gate → execute →
-  battery → accept.
+- **`VisionToolStep`** (new file
+  `app/src/main/kotlin/navigator/app/harness/hybrid/VisionToolStep.kt`) — the vision
+  per-step work extracted **behavior-preserving** from `VisionLoop.attemptStep` and its
+  helpers: capture/digest, Haiku propose, Jev pick + Box, the gate, the executor dispatch,
+  the same-action filter, the scroll-churn guidance/backstop, the battery
+  (`runBattery`/`batteryResults`/`batteryConcurs`), `recordedOpinions`, the condition
+  repair, and `codeDone`. It owns the vision clients, `VisionEvidence`, `ExpBudget`, the
+  capture and the gate presenter; it does not own the ladder/pointer/terminal.
+- **`NavigationLoop`** gains `visionTool: VisionToolStep? = null` (null = the tree-only
+  arm, byte-identical) and a `subtaskModality` field. In VISION mode it skips the a11y
+  cascade and calls the vision step; the host still owns the ladder, the pointer, the
+  accept advance and the terminal.
 
-Both engines remain runnable behind the policy selector (Stage 3) for the reference and
-tree-only arms. The extraction is the bulk of the work and the main risk; no prompt
-changes in Stage 1. `NavigationLoop.run()` is 57,387/65,535 — the extraction must not grow
-it, and the new loop uses class fields + non-suspend helpers.
+`VisionLoop` keeps its run/ladder/re-plan logic and delegates its step to the same
+`VisionToolStep` class; the full vision suite must stay green with no prompt/fixture
+changes. `NavigationLoop.run()` is 57,387/65,535 — the hybrid branch is a call + fields;
+the extraction of the a11y cascade is **not** in Phase 17.
 
 **1.1 Modality state.** Per-subtask `modality ∈ {TREE, VISION}`. Reset to TREE at every
 subtask end (met condition), at re-plan install, and at a new plan. Vision stays for the
@@ -303,9 +324,11 @@ contracts.
 ### Stage 3 — policy, budget, toggle — **possible now + owner decisions**
 
 **3.1 Policy selector.** Replace the `use-vision-loop` boolean with a three-way policy:
-`TREE_FIRST` (default), `ALWAYS_VISION` (the reference arm), `TREE_ONLY` (the retained
-a11y engine). The selector is a Setup pref; the product route refuses loudly if the
-selected policy needs a missing key (the existing `ProductRunRoute` law).
+`TREE_FIRST` (selectable for testing), `ALWAYS_VISION` (the reference arm), `TREE_ONLY`
+(the retained a11y engine). **The product default stays `ALWAYS_VISION` until the Stage 4
+program accepts the hybrid** — no unmeasured default ships. The selector is a Setup pref;
+the product route refuses loudly if the selected policy needs a missing key (the existing
+`ProductRunRoute` law).
 
 **3.2 One budget profile.** One per-run profile with a **vision sub-ledger** for the
 image-carrying calls (the owner decision; the closeout recommends option (a)). The tree
@@ -320,10 +343,11 @@ vision calls separately; the thresholds are config-pinned; the missing-key refus
 
 ---
 
-### Stage 4 — the hybrid corpus and the acceptance — **UAT**
+### Stage 4 — the hybrid corpus and the acceptance — **DEFERRED to the post-Phase-17 testing program**
 
-Run the R1–R4 corpus attended under the tree-first policy, then the always-vision
-reference arm on the same goals. Acceptance order (doc 07 §6):
+This is **not implemented or run in Phase 17.** The post-Phase-17 program runs the R1–R4
+corpus attended under the tree-first policy, then the always-vision reference arm on the
+same goals. Acceptance order (doc 07 §6):
 
 1. **Correctness anchors first.** R1 two units in the cart; R2 the WWE Live latest video;
    R3 the CDON checkout correct (SoundMagic E11C ×1, Koivuviita 7 B 5, 43,92 € ≤ 60) and
@@ -336,7 +360,9 @@ reference arm on the same goals. Acceptance order (doc 07 §6):
    the R3 finality; the R2 Google drift is the counterexample the prefix audit must fix).
 
 **A hybrid that is correct but not faster is not yet an acceptance; a hybrid that is faster
-but misses an anchor is a failure.**
+but misses an anchor is a failure.** The program is recorded in `.state/vision-iter/` (no
+new phase doc until the owner starts it); the product default and the
+`ALWAYS_VISION`/`TREE_ONLY` retention wait for its verdict.
 
 ---
 
@@ -400,55 +426,60 @@ changed; `NavigationLoop.run()` ≥ 6 KB headroom (no growth from the extraction
   are present in both arms; the policy selector routes correctly; the doc 01 §1a / 04 §8
   status lines are updated by the implementing phase **before** UAT.
 
-### UAT 17.1: the hybrid corpus — human-verifiable
+### UAT 17.1: the Stage 0 corpus — human-verifiable
 
-The owner runs R1–R4 under the tree-first policy, attended, with resets and navcap. The
-anchors are Stage 4's. **The R3 halt rule holds:** the monitor stops at the order-review /
-place-order control, before the engine activates it; no order is placed. The owner judges
-the anchors and the run quality.
+The owner runs R1–R4 on the **existing tree and vision arms**, attended, with resets and
+navcap. The anchors: R1 tree advances past the search; R2 tree no loop; R3 vision recovers
+the checkout and fills `Etunimi`; R4 verifies the account. **The R3 halt rule holds:** the
+monitor stops at the order-review/place-order control, before the engine activates it; no
+order is placed. The spend is recorded. The owner judges the anchors and the run quality.
 
-### UAT 17.2: the efficiency verdict — human-verifiable
+### UAT 17.2: the hybrid smoke — human-verifiable
 
-The owner reviews the measured record: correctness anchors first, then wall-clock per
-correct run, image calls, escalation rate/causes, boundary catches — tree-first vs the
-always-vision reference arm, with the spend recorded. The owner decides whether the hybrid
-is accepted, needs tuning, or is rejected.
+The owner runs a bounded set (R1 and R2) under the tree-first policy, attended. The
+functional checks: a real signal flips the subtask; vision carries it; the tree resumes at
+the next subtask; the ladder/accept/gate/evidence work. This is a **smoke**, not the
+efficiency verdict.
 
-### UAT 17.3: the next decision — human-verifiable
+### UAT 17.3: the policy and the evidence — human-verifiable
 
-If accepted, the owner decides the product default and whether the always-vision reference
-remains. If rejected, the finding is recorded and the two-engine product stands.
+The three routes select correctly; the Setup selector works; the vision spend and call
+counts are visible; the tree-only arm runs its cascade. The full hybrid corpus (Stage 4) is
+the post-Phase-17 program.
 
 ---
 
 ## 6. Approval Checklist
 
-- [ ] The owner accepted this plan (or amended it) before implementation.
+- [x] The owner accepted the plan for Stages 0–3 (2026-10-22).
 - [ ] Gate 17.0 green (the prerequisites).
 - [ ] Gate 17.1 green (the loop/modality).
 - [ ] Gate 17.2 green (behavior preservation; the full suites).
 - [ ] Gate 17.3 green (events/evidence).
 - [ ] Gate 17.4 green (build identity; method size).
-- [ ] The owner amendment for the prefix rollback is recorded (doc 04 §7).
+- [ ] The owner amendment for the prefix rollback is recorded (doc 04 §7) — approved.
 - [ ] The law is updated: doc 01 §1a becomes implemented; doc 04 §8 is replaced by the
       implemented loop law; doc 07 §6's target acceptance becomes the acceptance law.
 - [ ] The policy selector and the hybrid budget are recorded as owner decisions.
 - [ ] UAT 17.1 accepted (or its residuals recorded).
-- [ ] UAT 17.2 decided (accept / tune / reject).
-- [ ] `master` receives Phase 17 only through its own merge after acceptance.
+- [ ] UAT 17.2 smoke accepted.
+- [ ] UAT 17.3 accepted (the policy/evidence).
+- [ ] **Stage 4 is deferred**; the product default stays `ALWAYS_VISION` until the
+      post-Phase-17 verdict.
+- [ ] `master` receives Phase 17 only through its own merge after the gates.
 
 ---
 
 ## 7. Branch and merge notes
 
-- **Phase 17 is not part of the Phase 16 branch work.** After UAT 16.3 merges Phase 16 to
-  `master`, Phase 17 starts on its own branch from `master` (the experiment-branch rule
-  applies to experiments; Phase 17 is a product phase). If the owner prefers to continue
-  on `exp/tree-first`, that branch merges first.
-- **The merge order** (Phase 16 §7) is unchanged: law → code → tests → AGENTS/index →
-  status/verification → the merge commit.
-- **The Phase 17 plan is not product.** It is the next phase's contract; no code from it
-  lands as part of Phase 16.
+- **The branch.** `phase-17-tree-first`, created from `exp/tree-first` at the Phase 16
+  records commit (`d292a02`). The Phase 16 branch stays clean; `master` stays at
+  `1a0af26`.
+- **The sequencing (owner, 2026-10-22).** Phase 17's Stages 0–3 are implemented first;
+  Phase 16 resumes after that (UAT 16.3). `exp/tree-first` merges to `master` first;
+  `phase-17-tree-first` rebases onto master and merges after its gates.
+- **Stage 4 is a separate post-Phase-17 program**, run after both merges; the product
+  default decision waits for it.
 - **The Phase 16 laws survive.** The goal fidelity, the hatch sixth guard, the final-WEAK
   rule, the guards and the launcher fix are prerequisites, not alternatives.
 
@@ -466,9 +497,10 @@ remains. If rejected, the finding is recorded and the two-engine product stands.
 
 ### What Phase 17 produces
 
-- `TreeFirstLoop` + `TreeToolStep` + `VisionToolStep`; the modality and the three signals;
-  the event cadence; the policy selector; the hybrid budget; the unified evidence.
-- The measured corpus (tree-first vs always-vision) with the acceptance verdict.
+- `NavigationLoop`'s hybrid branch + the `VisionToolStep` seam; the modality and the three
+  signals; the event cadence; the policy selector; the hybrid budget; the evidence fields.
+- A functional hybrid smoke (UAT 17.2); **the measured corpus and the verdict are the
+  deferred Stage 4 program.**
 - The law updates (doc 01 §1a implemented, doc 04 §8 replaced, doc 07 §6 acceptance).
 
 ### Contract with the next phase
@@ -485,13 +517,13 @@ remains. If rejected, the finding is recorded and the two-engine product stands.
 
 | Decision | Needed by | Recommendation |
 |---|---|---|
-| The a11y prefix-rollback amendment (doc 04 §7) | Stage 0.1 | Amend: the audit is a code invariant, not a re-plan. |
+| The a11y prefix-rollback amendment (doc 04 §7) | Stage 0.1 | **Approved 2026-10-22** — the audit is a code invariant, not a re-plan. |
 | The hybrid budget profile | Stage 3.2 | One profile + a vision sub-ledger, set from Stage 0/1 measurements. |
-| The toggle semantics | Stage 3.1 | A three-way policy selector; `TREE_FIRST` default. |
+| The toggle semantics | Stage 3.1 | A three-way policy selector; the product default stays `ALWAYS_VISION` until the Stage 4 verdict. |
 | The three signal thresholds | Stage 1.2 | Pin the current values; tune only from measurement. |
 | Site memory | Stage 1.1 | Keep absent. |
 | The R1 accept law (WEAK mid-ladder) | Stage 0.8 | Writer condition discipline first (STRONG conditions); the accept relaxation only if the writer cannot comply. |
-| The R3 halt rule | Stage 4 | Keep: halt at the order-review/place-order control; no order. |
+| The R3 halt rule | Every corpus UAT | Keep: halt at the order-review/place-order control; no order. |
 
 ---
 

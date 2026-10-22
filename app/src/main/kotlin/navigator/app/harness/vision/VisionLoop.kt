@@ -216,6 +216,13 @@ class VisionLoop(
          * handles scrolls; a Failed proposal never counts.
          */
         val sameActionFilterAfter: Int = 3,
+        /**
+         * PHASE_17 Stage 0.1 — the prefix audit's trigger: after this many consecutive
+         * failures since the last verified advance, re-check the completed conditions on
+         * the current page and roll the pointer back to the earliest false (the R2
+         * lost-site fix). The count survives re-plans.
+         */
+        val prefixAuditAfter: Int = 3,
     ) {
         init {
             require(scrollChurnReplanAfter >= scrollChurnHintAfter) {
@@ -429,6 +436,15 @@ class VisionLoop(
     private var sameActionVerb: VisionPrompts.ProposalAction? = null
     private var consecutiveSameActions = 0
 
+    /**
+     * PHASE_17 Stage 0.1 — the consecutive failures since the last verified advance (the
+     * prefix audit's trigger). Unlike [consecutiveFailures] (which a re-plan resets), this
+     * counter survives re-plans: a re-plan does not repair a lost site. Class field (the
+     * vision loop's state discipline); reset on run start, a subtask advance and the
+     * audit's rollback.
+     */
+    private var failuresSinceAdvance = 0
+
     /** This step's visible-purchase-control detection (set once per observation). */
     private var stepPurchaseControlVisible = false
 
@@ -532,6 +548,7 @@ class VisionLoop(
         consecutiveScrolls = 0
         churnHintLogged = false
         resetSameAction() // PHASE_16: the same-action memory never crosses runs/tasks
+        failuresSinceAdvance = 0 // PHASE_17: the prefix audit never crosses runs/tasks
         lastObservedUrl = obs.url
         stepPurchaseControlVisible = PurchaseControl.hasVisible(obs.nodes)
 
@@ -554,6 +571,7 @@ class VisionLoop(
             }
             pointer += 1
             consecutiveFailures = 0
+            failuresSinceAdvance = 0 // PHASE_17: a verified advance starts the audit clean
             recentHashes.clear()
             stepsOnSubtask = 0
             subtaskStartHash = obs.screenHash
@@ -571,6 +589,49 @@ class VisionLoop(
             resetSameAction() // PHASE_16: a new subtask is a new action space
             step += 1
             return null
+        }
+
+        /**
+         * PHASE_17 Stage 0.1 — the completed-prefix audit (the R2 lost-site fix). After
+         * [Config.prefixAuditAfter] failures since the last advance, re-check the
+         * completed subtasks' conditions on the current observation and roll the pointer
+         * back to the earliest false. The ladder/batteries stay; the pointer and the
+         * per-subtask counters reset exactly like a re-plan install. No writer call and
+         * no re-plan budget is spent. Content conditions are page-local and the vision
+         * loop has no landing-host record, so only the URL-identity conditions are
+         * audited (the R2 case).
+         */
+        fun prefixRollback(obs: StepObservation, counters: Map<String, Int>, answersProduced: Int): Boolean {
+            if (pointer == 0) return false
+            val codeEvidence = checkerEvidence(obs, counters, answersProduced)
+            val invalid = navigator.core.ladder.PrefixAudit.earliestInvalid(
+                ladder,
+                pointer,
+                codeEvidence,
+            ) { false } // content conditions: no landing-host record in the vision loop
+            if (invalid == null) return false
+            val condition = DoneConditionChecker.render(ladder.subtasks[invalid].done)
+            pointer = invalid
+            consecutiveFailures = 0
+            failuresSinceAdvance = 0
+            recentHashes.clear()
+            stepsOnSubtask = 0
+            subtaskStartHash = obs.screenHash
+            actionHistory.clear()
+            verbHistory.clear()
+            batteryReplans = 0
+            lastBatteryResults = emptyList()
+            lastBatteryHash = null
+            repairAttempted.clear()
+            consecutiveScrolls = 0
+            churnHintLogged = false
+            resetSameAction()
+            val line = "PREFIX ROLLBACK: subtask ${invalid + 1}/${ladder.subtasks.size} - " +
+                "\"$condition\" no longer holds on the current page - re-entering it"
+            outcomes.add(line)
+            log("[vision] $line")
+            evidence.event(line)
+            return true
         }
 
         while (true) {
@@ -660,6 +721,7 @@ class VisionLoop(
                     log("[vision] $line")
                     evidence.event(line)
                     consecutiveFailures += 1
+                    failuresSinceAdvance += 1
                     step += 1
                 } else {
                     val opinions = recordedOpinions(active, obs, shot)
@@ -705,6 +767,7 @@ class VisionLoop(
                 // still static (or the probe was lawfully skipped): treat as a failed
                 // step and fall through to the replan gate
                 consecutiveFailures = config.stepFailuresBeforeReplan
+                failuresSinceAdvance += 1
             }
 
             // -- the verification battery (writer-authored, cascade law) -----------------
@@ -807,6 +870,7 @@ class VisionLoop(
                         // task-level failure budget — the genuinely mis-shaped condition
                         // three escalations later still gets its re-plan.
                         consecutiveFailures = config.stepFailuresBeforeReplan
+                        failuresSinceAdvance += 1
                         batteryReplanQueued = true
                         step += 1
                     } else {
@@ -843,6 +907,7 @@ class VisionLoop(
                 log("[vision] $line")
                 evidence.event(line)
                 consecutiveFailures = config.stepFailuresBeforeReplan
+                failuresSinceAdvance += 1
                 step += 1
             }
 
@@ -890,6 +955,7 @@ class VisionLoop(
                     is Attempted.Failed -> {
                         stepLine += "FAILED (${attempted.reason})"
                         consecutiveFailures += 1
+                        failuresSinceAdvance += 1
                         proposerExhaustedLast = attempted.reason.startsWith("no proposals")
                     }
                     is Attempted.GateAborted -> {
@@ -908,6 +974,16 @@ class VisionLoop(
                 evidence.event(stepLine)
                 step += 1
                 stepsOnSubtask += 1
+            }
+
+            // PHASE_17 Stage 0.1: after the third failure since the last advance, audit
+            // the completed prefix (the R2 lost-site fix). This check runs on every step,
+            // not only at the re-plan gate: a re-plan resets consecutiveFailures but not
+            // this count. A rollback replaces the re-plan and spends no re-plan budget.
+            if (failuresSinceAdvance >= config.prefixAuditAfter &&
+                prefixRollback(obs, counters, answer?.let { 1 } ?: 0)
+            ) {
+                continue
             }
 
             // -- the failure -> informed re-plan gate -----------------------------------
