@@ -1835,3 +1835,8 @@ a new dated entry. Format per `Implementation Plan/MASTER_IMPLEMENTATION_PROMPT.
 * DEVIATION (recorded, blocking Stage 2): Gate 17.1c - `NavigationLoop.run()` 61,197 / 65,535 (4,338 headroom) is below the 6 KB discipline gate after the hooks (~+2,500 bytes). JVM hard cap untouched; the remediation (extract the off-page/checkout tracking or triage from run) is Stage 2's first task.
 * Tests: ModalityTest 3/3; full `:app` + `:core` suites green (behavior preservation). APK 36,868,562 bytes.
 * No live model call; no key value; no order; `master` untouched; the branch is `phase-17-tree-first`. COMPLIANT.
+
+## 2026-10-23 — PHASE_17 STAGE 2 PREREQUISITE (the run() headroom remediation)
+* The Stage 1 hooks pushed `NavigationLoop.run()` to 61,197 / 65,535 (4,338 headroom, below the 6 KB discipline gate).
+* Remediation (lines moved wholesale, no semantics changed): `coldStartAndTriage()` (the legacy cold-start + the ONE triage choose) and `installLadderPath()` (the restructure + generation-1 install + surfaces + site entry + the browser-readiness pre-step) are now run-local functions, hoisted to their own methods. `run()` = 58,257 / 65,535 (7,278 headroom), above the gate.
+* Full `:app` + `:core` suites green after the move (behavior preservation). APK 36,868,562 bytes. No live model call; no key value; `master` untouched. COMPLIANT.

@@ -506,11 +506,11 @@ reproduces the a11y ladder tests; a vision-only arm reproduces the vision tests.
 - Tests: `ModalityTest` 3/3 (the thin-tree flip + tool index + the shared accept + the TREE
   reset; the tool's failure entering the host's failure path; no tool → no flip, REFUSED
   unchanged). Full `:app` + `:core` suites green; APK 36,868,562 bytes.
-- **Gate 17.1c DEVIATION (recorded):** `NavigationLoop.run()` is 61,197/65,535 — 4,338
-  bytes headroom, BELOW the 6 KB discipline gate (the hooks + the loop-top check cost
-  ~2,500 bytes; the JVM hard cap is untouched). The remediation — moving the
-  off-page/checkout tracking or the triage block out of `run` — is a **Stage 2
-  prerequisite**.
+- **Gate 17.1c: RESOLVED (2026-10-23).** The first measurement after the hooks was
+  61,197/65,535 (4,338 headroom). The remediation extracted `coldStartAndTriage()` (the
+  legacy cold-start + triage block) and `installLadderPath()` (the restructure + generation-1
+  install + readiness pre-step) out of `run` — lines moved wholesale, no semantics changed.
+  `NavigationLoop.run()` is now **58,257/65,535 (7,278 headroom)**, above the 6 KB gate.
 - The product route is NOT wired yet (no product path constructs a tool): Stage 3 owns the
   `TREE_FIRST` selector; `ALWAYS_VISION` stays the product default.
 

@@ -1765,7 +1765,66 @@ class NavigationLoop(
         //    pre-navigation refusal — nothing navigates. The default source is
         //    [LadderSource.None]: the legacy cold-start + triage path below stays
         //    byte-identical (the phase doc's non-ladder paths).
-        if (ladderSource != LadderSource.None) {
+        /**
+         * The legacy COLD-START + TRIAGE block (extracted in PHASE_17 Stage 2 for the
+         * `run` method-size discipline — the lines moved wholesale, no semantics changed):
+         * the deterministic cold-start pre-step and the ONE triage choose over the goal.
+         * Returns the terminal for an IMPOSSIBLE triage; null continues.
+         */
+        suspend fun coldStartAndTriage(): RunResult? {
+            if (browserProbe != null && browserLauncher != null) {
+                val record = ColdStart.run(goal, startUrl, browserProbe, browserLauncher)
+                record.lines.forEach { line(it) }
+            }
+            line("triage: asking the engine over the goal text")
+            uiListener?.onThinking(true)
+            val triageChoice = engine.choose(goal, Triage.question())
+            uiListener?.onThinking(false)
+            when (val triage = Triage.interpret(triageChoice)) {
+                is Triage.Result.Impossible -> {
+                    triageLabel = triage.chosenId
+                    line("triage: IMPOSSIBLE ('${triage.chosenId}') - explain and abort pre-navigation")
+                    line(
+                        "explanation: I can only attempt lookup, multi-step research, form-fill, " +
+                            "or action goals in v1; \"$goal\" is outside that scope",
+                    )
+                    return finish(
+                        TerminalState.TRIAGE_IMPOSSIBLE,
+                        "triage answered '${triage.chosenId}' - no navigation attempted",
+                        steps = 0,
+                    )
+                }
+                is Triage.Result.Task -> {
+                    triageClass = triage.triageClass
+                    triageLabel = triage.triageClass.serial()
+                    entity = TargetEntity.extract(goal)
+                    val taskTracker =
+                        if (triage.triageClass == TriageClass.ACTION_MULTI) TargetTracker() else null
+                    tracker = taskTracker
+                    guards = CompletionGuards(triage.triageClass, entity, taskTracker)
+                    line("triage: $triageLabel")
+                    entity?.let { line("triage: target entity \"${it.text}\" (code-extracted)") }
+                    plan = planSource.propose(goal, triage.triageClass)
+                    plan?.let {
+                        line(
+                            "plan: proposed v${it.version} with ${it.subgoals.size} subgoal(s) - " +
+                                "provenance only, ART-2",
+                        )
+                        uiListener?.onPlan(it.subgoals)
+                    }
+                    line("guard state: ${guards.describe()}")
+                }
+            }
+            return null
+        }
+
+        /**
+         * The ladder-path install (extracted in PHASE_17 Stage 2 for the `run` method-size
+         * discipline — the lines moved wholesale, no semantics changed): ONE restructure
+         * call, the generation-1 install, the surfaces, the first site entry, and the
+         * browser-readiness pre-step. Returns the pre-navigation refusal on a bad ladder.
+         */
+        suspend fun installLadderPath(): RunResult? {
             val restructured = ladderSource.restructure(goal, generation = 1)
             if (restructured == null) {
                 line("ladder: restructure REFUSED - clean pre-navigation refusal (nothing navigates)")
@@ -1795,64 +1854,13 @@ class NavigationLoop(
             // before the step loop's first observe, mirroring the legacy branch (where
             // the cold-start sits before triage). One attempt; readiness, not navigation.
             browserReadinessPrestep()
-        } else {
-            // -- COLD-START (vision 04 §1: deterministic code BEFORE triage and the first
-            //    OBSERVE; NO engine is ever consulted for opening the browser) ---------
-            if (browserProbe != null && browserLauncher != null) {
-                val record = ColdStart.run(goal, startUrl, browserProbe, browserLauncher)
-                record.lines.forEach { line(it) }
-            }
+            return null
+        }
 
-            // -- TRIAGE (vision 04 §1: ONE choose over the goal text) ------------------
-            line("triage: asking the engine over the goal text")
-            uiListener?.onThinking(true)
-            val triageChoice = engine.choose(goal, Triage.question())
-            uiListener?.onThinking(false)
-            when (val triage = Triage.interpret(triageChoice)) {
-                is Triage.Result.Impossible -> {
-                    triageLabel = triage.chosenId
-                    line("triage: IMPOSSIBLE ('${triage.chosenId}') - explain and abort pre-navigation")
-                    line(
-                        "explanation: I can only attempt lookup, multi-step research, form-fill, " +
-                            "or action goals in v1; \"$goal\" is outside that scope",
-                    )
-                    return finish(
-                        TerminalState.TRIAGE_IMPOSSIBLE,
-                        "triage answered '${triage.chosenId}' - no navigation attempted",
-                        steps = 0,
-                    )
-                }
-                is Triage.Result.Task -> {
-                    triageClass = triage.triageClass
-                    triageLabel = triage.triageClass.serial()
-                    // Triage-time target-entity extraction (vision 04 §3 v1.2.0): pure code,
-                    // once per task; anchors the STRONG guard and the noul proposition.
-                    entity = TargetEntity.extract(goal)
-                    // Task working memory (Phase 08G, vision 04 §1): action-multi tasks get
-                    // the code-owned target tracker — the guard's WEAK predicate is its
-                    // drained state, and the L1 stuck hint carries its progress lines.
-                    val taskTracker = if (triage.triageClass == TriageClass.ACTION_MULTI) TargetTracker() else null
-                    tracker = taskTracker
-                    guards = CompletionGuards(triage.triageClass, entity, taskTracker)
-                    line("triage: $triageLabel")
-                    entity?.let { line("triage: target entity \"${it.text}\" (code-extracted)") }
-                    // Plan proposal (Phase 08G, vision 04 §1): consulted ONCE at triage;
-                    // context, never executor (ART-2). The default source returns null and
-                    // this block stays silent — byte-identical to the pre-08G loop. (The
-                    // v3 state text renders ladders instead; provenance keeps riding the rows.)
-                    plan = planSource.propose(goal, triage.triageClass)
-                    plan?.let {
-                        line(
-                            "plan: proposed v${it.version} with ${it.subgoals.size} subgoal(s) - " +
-                                "provenance only, ART-2",
-                        )
-                        // Phase 9: the overlay surface shows the plan (context transparency,
-                        // ART-2 — provenance, never executor).
-                        uiListener?.onPlan(it.subgoals)
-                    }
-                    line("guard state: ${guards.describe()}")
-                }
-            }
+        if (ladderSource != LadderSource.None) {
+            installLadderPath()?.let { return it }
+        } else {
+            coldStartAndTriage()?.let { return it }
         }
 
         // -- per-class budget profile (vision 04 §5): selected by the resolved triage

@@ -58,7 +58,7 @@
     "deviations":  [
                        "0.8\u0027s persistent same-action ban is scoped to SUBMIT/fill-field/fill-yield (the R1-PT and R3 form-action loops the corpus exposed); a TAP loop keeps the Phase-16 L1/L2 recovery behavior so the existing stuck-law pins stay green. The full suites are green.",
                        "Stage 1\u0027s vision tool is VisionLoop.runSubtask (a bounded single-subtask mode over the SAME step machinery) behind the VisionToolStep interface, instead of physically moving attemptStep + the helpers into the tool class: zero behavior-preservation risk and ONE implementation shared with the always-vision reference. The host depends on the interface either way.",
-                       "Gate 17.1c: NavigationLoop.run() is 61,197/65,535 (4,338 bytes headroom) - BELOW the 6 KB discipline gate (the JVM hard cap is untouched). Remediation (moving the off-page/checkout tracking or the triage block out of run) is a Stage 2 prerequisite."
+                       "Gate 17.1c RESOLVED (2026-10-23): the first measurement was 61,197/65,535 (4,338 headroom, below the 6 KB gate); the remediation extracted coldStartAndTriage() and installLadderPath() out of NavigationLoop.run (lines moved wholesale) -> run() 58,257/65,535 (7,278 headroom), above the gate."
                    ],
     "llmCost":  0,
     "blocker":  null,
