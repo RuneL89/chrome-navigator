@@ -1,7 +1,12 @@
 # Navigation Loop
 
 **Document ID:** `NAVIGATOR-VISION-004`
-**Version:** 2.5.0 *(amended 2026-10-22 (PHASE_17 Stage 0.1): the completed-prefix
+**Version:** 2.6.0 *(amended 2026-10-23 (PHASE_17 Stages 1–3): the tree-first loop of §8
+is IMPLEMENTED as the selectable `TREE_FIRST` policy — a11y tree by default, the vision
+tool on the three code-owned signals, subtask-scoped modality, Haiku plan/re-plan over raw
+dual evidence, the advisory boundary audit (v19) and the dual-evidence stuck event. It is
+NOT the product default: `ALWAYS_VISION` stays the default until the Stage 4 acceptance
+corpus. Amended 2026-10-22 (PHASE_17 Stage 0.1): the completed-prefix
 audit — after 3 failures since the last verified advance the code re-checks the completed
 conditions on the current observation and rolls the pointer back to the earliest false;
 location conditions always, content conditions only on the subtask's landing host; never
@@ -9,8 +14,7 @@ past a completed order confirmation; it runs before the re-plan and spends no re
 budget. The a11y `ReplanRule` freeze remains the re-plan acceptance law. Owner-approved
 amendment. Amended 2026-10-22: the tree-first TARGET loop — §8 records the
 owner's one-loop model (tree default, three code-owned escalation signals, vision for the
-rest of the subtask, tree at the next, Haiku event-driven with raw dual evidence). It is
-explicitly NOT implemented; §2/§3 remain the shipped loops. Owner-authorized DeepSeek
+rest of the subtask, tree at the next, Haiku event-driven with raw dual evidence). Owner-authorized DeepSeek
 Flash amendment; the GLM-5.3 exception is recorded in `Project Vision/AGENTS.md` and
 `.state/compliance-log.md`. Amended 2026-10-21 (PHASE_16): the GOAL-FIDELITY law — the ladder is
 bound to the goal, not to its plan; a purchase goal ends on the order confirmation; the
@@ -40,12 +44,15 @@ Owner-authorized DeepSeek Flash amendment; the GLM-5.3 exception is recorded in
 
 ---
 
-**Implementation status (2026-10-22).** Shipped: §2's vision step, §3's a11y step, §4's
-exits/finality/goal fidelity, §5's loop guards, §6's result/evidence, §7's re-plan. The
-PHASE_16 goal-fidelity and loop-guard laws are implemented on `exp/tree-first` and not yet
-merged to `master`. **Not implemented:** §8's tree-first target loop — no tree↔vision
-switching, no subtask-scoped modality, no event-driven Haiku, no raw dual evidence. §2/§3
-are the current engines; §8 is the committed target.
+**Implementation status (2026-10-23).** Shipped: §2's vision step, §3's a11y step, §4's
+exits/finality/goal fidelity, §5's loop guards, §6's result/evidence, §7's re-plan, and
+§8's tree-first loop **as the selectable `TREE_FIRST` policy** (Phase 17 Stages 1–3: the
+`VisionToolStep` seam, the `SubtaskModality` state, the three code-owned signals, the
+subtask-scoped vision tool, Haiku plan/re-plan over raw dual evidence, the advisory
+boundary audit at v19, the dual-evidence stuck event, and the three-way policy with
+`ALWAYS_VISION`/`TREE_ONLY`). **§8 is NOT the product default:** `ALWAYS_VISION` stays the
+default until the Stage 4 acceptance corpus, and the Setup selector for the three policies
+ships with that program (Stage 3's selector moved there).
 
 ## 1. Task lifecycle
 
@@ -268,10 +275,13 @@ paths are unchanged by the promotion.
 
 ## 5. Recovery, stuck detection and budgets
 
-**Target note (2026-10-22 — NOT IMPLEMENTED):** §8 adds the three escalation signals;
-this section's guards are unchanged and apply in both tools. The known seam — a confident
-wrong action that changes the screen — is not caught by any guard immediately; §8 records
-it and the evaluation measures the boundary catches.
+**Note (2026-10-23, `TREE_FIRST` implemented):** §8's three escalation signals exist;
+this section's guards are unchanged and apply in both tools (the hybrid's host loop uses
+them for tree steps, and the Phase 17 additions — the back bound, the scroll-find cap and
+the cross-re-plan URL ban — extend them). The known seam — a confident
+wrong action that changes the screen — is still not caught by any guard immediately; §8
+records it, the advisory boundary audit is the first catch, and the evaluation measures
+the boundary catches.
 
 **The loop-guard law (PHASE_16 — binding, code-owned).** Repetition is a code problem, not
 a model problem; a hint alone is not a guard.
@@ -371,12 +381,15 @@ card. (The a11y engine is not on the vision engine's 100× ledger.)
   loudly and count as no capacity. The freeze is unchanged; the prefix audit is the
   code-side rollback the freeze does not cover (owner amendment 2026-10-22).
 
-## 8. The tree-first target loop (owner vision, 2026-10-22 — NOT IMPLEMENTED)
+## 8. The tree-first loop (owner vision 2026-10-22; implemented as `TREE_FIRST` 2026-10-23)
 
-> This section is the committed target for the next engine phase, not current law. It
-> supersedes §2/§3's two separate steps when implemented; the shared ladder (§1), exits
-> (§4), guards (§5), evidence (§6) and re-plan integrity (§7) survive. Doc 01 §1a is the
-> product-level statement; this is the loop-level one.
+> **Status:** implemented in PHASE_17 Stages 1–3 as a SELECTABLE engine policy
+> (`TREE_FIRST`), not the product default. `ALWAYS_VISION` remains the default until the
+> Stage 4 acceptance corpus; the Setup selector for the three policies ships with that
+> program. The shipped default's behaviour (§2/§3) is unchanged; this section now
+> describes working code. The shared ladder (§1), exits (§4), guards (§5), evidence (§6)
+> and re-plan integrity (§7) survive unchanged. Doc 01 §1a is the product-level statement;
+> this is the loop-level one.
 
 **The target in one sentence.** One loop, two perception tools, tree-first: the tree
 carries ordinary steps; one of three code-owned signals flips the subtask to vision;

@@ -1,9 +1,12 @@
 # Decision Engines & Model Protocol
 
 **Document ID:** `NAVIGATOR-VISION-002`
-**Version:** 2.1.0 *(amended 2026-10-22: the tree-first TARGET division of labour —
-one loop, the same two model roles, Haiku called at events instead of every step. The
-target is explicitly NOT implemented; §2.4 records it, and §4 records that the four Jev
+**Version:** 2.2.0 *(amended 2026-10-23 (PHASE_17 Stages 1–3): the tree-first division of
+labour is implemented as the selectable `TREE_FIRST` policy (not the product default);
+the prompt surface is v19 (the boundary audit) and §2.4's table is the working code.
+Amended 2026-10-22: the tree-first division of labour —
+one loop, the same two model roles, Haiku called at events instead of every step. §2.4
+records it, and §4 records that the four Jev
 primitives cover it unchanged. Owner-authorized DeepSeek Flash amendment; the GLM-5.3
 exception is recorded in `Project Vision/AGENTS.md` and `.state/compliance-log.md`.
 Amended 2026-10-18: the vision-engine promotion — the product now has two engines with
@@ -73,10 +76,10 @@ doc 04 §8). §2.4 is the target protocol.
   UNTRUSTED DATA. The writer never chooses an action directly: its proposals are
   grounded and gated by code.
 - **Prompt surface:** versioned by `VISION_PROMPT_VERSION` (currently
-  `vision-exp-v16`). The version covers the plan, propose, repair and extraction
-  prompts, the `<jev-evidence>` re-plan block, the `<scroll-churn>` block and the
-  ladder/purchase/CTA laws. A prompt change bumps the version and triggers doc 07's
-  gate rule.
+  `vision-exp-v19`). The version covers the plan, propose, repair, extraction, confirm
+  and boundary prompts, the `<jev-evidence>` re-plan block, the `<scroll-churn>` block,
+  the field-level form laws (v18) and the ladder/purchase/CTA laws. A prompt change bumps
+  the version and triggers doc 07's gate rule.
 
 ### 2.2 The judgment engine (Jev 1.14)
 
@@ -112,7 +115,7 @@ ladder, checks the done-condition, runs the battery accept, applies the gate, ex
 the gesture, and owns every number and terminal. No model's self-report completes a
 task (ART-4).
 
-### 2.4 The tree-first target division of labour (owner vision, 2026-10-22 — NOT IMPLEMENTED)
+### 2.4 The tree-first division of labour (owner vision 2026-10-22; implemented as `TREE_FIRST` 2026-10-23, not the default)
 
 The target keeps the same two model roles and changes when each is called.
 

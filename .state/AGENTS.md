@@ -19,7 +19,15 @@ remembers."
   (`Project Vision/01 §1a`, `04 §8`) mapped mechanism-by-mechanism to the code, the
   possible-now vs needs-a-new-role/amendment split, the R1–R4 residuals classified, the
   answered open questions, the owner decisions, and the risk/cost of the next steps. The
-  binding companion of the draft `Implementation Plan/PHASE_17_tree_first_hybrid.md`.
+  binding companion of `Implementation Plan/PHASE_17_tree_first_hybrid.md`.
+* `phase-17-status.json` — the Phase 17 record (Stages 0–3 gated; the UAT and the merges
+  pending; Stage 4 deferred). Durable companions: the Phase 17 UAT reports under
+  `phase-16-uat/` (the owner ruling makes that corpus Phase 16's continuation - the
+  reports are named by goal, so a Phase 17 run gets its own subdirectory), and the
+  deferred Stage 4 program (the hybrid acceptance corpus — recorded HERE when the owner
+  starts it; no new phase doc until then). The attended hybrid smoke selects the policy
+  through `OverlayDebugReceiver.SET_ENGINE_POLICY` and its evidence lands under
+  `run-reports/vision-exp/task-<ts>/` plus `run-reports/a11y-exp/<task>/`.
 * `preUAT2-emulator/` — the `fix-record.md` from the owner-ordered pre-UAT automation
   pass (2026-10-08, the implementer's defect-fix record); the emulator prepass run
   reports were removed with the historical run data (owner request 2026-10-19)

@@ -1,9 +1,12 @@
 # Risk Gate & Safety
 
 **Document ID:** `NAVIGATOR-VISION-006`
-**Version:** 1.8.0 *(amended 2026-10-22: the tree-first TARGET keeps this gate
+**Version:** 1.9.0 *(amended 2026-10-23 (PHASE_17 Stages 1–3): the tree-first loop is
+implemented as the selectable `TREE_FIRST` policy; the gate stays modality-agnostic and
+unchanged in both tools (the hybrid's vision tool carries the SAME `OverlayGatePresenter`
+and per-task trust the always-vision route uses). Amended 2026-10-22: the tree-first gate is
 modality-agnostic — vision is perception, never authorization; the tool switch cannot
-launder a denial. The target is explicitly NOT implemented. Owner-authorized DeepSeek
+launder a denial. Owner-authorized DeepSeek
 Flash amendment; the GLM-5.3 exception is recorded in `Project Vision/AGENTS.md` and
 `.state/compliance-log.md`. Amended 2026-10-21 (PHASE_16): a "buy" goal completes on the
 ORDER PLACED — the ladder's final condition must show the order confirmation; a

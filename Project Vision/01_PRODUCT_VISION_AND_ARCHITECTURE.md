@@ -1,9 +1,12 @@
 # Chrome Navigator (working title) — Product Vision and Architecture
 
 **Document ID:** `NAVIGATOR-VISION-001`
-**Version:** 2.1.0 *(amended 2026-10-22: the owner's TREE-FIRST TARGET — one loop with
-tree and vision as perception tools. It is recorded as the committed target for the next
-engine phase and is explicitly NOT the shipped engine; each amended doc carries an
+**Version:** 2.2.0 *(amended 2026-10-23 (PHASE_17 Stages 1–3): the tree-first loop is
+implemented as the selectable `TREE_FIRST` policy — not the product default; §1a and the
+capability table now say "implemented, not the default". Amended 2026-10-22: the owner's
+TREE-FIRST TARGET — one loop with
+tree and vision as perception tools. It was recorded as the committed target for the next
+engine phase; each amended doc carries an
 implementation-status line. Owner-authorized DeepSeek Flash amendment; the GLM-5.3
 exception is recorded in `Project Vision/AGENTS.md` and `.state/compliance-log.md`.
 Amended 2026-10-18: the vision-engine promotion — the multimodal VisionLoop becomes the
@@ -13,20 +16,25 @@ directive; that amendment was owner-authorized in a DeepSeek Flash session becau
 GLM-5.3 credits were exhausted — the exception is recorded in
 `.state/compliance-log.md`)*
 **Status:** Ratified (2026-10-03; vision-engine promotion 2026-10-18; tree-first target
-recorded 2026-10-22 — target, not current capability)
+recorded 2026-10-22; the target's mechanics **implemented 2026-10-23** as the selectable
+`TREE_FIRST` engine — Phase 17 Stages 1–3 — **pending the Stage 4 acceptance**; the product
+default remains `ALWAYS_VISION`)
 **Date:** 2026-10-03
 
 > Working title per locked decision #9 ("naming deferred; 'Navigator' is a placeholder").
 > Document IDs use the slug `NAVIGATOR` until naming is ratified.
 
-**Implementation status (2026-10-22).** Shipped: the two-engine model of §1/§3 — the
-vision engine is the default (a11y + screenshot on every step; Haiku proposes every step;
-Jev grounds and runs the battery; code owns the ladder, goal fidelity, guards, gate and
-finality) and the a11y engine is retained behind the Setup toggle (text-only cascade; no
-vision; no escalation). The PHASE_16 goal-fidelity and loop-guard laws are implemented on
-`exp/tree-first` and not yet merged to `master`. **Not implemented:** the tree-first
-target of §1a — no tree↔vision switching, no subtask-scoped modality, no event-driven
-Haiku, no raw dual evidence at events, no unified evidence record.
+**Implementation status (2026-10-23).** Shipped: the two-engine model of §1/§3 — the
+vision engine is the default (`ALWAYS_VISION`: a11y + screenshot on every step; Haiku
+proposes every step; Jev grounds and runs the battery; code owns the ladder, goal fidelity,
+guards, gate and finality) and the a11y engine is retained behind the Setup toggle
+(`TREE_ONLY`: text-only cascade). **Implemented as a SELECTABLE third policy (Phase 17
+Stages 1–3, 2026-10-23):** the tree-first loop of §1a — `TREE_FIRST` runs the a11y tree by
+default, escalates the active subtask to the vision tool on the three code-owned signals,
+resets to the tree at the next, plans/re-plans over raw dual evidence, audits the plan at
+the subtask boundary, and keeps Haiku event-driven. It is NOT the product default: the
+default decision waits for the Stage 4 acceptance corpus, and the Setup selector for the
+three policies ships with that program.
 
 ---
 
@@ -78,21 +86,22 @@ in the phase-14 status and the backlog, not hidden.
 
 | Stage | What ships | Why |
 |---|---|---|
-| Now | Vision engine default + a11y engine retained behind the toggle | The vision engine is the working product; the a11y engine preserves the speed/accuracy option |
-| Next (specified 2026-10-22) | The tree-first toolbox of §1a: one loop, tree default, three code-owned escalation signals, vision for the rest of the subtask, tree at the next; Haiku event-driven; Jev reports, Haiku judges, code gates | The owner's target after the VEXP9 corpus; **not implemented** — the two-engine model remains the shipped state |
-| Later | Tune the tree/vision policy from live evidence | No on-device decision-model graduation requirement; the training program is retired |
+| Now | Vision engine default (`ALWAYS_VISION`) + a11y engine retained (`TREE_ONLY`) behind the toggle | The vision engine is the working product; the a11y engine preserves the speed/accuracy option |
+| Implemented 2026-10-23 (selectable, NOT the default) | The tree-first toolbox of §1a as the third policy `TREE_FIRST`: one loop, tree default, three code-owned escalation signals, vision for the rest of the subtask, tree at the next; Haiku event-driven; Jev reports, Haiku judges, code gates | PHASE_17 Stages 1–3 landed the mechanics; the product default waits for the Stage 4 acceptance corpus |
+| Later | Tune the tree/vision policy from live evidence; the three-way Setup selector with the verdict | No on-device decision-model graduation requirement; the training program is retired |
 
 The Road L lifecycle (shadow student, RLCD accumulation, fine-tune, graduation) is
 **retired** by owner directive 2026-10-19 ("remove that noise completely"). No phase may
 assume an on-device Laya engine, a shadow, a training corpus, or a graduation flip.
 
-### 1a. The tree-first target (owner vision 2026-10-22 — NOT IMPLEMENTED)
+### 1a. The tree-first loop (owner vision 2026-10-22; implemented 2026-10-23 as `TREE_FIRST`)
 
-> **Status:** this is the committed target for the next engine phase; it is not what the
-> app does today. The shipped behaviour is §1/§3's two-engine model. A phase that
-> implements the target must amend this section into law and update every
-> implementation-status line. The source is the owner's 2026-10-22 interview after the
-> PHASE_VEXP9 corpus.
+> **Status:** implemented in PHASE_17 Stages 1–3 as a SELECTABLE engine policy
+> (`TREE_FIRST`), reachable through the `engine-policy` preference (the debug/adb seam for
+> now; the Setup selector ships with the Stage 4 program). It is **not the product
+> default**: `ALWAYS_VISION` stays the default until the Stage 4 acceptance corpus (the
+> R1–R4 comparison) accepts the hybrid. The shipped default's behaviour is unchanged.
+> The source is the owner's 2026-10-22 interview after the PHASE_VEXP9 corpus.
 
 **The claim.** One loop, two perception tools, tree-first. The tree carries ordinary steps
 at a11y cost; when it cannot, one of three code-owned signals fires and vision carries the
@@ -165,14 +174,14 @@ not one of the two perception tools.
 
 **Current capability vs the target.**
 
-| Capability | Shipped (2026-10-22) | Target (not implemented) |
+| Capability | Shipped default (2026-10-23) | `TREE_FIRST` (implemented, not the default) |
 |---|---|---|
-| Perception | Vision engine: a11y + screenshot every step; a11y engine: tree only | Tree by default; screenshot in vision mode and at Haiku events |
-| Tool switching | None; the Setup toggle selects an engine | Code-owned; three signals; subtask-scoped |
-| Haiku calls | Every vision step (plan/propose/repair/opinion/extract) | Events only |
+| Perception | Vision engine: a11y + screenshot every step (`ALWAYS_VISION`) | Tree by default; screenshot in vision mode and at Haiku events |
+| Tool switching | None; the Setup toggle selects `ALWAYS_VISION`/`TREE_ONLY` | Code-owned; three signals; subtask-scoped |
+| Haiku calls | Every vision step (plan/propose/repair/opinion/extract) | Events only (plan/re-plan, boundary, stuck, extraction); the vision tool proposes per step while it carries a subtask |
 | Jev calls | Vision: battery + ground per step; a11y: intent + scores per step | Tree: intent + scores; vision: pick + Box + battery |
 | Per-step judgment | Battery (vision) / rubric (a11y) | Jev reports; Haiku judges at events; code gates |
-| Evidence | Two formats (vision `events.log`; a11y `steps.csv`) | Unified, with modality and escalation cause |
+| Evidence | Vision `events.log` + a11y `runs.csv`/`run.json` (shared modality/call fields) | The same records; the hybrid's `modality=HYBRID` and per-flip escalation causes |
 | Completion | Code finality + goal fidelity | Unchanged |
 
 ## 2. Core Principles (the inviolable articles)
@@ -202,7 +211,7 @@ not one of the two perception tools.
 6. **Deterministic candidate order** — the a11y enumeration order is produced by code
    only; the vision engine's grounding is matched to that deterministic node set.
 7. **Versioned prompts and state** — `VISION_PROMPT_VERSION` (currently
-   `vision-exp-v16`), `STATE_FORMAT_VERSION`, the ladder schema and the question forms
+   `vision-exp-v19`), `STATE_FORMAT_VERSION`, the ladder schema and the question forms
    are versioned; changes gate on the verification suite (doc 07).
 8. **Privacy and consent boundary** — API keys live only in the app's encrypted store;
    page text and the window-scoped screenshot travel only to the two configured model
@@ -267,8 +276,8 @@ LOG (NoOpLogSink; the training store is retired) → ladder pointer advances onl
 verified IS-DONE
 ```
 
-**The target (2026-10-22 — NOT IMPLEMENTED; the two diagrams above remain the shipped
-architecture):**
+**The tree-first loop (recorded 2026-10-22; implemented 2026-10-23 as the selectable
+`TREE_FIRST` policy — the two diagrams above remain the shipped DEFAULT):**
 
 ```
 GOAL → PLAN (Haiku event; raw dual evidence; code validates)

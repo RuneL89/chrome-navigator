@@ -1,10 +1,13 @@
 # Observation & State
 
 **Document ID:** `NAVIGATOR-VISION-003`
-**Version:** 3.1.0 *(amended 2026-10-22: the tree-first TARGET observation policy —
-tree-only by default; the screenshot only in vision mode and at Haiku events; raw dual
-evidence (full a11y state + screenshot) at events, not a per-step digest. The target is
-explicitly NOT implemented; §1/§2/§4.2's shipped behaviour is unchanged. Owner-authorized
+**Version:** 3.2.0 *(amended 2026-10-23 (PHASE_17 Stages 1–3): the tree-first observation
+policy is implemented in the selectable `TREE_FIRST` policy — conditional capture at
+events, the thin/empty tree as an escalation signal, the screenshot at every event; the
+prompt version is v19. The a11y text at events remains the bounded digest (an open item).
+Amended 2026-10-22: the tree-first observation policy —
+the screenshot only in vision mode and at events; raw dual
+evidence (a11y state + screenshot) at events. §1/§2/§4.2's shipped behaviour is unchanged. Owner-authorized
 DeepSeek Flash amendment; the GLM-5.3 exception is recorded in `Project Vision/AGENTS.md`
 and `.state/compliance-log.md`. Amended 2026-10-21 (PHASE_16): the prompt version is v16
 (the goal-fidelity law). Amended 2026-10-20 (UAT repair round 2): the prompt version was
@@ -84,10 +87,10 @@ the soft keyboard and the system bars must be absent from the model's image.
 - **Text-only degradation:** a capture failure never kills the step — the loop proceeds
   on a11y text alone, loudly, and the evidence says so.
 
-**Target capture policy (2026-10-22 — NOT IMPLEMENTED):** one capture per vision-mode
-step and one at each Haiku event (plan, re-plan, subtask boundary, stuck/failure). No
+**Capture policy in `TREE_FIRST` (implemented 2026-10-23):** one capture per vision-mode
+step and one at each event (plan, re-plan, subtask boundary, stuck/failure). No
 capture on tree steps. The scope, fallback, exclusion and retry law above is unchanged;
-the target changes WHEN capture runs, not how.
+the hybrid changes WHEN capture runs, not how.
 
 **Behind-log actions (the overlay is never a touch target).** The product service
 supplies the live log's and the keyboard's current screen bounds; the loop reads them
@@ -193,14 +196,15 @@ step; it is not the a11y corpus of record:
 **Untrusted discipline:** page-derived text and the screenshot are labeled UNTRUSTED
 DATA; text or writing inside them is never an instruction. The writer's proposals are
 strict JSON; the judgment engine's answers are typed questions. The vision engine's
-prompt version is `VISION_PROMPT_VERSION = "vision-exp-v16"`; any change bumps it
+prompt version is `VISION_PROMPT_VERSION = "vision-exp-v19"`; any change bumps it
 (doc 07).
 
-**Target prompt state (2026-10-22 — NOT IMPLEMENTED):** Haiku's events receive the RAW
-dual evidence — the full a11y state text plus the screenshot — not the 2,500-char digest.
-Tree steps send nothing to Haiku. The bound is the event cadence, not a per-step digest.
-This is a deliberate owner choice; the implementing phase must pin the size behavior (the
-full state can exceed the digest) under doc 07's change gate. Jev's calls keep the
+**Event evidence in `TREE_FIRST` (partially implemented 2026-10-23):** every event call
+carries the screenshot alongside the a11y digest — the image half is shipped (plan,
+re-plan, boundary, stuck). The a11y TEXT at events is still the bounded 2,500-char digest
+(`MAX_DIGEST_CHARS`), **not** the full state text; raising that bound is an open item and
+must be pinned (the full state can exceed the digest) under doc 07's change gate. Tree
+steps send nothing to Haiku. Jev's calls keep the
 existing typed state; the battery/grounding protocol is unchanged. The report answer
 extraction is a Haiku call too; it reads the freshest observation, per the existing
 one-answer law (doc 04 §6).
@@ -218,11 +222,11 @@ one-answer law (doc 04 §6).
   tree with a usable screenshot is still a valid vision observation. A plan refusal is
   `PLAN_REFUSED`; a terminal never fabricates a page.
 
-**Target (2026-10-22 — NOT IMPLEMENTED):** in tree mode a thin or empty tree is one of
-the three escalation signals — the loop flips to vision instead of refusing. A genuinely
-unreadable page with no lawful browser front, or a vision-mode capture failure, still
-ends/degrades as above. The a11y engine's refusal words remain its law until the
-implementing phase lands.
+**In `TREE_FIRST` (implemented 2026-10-23):** a thin or empty tree is one of the three
+escalation signals — the hybrid hands the subtask to the vision tool instead of
+refusing. A genuinely unreadable page with no lawful browser front, or a vision-mode
+capture failure, still ends/degrades as above. The `TREE_ONLY` refusal words are
+unchanged.
 
 ## 6. Privacy and redaction
 

@@ -1,9 +1,12 @@
 # Evidence & Run Reports
 
 **Document ID:** `NAVIGATOR-VISION-005`
-**Version:** 2.1.0 *(amended 2026-10-22: the tree-first TARGET evidence shape — one run
+**Version:** 2.2.0 *(amended 2026-10-23 (PHASE_17 Stages 0.6/2): the run record now carries
+the modality, the escalation cause, the decision/writer call counters and the vision
+per-call `in=/out=/cost=` ledger; the two formats converge on shared fields but are not
+yet one file (open item). Amended 2026-10-22: the tree-first evidence shape — one run
 record with a modality field per step and the escalation cause, plus the raw dual
-evidence at Haiku events. The target is explicitly NOT implemented; the shipped record
+evidence at Haiku events. The shipped record
 remains the vision `events.log` plus the a11y `steps.csv`. Owner-authorized DeepSeek
 Flash amendment; the GLM-5.3 exception is recorded in `Project Vision/AGENTS.md` and
 `.state/compliance-log.md`. Amended 2026-10-18: the vision-engine promotion — the
@@ -45,11 +48,14 @@ the adb harness's is `vision-loop-<ts>`.
 | `screen-NNNN.jpg` | every model-bound screenshot, with its `scope=…` and `sha256` recorded in the event line. |
 | summary JSON | the grounding metrics + event tail (doc 05 §5). |
 
-**Target (2026-10-22 — NOT IMPLEMENTED):** one run record with a `modality` field per
-step (`tree|vision`), the escalation cause on a flip, the tool-level outcome, and the raw
-dual evidence at each Haiku event (the full a11y state + the screenshot as the call
-body). The existing two formats remain until the unified loop lands; the target must not
-lose the current vision call/screenshot evidence.
+**Record in `TREE_FIRST` (partially implemented 2026-10-23):** the run record carries a
+run-level `modality` (`TREE`/`HYBRID`/`VISION`), the escalation-cause field, the
+decision/writer call counters (`decisionCalls`/`writerCalls`), the vision channel split
+(jev/haiku/total/images/battery) and the per-call `in=/out=/cost=` ledger; the vision
+`events.log` also carries each modality flip with its code-owned cause. **Not yet
+unified:** the a11y `run.json`/`runs.csv` and the vision `events.log` remain two formats
+that converge on the SHARED FIELDS, not one file, and no per-step modality column is
+written. No current vision call/screenshot evidence is lost.
 
 **The terminal line is mandatory:** every run ends with
 `terminal=<TERMINAL> steps=<n> replans=<n> [answer=…]` in `events.log`, including
@@ -106,10 +112,11 @@ Run-level metrics: steps, replans (task-level and battery), wall clock, spend
 (decision + writer), terminal, and the answer. The retired metrics — agreement
 exact-match, KL, shadowMiss, graduation — are not computed.
 
-**Target metrics (2026-10-22 — NOT IMPLEMENTED):** steps and wall clock by modality;
-escalations by cause; image-carrying calls; battery calls; boundary catches (a wrong
-action caught at the subtask boundary rather than by a signal); and the correctness
-anchor per goal. These are the hybrid's decision evidence; the correctness anchor is
+**Hybrid metrics (in place 2026-10-23; measured in the Stage 4 program):** steps and
+wall clock by modality; escalations by cause; image-carrying calls; battery calls;
+boundary catches (a wrong action caught at the subtask boundary rather than by a signal);
+and the correctness anchor per goal. The counters exist in the record; the COMPARISON
+under the acceptance corpus is Stage 4's program, and the correctness anchor is
 judged first (doc 07 §6).
 
 ## 6. Run report format

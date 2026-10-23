@@ -1,11 +1,14 @@
 # Verification & Evaluation
 
 **Document ID:** `NAVIGATOR-VISION-007`
-**Version:** 2.3.0 *(amended 2026-10-23 (PHASE_17 Stage 0.4): the vision prompt version is
+**Version:** 2.4.0 *(amended 2026-10-23 (PHASE_17 Stages 1–3): the tree-first gates are
+LANDED (the signal flips, the event cadence, the dual evidence, the boundary audit, the
+policy matrix and the Stage 0 corpus suites); the prompt version is v19 (the boundary
+audit joins the change gate, its live review UAT 17.1); the acceptance corpus and the
+Setup selector remain the deferred Stage 4 program. Amended 2026-10-23 (PHASE_17 Stage 0.4): the vision prompt version was
 v18 and the field-level form law — the digest's code-read `FORM:` facts, the empty-field
-fill rule, the autofill-chip law and the per-field read-back — joins the change gate
-through `VISION_PROMPT_VERSION`. The live-run review for the v18 prompt change is UAT 17.1
-(the Stage 0 corpus), per the phase's scope. Amended 2026-10-22: the tree-first TARGET
+fill rule, the autofill-chip law and the per-field read-back — joined the change gate
+through `VISION_PROMPT_VERSION`. Amended 2026-10-22: the tree-first TARGET
 evaluation — the switching-policy gates and the acceptance criteria (correctness first,
 then time per correct run, image calls and escalation rate) are recorded as target gates;
 they are explicitly NOT implemented. Owner-authorized DeepSeek Flash amendment; the GLM-5.3
@@ -61,12 +64,19 @@ the training program. Their historical `.state/eval/` artifacts are frozen recor
 | App suite | `./gradlew :app:testDebugUnitTest` | the whole app: vision + retained a11y loop + overlay + setup + service + notification |
 | Core suite | `./gradlew :core:test` | types, wire client, enumeration, ladder + checker, risk gate (H1–H9), state views, retained cascade |
 
-**Target gates (2026-10-22 — NOT IMPLEMENTED):** the switching policy's tests — each of
-the three signals fires the flip; vision carries the rest of the subtask; the tree
-resumes at the next; Haiku is called only at the events; the raw dual evidence is what
-the event prompt carries; no per-step Haiku on tree steps; the authority split holds
-(Jev reports, Haiku judges, code gates). These join the existing suites when the
-implementing phase lands; the target does not retire any current test.
+**Tree-first gates (landed 2026-10-23 with Phase 17 Stages 1–3):** each of the three
+signals fires the flip (`ModalityTest`); vision carries the rest of the subtask; the tree
+resumes at the next; the writer is consulted only at events (`EventCadenceTest`); the
+event prompt carries the raw dual evidence (`VisionLadderSourceTest`,
+`VisionEventSurfacesTest`); no per-step writer on tree steps; the authority split holds
+(Jev reports, Haiku judges, code gates — the boundary verdict feeds the re-plan only,
+`BoundaryJudgeLoopTest`); the policy matrix and the missing-key refusals
+(`NavigatorVisionBridgeTest`); the Stage 0 corpus gates
+(`PrefixAuditTest`, `GoalFidelityTest`, `FormFacts`/`FieldFormTest`,
+`CheckoutIntegrityTest`/`CheckoutRecoveryTest`/`NoRedoAfterCheckoutTest`,
+`AccountEndAcceptTest`, `SpendRecordingTest`, `RecoveryScrollTest`,
+`VisionScrollFindTest`, `SiteEntryBudgetTest`, `TreeAcceptTest`). No current test was
+retired.
 
 **Hermeticity:** the vision suites inject scripted `WireTransport`s and fabricated
 captures; a unit test never calls a live provider or needs a key. The baseline counts
@@ -81,7 +91,7 @@ per-path terminal detection, the pull/analysis, the `REPORT.md` format, and the
 three-surface cleanup. A live run is monitored as follows:
 
 1. **Identity:** the app id is `navigator.app`; the debug APK is `app-debug.apk`; the
-   dex marker is the current `VISION_PROMPT_VERSION` (currently `vision-exp-v16`).
+   dex marker is the current `VISION_PROMPT_VERSION` (currently `vision-exp-v19`).
    There is no `.visionexp` suffix after the promotion.
 2. **Terminal:** an overlay-submitted goal runs the product route. With the vision
    toggle ON, the authoritative end is the corner log's task-state line + the READY
@@ -146,14 +156,15 @@ real goals run through the product overlay; the standing families are:
 - **The retained a11y engine** — the same goal with the toggle OFF must still run its
   cascade and gate.
 
-**Target acceptance (2026-10-22 — NOT IMPLEMENTED):** the VEXP9 corpus (R1–R4) under the
-attendance rule, judged in this order: (1) the correctness anchors; (2) wall-clock time
-per correct run; (3) image-carrying calls and battery calls; (4) the escalation rate and
-its causes; (5) boundary catches — wrong actions caught at the subtask boundary rather
-than by a signal. A hybrid that is correct but not faster on the corpus is not yet an
-acceptance; a hybrid that is faster but misses an anchor is a failure. The 100× vision
-budgets and the a11y profiles are not the hybrid's profile; the implementing phase sets
-it (doc 04 §8).
+**Hybrid acceptance (the Stage 4 program — deferred, not run in Phase 17):** the VEXP9
+corpus (R1–R4) under the attendance rule, judged in this order: (1) the correctness
+anchors; (2) wall-clock time per correct run; (3) image-carrying calls and battery calls;
+(4) the escalation rate and its causes; (5) boundary catches — wrong actions caught at
+the subtask boundary rather than by a signal. A hybrid that is correct but not faster on
+the corpus is not yet an acceptance; a hybrid that is faster but misses an anchor is a
+failure. The hybrid's budget split is in place (the a11y `TaskBudget` for tree steps + the
+vision `ExpBudget` sub-ledger for image calls); the owner may tune the profile before the
+program. The product default and the Setup selector wait for this verdict.
 
 A live failure that reveals a new mode becomes a new fixture/test or a KD; the suite
 does not shrink.

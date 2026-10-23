@@ -19,6 +19,15 @@ and the owner's explicit toggle OFF runs the retained A11Y ENGINE. The app ident
 is `navigator.app` (no `.visionexp` suffix); the vision docs 01–07 legislate both
 engines. The a11y engine is retained for the hybrid direction (a11y speed + image
 accuracy) and is NOT a deletion candidate.
+PHASE_17 (2026-10-22/23, the tree-first hybrid; branch `phase-17-tree-first`): the app
+now has THREE engine policies behind one route (`setup/EnginePolicy`): `ALWAYS_VISION`
+(the DEFAULT, unchanged), `TREE_ONLY` (the retained a11y engine), and `TREE_FIRST` (the
+hybrid: `NavigationLoop` drives the a11y tree and escalates the ACTIVE subtask to the
+vision tool on three code-owned signals, then returns to the tree at the next subtask).
+`TREE_FIRST` is selectable (pref `engine-policy`; the debug/adb seam
+`OverlayDebugReceiver.ACTION_SET_ENGINE_POLICY` for the attended UAT) but is NOT the
+product default — the default waits for the Stage 4 acceptance corpus, and the Setup
+three-way selector ships with that program.
 
 ## Ownership
 
@@ -258,7 +267,11 @@ accuracy) and is NOT a deletion candidate.
     explicit OFF is the owner's legacy-engine fallback) + the
     `VISION_LOOP_PREFS_FILE`/`VISION_LOOP_PREF_KEY` (`"use-vision-loop"`, the
     battery-ack plain-prefs file, default ON — read by `NavigatorService` at every
-    product run, written by the wizard on every flip)),
+    product run, written by the wizard on every flip; PHASE_17 Stage 3 adds
+    `ENGINE_POLICY_PREF_KEY` (`"engine-policy"`) which WINS when stored: the toggle is
+    the legacy migration source — ON → `ALWAYS_VISION`, OFF → `TREE_ONLY` — and the
+    absent default stays `ALWAYS_VISION`; the wizard's three-way selector is the Stage 4
+    program's UI task)),
     `SetupActivity` (the re-runnable five-check Compose wizard (PHASE_VEXP4 dropped
     the dormant laya model-status row): a11y enable
     deep-links with the Android 13+ "Allow restricted settings" path explained, the
@@ -871,7 +884,7 @@ accuracy) and is NOT a deletion candidate.
     prompt gains `REPLAN_SKILL` (`VisionPrompts.planSystem`: match conditions to the
     evidence universe, never point a condition past an achieved outcome, act on the
     located box, author batteries Jev can answer, vary the route, cascade framing);
-    `VISION_PROMPT_VERSION` = `vision-exp-v15` (v6 added the evidence block +
+    `VISION_PROMPT_VERSION` = `vision-exp-v19` (v6 added the evidence block +
     REPLAN_SKILL; v7 added the final-subtask battery law; v8 the taskClass honesty
     sentence — "Claim 'multi' ONLY when a count-shaped done condition exists;
     otherwise use read or action", after the writer repeatedly claimed MULTI without
@@ -922,7 +935,16 @@ accuracy) and is NOT a deletion candidate.
     CODE-PREFERS the proposer's Translate proposal on the image path before Jev's pick
     or `none` (run 13: the proposer offered it at ground calls 032/035/038; Jev chose
     the cookie consent/none); the plan surfaces say a conditional translation clause is
-    unnecessary). THE EDITABLE RESOLUTION (the sixth
+    unnecessary; v16/v17 (PHASE_16/17) the GOAL-FIDELITY + LOOP-GUARD laws (purchase/
+    playback/account end states, the scroll-churn backstop) and the SITE-FIRST law; v18
+    (PHASE_17 Stage 0.4) THE FIELD-LEVEL FORM LAW — the digest carries code-read `FORM:`
+    facts, the proposer fills each EMPTY field by targeting THAT field (a saved-address/
+    autofill chip fills only the FOCUSED field, never a substitute), the planner authors
+    a field-level verify question, plus the Finnish glossary (`Etunimi`, `Katuosoite`,
+    `Postinumero`, …); v19 (PHASE_17 Stage 2.3) THE BOUNDARY AUDIT
+    (`BOUNDARY_SYSTEM` + `parseBoundaryVerdict`) — one advisory judgment at a verified
+    subtask boundary over the raw dual evidence, feeding the host's bounded re-plan,
+    never the accept). THE EDITABLE RESOLUTION (the sixth
     actual-app live-test repair, run `task-1792398381736`; JVM gates in
     `VisionLoopTypeEditableTest`): a TYPE (native or tap-converted) whose grounded node
     is NOT editable resolves the real field first — `VisionMath.editableNodeAt` at the
@@ -969,15 +991,21 @@ accuracy) and is NOT a deletion candidate.
     Jev call records endpoint+model on its evidence event); reports via
     `RunReportStore`.
     THE ENGINE SWITCH (PHASE_VEXP2, owner directive 2026-10-19; PHASE_14 THE
-    PROMOTION, 2026-10-18: the product id `navigator.app`; the a11y engine retained):
-    a goal typed in the
-    PRODUCT app runs the vision loop — `NavigatorService.runProductTask` consults
-    the PURE `ProductRunRoute.decide` seam (`vision/NavigatorVisionBridge.kt`, no
-    Android types, JVM-pinned) fed by the wizard's "use-vision-loop" plain-prefs
-    preference (`SetupLogic.VISION_LOOP_PREF_KEY` on the battery-ack file, default
-    ON via `SetupLogic.VISION_LOOP_DEFAULT` — the vision loop IS the app's engine):
-    Vision (default + both keys stored) builds
-    via `NavigatorVisionBridge.newVisionLoop` — VisionLoop over the service's OWN
+    PROMOTION, 2026-10-18: the product id `navigator.app`; the a11y engine retained;
+    PHASE_17 Stage 3: the three-way `EnginePolicy`): a goal typed in the PRODUCT app
+    runs the policy's engine — `NavigatorService.runProductTask` resolves
+    `EnginePolicy.resolve(legacyOn, storedEnginePolicy)` (a stored `engine-policy`
+    pref wins; the legacy toggle maps ON → `ALWAYS_VISION`, OFF → `TREE_ONLY`; the
+    absent default stays `ALWAYS_VISION`) and consults the PURE
+    `ProductRunRoute.decide(policy, …)` seam (`vision/NavigatorVisionBridge.kt`, no
+    Android types, JVM-pinned). `ALWAYS_VISION` (both keys stored) builds
+    via `NavigatorVisionBridge.newVisionLoop`; `TREE_FIRST` builds the SAME a11y
+    `NavigationLoop` plus `newHybridParts` (the `VisionLoopTool`, the
+    `VisionLadderSource`, the `VisionStuckEvent` assist, the `VisionBoundaryJudge`)
+    and passes them as `visionTool`/`boundaryJudge`/`ladderSource`/`assistSource`;
+    `TREE_ONLY` is the legacy construction untouched. A policy needing a missing key
+    refuses loudly naming the channel — never a silent engine switch. Both vision
+    routes build over the service's OWN
     `HarnessObserver`/`GestureExecutor`/`VisionCapture`, keys from the Setup stores,
     the transport injectable (JVM tests stay hermetic), evidence under the external
     `run-reports/vision-exp/task-<ts>/`, the vision steps streaming into the CORNER
@@ -1401,6 +1429,44 @@ accuracy) and is NOT a deletion candidate.
   `androidx.compose.material:material-icons-core` (BOM-managed, `compose-icons-core` in
   the version catalog — newer material3 BOMs stopped shipping it transitively; the
   wizard's status chips consume it)
+
+### PHASE_17 surfaces (tree-first hybrid + the Stage 0 laws)
+
+* `src/main/kotlin/navigator/app/harness/hybrid/VisionToolStep.kt` — the hybrid's vision
+  TOOL contract (`fun interface` + `SubtaskOutcome.Done(steps, noul) | Failed(cause,
+  steps) | Cancelled`). The tool runs ONE subtask; it never plans, advances or re-plans.
+* `src/main/kotlin/navigator/app/harness/vision/VisionLoopTool.kt` — the adapter:
+  `VisionLoop.runSubtask(goal, ladder, index, checks, isCancelled)` is the tool's
+  implementation (a bounded single-subtask mode over the proven step machinery).
+* `src/main/kotlin/navigator/app/harness/vision/VisionLadderSource.kt` — the hybrid's
+  writer (PHASE_17 Stage 2.2): plan/re-plan over raw dual evidence (a11y digest + the
+  current screenshot, capture read per call), the same `LadderSchema` + `GoalFidelity`
+  laws, the writer-authored verify battery parsed, `vision-exp-v19/gen<n>` provenance.
+* `src/main/kotlin/navigator/app/harness/vision/VisionEventSurfaces.kt` —
+  `VisionBoundaryJudge` (Stage 2.3; advisory boundary audit) and `VisionStuckEvent`
+  (Stage 2.4; the existing `AssistSource` contract + the screenshot).
+* `src/main/kotlin/navigator/app/harness/vision/FormFacts.kt` — the field-level facts
+  (Stage 0.4): labels/values/required/empty, the digest's `FORM:` line, the Finnish
+  glossary, the per-field `landed` read-back. A password value never renders.
+* `src/main/kotlin/navigator/app/harness/vision/ChromeUi.kt`, `GoalTokens.kt`,
+  `PurchaseControl.kt` — the checkout integrity trio (Stage 0.3: off-page detection, the
+  token matcher, the real order control).
+* `src/main/kotlin/navigator/app/setup/EnginePolicy.kt` — the three-way policy + the
+  legacy-boolean migration (Stage 3). `SetupLogic.ENGINE_POLICY_PREF_KEY` is the pref.
+* `src/main/kotlin/navigator/app/loop/SiteEntryBudget.kt` — the site-entry launch budget
+  and the cross-re-plan refusal ban (Stage 0.7).
+* `NavigationLoop`'s Phase 17 seams: `visionTool`, `boundaryJudge`, the
+  `SubtaskModality` state, `lastActionWasBack` (the back bound), the prefix-audit wiring
+  (`failuresSinceAdvance` + the core `PrefixAudit`), the evidence call counters
+  (`decisionCalls`/`writerCalls`), and the two `run`-extracted blocks
+  (`coldStartAndTriage`, `installLadderPath` — the method-size discipline).
+* `VisionLoop`'s Stage 0/2 additions: `runSubtask`, the per-field read-back, the
+  scroll-find hold/cap, the off-page recovery + the no-redo guard, the account-end
+  accept, `SpendMeter.calls`/`WriterBudget.calls`, and `lastUsage` on both clients.
+* **Known residual (recorded, not hidden):** with the hybrid wired the tool receives
+  `checks = emptyList()` (the a11y `Ladder` has no battery field), so a WEAK FINAL
+  subtask cannot be accepted by the vision tool; the fix (threading the plan's battery to
+  the tool) is scheduled before the 17.2 smoke.
 
 ## Local Contracts
 

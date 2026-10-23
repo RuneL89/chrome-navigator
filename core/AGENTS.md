@@ -154,8 +154,14 @@ without a device.
   additively (2026-10-17, doc 04 §1 v1.8.4: a mechanical fill failure — every typing
   mechanism rejected — is a planning problem, not a wording problem; the app classifies
   the truthful exhaustion cause and the writer prompt carries the strategy-change hint);
+  `PrefixAudit.kt` (PHASE_17 Stage 0.1 — the completed-prefix audit: after
+  `FAILURES_BEFORE_AUDIT` failures since the last verified advance the caller re-checks
+  the completed conditions on the current observation; location conditions always,
+  content conditions only when the caller's landing-host predicate allows it; the audit
+  returns the EARLIEST invalid completed ordinal and never rolls back past a completed
+  order-confirmation final — the R2 lost-site fix);
   law:
-  `Project Vision/04` §1/§3 v1.8.0 + v1.8.4, `Project Vision/03` §4 v2.2.0
+  `Project Vision/04` §1/§3 v1.8.0 + v1.8.4 + §7 v2.5.0, `Project Vision/03` §4 v2.2.0
 * `src/main/kotlin/navigator/core/gate/` — the risk gate (ART-1: code owns the gate,
   no model judgment in the gate path): `RiskGate` (deterministic H1–H9 classifier over
   (action, context); ambiguous classification fails to the stricter class — never
