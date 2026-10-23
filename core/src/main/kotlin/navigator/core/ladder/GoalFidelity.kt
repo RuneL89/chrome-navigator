@@ -280,4 +280,27 @@ object GoalFidelity {
     /** Whether [text] names the target account (account-switch goals). */
     fun evidencesAccount(text: String, account: String): Boolean =
         normalize(text).contains(account)
+
+    /**
+     * PHASE_17 Stage 0.5 — the ACCOUNT_SWITCH end state at GOAL_ACHIEVED (the R4 vision
+     * gap): the final accept must be able to re-check the account switch when the final
+     * frame cannot show it. Returns the violation text, or null when the goal is not an
+     * account switch, the target is unparseable (the build-time check owns that), the
+     * CURRENT observation evidences the account, or the RECORDED evidence from the
+     * switching subtask does. An account-switch goal with neither is a violation.
+     */
+    fun finalAcceptViolation(
+        goal: String,
+        ladderText: String,
+        currentObservationText: String,
+        recordedEvidenceText: String?,
+    ): String? {
+        if (GoalClass.ACCOUNT_SWITCH !in classify(normalize(goal))) return null
+        val target = switchTarget(goal) ?: return null
+        if (evidencesAccount(currentObservationText, target)) return null
+        if (recordedEvidenceText != null && evidencesAccount(recordedEvidenceText, target)) return null
+        if (evidencesAccount(ladderText, target) && recordedEvidenceText != null) return null
+        return "account end state: the switched account '$target' is evidenced neither on the " +
+            "current page nor in the recorded switching-subtask evidence"
+    }
 }

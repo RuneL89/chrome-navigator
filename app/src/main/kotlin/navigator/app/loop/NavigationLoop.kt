@@ -1666,6 +1666,12 @@ class NavigationLoop(
          * accepted ExitCheckRow + this exit block.
          */
         suspend fun concludeGoalAchieved(verdict: ExitDecision.Accept): RunResult {
+            // PHASE_17 Stage 0.5 — the ACCOUNT_SWITCH end state at GOAL_ACHIEVED (the R4
+            // gap): the exit policy verifies the ACTIVE subtask's condition, which for an
+            // account-switch goal whose final subtask is playback may not re-show the
+            // account. The a11y engine's own final subtask DOES carry the account token
+            // (GoalFidelity validated the ladder at build), so the a11y path needs no
+            // extra evidence: the condition check that just passed was the account's.
             exitSummary = ExitSummary(
                 path = verdict.path.name,
                 guardLevel = verdict.guardLevel.name,

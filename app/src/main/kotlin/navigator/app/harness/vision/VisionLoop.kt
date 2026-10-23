@@ -591,6 +591,28 @@ class VisionLoop(
                     answer = extractAnswer(goal, obs, shot)
                     outcomes.add("answer: ${answer?.take(120) ?: "(extraction refused)"}")
                 }
+                // PHASE_17 Stage 0.5 — the ACCOUNT_SWITCH end state at GOAL_ACHIEVED (the
+                // R4 gap): the hatch's sixth guard covers the model hatch only; the normal
+                // accept re-checks the account here. The recorded evidence is the ladder's
+                // own switching-subtask text (validated at build to carry the account).
+                val violation = navigator.core.ladder.GoalFidelity.finalAcceptViolation(
+                    goal = goal,
+                    ladderText = ladder.summary + " " + ladder.subtasks.joinToString(" ") {
+                        it.instruction + " " + DoneConditionChecker.render(it.done)
+                    },
+                    currentObservationText = obs.title + " " + obs.url + " " + obs.lines.joinToString(" "),
+                    recordedEvidenceText = null,
+                )
+                if (violation != null) {
+                    val line = "ACCEPT REFUSED: $violation"
+                    outcomes.add(line)
+                    log("[vision] $line")
+                    evidence.event(line)
+                    consecutiveFailures += 1
+                    failuresSinceAdvance += 1
+                    step += 1
+                    return null
+                }
                 evidence.event("GOAL_ACHIEVED after $step steps")
                 return terminal(Terminal.GOAL_ACHIEVED, ladder)
             }

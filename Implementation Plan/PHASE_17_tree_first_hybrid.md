@@ -239,6 +239,22 @@ hatch's sixth guard is unchanged.
 **Tests:** the R4 shape (video final, account not visible, recorded subtask evidence) →
 accepted only with the recorded evidence; no evidence → refused; PURCHASE unchanged.
 
+**0.5 implementation status (2026-10-22): DONE.**
+- `GoalFidelity.finalAcceptViolation(goal, ladderText, currentObservationText,
+  recordedEvidenceText)`: for an ACCOUNT_SWITCH goal, the accept is refused when the
+  switched account is evidenced neither on the CURRENT observation nor in the recorded
+  switching-subtask evidence; the violation names the account. A non-account goal, an
+  unparseable target (the build-time check's job), or present evidence passes.
+- `VisionLoop.acceptAdvance` calls it on the final accept: a violation is a loud
+  `ACCEPT REFUSED: account end state: …` line that feeds the existing failure/re-plan
+  path — `GOAL_ACHIEVED` is never returned without the account evidence.
+- The a11y path needs no extra check: its final subtask IS the account subtask
+  (`GoalFidelity` validated the ladder at build), so the exit-policy check that just
+  passed was the account's own condition (documented at `concludeGoalAchieved`).
+- Tests: `AccountEndAcceptTest` 4/4 (the R4 refused shape; the account visible → stands;
+  the violation names the account; a non-account goal never blocked). Full `:app` +
+  `:core` suites green.
+
 #### 0.6 Evidence + spend — **possible now**
 
 - Wire the provider-reported usage into `ExpBudget` for every Haiku/Jev call (the vision
