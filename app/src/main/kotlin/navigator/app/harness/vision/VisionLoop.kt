@@ -159,6 +159,14 @@ class VisionLoop(
      * byte-identical. An empty list is the truthful "nothing is covering the page".
      */
     private val coveredBounds: (() -> List<VisionMath.RectPx>)? = null,
+    /**
+     * PHASE_17 Stage 0.3 — the checkout-recovery seam: the code-owned navigation edge the
+     * off-page recovery uses to re-open the checkout tab's URL (the R3 tab-switcher loss).
+     * NULL (the default; the adb path) = the recovery logs loudly and the existing
+     * failure/re-plan path runs instead. Code navigation is not one of the two perception
+     * tools (doc 01 §1a); the seam mirrors the a11y engine's [navigator.app.loop.BrowserLauncher].
+     */
+    private val browserLauncher: navigator.app.loop.BrowserLauncher? = null,
 ) {
 
     data class Config(
@@ -216,6 +224,12 @@ class VisionLoop(
          * handles scrolls; a Failed proposal never counts.
          */
         val sameActionFilterAfter: Int = 3,
+        /**
+         * PHASE_17 Stage 0.3 — the off-page recovery budget (the R3 tab-switcher loss):
+         * at most this many checkout re-opens per run. A launcher-less build (the adb
+         * path) never recovers; the detection still logs.
+         */
+        val maxOffPageRecoveries: Int = 3,
         /**
          * PHASE_17 Stage 0.1 — the prefix audit's trigger: after this many consecutive
          * failures since the last verified advance, re-check the completed conditions on
@@ -451,6 +465,17 @@ class VisionLoop(
     /** The last observed URL — the churn counter resets when the page changes. */
     private var lastObservedUrl: String? = null
 
+    /**
+     * PHASE_17 Stage 0.3 — the checkout state: the last URL that looked like a checkout
+     * (a cart/checkout/kassa/payment page), recorded every observation. The off-page
+     * recovery re-opens this URL; the no-redo guard refuses a re-plan that would restart
+     * the purchase once a checkout was reached.
+     */
+    private var checkoutUrl: String? = null
+
+    /** The off-page recoveries spent this run (bounded, one per five steps of budget). */
+    private var offPageRecoveries = 0
+
     /** Whether the one-per-run "exclusion bounds unavailable" evidence note already fired (D2). */
     private var exclusionNoteLogged = false
 
@@ -661,6 +686,44 @@ class VisionLoop(
             lastObservedUrl = obs.url
             // The purchase-CTA boolean is computed ONCE per observation (pure, no click).
             stepPurchaseControlVisible = PurchaseControl.hasVisible(obs.nodes)
+            // PHASE_17 Stage 0.3: record the checkout state (the recovery's re-open target
+            // and the no-redo guard's trigger).
+            if (looksLikeCheckout(obs) && obs.url.isNotBlank() &&
+                obs.url != "hidden" && obs.url != "unavailable"
+            ) {
+                if (checkoutUrl == null) {
+                    val line = "checkout integrity: checkout state recorded at ${obs.url.take(60)}"
+                    log("[vision] $line")
+                    evidence.event(line)
+                }
+                checkoutUrl = obs.url
+            } else if (checkoutUrl != null) {
+                // PHASE_17 Stage 0.3: the run left the checkout for another page — recover
+                // to the checkout tab when the new surface is browser chrome (the R3 tab
+                // switcher), bounded, never when the code condition already holds here.
+                val offPage = ChromeUi.offPage(obs)
+                val activeNow = ladder.subtasks[pointer]
+                if (offPage != null && browserLauncher != null &&
+                    offPageRecoveries < config.maxOffPageRecoveries &&
+                    !doneNowQuick(activeNow, obs)
+                ) {
+                    offPageRecoveries += 1
+                    val line = "OFF-PAGE RECOVERY #$offPageRecoveries: ${offPage.reason} - " +
+                        "re-opening the checkout ${checkoutUrl!!.take(60)}"
+                    outcomes.add(line)
+                    log("[vision] $line")
+                    evidence.event(line)
+                    try {
+                        browserLauncher.launch(checkoutUrl!!)
+                    } catch (e: Exception) {
+                        evidence.event("off-page recovery launch failed: ${e.message?.take(120)}")
+                    }
+                    step += 1
+                    continue
+                } else if (offPage != null) {
+                    evidence.event("off-page detected, no recovery: ${offPage.reason}")
+                }
+            }
 
             val active = ladder.subtasks[pointer]
             val doneText = DoneConditionChecker.render(active.done)
@@ -1113,6 +1176,19 @@ class VisionLoop(
                 val rePlan = planLadder(goal, obs, failure = failureCtx, shot = fresh)
                 if (rePlan == null) {
                     evidence.event("re-plan refused: no valid ladder — stopping")
+                    return terminal(Terminal.REPLANS_EXHAUSTED, ladder)
+                }
+                // PHASE_17 Stage 0.3 — NO REDO AFTER CHECKOUT (the R3 vision REPLAN #4):
+                // a checkout was reached; a re-plan that restarts the purchase (its ladder
+                // no longer carries the checkout subtasks — the store search/cart restart)
+                // is refused: resume from the checkout, never shop again. A strategy change
+                // WITHIN the checkout (address fields, delivery, payment) stays lawful.
+                if (checkoutUrl != null && redoAfterCheckout(goal, rePlan.ladder)) {
+                    val line = "re-plan refused: a checkout was reached (${checkoutUrl!!.take(50)}) - " +
+                        "the re-plan must RESUME from the checkout, not restart the purchase"
+                    outcomes.add(line)
+                    log("[vision] $line")
+                    evidence.event(line)
                     return terminal(Terminal.REPLANS_EXHAUSTED, ladder)
                 }
                 // PHASE_16 — the strategy guard: after TWO prior battery re-plans on this
@@ -2028,6 +2104,32 @@ class VisionLoop(
             DoneConditionChecker.render(was.done) == DoneConditionChecker.render(now.done)
     }
 
+    /**
+     * PHASE_17 Stage 0.3 — whether the re-planned ladder RESTARTS a purchase whose
+     * checkout was already reached: it drops every checkout-shaped subtask the previous
+     * ladder had (a shop search / add-to-cart restart) while the goal still asks for a
+     * purchase. A plan that keeps or refines the checkout subtasks passes.
+     */
+    private fun redoAfterCheckout(runGoal: String, next: Ladder): Boolean {
+        val fidelity = navigator.core.ladder.GoalFidelity.check(runGoal, next)
+        if (navigator.core.ladder.GoalFidelity.GoalClass.PURCHASE !in fidelity.classes) return false
+        val nextHasCheckout = next.subtasks.any { subtask ->
+            GoalTokens.containsRun(
+                GoalTokens.normalize(subtask.instruction),
+                listOf("checkout"),
+            ) || GoalTokens.containsRun(
+                GoalTokens.normalize(DoneConditionChecker.render(subtask.done)),
+                CHECKOUT_TOKENS.reduce { a, b -> a + b },
+            ) || subtask.done is DoneCondition.MarkerText &&
+                looksLikeCheckoutText(DoneConditionChecker.render(subtask.done))
+        }
+        return !nextHasCheckout
+    }
+
+    /** The token-run checkout test over rendered text (the ladder-text variant). */
+    private fun looksLikeCheckoutText(rendered: String): Boolean =
+        CHECKOUT_TOKENS.any { phrase -> GoalTokens.containsRun(GoalTokens.normalize(rendered), phrase) }
+
     /** Assembles the evidence block from the per-step cache — ZERO extra model calls. */
     private fun currentEvidence(doneText: String) = VisionPrompts.JevEvidence(
         battery = stepBattery.map {
@@ -2091,6 +2193,22 @@ class VisionLoop(
 
     /** A compact action label for the evidence cache's route line. */
     private fun shortLabel(s: String): String = s.trim().replace(Regex("\\s+"), " ").take(24)
+
+    /**
+     * PHASE_17 Stage 0.3 — whether the observation looks like a checkout/cart/payment
+     * page (the recovery's record trigger). Token runs over title+URL; never a substring.
+     */
+    private fun looksLikeCheckout(obs: StepObservation): Boolean {
+        val text = GoalTokens.normalize(obs.title + " " + obs.url)
+        return CHECKOUT_TOKENS.any { phrase -> GoalTokens.containsRun(text, phrase) }
+    }
+
+    /** The checkout vocabulary as normalized token runs (en + fi + de, the corpus stores). */
+    private val CHECKOUT_TOKENS: List<List<String>> = CHECKOUT_TOKEN_RUNS
+
+    /** The quick code-check the recovery consults (the active condition on THIS page). */
+    private fun doneNowQuick(active: Subtask, obs: StepObservation): Boolean =
+        DoneConditionChecker.satisfied(active.done, checkerEvidence(obs, emptyMap(), 0))
 
     /** The code decider (the product's own checker over code-read evidence). */
     private fun codeDone(active: Subtask, obs: StepObservation, counters: Map<String, Int>, answersProduced: Int): Boolean =
@@ -2496,3 +2614,21 @@ class VisionLoop(
         append(o.lines.take(60).joinToString("\n"))
     }
 }
+
+/**
+ * The test bridge for VisionLoops private pure helpers (Phase 17 Stage 0.3): a
+ * no-construction static delegate. Never used by the loop itself.
+ */
+internal object VisionLoopProbe {
+    fun looksLikeCheckout(obs: StepObservation): Boolean {
+        val text = GoalTokens.normalize(obs.title + " " + obs.url)
+        return CHECKOUT_TOKEN_RUNS.any { phrase -> GoalTokens.containsRun(text, phrase) }
+    }
+}
+
+
+/** The checkout token runs (Stage 0.3): shared by the loop and the test probe. */
+internal val CHECKOUT_TOKEN_RUNS: List<List<String>> = listOf(
+    "checkout", "to checkout", "the checkout", "kassa", "ostoskori", "tilaus",
+    "jatka maksamaan", "payment", "zur kasse",
+).map(GoalTokens::normalize)

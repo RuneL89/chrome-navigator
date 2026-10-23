@@ -177,6 +177,34 @@ results → store → product; the address/budget parameters still enforced.
 ladder refused/resumed; the R2 `/c/wwe/videos` landing accepted; the cross-re-plan URL cap;
 the order-control detection.
 
+**0.3 implementation status (2026-10-22): DONE.**
+- `ChromeUi.offPage(obs)` — the pure off-page/browser-chrome detector (a non-browser
+  front; a chrome/new-tab URL or title with a thin content tree; a chrome title with a
+  chrome-node-dominated tree; conservative — a slow-loading store page is never off-page).
+- `VisionLoop` records the checkout state (`looksLikeCheckout` over the token vocabulary:
+  checkout/kassa/ostoskori/tilaus/jatka maksamaan/payment/zur kasse) and, on leaving it
+  for a chrome surface, recovers by re-opening the checkout URL through the new
+  `browserLauncher` seam (bounded: `maxOffPageRecoveries = 3`; the recovery only ever
+  re-opens the recorded checkout URL — the New tab is unreachable by construction; a
+  launcher-less build logs and takes the failure path).
+- **No redo after checkout:** once a checkout was reached, a re-plan whose ladder drops
+  every checkout-shaped subtask (a purchase restart) is refused loudly (`REPLANS_EXHAUSTED`
+  with the "must RESUME from the checkout" line); the redo ladder is never installed.
+- `PurchaseControl.orderControlVisible` — the REAL order control (place order / confirm
+  order / tee tilaus / vahvista tilaus / pay now / …); "Jatka maksamaan", "continue to
+  payment", "proceed to checkout" and "buy now" are explicitly NOT the order control. The
+  UAT halt and the final purchase subtask target this detector.
+- Tests: `CheckoutIntegrityTest` 7/7 (the tab switcher, the New tab, the native front, the
+  slow-loading negative, the checkout vocabulary, the order control vs the payment step);
+  `CheckoutRecoveryTest` 1/1 (end-to-end: checkout → tab switcher → the launcher re-opens
+  the checkout URL, never the New tab); `NoRedoAfterCheckoutTest` 1/1 (the redo ladder
+  refused, never installed).
+- Full `:app` + `:core` suites green; APK 36,358,383 bytes (< 40 MB); dex
+  `vision-exp-v17`; `NavigationLoop.run()` 57,416/65,535 (8,119 headroom).
+- **Deferred to the R2-tree land (Phase 17's remaining 0.3/0.7 scope):** the cross-re-plan
+  URL-cap persistence and the landing re-evaluation with URL path + selected tab — they
+  ride the same `SiteEntry` seam and are scheduled with 0.7's recovery work.
+
 #### 0.4 Field-level forms — **possible now**
 
 1. **Empty-required-field proposals:** the vision proposer is told to fill every empty

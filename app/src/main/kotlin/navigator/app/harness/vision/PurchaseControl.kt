@@ -53,6 +53,33 @@ object PurchaseControl {
         node.clickable && !node.browserChrome && listOf(node.text, node.desc, node.hint).any(::matches)
     }
 
+    /**
+     * PHASE_17 Stage 0.3 — whether the observation shows the REAL ORDER CONTROL (the
+     * place-order/confirm-order button, not "continue to payment"): the UAT halt's
+     * trigger and the final purchase subtask's target. The vocabulary is deliberately
+     * distinct from the cart CTA list — "Jatka maksamaan" / "continue to payment" /
+     * "proceed to checkout" are NOT the order.
+     */
+    fun orderControlVisible(nodes: List<ObservedNode>): Boolean = nodes.any { node ->
+        node.clickable && !node.browserChrome &&
+            listOf(node.text, node.desc, node.hint).any(::matchesOrder)
+    }
+
+    /** The order-control vocabulary (en + fi + de). */
+    private val ORDER_PHRASES: List<List<String>> = listOf(
+        "place order", "place the order", "order now", "confirm order", "confirm the order",
+        "complete order", "complete the order", "submit order", "pay now", "confirm purchase",
+        "tee tilaus", "vahvista tilaus", "siirry tilaamaan", "maksa tilaus",
+        "jetzt bestellen", "bestellung abschließen",
+    ).map(::tokens)
+
+    /** "buy now" stays a CART CTA (the product page), never the order control. */
+    private fun matchesOrder(label: String): Boolean {
+        val labelTokens = tokens(label)
+        if (labelTokens.isEmpty()) return false
+        return ORDER_PHRASES.any { phrase -> containsRun(labelTokens, phrase) }
+    }
+
     /** One label field matches when it contains a CTA phrase as a token run. */
     private fun matches(label: String): Boolean {
         val labelTokens = tokens(label)
