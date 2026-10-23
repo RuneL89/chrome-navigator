@@ -32,3 +32,33 @@ fun interface PhraseSource {
      */
     suspend fun phrase(subtask: String, fieldLabel: String): PhraseResult?
 }
+
+/**
+ * PHASE_17 Stage 2.3 — THE SUBTASK-BOUNDARY JUDGMENT seam. At a VERIFIED subtask boundary
+ * (the pointer just advanced) the writer audits the REMAINING plan against the current
+ * page over raw dual evidence (a11y text + one screenshot). Advisory by law: code
+ * verified the completed condition and code still decides every accept; a "does not hold"
+ * verdict only feeds the host's bounded re-plan. Null (unwired) = no call, byte-identical.
+ */
+fun interface BoundaryJudge {
+    suspend fun judge(
+        goal: String,
+        completedInstruction: String,
+        completedDone: String,
+        pageUrl: String,
+        pageTitle: String,
+        pageDigest: String,
+    ): BoundaryVerdict?
+}
+
+/** One boundary verdict + provenance + the call's metered cost (ART-5 micro-dollars). */
+data class BoundaryVerdict(
+    /** Whether the REMAINING plan still fits the page and the goal. */
+    val planHolds: Boolean,
+    /** The writer's one-sentence reason (rendered in the evidence line only). */
+    val reason: String,
+    /** The prompt version that produced it (doc 05 provenance). */
+    val promptVersion: String,
+    /** Integer micro-dollar cost of the call (the SEPARATE writer budget). */
+    val costMicroUsd: Long,
+)

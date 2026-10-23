@@ -49,6 +49,106 @@ class NavigatorVisionBridgeTest {
         assertTrue(route.toString().contains("redacted"))
     }
 
+    // -- PHASE_17 Stage 3: the three-way POLICY matrix ------------------------------------
+
+    @Test
+    fun `TREE_FIRST with both keys routes Hybrid - the product path builds the vision seams`() {
+        val route = ProductRunRoute.decide(
+            navigator.app.setup.EnginePolicy.TREE_FIRST, " or-key ", "ts-key",
+        )
+        assertEquals(ProductRunRoute.Hybrid("or-key", "ts-key"), route)
+        assertFalse(route.toString().contains("or-key"), "the keys never render")
+        assertFalse(route.toString().contains("ts-key"))
+    }
+
+    @Test
+    fun `TREE_FIRST refuses loudly on a missing channel - never a silent engine switch`() {
+        val noTypesafe = ProductRunRoute.decide(
+            navigator.app.setup.EnginePolicy.TREE_FIRST, "or-key", null,
+        )
+        assertTrue(noTypesafe is ProductRunRoute.Refused)
+        assertTrue(noTypesafe.detail.contains("TypeSafe"))
+        assertTrue(noTypesafe.detail.contains("OpenRouter").not())
+
+        val none = ProductRunRoute.decide(navigator.app.setup.EnginePolicy.TREE_FIRST, null, null)
+        assertTrue(none is ProductRunRoute.Refused)
+        assertTrue(none.detail.contains("BOTH"))
+    }
+
+    @Test
+    fun `TREE_ONLY routes Legacy and never needs either key`() {
+        assertEquals(
+            ProductRunRoute.Legacy,
+            ProductRunRoute.decide(navigator.app.setup.EnginePolicy.TREE_ONLY, null, null),
+        )
+        assertEquals(
+            ProductRunRoute.Legacy,
+            ProductRunRoute.decide(navigator.app.setup.EnginePolicy.TREE_ONLY, "or-key", "ts-key"),
+        )
+    }
+
+    @Test
+    fun `the policy migration - a stored policy wins, the legacy boolean maps on and off`() {
+        fun resolve(legacyOn: Boolean?, stored: String?) =
+            navigator.app.setup.EnginePolicy.resolve(legacyOn = legacyOn, stored = stored)
+        assertEquals(
+            navigator.app.setup.EnginePolicy.ALWAYS_VISION, resolve(null, null),
+        )
+        assertEquals(
+            navigator.app.setup.EnginePolicy.ALWAYS_VISION, resolve(true, null),
+        )
+        assertEquals(
+            navigator.app.setup.EnginePolicy.TREE_ONLY, resolve(false, null),
+        )
+        assertEquals(
+            navigator.app.setup.EnginePolicy.TREE_FIRST, resolve(true, "tree-first"),
+        )
+        assertEquals(
+            navigator.app.setup.EnginePolicy.ALWAYS_VISION, resolve(false, " ALWAYS-VISION "),
+        )
+        assertEquals(
+            navigator.app.setup.EnginePolicy.TREE_ONLY, resolve(false, "hybrid?"),
+        )
+        assertEquals(null, navigator.app.setup.EnginePolicy.parse(null))
+        assertEquals(
+            navigator.app.setup.EnginePolicy.ALWAYS_VISION,
+            navigator.app.setup.EnginePolicy.DEFAULT,
+        )
+    }
+
+    @Test
+    fun `the bridge builds the hybrid's four seams over one scripted capture`() = runBlocking {
+        val transport = object : WireTransport {
+            override suspend fun execute(request: WireHttpRequest): WireHttpResponse =
+                throw WireTransportException("construction only - no call is expected")
+        }
+        val parts = NavigatorVisionBridge.newHybridParts(
+            observer = object : LoopObserver {
+                override suspend fun observe(): StepObservation =
+                    StepObservation(url = "http://m0.test/", title = "Page", lines = emptyList(), nodes = emptyList())
+            },
+            executor = object : ActionExecutor {
+                override fun tap(x: Int, y: Int): Boolean = true
+                override fun clickNode(x: Int, y: Int): Boolean = true
+                override fun scroll(x: Int, y: Int, down: Boolean): Boolean = true
+                override fun back(): Boolean = true
+                override fun submit(): Boolean = true
+                override fun enterText(x: Int, y: Int, text: String): Boolean = true
+            },
+            capture = VisionCapture(null),
+            evidenceDir = null,
+            runId = "hybrid-parts",
+            openRouterKey = "or-key",
+            typesafeKey = "ts-key",
+            log = {},
+            transport = transport,
+        )
+        assertTrue(parts.tool is VisionLoopTool, "the tool is the vision engine's subtask runner")
+        assertTrue(parts.ladderSource is VisionLadderSource, "the writer plans over dual evidence")
+        assertTrue(parts.stuckSource is VisionStuckEvent, "the stuck event carries the screenshot")
+        assertTrue(parts.boundaryJudge is VisionBoundaryJudge, "the boundary audit is the vision writer")
+    }
+
     @Test
     fun `toggled with a missing channel refuses politely naming it and the recovery`() {
         val noTypesafe = ProductRunRoute.decide(true, "or-key", null)

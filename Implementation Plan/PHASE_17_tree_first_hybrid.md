@@ -558,11 +558,26 @@ contracts.
 - Tests: `VisionLadderSourceTest` 5/5 (the screenshot + digest on the plan; the re-plan's
   cause/page facts/skill; the capture-failure degrade; the site-first violation refused;
   the malformed plan refused).
-- **Remaining (2.3/2.4):** the subtask-boundary judgment (Haiku over the dual evidence
-  judging whether the plan still holds, feeding the re-plan) and the stuck event replacing
-  the a11y per-page assist handshake. Both add NEW prompt surfaces (`BOUNDARY_SYSTEM` /
-  the stuck prompt) and therefore require the doc 07 §4 prompt-change gate (a version
-  bump + the live-run review); they are scheduled as the next Stage 2 increment.
+- **2.3 (the boundary judgment) DONE:** `VisionPrompts` → **`vision-exp-v19`** with
+  `BOUNDARY_SYSTEM` + `boundaryUser` + `parseBoundaryVerdict`; `BoundaryJudge`/
+  `BoundaryVerdict` in the loop's writer seams; `VisionBoundaryJudge` (haiku + the capture
+  read per call) implements it. The host calls it ONCE at every verified boundary
+  (`advanceAfterSubtaskAccept`) and routes it ADVISORY only: a "holds" verdict logs and
+  changes nothing; a "does not hold" verdict becomes the failure cause and triggers the
+  EXISTING bounded re-plan (`MAX_REPLANS` + the writer budget). A malformed verdict is
+  refused (no default), a capture failure degrades to text-only.
+- **2.4 (the stuck event) DONE:** `VisionStuckEvent` implements the EXISTING
+  `AssistSource` contract over the dual evidence (the same `ASSIST_SYSTEM` re-description
+  law + the screenshot) — no new seam, no new prompt text; the skip marker still abstains.
+  The product wires it as the hybrid's `assistSource` (the a11y arm keeps `GenClient`).
+- Tests: `BoundaryJudgeLoopTest` 3/3 (a "no longer holds" verdict feeds the bounded
+  re-plan with its reason; "holds" changes nothing; no judge → no call);
+  `VisionEventSurfacesTest` 5/5 (the boundary screenshot + parsed verdict + provenance/cost;
+  the malformed verdict refused; the stuck event's dual evidence + metered usage; the skip
+  marker abstains; both degrade to text-only on a capture failure);
+  `VisionExperimentTest` (the v19 pin + the boundary-law pins).
+- **Stage 2 is complete.** The prompt change (v19) is a doc 07 §4 gate: the JVM run is
+  green; the live-run review is UAT 17.1, per the phase's scope.
 
 ---
 
@@ -586,6 +601,41 @@ unusable-tree test; hint 3 / binding 4 in tree, 3 in vision); tune only from mea
 **Tests:** the policy selector routes to the right loop; the budget records the tree and
 vision calls separately; the thresholds are config-pinned; the missing-key refusals.
 
+**3.4 The Setup selector — MOVED TO STAGE 4 (owner scope decision, 2026-10-23).** The
+three-way wizard control is a UI change (the mandatory design interview) AND it would expose
+`TREE_FIRST` in the product before the acceptance verdict. Stage 3 therefore delivers the
+policy, the preference, the route and the budget in CODE; `TREE_FIRST` is selected for the
+Phase 17 smoke through a debug/adb seam, and the wizard selector joins the Stage 4 program.
+The product default stays `ALWAYS_VISION` throughout.
+
+**3 implementation status (2026-10-23): DONE (code); the wizard selector is Stage 4.**
+- **The policy:** `setup/EnginePolicy` — `TREE_FIRST | ALWAYS_VISION | TREE_ONLY` with the
+  migration law `resolve(legacyOn, stored)` (a stored policy wins; the legacy
+  `use-vision-loop` maps ON → ALWAYS_VISION, OFF → TREE_ONLY; nothing stored → the
+  ALWAYS_VISION default). `SetupLogic.ENGINE_POLICY_PREF_KEY = "engine-policy"`.
+- **The route:** `ProductRunRoute.Hybrid(keys)`; `decide(policy, …)` — TREE_ONLY routes
+  Legacy and never reads the second key store, ALWAYS_VISION/Hybrid both require BOTH keys
+  and refuse LOUDLY naming the missing channel; the legacy boolean overload delegates.
+- **The product wiring:** `NavigatorService` resolves the policy at every run (logcat
+  `engine policy: <serial>`), and on Hybrid builds `NavigatorVisionBridge.newHybridParts`
+  (the tool, the vision-writer ladder source, the dual-evidence stuck event, the boundary
+  judge — the same gate presenter/exclusion/covered seams the vision route uses) and passes
+  them to the ONE `NavigationLoop` construction (`visionTool`, `boundaryJudge`,
+  `ladderSource`, `assistSource`); the run record's `modality` is `HYBRID`. `ALWAYS_VISION`
+  keeps `runVisionLoopTask`; `TREE_ONLY` is the legacy construction untouched.
+- **The budget:** the hybrid pays the a11y `TaskBudget` profile for tree steps and the
+  vision `ExpBudget` sub-ledger for the image calls — the closeout's recommended option (a).
+  The owner may tune the profile; the split is in place.
+- **The UAT seam:** `OverlayDebugReceiver.ACTION_SET_ENGINE_POLICY` (debuggable-only) writes
+  the policy pref for the attended smoke:
+  `adb shell am broadcast -a navigator.app.action.SET_ENGINE_POLICY --es policy tree-first
+  -n navigator.app/.overlay.OverlayDebugReceiver` — applies to the NEXT run.
+- Tests: `NavigatorVisionBridgeTest` +5 (the TREE_FIRST → Hybrid route; the loud missing-key
+  refusals; TREE_ONLY → Legacy without keys; the migration matrix; the bridge builds all
+  four hybrid seams). Full `:app` + `:core` suites green; APK 36,890,914 bytes; dex carries
+  `vision-exp-v19` + the policy values; `NavigationLoop.run()` 58,285/65,535 (7,250
+  headroom).
+
 ---
 
 ### Stage 4 — the hybrid corpus and the acceptance — **DEFERRED to the post-Phase-17 testing program**
@@ -608,6 +658,11 @@ same goals. Acceptance order (doc 07 §6):
 but misses an anchor is a failure.** The program is recorded in `.state/vision-iter/` (no
 new phase doc until the owner starts it); the product default and the
 `ALWAYS_VISION`/`TREE_ONLY` retention wait for its verdict.
+
+**The Stage 3 Setup selector belongs here** (moved 2026-10-23): the three-way
+`TREE_FIRST`/`ALWAYS_VISION`/`TREE_ONLY` wizard control — starting with the mandatory
+design interview — is delivered with the verdict, so the product never exposes an
+unmeasured default.
 
 ---
 

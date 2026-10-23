@@ -226,6 +226,9 @@ class NavigatorService : Service() {
             // The Setup-stored key serves BOTH writers (decision primary + the Phase-10
             // generative writer) — one key, one storage; the value never surfaces.
             var writerKey: String? = null
+            // PHASE_17 Stage 3: the hybrid route is captured by the policy branch below and
+            // consumed by the ONE loop construction (the hybrid IS the a11y loop + seams).
+            var hybridRoute: ProductRunRoute.Hybrid? = null
             if (stubGoal != null) {
                 // DEBUG-ONLY (the caller checked debuggable): the $0 scripted engine.
                 engine = navigator.app.stub.StubEngine(stubGoal.stubScript())
@@ -245,35 +248,37 @@ class NavigatorService : Service() {
                 }
                 writerKey = key
 
-                // PHASE_VEXP2 — THE ENGINE SWITCH (owner directive 2026-10-19), flipped
-                // BY DEFAULT in PHASE_VEXP4: the vision loop IS the app's engine — the
-                // wizard's "Use vision loop" preference defaults ON, so a goal typed in
-                // the app runs VisionLoop whenever BOTH keys are stored. A missing key
-                // refuses LOUDLY naming the channel + the wizard — NEVER a silent
-                // fallback to the legacy loop. Only the owner's explicit OFF routes
-                // Legacy: it falls straight through to the legacy construction below —
-                // untouched, byte-identical (and never reads the second key store).
-                // The vision run itself builds + runs in [runVisionLoopTask].
-                val visionToggled = visionLoopToggled()
+                // PHASE_17 Stage 3 — THE ENGINE POLICY: TREE_FIRST (the hybrid), ALWAYS_VISION
+                // (the shipped default) or TREE_ONLY (the retained a11y engine). The policy
+                // resolves the legacy `use-vision-loop` boolean; the product default stays
+                // ALWAYS_VISION until the Stage 4 acceptance. A policy needing a missing key
+                // refuses LOUDLY naming the channel — never a silent fallback.
+                val policy = enginePolicy()
+                Log.i(TAG, "engine policy: ${policy.serial}")
                 when (val route = ProductRunRoute.decide(
-                    useVisionLoop = visionToggled,
+                    policy = policy,
                     openRouterKey = key,
-                    typesafeKey = if (visionToggled) {
+                    typesafeKey = if (policy != navigator.app.setup.EnginePolicy.TREE_ONLY) {
                         OpenRouterKeyStore.loadTypesafeKey(this)
                     } else {
-                        null // the OFF path never even reads the second store
+                        null // TREE_ONLY never even reads the second store
                     },
                 )) {
                     is ProductRunRoute.Refused -> {
                         // The polite loud refusal naming the channel (never a silent no-op).
                         Log.e(TAG, "product run refused: ${route.detail}")
                         manager.appendLogLine(route.detail)
-                        notifyState(NOTIFICATION_READY, "Navigator ready — vision loop needs both keys (open setup)")
+                        notifyState(NOTIFICATION_READY, "Navigator ready — the selected engine needs keys (open setup)")
                         return
                     }
                     is ProductRunRoute.Vision -> {
                         runVisionLoopTask(manager, a11y, route, goalText)
                         return
+                    }
+                    is ProductRunRoute.Hybrid -> {
+                        // The hybrid IS the a11y loop with the vision seams attached: fall
+                        // through to the SAME construction below, passing the parts.
+                        hybridRoute = route
                     }
                     ProductRunRoute.Legacy -> {} // the legacy path continues unchanged below
                 }
@@ -316,6 +321,33 @@ class NavigatorService : Service() {
             // PHASE_VEXP9 Stage 0: the experiment probe records the failure seams the
             // loop reaches. A fire-and-forget recorder — it never steers a decision.
             val experimentProbe = ExperimentProbe.Recorder()
+            // PHASE_17 Stage 3 — the HYBRID's parts (TREE_FIRST only): the vision tool (one
+            // subtask at a time), the vision-writer ladder source (raw dual evidence at every
+            // plan/re-plan), the dual-evidence stuck event and the boundary judge. The host
+            // loop below receives them; ALWAYS_VISION keeps its own route.
+            val hybridParts = hybridRoute?.let { route ->
+                NavigatorVisionBridge.newHybridParts(
+                    observer = HarnessObserver(a11y),
+                    executor = GestureExecutor(a11y),
+                    capture = VisionCapture(a11y),
+                    evidenceDir = File(getExternalFilesDir(null), "run-reports/vision-exp"),
+                    runId = "task-${System.currentTimeMillis()}",
+                    openRouterKey = route.openRouterKey,
+                    typesafeKey = route.typesafeKey,
+                    log = { line -> manager.appendLogLine(line) },
+                    gatePresenter = OverlayGatePresenter(a11y),
+                    exclusionBounds = {
+                        manager.liveLogBounds()?.let { b ->
+                            VisionMath.RectPx(b.left, b.top, b.right, b.bottom)
+                        }
+                    },
+                    coveredBounds = {
+                        listOfNotNull(manager.liveLogBounds(), manager.inputMethodBounds()).map { b ->
+                            VisionMath.RectPx(b.left, b.top, b.right, b.bottom)
+                        }
+                    },
+                )
+            }
             val loop = NavigationLoop(
                 engine = engine,
                 observer = HarnessObserver(a11y),
@@ -338,14 +370,20 @@ class NavigatorService : Service() {
                 homeLauncher = HarnessObserver.installedBrowser(this)?.let { pkg ->
                     BrowserHomeLauncher { openBrowserHome(pkg) }
                 },
-                ladderSource = genLadder ?: navigator.app.loop.LadderSource.None,
+                ladderSource = hybridParts?.ladderSource
+                    ?: genLadder ?: navigator.app.loop.LadderSource.None,
                 answerExtractor = genLadder,
                 // Phase 10B (phase doc §2.6): the cascade's writer seams over the SAME
                 // client — the handshake's assist and the fill-field phrase, metered
                 // into the loop's per-task writer budget. Null (no key) degrades to the
                 // code fallback / fill-field-to-recovery, never raw-goal typing.
-                assistSource = genClient?.asAssistSource(),
+                // PHASE_17 Stage 2.4: with the hybrid wired, the assist becomes the
+                // dual-evidence STUCK EVENT (same contract, the screenshot attached).
+                assistSource = hybridParts?.stuckSource ?: genClient?.asAssistSource(),
                 phraseSource = genClient?.asPhraseSource(),
+                // PHASE_17 Stage 1/2.3: the vision tool + the advisory boundary judge.
+                visionTool = hybridParts?.tool,
+                boundaryJudge = hybridParts?.boundaryJudge,
                 experimentProbe = experimentProbe,
             )
             val result = loop.run(
@@ -390,9 +428,11 @@ class NavigatorService : Service() {
                         arm = "tree",
                         stopReason = stopReason,
                         monitorStop = monitorStop,
-                        // PHASE_17 Stage 0.6: the a11y arm is the tree-only arm; it has
-                        // no escalation cause until the hybrid host loop lands (Stage 1).
-                        modality = "TREE",
+                        // PHASE_17 Stage 0.6 + Stage 3: the run's front arm. The hybrid is
+                        // TREE-first with its head in the vision writer on the code-owned
+                        // signals; `escalationCause` is per-flip and stays null here (the
+                        // loop's own log/evidence carries each flip).
+                        modality = if (hybridParts != null) "HYBRID" else "TREE",
                         escalationCause = null,
                     ),
                     seams = experimentProbe.snapshot(),
@@ -415,6 +455,19 @@ class NavigatorService : Service() {
     private fun visionLoopToggled(): Boolean =
         getSharedPreferences(SetupLogic.VISION_LOOP_PREFS_FILE, MODE_PRIVATE)
             .getBoolean(SetupLogic.VISION_LOOP_PREF_KEY, SetupLogic.VISION_LOOP_DEFAULT)
+
+    /**
+     * PHASE_17 Stage 3 — the three-way policy reader: a stored `engine-policy` string WINS;
+     * otherwise the legacy toggle migrates (ON → ALWAYS_VISION, OFF → TREE_ONLY); with
+     * nothing stored the product default stays ALWAYS_VISION until the Stage 4 acceptance.
+     * The TREE_FIRST value is written by the debug/UAT seam (the wizard selector is Stage 4).
+     */
+    private fun enginePolicy(): navigator.app.setup.EnginePolicy =
+        navigator.app.setup.EnginePolicy.resolve(
+            legacyOn = visionLoopToggled(),
+            stored = getSharedPreferences(SetupLogic.VISION_LOOP_PREFS_FILE, MODE_PRIVATE)
+                .getString(SetupLogic.ENGINE_POLICY_PREF_KEY, null),
+        )
 
     /**
      * PHASE_VEXP2: the TOGGLED product run — the experiment's VisionLoop over THIS

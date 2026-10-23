@@ -607,8 +607,23 @@ class VisionExperimentTest {
     }
 
     @Test
-    fun `the prompt version is vision-exp-v18`() {
-        assertEquals("vision-exp-v18", VisionPrompts.VISION_PROMPT_VERSION)
+    fun `the prompt version is vision-exp-v19`() {
+        assertEquals("vision-exp-v19", VisionPrompts.VISION_PROMPT_VERSION)
+    }
+
+    @Test
+    fun `the boundary audit law pins v19`() {
+        // PHASE_17 Stage 2.3 — the boundary judgment is ADVISORY: it judges the remaining
+        // PLAN, never the completed condition (code already verified that), and its page
+        // material is delimited untrusted.
+        assertTrue(VisionPrompts.BOUNDARY_SYSTEM.contains("Judge the PLAN"))
+        assertTrue(VisionPrompts.BOUNDARY_SYSTEM.contains("never the completed subtask"))
+        assertTrue(VisionPrompts.BOUNDARY_SYSTEM.contains("UNTRUSTED DATA"))
+        assertTrue(VisionPrompts.BOUNDARY_SYSTEM.contains("\"plan_holds\""))
+        val verdict = VisionPrompts.parseBoundaryVerdict("""{"plan_holds":false,"reason":"wrong site"}""")
+        assertEquals(false, verdict?.first)
+        assertEquals("wrong site", verdict?.second)
+        assertEquals(null, VisionPrompts.parseBoundaryVerdict("""{"reason":"x"}"""))
     }
 
     @Test

@@ -222,6 +222,14 @@ class NavigationLoop(
      * modality. Null (the default) = the tree-only loop, byte-identical.
      */
     private val visionTool: navigator.app.harness.hybrid.VisionToolStep? = null,
+    /**
+     * PHASE_17 Stage 2.3 — the SUBTASK-BOUNDARY JUDGE: at a verified boundary the writer
+     * audits the REMAINING plan against the current page over raw dual evidence. Advisory
+     * only: code verified the completed condition, code still decides every accept, and a
+     * "does not hold" verdict only triggers the EXISTING bounded re-plan (its reason is
+     * the failure cause). Null (the default) = no call, byte-identical.
+     */
+    private val boundaryJudge: BoundaryJudge? = null,
 ) {
 
     /**
@@ -1639,6 +1647,7 @@ class NavigationLoop(
          */
         suspend fun advanceAfterSubtaskAccept(verdict: ExitDecision.Accept, activePointer: SubtaskPointer) {
             val finishedOrdinal = activePointer.activeOrdinal
+            val finishedSubtask = activePointer.active
             activePointer.advance()
             exitPolicy = ExitPolicy() // fresh per-subtask exit discipline
             consecutiveSubtaskFailures = 0
@@ -1664,6 +1673,29 @@ class NavigationLoop(
             )
             publishLadderSurfaces()
             enterSubtask()
+            // PHASE_17 Stage 2.3 — THE SUBTASK-BOUNDARY AUDIT (raw dual evidence). Advisory
+            // by law: the completed condition was verified by code, so a "does not hold"
+            // verdict only feeds the EXISTING bounded re-plan (its reason becomes the
+            // failure cause); a "holds" verdict changes nothing.
+            val boundary = askBoundaryJudge(goalText, finishedSubtask, lastObserved)
+            if (boundary != null) {
+                writerBudget.record(boundary.costMicroUsd).let { check ->
+                    if (check != WriterBudget.Check.OK) softWarnings.add("writer budget ${check.name}")
+                }
+                if (boundary.planHolds) {
+                    line("boundary: the remaining plan holds (${boundary.promptVersion})")
+                } else {
+                    line(
+                        "boundary: the remaining plan NO LONGER holds - ${boundary.reason} " +
+                            "(${boundary.promptVersion})",
+                    )
+                    lastFailureCause = "boundary judgment: ${boundary.reason}"
+                    if (rePlansUsed < MAX_REPLANS && writerBudget.hasHardRoom()) {
+                        line("boundary: re-planning from the boundary judgment")
+                        replan()
+                    }
+                }
+            }
         }
 
         /**
@@ -4264,6 +4296,27 @@ class NavigationLoop(
     }
 
     private fun siteEntryKey(url: String): String = SiteEntryBudget.key(url)
+
+    /**
+     * PHASE_17 Stage 2.3 — ONE boundary-audit call (a class method, not a run-local: the
+     * `run` method-size discipline). Null when the judge is unwired or no page is known.
+     */
+    private suspend fun askBoundaryJudge(
+        goal: String,
+        finishedSubtask: navigator.core.ladder.Subtask,
+        obs: StepObservation?,
+    ): BoundaryVerdict? {
+        val judge = boundaryJudge ?: return null
+        val page = obs ?: return null
+        return judge.judge(
+            goal = goal,
+            completedInstruction = finishedSubtask.instruction,
+            completedDone = DoneConditionChecker.render(finishedSubtask.done),
+            pageUrl = page.url,
+            pageTitle = page.title,
+            pageDigest = page.lines.take(60).joinToString("\n"),
+        )
+    }
 
     /**
      * The state-truthful observe-refusal detail (2026-10-17, doc 03 §5 v2.7.0): when NO

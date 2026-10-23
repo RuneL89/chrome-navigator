@@ -62,8 +62,37 @@ class OverlayDebugReceiver : BroadcastReceiver() {
                 )
                 Log.i(TAG, "experiment stop: monitor=true wired=$wired")
             }
+            // PHASE_17 Stage 3 — THE ENGINE POLICY SEAM for the attended UAT (the wizard
+            // selector is the Stage 4 UI task): writes the `engine-policy` pref the product
+            // reader resolves at the next goal. Debuggable-only like every action here.
+            ACTION_SET_ENGINE_POLICY -> setEnginePolicy(context, intent)
             else -> runWindowCommand(context, intent)
         }
+    }
+
+    /**
+     * `adb shell am broadcast -a navigator.app.action.SET_ENGINE_POLICY --es policy tree-first
+     * -n navigator.app/.overlay.OverlayDebugReceiver` — one of `tree-first`, `always-vision`,
+     * `tree-only`. Applies to the NEXT product run; the current run is never restarted.
+     */
+    private fun setEnginePolicy(context: Context, intent: Intent) {
+        val raw = intent.getStringExtra(EXTRA_POLICY)?.trim()
+        val parsed = navigator.app.setup.EnginePolicy.parse(raw)
+        if (parsed == null) {
+            Log.w(
+                TAG,
+                "engine policy REFUSED: '${raw ?: "(missing)"}' is not one of " +
+                    navigator.app.setup.EnginePolicy.entries.joinToString(", ") { it.serial },
+            )
+            return
+        }
+        context.getSharedPreferences(
+            navigator.app.setup.SetupLogic.VISION_LOOP_PREFS_FILE,
+            Context.MODE_PRIVATE,
+        ).edit()
+            .putString(navigator.app.setup.SetupLogic.ENGINE_POLICY_PREF_KEY, parsed.serial)
+            .apply()
+        Log.i(TAG, "engine policy -> ${parsed.serial} (applies to the NEXT product run)")
     }
 
     /** One gate scenario: runs off the main thread, logcats the verdict + evidence. */
@@ -212,7 +241,11 @@ class OverlayDebugReceiver : BroadcastReceiver() {
         /** PHASE_VEXP9: the attended-run monitor stop (the R3 card-screen safeguard). */
         const val ACTION_EXPERIMENT_STOP_TASK = ExperimentStop.ACTION
 
+        /** PHASE_17 Stage 3: the engine-policy seam for the attended UAT. */
+        const val ACTION_SET_ENGINE_POLICY = "navigator.app.action.SET_ENGINE_POLICY"
+
         const val EXTRA_LINE = "line"
+        const val EXTRA_POLICY = "policy"
         const val EXTRA_PLAN = "plan"
         const val EXTRA_CLASS_LABEL = "classLabel"
         const val EXTRA_SITE = "site"

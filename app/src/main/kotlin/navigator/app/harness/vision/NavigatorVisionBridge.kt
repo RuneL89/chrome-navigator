@@ -42,6 +42,15 @@ sealed interface ProductRunRoute {
         override fun toString(): String = "Vision(openRouterKey=<redacted>, typesafeKey=<redacted>)"
     }
 
+    /**
+     * PHASE_17 Stage 3 — the TREE_FIRST hybrid path: the same two channels (the vision
+     * writer plans, the vision tool grounds/judges), but the host is `NavigationLoop` with
+     * the ladder on the a11y tree and the vision tool on the three code-owned signals.
+     */
+    data class Hybrid(val openRouterKey: String, val typesafeKey: String) : ProductRunRoute {
+        override fun toString(): String = "Hybrid(openRouterKey=<redacted>, typesafeKey=<redacted>)"
+    }
+
     /** Toggle ON with a missing channel: the refusal text names it and the recovery. */
     data class Refused(val detail: String) : ProductRunRoute
 
@@ -64,12 +73,43 @@ sealed interface ProductRunRoute {
             useVisionLoop: Boolean,
             openRouterKey: String?,
             typesafeKey: String?,
-        ): ProductRunRoute = when {
-            !useVisionLoop -> Legacy
-            openRouterKey.isNullOrBlank() && typesafeKey.isNullOrBlank() -> Refused(REFUSAL_BOTH)
-            openRouterKey.isNullOrBlank() -> Refused(REFUSAL_OPENROUTER)
-            typesafeKey.isNullOrBlank() -> Refused(REFUSAL_TYPESAFE)
-            else -> Vision(openRouterKey.trim(), typesafeKey.trim())
+        ): ProductRunRoute = decide(
+            policy = if (useVisionLoop) {
+                navigator.app.setup.EnginePolicy.ALWAYS_VISION
+            } else {
+                navigator.app.setup.EnginePolicy.TREE_ONLY
+            },
+            openRouterKey = openRouterKey,
+            typesafeKey = typesafeKey,
+        )
+
+        /**
+         * PHASE_17 Stage 3 — the POLICY decision. `TREE_ONLY` routes the legacy loop and
+         * never reads the second key store; `ALWAYS_VISION` and `TREE_FIRST` both require
+         * BOTH channels and refuse LOUDLY naming the missing one (never a silent
+         * fallback to another engine).
+         */
+        fun decide(
+            policy: navigator.app.setup.EnginePolicy,
+            openRouterKey: String?,
+            typesafeKey: String?,
+        ): ProductRunRoute = when (policy) {
+            navigator.app.setup.EnginePolicy.TREE_ONLY -> Legacy
+            navigator.app.setup.EnginePolicy.ALWAYS_VISION,
+            navigator.app.setup.EnginePolicy.TREE_FIRST,
+            -> {
+                val route = when {
+                    openRouterKey.isNullOrBlank() && typesafeKey.isNullOrBlank() -> Refused(REFUSAL_BOTH)
+                    openRouterKey.isNullOrBlank() -> Refused(REFUSAL_OPENROUTER)
+                    typesafeKey.isNullOrBlank() -> Refused(REFUSAL_TYPESAFE)
+                    else -> null
+                }
+                route ?: if (policy == navigator.app.setup.EnginePolicy.ALWAYS_VISION) {
+                    Vision(openRouterKey!!.trim(), typesafeKey!!.trim())
+                } else {
+                    Hybrid(openRouterKey!!.trim(), typesafeKey!!.trim())
+                }
+            }
         }
     }
 }
@@ -193,6 +233,72 @@ object NavigatorVisionBridge {
         return jev to haiku
     }
 
+    /**
+     * PHASE_17 Stage 3 — the HYBRID's parts: the vision TOOL (one subtask at a time), the
+     * vision-writer LADDER SOURCE (raw dual evidence at every plan/re-plan), the
+     * dual-evidence STUCK EVENT (the a11y assist contract with the screenshot) and the
+     * BOUNDARY JUDGE. The host (`NavigationLoop`) is built by the caller and receives these
+     * seams; the tool's own [VisionLoop] is returned for lifecycle/evidence.
+     */
+    class HybridParts(
+        val loop: VisionLoop,
+        val tool: navigator.app.harness.hybrid.VisionToolStep,
+        val ladderSource: navigator.app.loop.LadderSource,
+        val stuckSource: navigator.app.loop.AssistSource,
+        val boundaryJudge: navigator.app.loop.BoundaryJudge,
+        val evidence: VisionEvidence,
+    )
+
+    @Suppress("LongParameterList")
+    fun newHybridParts(
+        observer: LoopObserver,
+        executor: ActionExecutor,
+        capture: VisionCapture,
+        evidenceDir: File?,
+        runId: String,
+        openRouterKey: String,
+        typesafeKey: String,
+        log: (String) -> Unit,
+        transport: WireTransport = OkHttpWireTransport(callTimeoutMs = WIRE_TIMEOUT_MS),
+        gatePresenter: navigator.app.loop.GatePresenter? = null,
+        exclusionBounds: (() -> VisionMath.RectPx?)? = null,
+        coveredBounds: (() -> List<VisionMath.RectPx>)? = null,
+    ): HybridParts {
+        val loop = newVisionLoop(
+            observer = observer,
+            executor = executor,
+            capture = capture,
+            evidenceDir = evidenceDir,
+            runId = runId,
+            openRouterKey = openRouterKey,
+            typesafeKey = typesafeKey,
+            log = log,
+            transport = transport,
+            gatePresenter = gatePresenter,
+            exclusionBounds = exclusionBounds,
+            coveredBounds = coveredBounds,
+        )
+        // The writer's capture seam: the CURRENT screen, painted with the live-log
+        // exclusion exactly as the tool's own captures are (one capture law).
+        val shot: suspend () -> VisionCapture.ScreenShot? = {
+            try {
+                capture.capture(exclusionBounds?.invoke())
+            } catch (e: Exception) {
+                null
+            }
+        }
+        val (_, haiku) = newClients(transport, openRouterKey, typesafeKey, ExpBudget(), log)
+        return HybridParts(
+            loop = loop,
+            tool = VisionLoopTool(loop),
+            ladderSource = VisionLadderSource(haiku, shot, log),
+            stuckSource = VisionStuckEvent(haiku, shot, log),
+            boundaryJudge = VisionBoundaryJudge(haiku, shot, log),
+            evidence = VisionEvidence(evidenceDir, runId),
+        )
+    }
+
+    @Suppress("LongParameterList")
     fun newVisionLoop(
         observer: LoopObserver,
         executor: ActionExecutor,

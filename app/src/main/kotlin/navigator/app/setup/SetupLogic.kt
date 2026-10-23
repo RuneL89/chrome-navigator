@@ -307,6 +307,14 @@ object SetupLogic {
     const val VISION_LOOP_DEFAULT = true
 
     /**
+     * PHASE_17 Stage 3 — the three-way engine policy (see [EnginePolicy]). A stored value
+     * here WINS over the legacy boolean above; absent, the legacy boolean migrates
+     * (ON → ALWAYS_VISION, OFF → TREE_ONLY) and the product default stays ALWAYS_VISION
+     * until the Stage 4 acceptance. The Setup wizard exposes it in the Stage 4 program.
+     */
+    const val ENGINE_POLICY_PREF_KEY = "engine-policy"
+
+    /**
      * UAT 9.2 revision R5 — the saved-key indicator: a FIXED dot string shown while a
      * key is stored. REDACTION LAW: presence only — it must never be derived from the
      * stored value or its true length (the key itself stays encrypted on-device in
