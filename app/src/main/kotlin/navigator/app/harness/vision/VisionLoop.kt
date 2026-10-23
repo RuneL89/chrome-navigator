@@ -237,6 +237,17 @@ class VisionLoop(
          * lost-site fix). The count survives re-plans.
          */
         val prefixAuditAfter: Int = 3,
+        /**
+         * PHASE_17 Stage 0.7 — the LONG-LIST scroll cap (the R4 vision subscriptions
+         * defect: the battery red-flagged "still the subscriptions feed" after every
+         * scroll, so each scroll paid a battery escalation/re-plan and the route was
+         * abandoned). While consecutive acted scrolls are below this cap the pre-act
+         * battery is HELD (a scroll step cannot make the outcome visible until it runs —
+         * scrolling is the search, not the failure); at the cap the sequence is declared
+         * exhausted and the existing failure/re-plan path runs. Reset on any acted
+         * non-scroll, a URL change, a subtask advance and a new plan.
+         */
+        val scrollFindMax: Int = 8,
     ) {
         init {
             require(scrollChurnReplanAfter >= scrollChurnHintAfter) {
@@ -877,6 +888,11 @@ class VisionLoop(
             // spends the task-level maxReplans).
             var batteryReplanQueued = false
             val batteryChecks = batteries[pointer].orEmpty()
+            // PHASE_17 Stage 0.7 — the scroll-to-find: a scroll sequence in progress
+            // holds the pre-act battery (the R4 subscriptions churn). The cap's verdict
+            // is the SCROLL-FIND EXHAUSTED branch after the battery block.
+            val scrollFindInProgress = consecutiveScrolls > 0 &&
+                consecutiveScrolls < config.scrollFindMax
             if (batteryChecks.isNotEmpty() && batteryEscalatedWithoutAction) {
                 // The escalation-without-action guard: the fresh re-planned plan gets
                 // its action attempt FIRST — a battery re-fire on this (so far
@@ -887,7 +903,15 @@ class VisionLoop(
                 log("[vision] $line")
                 evidence.event(line)
             }
-            if (batteryChecks.isNotEmpty() && !batteryEscalatedWithoutAction) {
+            if (batteryChecks.isNotEmpty() && !batteryEscalatedWithoutAction && scrollFindInProgress) {
+                // The scroll-to-find hold: the battery's verdict on a mid-list screen is
+                // predictably "not there yet" — acting (the next scroll) is the search.
+                val line = "battery held: a scroll-to-find is in progress " +
+                    "($consecutiveScrolls scroll(s) this step-sequence, cap ${config.scrollFindMax})"
+                log("[vision] $line")
+                evidence.event(line)
+            }
+            if (batteryChecks.isNotEmpty() && !batteryEscalatedWithoutAction && !scrollFindInProgress) {
                 val results = batteryResults(batteryChecks, obs, shot)
                 var repaired: ConditionRepair.Accepted? = null
                 when (val gate = batteryGate(results, config.redFlagAbove, config.noulAgreeAbove)) {
@@ -1004,8 +1028,25 @@ class VisionLoop(
                 failuresSinceAdvance += 1
                 step += 1
             }
+            // PHASE_17 Stage 0.7 — the LONG-LIST cap: at the scroll-find bound the list
+            // (or the route) is exhausted — stop scrolling and let the existing failure
+            // path re-plan. Never a silent infinite scroll.
+            val scrollFindExhausted = !churnStop && escalateCause == null &&
+                consecutiveFailures < config.stepFailuresBeforeReplan &&
+                consecutiveScrolls >= config.scrollFindMax
+            if (scrollFindExhausted) {
+                val line = "step $step: SCROLL-FIND EXHAUSTED - $consecutiveScrolls consecutive " +
+                    "scrolls without the target (cap ${config.scrollFindMax}) - forcing a re-plan"
+                outcomes.add(line)
+                log("[vision] $line")
+                evidence.event(line)
+                consecutiveScrolls = 0
+                consecutiveFailures = config.stepFailuresBeforeReplan
+                failuresSinceAdvance += 1
+                step += 1
+            }
 
-            if (!churnStop && escalateCause == null && consecutiveFailures < config.stepFailuresBeforeReplan) {
+            if (!churnStop && !scrollFindExhausted && escalateCause == null && consecutiveFailures < config.stepFailuresBeforeReplan) {
                 // -- PROPOSE -> GROUND -> MATCH -> ACT ----------------------------------
                 // The soft hint (PHASE_VEXP8): at/after the hint threshold the proposer
                 // message carries the code-generated <scroll-churn> block naming the

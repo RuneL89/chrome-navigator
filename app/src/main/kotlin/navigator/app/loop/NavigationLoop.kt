@@ -264,12 +264,13 @@ class NavigationLoop(
     private val typeMechAttemptCauses = mutableListOf<TextEntryFailure>()
 
     /**
-     * PHASE_16 — the per-subtask site-entry URL counts (the R2 same-URL loop guard): the
-     * same normalized URL may be opened at most [MAX_SITE_ENTRY_OPENS] times in a subtask.
-     * CLASS field (the method-size discipline); cleared on run start, subtask advance and
-     * plan install.
+     * PHASE_16 / PHASE_17 Stage 0.7 — the site-entry launch budget + the refusal memory
+     * (the R2 same-URL loop guard and the cross-re-plan ban): the same normalized URL may
+     * be opened at most [MAX_SITE_ENTRY_OPENS] times in a subtask, and a REFUSED landing
+     * bans it for the rest of the subtask AND every re-plan. CLASS field (the method-size
+     * discipline); [applyLadder] restarts the counts, a subtask advance/run start both.
      */
-    private val siteEntryOpens = mutableMapOf<String, Int>()
+    private val siteEntryBudget = SiteEntryBudget(MAX_SITE_ENTRY_OPENS)
 
     /**
      * PHASE_16 — the intent that produced a NO-GOOD-TARGET in this subtask (the strategy
@@ -298,6 +299,17 @@ class NavigationLoop(
      */
     private var bannedActionKey: String? = null
 
+    /**
+     * PHASE_17 Stage 0.7 — whether the LAST DISPATCHED action was a `back` (the R4-tree
+     * recovery defect: a back can leave Chrome on a surface with no usable tree — the
+     * home screen, an empty tab — and the loop then made [Config.refuseAfterUnusableReads]
+     * (~30 s) fresh reads before refusing the WHOLE task). Set on a successful BACK
+     * dispatch and cleared by any other successful action; the unusable-tree branch uses
+     * it to bound the reads and fail the SUBTASK (→ the existing re-plan path) instead.
+     * CLASS field (the method-size discipline).
+     */
+    private var lastActionWasBack = false
+
     data class Config(
         /** Vision 03 §5: fewer meaningful nodes than this = unusable tree. */
         val minUsableNodes: Int = 5,
@@ -309,6 +321,13 @@ class NavigationLoop(
          *  emulator can drop the Chromium a11y subtree for tens of seconds — ~30s of
          *  reads distinguishes a transient from a genuinely unreadable page. */
         val refuseAfterUnusableReads: Int = 20,
+        /**
+         * PHASE_17 Stage 0.7: the fresh-read bound when the LAST action was a `back`.
+         * A back that lands on a no-browser/unreadable surface does not recover by
+         * waiting — the R4-tree defect spent ~30 s (20 reads) before refusing the whole
+         * task. A short confirm, then the subtask fails into the re-plan path.
+         */
+        val refuseAfterBackUnusableReads: Int = 3,
         /** Settle time between EXECUTE and the post-step observation (page render). */
         val settleMs: Long = 700,
         /** Breather between the fresh reads of an unusable tree (page render). */
@@ -451,11 +470,12 @@ class NavigationLoop(
         typeMechPageHash = null
         typeMechSubtaskKey = null
         typeMechFailedLegs.clear()
-        siteEntryOpens.clear()
+        siteEntryBudget.onNewSubtask()
         noGoodIntent = null
         noGoodIntentCount = 0
         failuresSinceAdvance = 0
         bannedActionKey = null
+        lastActionWasBack = false
 
         // -- the task ladder (Phase 10, vision 04 §1 v1.4.0) ---------------------------
         // When [ladderSource] is wired, EVERY goal restructures before any navigation:
@@ -1028,8 +1048,9 @@ class NavigationLoop(
             guards = CompletionGuards(triageClass!!, entity, taskTracker)
             exitPolicy = ExitPolicy()
             consecutiveSubtaskFailures = 0
-            siteEntryOpens.clear() // a new plan: fresh site-entry budget
+            siteEntryBudget.onNewPlan() // a new plan: fresh site-entry budget (refusals survive)
             bannedActionKey = null // a new plan: a fresh action space
+            lastActionWasBack = false // a new plan: no stale back fact
             noGoodIntent = null // a new plan: fresh intent-strategy memory
             noGoodIntentCount = 0
             lastCodeCheck = null // a fresh ladder: the code-check rate bound starts clean
@@ -1040,6 +1061,15 @@ class NavigationLoop(
             // suppress their entry check (verifier round-1 finding B6 — the memo is keyed
             // (ordinal, page-hash) and a re-key can land on the same pair).
             honestyChecked = null
+            // PHASE_17 Stage 0.7 — the LANDING RE-EVALUATION on a re-plan: the new plan's
+            // active urlHost condition may already hold one site family away on the
+            // CURRENT page (the R2 tree drift), so the next observation reconciles it
+            // instead of waiting for a code navigation the new plan may never perform.
+            pendingLandingReconcile = (pointer?.active?.done as? DoneCondition.UrlHost)?.let { done ->
+                val landed = DoneConditionChecker.normalizeUrl(lastObserved?.url)?.substringBefore('/')
+                landed != null && landed != done.host &&
+                    DoneConditionChecker.sameSiteFamily(done.host, landed)
+            } ?: false
             // Ladder provenance rides every row via the EXISTING additive `plan` field
             // (doc 05 §2: the writer-LLM plans carry their PROMPT_VERSION) — no schema
             // surgery; version = "<prompt-version>/gen<n>". Phase 10D adds the declared
@@ -1328,6 +1358,7 @@ class NavigationLoop(
                     consecutiveSubtaskFailures = 0
                     failuresSinceAdvance = 0 // the owner granted a fresh attempt
                     bannedActionKey = null // a fresh attempt may use the same control again
+                    lastActionWasBack = false
                     stuck.resetEscalations()
                     line("ladder: the owner said RETRY - the same subtask is re-attempted (stuck escalations reset)")
                     return null
@@ -1578,8 +1609,9 @@ class NavigationLoop(
             exitPolicy = ExitPolicy() // fresh per-subtask exit discipline
             consecutiveSubtaskFailures = 0
             failuresSinceAdvance = 0 // a verified advance: the prefix audit starts clean
-            siteEntryOpens.clear() // a new subtask: fresh site-entry budget
+            siteEntryBudget.onNewSubtask() // a new subtask: fresh budget AND refusals
             bannedActionKey = null // a new subtask: a fresh action space
+            lastActionWasBack = false // a new subtask: no stale back fact
             noGoodIntent = null // a new subtask: fresh intent-strategy memory
             noGoodIntentCount = 0
             lastCodeCheck = null // the ordinal changed: the code-check rate bound re-arms
@@ -2138,8 +2170,16 @@ class NavigationLoop(
             suspend fun observeUsable(): StepObservation? {
                 var o = observer.observe()
                 notePageUrl(o)
+                // PHASE_17 Stage 0.7: a back that left an unusable page gets a SHORT
+                // confirm bound — waiting cannot bring the browser back (the R4-tree
+                // read 20 times on the home screen). The caller fails the subtask.
+                val readBound = if (pointer != null && lastActionWasBack) {
+                    config.refuseAfterBackUnusableReads.coerceAtMost(config.refuseAfterUnusableReads)
+                } else {
+                    config.refuseAfterUnusableReads
+                }
                 var unusableReads = 1
-                while (!usable(o) && unusableReads < config.refuseAfterUnusableReads) {
+                while (!usable(o) && unusableReads < readBound) {
                     unusableReads += 1
                     line(
                         "observe: unusable tree (${o.lines.size} lines, " +
@@ -2229,6 +2269,18 @@ class NavigationLoop(
             // -- 1. OBSERVE (fresh; unusable tree -> graceful refusal, doc 03 §5) -------
             val obsOrNull = observeUsable()
             if (obsOrNull == null) {
+                // PHASE_17 Stage 0.7 (the R4-tree defect): a `back` that landed on an
+                // unreadable/no-browser surface is a SUBTASK failure, not a whole-task
+                // refusal — the ladder's re-plan can recover (e.g. re-open the site).
+                if (pointer != null && lastActionWasBack) {
+                    lastActionWasBack = false
+                    line(
+                        "observe: the back left an unusable page (no browser/tree) - " +
+                            "failing the subtask into the re-plan path (not re-reading)",
+                    )
+                    handleSubtaskFailureOrKill("the back left an unusable page")?.let { return it }
+                    continue
+                }
                 line("observe: tree still unusable - graceful refusal (vision 03 §5)")
                 return finish(TerminalState.REFUSED, observeRefusalDetail(), stepIndex)
             }
@@ -2452,6 +2504,9 @@ class NavigationLoop(
                     "cascade gestures are never gated (vision 06 §1)"
                 }
                 val executed = execute()
+                // PHASE_17 Stage 0.7: the cascade's own go-back earns the same recovery
+                // fact as a decision-path back (the unusable-tree branch reads it).
+                if (executed) lastActionWasBack = loggedKind == LoggedActionKind.BACK
                 delay(config.settleMs)
                 val post = observer.observe()
                 notePageUrl(post)
@@ -3555,6 +3610,8 @@ class NavigationLoop(
                                 ?.let { executor.scroll(it.cx, it.cy, it.id.startsWith(SCROLL_DOWN_PREFIX)) }
                                 ?: false
                         }
+                        // PHASE_17 Stage 0.7: a successful recovery back is a back fact too.
+                        if (executed) lastActionWasBack = recovery == Recovery.BACK
                         delay(config.settleMs)
                         val post = observer.observe()
                         notePageUrl(post)
@@ -3984,6 +4041,10 @@ class NavigationLoop(
 
             if (proceed) {
                 execOk = executeAction(kind, candidate) { typeFailureCause = it }
+                // PHASE_17 Stage 0.7: the recovery fact the unusable-tree branch reads —
+                // only a SUCCESSFUL back marks the page "left by back"; any successful
+                // other action clears it.
+                if (execOk) lastActionWasBack = kind == ActionKind.BACK
                 // Credential-sourced text renders [credential-redacted] in the step log
                 // (doc 05 §2); the stub-phrase path keeps its pre-08F line unchanged.
                 // The acted-on label masks at SOURCE too (PREUAT2-4 (B)): it is page
@@ -4058,21 +4119,14 @@ class NavigationLoop(
      * again). A deliberately simple normalization (scheme, case, trailing slash): the
      * same URL is what matters, not query noise.
      */
-    private fun recordSiteEntry(url: String): Boolean {
-        val key = siteEntryKey(url)
-        val opens = siteEntryOpens[key] ?: 0
-        if (opens >= MAX_SITE_ENTRY_OPENS) return false
-        siteEntryOpens[key] = opens + 1
-        return true
-    }
+    private fun recordSiteEntry(url: String): Boolean = siteEntryBudget.allow(url)
 
-    /** PHASE_16 — a refused landing bans the URL for the rest of the subtask. */
+    /** PHASE_16 — a refused landing bans the URL for the subtask AND every re-plan. */
     private fun banSiteEntry(url: String) {
-        siteEntryOpens[siteEntryKey(url)] = MAX_SITE_ENTRY_OPENS
+        siteEntryBudget.ban(url)
     }
 
-    private fun siteEntryKey(url: String): String =
-        url.trim().lowercase().removePrefix("https://").removePrefix("http://").removeSuffix("/")
+    private fun siteEntryKey(url: String): String = SiteEntryBudget.key(url)
 
     /**
      * The state-truthful observe-refusal detail (2026-10-17, doc 03 §5 v2.7.0): when NO

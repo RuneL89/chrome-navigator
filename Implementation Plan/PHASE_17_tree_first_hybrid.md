@@ -311,6 +311,38 @@ run; the evidence fields present in both arms.
 **Tests:** the unreadable-back fixture; the long-list fixture (item found within the cap;
 not found → re-plan); the scroll counter reset.
 
+**0.7 implementation status (2026-10-23): DONE.**
+- **The a11y back bound** (the R4-tree "back left 0 lines" shape): `NavigationLoop` tracks
+  whether the last DISPATCHED action was a successful `back` (`lastActionWasBack`, set at
+  the decision dispatch, the cascade's `ungatedGestureStep` and the recovery set; cleared
+  by any other successful action and at run start / plan install / subtask advance). With
+  `Config.refuseAfterBackUnusableReads = 3`, an unusable page after a back gets 3 reads
+  instead of the full 20 (≈30 s), and the SUBTASK fails into the existing
+  failure/re-plan path (`the back left an unusable page`) instead of refusing the WHOLE
+  task. A dead page that was never left by a back keeps the full bound and the task-level
+  REFUSED (the change is scoped to a back-caused surface).
+- **The long-list scroll policy** (the R4 vision subscriptions churn): `VisionLoop` holds
+  the pre-act battery while a scroll sequence is in progress (`consecutiveScrolls` in
+  1..`Config.scrollFindMax`-1) — a mid-list battery verdict is predictably "not there
+  yet", and acting (the next scroll) IS the search. At `Config.scrollFindMax` (default 8)
+  the sequence is declared `SCROLL-FIND EXHAUSTED` and the existing failure/re-plan path
+  runs; any acted non-scroll resets the counter. No model re-plan per scroll, no silent
+  infinite scroll.
+- **The cross-re-plan URL ban** (deferred from 0.1/0.3; the R2 tree shape): the site-entry
+  budget + refusal memory is extracted as a pure `SiteEntryBudget` — the per-subtask open
+  cap restarts on a re-plan (`onNewPlan`), the REFUSAL ban survives it (`ban`), and only a
+  verified subtask advance (or the run start) clears both (`onNewSubtask`).
+- **The landing re-evaluation after a re-plan**: `applyLadder` arms
+  `pendingLandingReconcile` when the new active `urlHost` condition already holds one site
+  family away on the CURRENT page, so the next observation reconciles it instead of
+  waiting for a code navigation the new plan may never perform.
+- Tests: `RecoveryScrollTest` 2/2 (the 3-read bound + the subtask failure, the unscoped
+  full bound), `VisionScrollFindTest` 3/3 (the battery hold with the found-within-cap
+  arrival, the cap → re-plan, the non-scroll reset), `SiteEntryBudgetTest` 4/4 (the cap,
+  the ban surviving a re-plan, the advance clearing it, the URL key). Full `:app` +
+  `:core` suites green; APK 36,830,379 bytes; `NavigationLoop.run()`
+  58,699/65,535 (6,836 headroom — still above the 6 KB gate; +1,283 bytes this item).
+
 #### 0.8 Tree condition honesty + the mid-ladder accept — **possible now + one owner decision**
 
 1. **Condition honesty.** Reject a condition that is true on the subtask's **starting
