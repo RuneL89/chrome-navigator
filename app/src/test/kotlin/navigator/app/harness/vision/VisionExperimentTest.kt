@@ -607,8 +607,8 @@ class VisionExperimentTest {
     }
 
     @Test
-    fun `the prompt version is vision-exp-v16`() {
-        assertEquals("vision-exp-v16", VisionPrompts.VISION_PROMPT_VERSION)
+    fun `the prompt version is vision-exp-v17`() {
+        assertEquals("vision-exp-v17", VisionPrompts.VISION_PROMPT_VERSION)
     }
 
     @Test
@@ -1218,7 +1218,7 @@ class VisionExperimentTest {
         // failure budget (maxReplans), which battery escalations no longer drain.
         val plan = """
             {"summary":"search riga hotels","taskClass":"read","subtasks":[
-              {"instruction":"search riga hotels for next weekend","done":{"urlHost":"riga.test"},
+              {"instruction":"Search Google for riga hotels for next weekend","done":{"urlContains":"google.com/search?q=riga"},
                "verify":[{"question":"does the date field still show the old default dates?","badIsTrue":true}]}]}
         """.trimIndent()
         val propose = """{"proposals":[{"description":"the Search button","action":"tap"}]}"""
@@ -1382,7 +1382,7 @@ class VisionExperimentTest {
             config = VisionLoop.Config(settleMs = 0, maxReplans = 5, batteryReplansPerSubtask = 2),
         )
 
-        val result = loop.run("find a hotel in riga for next weekend", "budget-split-test") { false }
+        val result = loop.run("open next.test and select the check-in and check-out dates", "budget-split-test") { false }
 
         // The run PROGRESSES to a true completion instead of starving: the battery
         // escalations re-planned within the per-subtask budget, the spent budget forced
@@ -1420,7 +1420,7 @@ class VisionExperimentTest {
     /** The false-completion shape: a text condition the hero text satisfies, plus an outcome check. */
     private val rigaFinalPlan = """
         {"summary":"search riga hotels","taskClass":"read","subtasks":[
-          {"instruction":"search riga hotels for next weekend","done":{"markerText":"Search hotels in Riga"},
+          {"instruction":"Search Google for riga hotels for next weekend","done":{"markerText":"Search hotels in Riga"},
            "verify":[{"question":"is a results list with the selected dates visible?","badIsTrue":false}]}]}
     """.trimIndent()
 

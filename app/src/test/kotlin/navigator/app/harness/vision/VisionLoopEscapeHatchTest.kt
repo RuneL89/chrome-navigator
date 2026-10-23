@@ -233,7 +233,7 @@ class VisionLoopEscapeHatchTest {
                 ),
                 evidence,
                 VisionLoop.Config(settleMs = 0, maxReplans = 0, stepFailuresBeforeReplan = 1),
-            ).run("add two cases of celsius to the cart", "hatch-agree") { false }
+            ).run("open shop.test and add two cases of celsius to the cart", "hatch-agree") { false }
 
             assertEquals(VisionLoop.Terminal.MODELS_CONFIRM_DONE, result.terminal)
             val hatchLine = result.subtaskOutcomes.single { it.contains("MODELS_CONFIRM_DONE (code") }
@@ -271,7 +271,7 @@ class VisionLoopEscapeHatchTest {
             listOf(observation("product page"), observation("product page", "still browsing")),
             evidence,
             VisionLoop.Config(settleMs = 0, maxReplans = 0, stepFailuresBeforeReplan = 1),
-        ).run("add two cases of celsius to the cart", "hatch-goal-disagree") { false }
+        ).run("open shop.test and add two cases of celsius to the cart", "hatch-goal-disagree") { false }
 
         assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal)
         assertTrue(
@@ -307,7 +307,7 @@ class VisionLoopEscapeHatchTest {
                 listOf(observation("product page"), observation("product page", "still browsing")),
                 evidence,
                 VisionLoop.Config(settleMs = 0, maxReplans = 0, stepFailuresBeforeReplan = 1),
-            ).run("navigate to the done page", "hatch-strong") { false }
+            ).run("open done.test — navigate to the done page", "hatch-strong") { false }
 
             assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal)
             assertTrue(
@@ -343,7 +343,7 @@ class VisionLoopEscapeHatchTest {
             evidence,
             VisionLoop.Config(settleMs = 0, maxReplans = 0, stepFailuresBeforeReplan = 1),
             jevRetries = 0,
-        ).run("add two cases of celsius to the cart", "hatch-goal-refused") { false }
+        ).run("open shop.test and add two cases of celsius to the cart", "hatch-goal-refused") { false }
 
         assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal)
         assertTrue(
@@ -386,7 +386,7 @@ class VisionLoopEscapeHatchTest {
                 evidence,
                 VisionLoop.Config(settleMs = 0, maxReplans = 0, stepFailuresBeforeReplan = 1),
             ).run(
-                "buy SoundMagic E11C with delivery to koivuviita 7 B 5. " +
+                "open cdon.fi and buy SoundMagic E11C with delivery to koivuviita 7 B 5. " +
                     "Total budget including delivery: 60 euros",
                 "hatch-r3b",
             ) { false }

@@ -98,8 +98,8 @@ class GoalFidelityTest {
             purchaseGoal,
             ladder(
                 sub(
-                    "Search for SoundMagic E11C and open the product page",
-                    DoneCondition.ElementPresent("the SoundMagic E11C product page"),
+                    "Search Google for SoundMagic E11C and open its product page from the results",
+                    DoneCondition.UrlContains("google.com/search?q=soundmagic"),
                 ),
                 sub(
                     "Place the order to koivuviita 7 B 5 within the 60 euro budget",
@@ -108,6 +108,49 @@ class GoalFidelityTest {
             ),
         )
         assertTrue(verdict.ok, verdict.violations.toString())
+    }
+
+    @Test
+    fun `a site-agnostic purchase with a store-first ladder is refused - search-first`() {
+        val verdict = GoalFidelity.check(
+            purchaseGoal,
+            ladder(
+                sub(
+                    "Open the store and find the product",
+                    DoneCondition.UrlHost("cdon.fi"),
+                ),
+                sub(
+                    "Place the order to koivuviita 7 B 5 within the 60 euro budget",
+                    DoneCondition.MarkerText("Kiitos tilauksestasi"),
+                ),
+            ),
+        )
+        assertFalse(verdict.ok)
+        assertTrue(
+            verdict.violations.any { it.contains("site-first") },
+            verdict.violations.toString(),
+        )
+    }
+
+    @Test
+    fun `a goal that names a site is never asked to search first`() {
+        val verdict = GoalFidelity.check(
+            "open cdon.fi and buy SoundMagic E11C with delivery to koivuviita 7 B 5 for 60 euros",
+            ladder(
+                sub(
+                    "Open the store and find the product",
+                    DoneCondition.UrlHost("cdon.fi"),
+                ),
+                sub(
+                    "Place the order to koivuviita 7 b 5 within the 60 euro budget",
+                    DoneCondition.MarkerText("Kiitos tilauksestasi"),
+                ),
+            ),
+        )
+        assertTrue(
+            verdict.violations.none { it.contains("site-first") },
+            verdict.violations.toString(),
+        )
     }
 
     @Test
@@ -236,7 +279,14 @@ class GoalFidelityTest {
         val goal = "find out the top headline and report it"
         val missing = GoalFidelity.check(
             goal,
-            ladder(sub("Open the news page", DoneCondition.MarkerText("headline")), taskClass = LadderTaskClass.READ),
+            ladder(
+                sub(
+                    "Search Google for today's top headline",
+                    DoneCondition.UrlContains("google.com/search?q=headline"),
+                ),
+                sub("Open the news page", DoneCondition.MarkerText("headline")),
+                taskClass = LadderTaskClass.READ,
+            ),
         )
         assertFalse(missing.ok)
         assertTrue(missing.violations.any { it.contains("answerExtracted") })
@@ -244,6 +294,10 @@ class GoalFidelityTest {
         val present = GoalFidelity.check(
             goal,
             ladder(
+                sub(
+                    "Search Google for today's top headline",
+                    DoneCondition.UrlContains("google.com/search?q=headline"),
+                ),
                 sub("Open the news page", DoneCondition.MarkerText("headline")),
                 sub("Report the headline", DoneCondition.AnswerExtracted),
                 taskClass = LadderTaskClass.READ,

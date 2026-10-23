@@ -186,7 +186,7 @@ class VisionTerminalEvidenceTest {
             transport,
             listOf(observationAt("https://old.test/")),
             evidence,
-        ).run("find hotels", "terminal-cancelled") { true }
+        ).run("open hotels.test and find hotels", "terminal-cancelled") { true }
 
         assertEquals(VisionLoop.Terminal.CANCELLED, result.terminal)
         val terminal = eventsFile.readText().lines().filter { "terminal=" in it }.single()

@@ -237,7 +237,7 @@ class VisionLoopTypeEditableTest {
             transport, executor,
             listOf(observation(page), observation(page), doneObservation()),
             evidence,
-        ).run("search hotels in Riga", "type-editable-child") { false }
+        ).run("open hotels.test and search hotels in Riga", "type-editable-child") { false }
 
         assertEquals(VisionLoop.Terminal.GOAL_ACHIEVED, result.terminal)
         assertEquals(
@@ -275,7 +275,7 @@ class VisionLoopTypeEditableTest {
             transport, executor,
             listOf(observation(listOf(container)), observation(listOf(container))),
             evidence,
-        ).run("search hotels in Riga", "type-editable-absent") { false }
+        ).run("open hotels.test and search hotels in Riga", "type-editable-absent") { false }
 
         assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal)
         assertTrue(executor.entered.isEmpty(), "no enterText may fire without a resolved editable")
@@ -311,7 +311,7 @@ class VisionLoopTypeEditableTest {
             transport, executor,
             listOf(observation(page), observation(page), doneObservation()),
             evidence,
-        ).run("search hotels in Riga", "type-editable-native") { false }
+        ).run("open hotels.test and search hotels in Riga", "type-editable-native") { false }
 
         assertEquals(VisionLoop.Terminal.GOAL_ACHIEVED, result.terminal)
         assertEquals(

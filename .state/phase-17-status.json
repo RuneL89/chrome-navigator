@@ -15,24 +15,20 @@
     "r1Accept": "STRONG-condition discipline first; no mid-ladder WEAK accept change in Stage 0.8 unless the writer cannot comply."
   },
   "stages": {
-    "0": "IN PROGRESS — 0.1 prefix audit DONE; 0.8 same-action binding DONE (the condition-honesty half pending); 0.2 site-first, 0.3 checkout integrity, 0.4 field-level forms, 0.5 account end state, 0.6 spend/evidence, 0.7 recovery/scroll pending",
+    "0": "IN PROGRESS — 0.1 prefix audit DONE; 0.2 site-first DONE (GoalFidelity + restructure-v6/vision-exp-v17 + the v6 goldens); 0.8 DONE (the same-action binding + the condition-honesty decision: no code change — the existing gate covers it, the accept law is the owner's Stage 0.8 decision); 0.3 checkout integrity, 0.4 field-level forms, 0.5 account end state, 0.6 spend/evidence, 0.7 recovery/scroll pending",
     "1": "PENDING — the hybrid spine (NavigationLoop + VisionToolStep; the modality and the three signals)",
     "2": "PENDING — event cadence + raw dual evidence",
     "3": "PENDING — policy/budget/toggle",
     "4": "DEFERRED — the post-Phase-17 testing program"
   },
   "gatesPassed": [
-    "Gate 17.0.1 — the completed-prefix audit: PrefixAuditTest 6/6 (core), PrefixRollbackLoopTest 1/1, VisionLoopPrefixRollbackTest 1/1; the full :app + :core suites green; NavigationLoop.run() 57,409/65,535 (8,126 headroom); doc 04 §7 amended (v2.5.0)"
+    "Gate 17.0.1 — the completed-prefix audit: PrefixAuditTest 6/6 (core), PrefixRollbackLoopTest 1/1, VisionLoopPrefixRollbackTest 1/1; the full :app + :core suites green; NavigationLoop.run() 57,409/65,535 (8,126 headroom); doc 04 §7 amended (v2.5.0)",
+    "Gate 17.0.8 — the same-action binding: TreeAcceptTest 1/1 (the L2 SUBMIT ban persists); the stuck-law suites green. The condition-honesty half needs no code: the existing ConditionHonesty gate + weakAtStart cover the corpus shape; the accept law stays the owner's STRONG-first decision",
+    "Gate 17.0.2 — site-agnostic search-first: GoalFidelityTest (the store-first refusal + the site-named exemption), GenClientTest 17/17 on the v6 goldens, the vision contract suite 52/52 on vision-exp-v17; full suites green; APK 35,879,231; dex v17 + restructure-v6; run() 57,416/65,535 (8,119)"
   ],
   "gatesFailed": [],
   "gatesPending": [
-    "Gate 17.0.2 — site-agnostic search-first (GoalFidelity + prompts v17/v6 + the v6 golden)",
     "Gate 17.0.3 — checkout integrity (tab recovery, no redo, the order control)",
-    "Gate 17.0.4 — field-level forms (the Etunimi shape + the read-back)",
-    "Gate 17.0.5 — the ACCOUNT_SWITCH end state at GOAL_ACHIEVED",
-    "Gate 17.0.6 — spend/evidence (the per-call usage + the CSV counters)",
-    "Gate 17.0.7 — safe recovery/scroll",
-    "Gate 17.0.8 — tree condition/accept/binding",
     "Gate 17.1 — the hybrid spine + behavior preservation",
     "Gate 17.2 — event cadence/dual evidence",
     "Gate 17.3 — policy/budget/toggle",

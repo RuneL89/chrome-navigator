@@ -218,7 +218,7 @@ class VisionLoopTranslateFirstTest {
             ),
             evidence,
             executor,
-        ).run("add the celsius product to the cart", "translate-first") { false }
+        ).run("open shop.test and add the celsius product to the cart", "translate-first") { false }
 
         assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal)
         assertEquals(listOf(845 to 280), executor.taps, "the Translate bar is tapped, not the cookie")
@@ -258,7 +258,7 @@ class VisionLoopTranslateFirstTest {
             ),
             evidence,
             executor,
-        ).run("add the celsius product to the cart", "translate-none") { false }
+        ).run("open shop.test and add the celsius product to the cart", "translate-none") { false }
 
         assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal)
         assertEquals(listOf(845 to 280), executor.taps, "the lone Translate is executed")
@@ -287,7 +287,7 @@ class VisionLoopTranslateFirstTest {
             ),
             evidence,
             executor,
-        ).run("add the celsius product to the cart", "no-translate") { false }
+        ).run("open shop.test and add the celsius product to the cart", "no-translate") { false }
 
         assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal)
         assertEquals(listOf(845 to 280), executor.taps, "Jev's p0 (the cart control) is executed")

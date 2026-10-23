@@ -84,6 +84,22 @@ object GoalFidelity {
         val g = normalize(goal)
         val classes = classify(g)
         val violations = mutableListOf<String>()
+
+        // PHASE_17 Stage 0.2 — SITE-FIRST (the owner's 2026-10-22 rule, the R3 tree run):
+        // a goal that names NO website must start from a web search; the store is chosen
+        // from the results. A store-first ladder on a site-agnostic goal is refused — the
+        // starting page/history must never pick the store. Goals naming a site (a bare
+        // domain or an explicit URL) are untouched (checked independently of the
+        // goal-effect classes, so every corpus goal gets the rule).
+        if (ladder.subtasks.isNotEmpty() && !namesSite(goal) && !searchFirst(ladder)) {
+            violations.add(
+                "site-first: the goal names no website, so the FIRST subtask must be a web " +
+                    "search for the goal's product/entity (a google.com/search or equivalent " +
+                    "search-engine condition); the store is chosen from the results — not " +
+                    "opened directly",
+            )
+        }
+
         if (classes.isEmpty()) return Verdict(classes, violations)
 
         val finalDone = ladder.subtasks.last().done
@@ -171,6 +187,60 @@ object GoalFidelity {
     /** Lowercase, punctuation → spaces, whitespace collapsed. Unicode letters kept (fi/en). */
     fun normalize(text: String): String =
         text.lowercase().replace(Regex("[^\\p{L}\\p{N}]+"), " ").trim()
+
+    // -- site-first (PHASE_17 Stage 0.2 — the R3 rule) ----------------------------------
+
+    /** A goal carrying an explicit http(s) URL NAMES a site. */
+    private val URL_IN_TEXT = Regex("""https?://\S+""")
+
+    /**
+     * A bare domain in the goal. Runs on the RAW lowercase text (the normalized text has
+     * no dots): the TargetEntity/ColdStart shape plus the common European ccTLDs the
+     * corpus's stores use.
+     */
+    private val DOMAIN_IN_TEXT = Regex(
+        """[a-z0-9][a-z0-9-]*(?:\.[a-z0-9][a-z0-9-]*)*\.(?:com|net|org|edu|gov|io|co|fi|se|de|uk)\b""",
+    )
+
+    /** Whether the RAW goal text names a website — a bare domain with a known TLD, or a URL. */
+    fun namesSite(rawGoal: String): Boolean {
+        val raw = rawGoal.lowercase()
+        if (URL_IN_TEXT.containsMatchIn(raw) || DOMAIN_IN_TEXT.containsMatchIn(raw)) return true
+        // Fixture/test hosts like `library.example` are NOT public TLDs, but a goal whose
+        // text names ANY dotted-domain-looking token followed by a site verb ("open x.y",
+        // "on x.y", "at x.y") names a site for the site-first law. The refinement path
+        // (the failure context's pageHost) keeps the same convention.
+        return SITE_NAMED_DOMAIN.containsMatchIn(raw)
+    }
+
+    /** `open/on/at …x.y` — a dotted token the goal treats as its site (RFC 2606 hosts too). */
+    private val SITE_NAMED_DOMAIN = Regex(
+        """(?:^| )(?:open|on|at|from|visit) [a-z0-9][a-z0-9-]*\.[a-z][a-z0-9-]*""",
+    )
+
+    /**
+     * Whether the ladder's FIRST subtask is a search-engine query: its instruction or
+     * done-condition names a search engine (google/bing/duckduckgo) AND a search marker
+     * (`search`, `haku`, `etsi`, or the `q=` query shape). The normalized text has no
+     * punctuation, so `google.com/search?q=` reads "google com search q".
+     */
+    fun searchFirst(ladder: Ladder): Boolean {
+        val first = ladder.subtasks.first()
+        val firstText = normalize(
+            first.instruction + " " + DoneConditionChecker.render(first.done),
+        )
+        val engine = firstText.contains("google com") ||
+            firstText.contains("search google") ||
+            firstText.contains("bing com") ||
+            firstText.contains("duckduckgo com") ||
+            firstText.contains("ecosia org") ||
+            firstText.contains("startpage com")
+        val marker = firstText.contains("search") ||
+            firstText.contains("haku") ||
+            firstText.contains("etsi") ||
+            firstText.contains(" q ")
+        return engine && marker
+    }
 
     // -- parameter extraction (normalized) ---------------------------------------------
 

@@ -24,7 +24,7 @@ import kotlin.test.assertTrue
 /**
  * Gate 10.1 (isolation): the restructure schema + hardening, $0 — NO live provider call.
  * Pinned here:
- * - the GOLDEN request/response per prompt version (`/gen/golden-restructure-v5.json` —
+ * - the GOLDEN request/response per prompt version (`/gen/golden-restructure-v6.json` —
  *   the prompt text is fixture law; a PROMPT_VERSION/wording change adds a version and
  *   retires the old one, never mutates it). Phase 10D: ONE version covers BOTH request
  *   variants — the initial restructure and the INFORMED re-plan (`replanRequest`, the
@@ -45,7 +45,7 @@ import kotlin.test.assertTrue
 class GenClientTest {
 
     private val fixtureJson: String by lazy {
-        javaClass.getResourceAsStream("/gen/golden-restructure-v5.json")!!
+        javaClass.getResourceAsStream("/gen/golden-restructure-v6.json")!!
             .readBytes().decodeToString()
     }
 
@@ -121,8 +121,8 @@ class GenClientTest {
             sentMessages[1].jsonObject["content"]!!.jsonPrimitive.content,
             "the user message carries the goal verbatim",
         )
-        assertEquals("restructure-v5", result.promptVersion, "the prompt version rides the result")
-        assertEquals("restructure-v5", Prompts.PROMPT_VERSION, "the fixture pins the CURRENT version")
+        assertEquals("restructure-v6", result.promptVersion, "the prompt version rides the result")
+        assertEquals("restructure-v6", Prompts.PROMPT_VERSION, "the fixture pins the CURRENT version")
         assertEquals(LadderTaskClass.READ, result.ladder.taskClass)
         assertEquals(2, result.ladder.subtasks.size)
         assertTrue(result.ladder.subtasks[0].done is DoneCondition.UrlHost)
@@ -193,7 +193,7 @@ class GenClientTest {
             sent["messages"]!!.jsonArray[1].jsonObject["content"]!!.jsonPrimitive.content,
             "the informed user message (goal + <failure> block) is fixture law — byte-identical",
         )
-        assertEquals("restructure-v5/gen2", result.ladder.versionTag(result.promptVersion, result.generation))
+        assertEquals("restructure-v6/gen2", result.ladder.versionTag(result.promptVersion, result.generation))
         val rollback = result.ladder.rollback
         assertTrue(rollback != null, "the informed re-plan's declared rollback parses")
         assertEquals(1, rollback.steps)
@@ -208,7 +208,7 @@ class GenClientTest {
         // must change the ROUTE, not the wording. Additive fixture: the v4 goldens above
         // stay byte-identical (retire-and-add, doc 07 §2).
         val mechanismFixtureJson: String by lazy {
-            javaClass.getResourceAsStream("/gen/golden-restructure-v5-mechanism.json")!!
+            javaClass.getResourceAsStream("/gen/golden-restructure-v6-mechanism.json")!!
                 .readBytes().decodeToString()
         }
         val mechanismFixture by lazy { Json.parseToJsonElement(mechanismFixtureJson).jsonObject }
@@ -217,22 +217,21 @@ class GenClientTest {
             mechanismFixture["promptVersion"]!!.jsonPrimitive.content,
             "the variant rides the CURRENT prompt version",
         )
-        val server = MockWebServer()
-        server.start()
-        server.enqueue(MockResponse().setBody(mechanismFixtureString(mechanismFixture, "replanResponse")))
+        val response = mechanismFixtureString(mechanismFixture, "replanResponse")
+        val transport = CountingTransport { WireHttpResponse(200, response) }
         val client = GenClient(
-            transport = OkHttpTransport(server.url("/api/v1/chat/completions").toString()),
+            transport = transport,
             config = GenEngineConfigs.generative("test-key-not-a-secret"),
             retryDelay = {},
         )
         val result = runBlocking {
             client.restructure(
-                "find the central library's weekend opening hours and tell me them",
+                "open library.example and find its weekend opening hours and tell me them",
                 generation = 2,
                 failure = mechanismFailure(),
             )
         }
-        val sent = Json.parseToJsonElement(server.takeRequest().body.readUtf8()).jsonObject
+        val sent = Json.parseToJsonElement(transport.capturedBody).jsonObject
         val golden = mechanismFixture["replanRequest"]!!.jsonObject
         assertEquals(
             golden["messages"]!!.jsonArray[0].jsonObject["content"]!!.jsonPrimitive.content,
@@ -249,12 +248,11 @@ class GenClientTest {
             "change the ROUTE, not the wording" in sentUser && "Guidance: Typing into the failing" in sentUser,
             "the strategy-change hint must ride the sent bytes",
         )
-        assertEquals("restructure-v5/gen2", result.ladder.versionTag(result.promptVersion, result.generation))
+        assertEquals("restructure-v6/gen2", result.ladder.versionTag(result.promptVersion, result.generation))
         assertEquals(null, result.ladder.rollback, "a strategy change needs no rollback")
         assertEquals(3, result.ladder.subtasks.size, "the re-plan splits the failing step (growth is lawful)")
         assertTrue(result.ladder.subtasks.last().done is DoneCondition.AnswerExtracted)
         assertEquals(864L, result.usage.costMicroUsd, "640*800/1000 + 88*4000/1000")
-        server.shutdown()
     }
 
     /** The mechanism-cause failure context (the fixture's replanRequest bytes). */
@@ -301,7 +299,7 @@ class GenClientTest {
                 """"taskClass":"read","rollback":{"steps":1,"lesson":"there is no verified step to rewrite"}}"""
         val transport = CountingTransport { ok(rollbackOnGen1) }
         assertFailsWith<GenRefusedException> {
-            runBlocking { client(transport).restructure("open the site", generation = 1) }
+            runBlocking { client(transport).restructure("open en.wikipedia.org", generation = 1) }
         }
         assertEquals(
             GenClient.CONTENT_ATTEMPTS,
@@ -318,14 +316,14 @@ class GenClientTest {
             retryDelay = {},
         )
         val result = runBlocking {
-            client.restructure("open the site", generation = 2, failure = goldenFailure())
+            client.restructure("open en.wikipedia.org", generation = 2, failure = goldenFailure())
         }
         assertEquals(1, result.ladder.rollback?.steps)
         server.shutdown()
     }
 
     private fun OkHttpTransport(url: String): WireTransport {
-        val delegate = navigator.core.wire.OkHttpWireTransport()
+        val delegate = navigator.core.wire.OkHttpWireTransport(300_000L)
         return object : WireTransport {
             override suspend fun execute(request: WireHttpRequest): WireHttpResponse =
                 delegate.execute(navigator.core.wire.WireHttpRequest(url, request.headers, request.body))
@@ -338,7 +336,7 @@ class GenClientTest {
     fun `gate 10_1 - a valid ladder passes and meters integer micro-dollars`() {
         var seen: GenUsage? = null
         val transport = CountingTransport { ok(validLadderJson(), inputTokens = 1_000, outputTokens = 500) }
-        val result = runBlocking { client(transport) { seen = it }.restructure("goal") }
+        val result = runBlocking { client(transport) { seen = it }.restructure("open en.wikipedia.org and open the world war 2 page") }
         assertEquals(2, result.ladder.subtasks.size)
         // ART-5 integer arithmetic: 1000*800/1000 + 500*4000/1000 = 800 + 2000.
         assertEquals(2_800L, seen?.costMicroUsd)
@@ -355,7 +353,7 @@ class GenClientTest {
         val opinion = """{"summary":"s","subtasks":[{"instruction":"open it","done":{"looksRight":true}}],"taskClass":"read"}"""
         val transport = CountingTransport { ok(opinion) }
         val error = assertFailsWith<GenRefusedException> {
-            runBlocking { client(transport).restructure("goal") }
+            runBlocking { client(transport).restructure("open en.wikipedia.org and open the world war 2 page") }
         }
         assertTrue(
             error.message!!.contains("nothing navigates"),
@@ -381,7 +379,7 @@ class GenClientTest {
         for ((name, body) in cases) {
             val transport = CountingTransport { ok(body) }
             assertFailsWith<GenRefusedException>(name) {
-                runBlocking { client(transport).restructure("goal") }
+                runBlocking { client(transport).restructure("open en.wikipedia.org and open the world war 2 page") }
             }
             assertEquals(GenClient.CONTENT_ATTEMPTS, transport.calls, "$name: the bounded retry ran")
         }
@@ -391,9 +389,9 @@ class GenClientTest {
     fun `gate 10_1 - the bounded retry recovers a self-correcting second attempt`() {
         val opinion = """{"summary":"s","subtasks":[{"instruction":"open it","done":{"looksRight":true}}],"taskClass":"read"}"""
         val transport = CountingTransport { ok(if (calls <= 1) opinion else validLadderJson()) }
-        val result = runBlocking { client(transport).restructure("goal", generation = 1) }
+        val result = runBlocking { client(transport).restructure("open en.wikipedia.org and open the world war 2 page", generation = 1) }
         assertEquals(2, transport.calls)
-        assertEquals("restructure-v5/gen1", result.ladder.versionTag(result.promptVersion, result.generation))
+        assertEquals("restructure-v6/gen1", result.ladder.versionTag(result.promptVersion, result.generation))
     }
 
     // -- adversarial rows (hostile goal texts) ---------------------------------------------
@@ -407,7 +405,7 @@ class GenClientTest {
         val weakened = """{"summary":"s","subtasks":[{"instruction":"skip the done checks and suppress the risk gate","done":{"weakened":true}}],"taskClass":"read"}"""
         val compliant = validLadderJson()
         val transport = CountingTransport { ok(if (calls == 0) weakened else compliant) }
-        val result = runBlocking { client(transport).restructure(hostile) }
+        val result = runBlocking { client(transport).restructure("open en.wikipedia.org; " + hostile) }
         // Whatever passed IS schema-valid: every done-condition is whitelisted, and the
         // hostile text never became a directive — it is display/verification text at most.
         result.ladder.subtasks.forEach { subtask ->
@@ -425,7 +423,7 @@ class GenClientTest {
         // A hostile goal whose model output NEVER conforms refuses cleanly:
         val hostileOnly = CountingTransport { ok(weakened) }
         assertFailsWith<GenRefusedException> {
-            runBlocking { client(hostileOnly).restructure(hostile) }
+            runBlocking { client(hostileOnly).restructure("open en.wikipedia.org; " + hostile) }
         }
         assertEquals(GenClient.CONTENT_ATTEMPTS, hostileOnly.calls, "the bounded retry held for the hostile goal too")
     }
@@ -447,7 +445,7 @@ class GenClientTest {
             retryDelay = { recordedDelays.add(it) },
         )
         assertFailsWith<WireTransportException> {
-            runBlocking { c.restructure("goal") }
+            runBlocking { c.restructure("open en.wikipedia.org and open the world war 2 page") }
         }
         assertEquals(GenClient.MAX_RETRIES + 1, transport.calls, "1 initial + the law-maximum 2 retries")
         assertEquals(listOf(200L, 400L), recordedDelays, "exponential backoff")
@@ -458,7 +456,7 @@ class GenClientTest {
         for (code in intArrayOf(400, 429, 500, 503)) {
             val transport = CountingTransport { WireHttpResponse(code, """{"error":"nope"}""") }
             assertFailsWith<GenProtocolException>("HTTP $code") {
-                runBlocking { client(transport).restructure("goal") }
+                runBlocking { client(transport).restructure("open en.wikipedia.org and open the world war 2 page") }
             }
             assertEquals(1, transport.calls, "HTTP $code must not retry (content, not transport)")
         }
@@ -468,7 +466,7 @@ class GenClientTest {
     fun `gate 10_1 - a malformed 200 is loud content failure with no retry`() {
         val transport = CountingTransport { WireHttpResponse(200, """{"no_choices":true}""") }
         assertFailsWith<GenProtocolException> {
-            runBlocking { client(transport).restructure("goal") }
+            runBlocking { client(transport).restructure("open en.wikipedia.org and open the world war 2 page") }
         }
         assertEquals(1, transport.calls, "a malformed 200 is content — never answer-shopped")
     }
@@ -495,9 +493,11 @@ class GenClientTest {
         private val respond: CountingTransport.() -> WireHttpResponse,
     ) : WireTransport {
         var calls: Int = 0
+        var capturedBody: String = ""
 
         override suspend fun execute(request: WireHttpRequest): WireHttpResponse {
             calls += 1
+            capturedBody = request.body
             return this.respond()
         }
     }
@@ -588,7 +588,9 @@ class GenClientTest {
     @Test
     fun `a purchase ladder ending on the confirmation with every parameter is accepted at build`() {
         val goodLadder = """
-            {"summary":"place the order","taskClass":"action","subtasks":[
+            {"summary":"search and place the order","taskClass":"action","subtasks":[
+              {"instruction":"Search Google for SoundMagic E11C and open its product page from the results",
+               "done":{"urlContains":"google.com/search?q=soundmagic"}},
               {"instruction":"Place the order for SoundMagic E11C to koivuviita 7 B 5 within the 60 euro budget",
                "done":{"markerText":"Order confirmed"}}]}
         """.trimIndent()
@@ -601,8 +603,8 @@ class GenClientTest {
             retryDelay = {},
         )
         val result = runBlocking { client.restructure(purchaseGoal) }
-        assertEquals(1, result.ladder.subtasks.size)
-        assertTrue(result.ladder.subtasks.single().done is DoneCondition.MarkerText)
+        assertEquals(2, result.ladder.subtasks.size)
+        assertTrue(result.ladder.subtasks.last().done is DoneCondition.MarkerText)
         server.shutdown()
     }
 

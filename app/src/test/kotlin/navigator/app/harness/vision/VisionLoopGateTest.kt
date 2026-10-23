@@ -171,7 +171,7 @@ class VisionLoopGateTest {
             transport, executor,
             ArrayDeque(listOf(unsubscribePage, unsubscribePage, donePage)),
             presenter,
-        ).run("unsubscribe from the garden week channel", "gate-approve") { false }
+        ).run("open gardenweek.test and unsubscribe from the garden week channel", "gate-approve") { false }
 
         assertEquals(VisionLoop.Terminal.GOAL_ACHIEVED, result.terminal)
         assertEquals(1, executor.taps.size, "the approved action executed")
@@ -195,7 +195,7 @@ class VisionLoopGateTest {
             presenter,
             maxReplans = 0,
             stepFailuresBeforeReplan = 1,
-        ).run("unsubscribe from the garden week channel", "gate-deny") { false }
+        ).run("open gardenweek.test and unsubscribe from the garden week channel", "gate-deny") { false }
 
         assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal, "the refusal feeds the failure budget")
         assertTrue(executor.taps.isEmpty(), "a denied action NEVER executes")
@@ -218,7 +218,7 @@ class VisionLoopGateTest {
             presenter,
             maxReplans = 0,
             stepFailuresBeforeReplan = 1,
-        ).run("unsubscribe from the garden week channel", "gate-timeout") { false }
+        ).run("open gardenweek.test and unsubscribe from the garden week channel", "gate-timeout") { false }
 
         assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal)
         assertTrue(executor.taps.isEmpty(), "a timed-out action NEVER executes (timeout = deny, fail-safe)")
@@ -248,7 +248,7 @@ class VisionLoopGateTest {
             transport, executor,
             ArrayDeque(listOf(loginPage, loginPage, donePage)),
             presenter,
-        ).run("sign in to the site", "gate-credential") { false }
+        ).run("open accounts.test and sign in to the site", "gate-credential") { false }
 
         assertEquals(VisionLoop.Terminal.GOAL_ACHIEVED, result.terminal)
         assertEquals(1, executor.entered.size, "the type executed once")
@@ -283,7 +283,7 @@ class VisionLoopGateTest {
                 transport, executor,
                 ArrayDeque(listOf(loginPage, loginPage)),
                 presenter,
-            ).run("sign in to the site", "gate-wrong-source") { false }
+            ).run("open accounts.test and sign in to the site", "gate-wrong-source") { false }
         }
         assertTrue("WITHOUT" in error.message!!, "the failure names the wrong source: ${error.message}")
         assertTrue(executor.entered.isEmpty(), "nothing typed on a wrong-source resolution")
@@ -302,7 +302,7 @@ class VisionLoopGateTest {
                 transport, executor,
                 ArrayDeque(listOf(unsubscribePage, unsubscribePage)),
                 presenter,
-            ).run("unsubscribe from the garden week channel", "gate-secret-on-plain") { false }
+            ).run("open gardenweek.test and unsubscribe from the garden week channel", "gate-secret-on-plain") { false }
         }
         assertTrue("ApproveWithSecret" in error.message!!, "the failure names the wrong resolution: ${error.message}")
         assertTrue(executor.taps.isEmpty(), "nothing executed on a wrong-source resolution")
@@ -345,7 +345,7 @@ class VisionLoopGateTest {
             presenter,
             maxReplans = 5,
             stepFailuresBeforeReplan = 2,
-        ).run("unsubscribe from the garden week channel", "guard-abort") { false }
+        ).run("open gardenweek.test and unsubscribe from the garden week channel", "guard-abort") { false }
 
         assertEquals(VisionLoop.Terminal.GUARD_ABORT, result.terminal, "two same-(class, site) refusals abort the task")
         assertTrue(executor.taps.isEmpty(), "a refused action NEVER executes")
@@ -378,7 +378,7 @@ class VisionLoopGateTest {
             transport, executor,
             ArrayDeque(listOf(unsubscribePage, unsubscribePage, unsubscribePage, donePage)),
             presenter,
-        ).run("unsubscribe from the garden week channel", "gate-trust") { false }
+        ).run("open gardenweek.test and unsubscribe from the garden week channel", "gate-trust") { false }
 
         assertEquals(VisionLoop.Terminal.GOAL_ACHIEVED, result.terminal)
         assertEquals(2, executor.taps.size, "both taps executed")
@@ -399,7 +399,7 @@ class VisionLoopGateTest {
             transport, executor,
             ArrayDeque(listOf(unsubscribePage, unsubscribePage, donePage)),
             gatePresenter = null,
-        ).run("unsubscribe from the garden week channel", "gate-ungated") { false }
+        ).run("open gardenweek.test and unsubscribe from the garden week channel", "gate-ungated") { false }
 
         assertEquals(VisionLoop.Terminal.GOAL_ACHIEVED, result.terminal)
         assertEquals(1, executor.taps.size, "the mutation-classed tap executed ungated (the default seam)")
@@ -450,7 +450,7 @@ class VisionLoopGateTest {
             ),
             presenter,
             maxReplans = 0,
-        ).run("find the thing", "scroll-back-never-gated") { false }
+        ).run("open done.test and find the thing", "scroll-back-never-gated") { false }
 
         assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal)
         assertEquals(1, executor.scrolls.size, "the scroll executed ungated")

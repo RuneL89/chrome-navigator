@@ -250,7 +250,7 @@ class VisionLoopBehindLogTest {
             listOf(observation(listOf(search)), observation(listOf(search)), doneObservation()),
             evidence,
             covered = listOf(VisionMath.RectPx(90, 390, 310, 510)),
-        ).run("tap the search control", "behind-log-tap") { false }
+        ).run("open shop.test and tap the search control", "behind-log-tap") { false }
 
         assertEquals(VisionLoop.Terminal.GOAL_ACHIEVED, result.terminal)
         assertTrue(executor.taps.isEmpty(), "NO raw tap may land on the overlay")
@@ -280,7 +280,7 @@ class VisionLoopBehindLogTest {
             listOf(observation(listOf(scrollOnly)), observation(listOf(scrollOnly))),
             evidence,
             covered = listOf(VisionMath.RectPx(90, 390, 310, 510)),
-        ).run("tap the search control", "behind-log-refused") { false }
+        ).run("open shop.test and tap the search control", "behind-log-refused") { false }
 
         assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal)
         assertTrue(executor.taps.isEmpty(), "no raw touch on the overlay")
@@ -323,7 +323,7 @@ class VisionLoopBehindLogTest {
             listOf(observation(listOf(addressBar)), observation(listOf(addressBar)), doneObservation()),
             evidence,
             covered = listOf(VisionMath.RectPx(400, 30, 600, 110)),
-        ).run("search hotels in Riga next weekend", "behind-log-type") { false }
+        ).run("open hotels.test and search hotels in Riga next weekend", "behind-log-type") { false }
 
         assertEquals(VisionLoop.Terminal.GOAL_ACHIEVED, result.terminal)
         assertTrue(executor.taps.isEmpty(), "the covered focus tap is SKIPPED")
@@ -353,7 +353,7 @@ class VisionLoopBehindLogTest {
             listOf(observation(emptyList()), observation(emptyList())),
             VisionEvidence(null, "behind-log-scroll-refused"),
             covered = listOf(VisionMath.RectPx(0, 0, 1000, 2000)),
-        ).run("scroll down", "behind-log-scroll-refused") { false }
+        ).run("open shop.test and scroll down", "behind-log-scroll-refused") { false }
 
         assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal)
         assertTrue(executor.scrolls.isEmpty(), "NO raw scroll may dispatch at a covered start")
@@ -382,7 +382,7 @@ class VisionLoopBehindLogTest {
             listOf(observation(emptyList()), observation(emptyList()), doneObservation()),
             VisionEvidence(null, "behind-log-scroll-moved"),
             covered = listOf(VisionMath.RectPx(400, 900, 600, 1100)),
-        ).run("scroll down", "behind-log-scroll-moved") { false }
+        ).run("open shop.test and scroll down", "behind-log-scroll-moved") { false }
 
         assertEquals(VisionLoop.Terminal.GOAL_ACHIEVED, result.terminal)
         assertEquals(listOf(Triple(500, 666, true)), executor.scrolls, "exactly one scroll at the uncovered point")
@@ -422,7 +422,7 @@ class VisionLoopBehindLogTest {
                 VisionMath.RectPx(750, 1150, 850, 1250),
             ),
             logs = logs,
-        ).run("keep going", "behind-log-stuck") { false }
+        ).run("open done.test and keep going", "behind-log-stuck") { false }
 
         assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal)
         assertTrue(executor.scrolls.isEmpty(), "the stuck probe must NOT dispatch a raw scroll")

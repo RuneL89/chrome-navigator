@@ -238,7 +238,7 @@ class VisionLoopScrollChurnTest {
                 evidence,
                 executor,
                 baseConfig(),
-            ).run("add the celsius product to the cart", "churn-hint") { false }
+            ).run("open shop.test and add the celsius product to the cart", "churn-hint") { false }
 
             assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal)
             assertEquals(3, executor.scrolls.size, "three scrolls act")
@@ -305,7 +305,7 @@ class VisionLoopScrollChurnTest {
                 evidence,
                 executor,
                 baseConfig(maxReplans = 1),
-            ).run("add the celsius product to the cart", "churn-stop") { false }
+            ).run("open shop.test and add the celsius product to the cart", "churn-stop") { false }
 
             assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal)
             assertEquals(4, executor.scrolls.size, "NO fifth scroll may dispatch")
@@ -379,7 +379,7 @@ class VisionLoopScrollChurnTest {
                 evidence,
                 executor,
                 baseConfig(),
-            ).run("add the celsius product to the cart", "churn-reset-action") { false }
+            ).run("open shop.test and add the celsius product to the cart", "churn-reset-action") { false }
 
             assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal)
             assertEquals(4, executor.scrolls.size)
@@ -427,7 +427,7 @@ class VisionLoopScrollChurnTest {
                 evidence,
                 executor,
                 baseConfig(),
-            ).run("add the celsius product to the cart", "churn-reset-url") { false }
+            ).run("open shop.test and add the celsius product to the cart", "churn-reset-url") { false }
 
             assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal)
             assertEquals(4, executor.scrolls.size)
@@ -471,7 +471,7 @@ class VisionLoopScrollChurnTest {
                 evidence,
                 executor,
                 baseConfig(),
-            ).run("browse the celsius products", "churn-no-cta") { false }
+            ).run("open shop.test and browse the celsius products", "churn-no-cta") { false }
 
             assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal)
             assertEquals(4, executor.scrolls.size, "the soft hint never blocks the scrolls")

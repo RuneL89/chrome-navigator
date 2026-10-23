@@ -227,7 +227,7 @@ class VisionLoopEnterTextTest {
             executor,
             listOf(observation(listOf(addressBar)), observation(listOf(addressBar)), doneObservation()),
             evidence,
-        ).run("search hotels in Riga next weekend", "enter-text-converted") { false }
+        ).run("open hotels.test and search hotels in Riga next weekend", "enter-text-converted") { false }
 
         assertEquals(VisionLoop.Terminal.GOAL_ACHIEVED, result.terminal)
         assertEquals(
@@ -265,7 +265,7 @@ class VisionLoopEnterTextTest {
             executor,
             listOf(observation(listOf(searchButton)), observation(listOf(searchButton)), doneObservation()),
             evidence,
-        ).run("tap the search button", "enter-text-uneditable") { false }
+        ).run("open shop.test and tap the search button", "enter-text-uneditable") { false }
 
         assertEquals(VisionLoop.Terminal.GOAL_ACHIEVED, result.terminal)
         assertTrue(executor.entered.isEmpty(), "a non-editable target is never typed into")
@@ -291,7 +291,7 @@ class VisionLoopEnterTextTest {
             executor,
             listOf(observation(listOf(addressBar)), observation(listOf(addressBar)), doneObservation()),
             evidence,
-        ).run("focus the address bar", "enter-text-absent") { false }
+        ).run("open shop.test and focus the address bar", "enter-text-absent") { false }
 
         assertEquals(VisionLoop.Terminal.GOAL_ACHIEVED, result.terminal)
         assertTrue(executor.entered.isEmpty(), "no plan text means no typing")

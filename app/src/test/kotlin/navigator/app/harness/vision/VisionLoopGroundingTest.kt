@@ -214,7 +214,7 @@ class VisionLoopGroundingTest {
             transport, executor,
             listOf(observation(searchNode, line = "search page"), observation(searchNode, line = "search page 2"), doneObservation()),
             evidence,
-        ).run("tap the search control", "haiku-box-fallback") { false }
+        ).run("open shop.test and tap the search control", "haiku-box-fallback") { false }
 
         assertEquals(VisionLoop.Terminal.GOAL_ACHIEVED, result.terminal)
         assertEquals(listOf(200 to 450), executor.taps, "the tap lands on the Haiku-grounded node centre")
@@ -250,7 +250,7 @@ class VisionLoopGroundingTest {
             transport, executor,
             listOf(observation(searchNode, line = "search page"), observation(searchNode, line = "search page 2"), doneObservation()),
             evidence,
-        ).run("tap the search control", "label-match") { false }
+        ).run("open shop.test and tap the search control", "label-match") { false }
 
         assertEquals(VisionLoop.Terminal.GOAL_ACHIEVED, result.terminal)
         assertEquals(listOf(200 to 450), executor.taps, "the label-matched node's centre is the tap")
@@ -283,7 +283,7 @@ class VisionLoopGroundingTest {
             transport, executor,
             listOf(observation(inertNode, line = "home page"), observation(inertNode, line = "home page 2")),
             evidence,
-        ).run("search hotels in Riga next weekend", "type-refused") { false }
+        ).run("open hotels.test and search hotels in Riga next weekend", "type-refused") { false }
 
         assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal)
         assertTrue(executor.entered.isEmpty(), "no enterText may fire at a non-editable spot")

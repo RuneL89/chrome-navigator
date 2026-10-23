@@ -233,7 +233,7 @@ class VisionLoopConditionRepairTest {
 
     private val outcomesPlan = plan(
         subtask(
-            "search Riga hotels for next weekend and show the results",
+            "Search Google for Riga hotels for next weekend and show the results",
             vagueResultsDone,
             question(resultsQuestion, badIsTrue = false),
         ),
@@ -241,7 +241,7 @@ class VisionLoopConditionRepairTest {
 
     private val twoStepPlan = plan(
         subtask(
-            "search Riga hotels for next weekend and show the results",
+            "Search Google for Riga hotels for next weekend and show the results",
             vagueResultsDone,
             question(resultsQuestion, badIsTrue = false),
         ),
@@ -250,7 +250,7 @@ class VisionLoopConditionRepairTest {
 
     private val reportPlan = plan(
         subtask(
-            "search Riga hotels for next weekend and show the results",
+            "Search Google for Riga hotels for next weekend and show the results",
             vagueResultsDone,
             question(resultsQuestion, badIsTrue = false),
         ),
@@ -324,7 +324,7 @@ class VisionLoopConditionRepairTest {
             listOf(resultsPage(), resultsPage(), doneObservation()),
             evidence,
             executor = executor,
-        ).run("find a hotel in Riga for next weekend", "repair-advance") { false }
+        ).run("open hotels.test and find a hotel in Riga for next weekend", "repair-advance") { false }
 
         assertEquals(VisionLoop.Terminal.GOAL_ACHIEVED, result.terminal)
         val line = repairLine(result)
@@ -387,7 +387,7 @@ class VisionLoopConditionRepairTest {
 
         val result = loop(
             transport, listOf(resultsPage(), resultsPage(), resultsPage()), evidence, config = config,
-        ).run("find a hotel in Riga for next weekend", "repair-invalid") { false }
+        ).run("open hotels.test and find a hotel in Riga for next weekend", "repair-invalid") { false }
 
         assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal)
         assertTrue(result.subtaskOutcomes.none { it.contains("CONDITION REPAIRED") }, "no acceptance")
@@ -432,7 +432,7 @@ class VisionLoopConditionRepairTest {
 
         val result = loop(
             transport, listOf(resultsPage(), resultsPage(), resultsPage()), evidence, config = config,
-        ).run("find a hotel in Riga for next weekend", "repair-nonmatching") { false }
+        ).run("open hotels.test and find a hotel in Riga for next weekend", "repair-nonmatching") { false }
 
         assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal)
         assertTrue(result.subtaskOutcomes.none { it.contains("CONDITION REPAIRED") })
@@ -467,7 +467,7 @@ class VisionLoopConditionRepairTest {
             evidence,
             executor = executor,
             haikuRetries = 0,
-        ).run("find a hotel in Riga for next weekend", "repair-fallback") { false }
+        ).run("open hotels.test and find a hotel in Riga for next weekend", "repair-fallback") { false }
 
         assertEquals(VisionLoop.Terminal.GOAL_ACHIEVED, result.terminal)
         val line = repairLine(result)
@@ -516,7 +516,7 @@ class VisionLoopConditionRepairTest {
             config = VisionLoop.Config(
                 settleMs = 0, maxReplans = 0, stepFailuresBeforeReplan = 1, batteryReplansPerSubtask = 0,
             ),
-        ).run("find a hotel in Riga for next weekend", "repair-once") { false }
+        ).run("open hotels.test and find a hotel in Riga for next weekend", "repair-once") { false }
 
         assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal)
         val events = eventsFile.readText()
@@ -561,7 +561,7 @@ class VisionLoopConditionRepairTest {
             transport,
             listOf(resultsPage(), resultsPage(), resultsPage()),
             evidence,
-        ).run("find a hotel in Riga for next weekend and report the options", "repair-report") { false }
+        ).run("open hotels.test and find a hotel in Riga for next weekend and report the options", "repair-report") { false }
 
         assertEquals(VisionLoop.Terminal.GOAL_ACHIEVED, result.terminal)
         assertEquals(answer, result.answer, "the report subtask extracted the answer")
@@ -617,7 +617,7 @@ class VisionLoopConditionRepairTest {
 
         val result = loop(
             transport, listOf(resultsPage(), resultsPage(), resultsPage()), evidence, config = config,
-        ).run("find a hotel in Riga for next weekend", "repair-redflag") { false }
+        ).run("open hotels.test and find a hotel in Riga for next weekend", "repair-redflag") { false }
 
         assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal)
         assertTrue(
@@ -666,7 +666,7 @@ class VisionLoopConditionRepairTest {
             ),
             evidence,
             config = config,
-        ).run("find a hotel in Riga for next weekend", "repair-current-only") { false }
+        ).run("open hotels.test and find a hotel in Riga for next weekend", "repair-current-only") { false }
 
         assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal)
         assertTrue(result.subtaskOutcomes.none { it.contains("CONDITION REPAIRED") }, "no acceptance")

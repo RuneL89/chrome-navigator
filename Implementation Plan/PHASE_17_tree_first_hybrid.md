@@ -134,6 +134,28 @@ is refused with one bounded retry naming the violation (the Phase 16 error-fed c
 **Tests:** R3 → search-first; R1/R2/R4 → unchanged; a store-first R3 ladder → refused;
 results → store → product; the address/budget parameters still enforced.
 
+**0.2 implementation status (2026-10-22): DONE.**
+- `GoalFidelity.namesSite(rawGoal)` (a bare domain with a known TLD, an explicit URL, or
+  the `open/on/at x.y` site-named shape for RFC-2606 fixture hosts) +
+  `GoalFidelity.searchFirst(ladder)` (the first subtask names a search engine AND a search
+  marker); the check runs at every ladder build, independently of the goal-effect classes.
+- The writer laws: `gen/Prompts` → `restructure-v6` (+ `golden-restructure-v6.json`,
+  `golden-restructure-v6-mechanism.json`; the v5 goldens stay byte-identical) and
+  `VisionPrompts` → `vision-exp-v17` — both state the SITE-FIRST rule.
+- Tests: `GoalFidelityTest` gains `a site-agnostic purchase with a store-first ladder is
+  refused` and `a goal that names a site is never asked to search first`; the corpus
+  fixtures updated to the new law (the R1/R2/R4 goals name sites; the R3/report fixtures
+  gained a search-engine first subtask). The scripted vision tests' site-agnostic goals
+  were named (shop.test/hotels.test/accounts.test/gardenweek.test/done.test/cdon.fi) so
+  the fixture plans stay lawful under the new rule.
+- Full `:app` + `:core` suites green; APK 35,879,231 bytes; the dex carries
+  `vision-exp-v17` + `restructure-v6`; `NavigationLoop.run()` 57,416/65,535 (8,119
+  headroom).
+- NOTE: `GenClientTest`'s mechanism fixture test moved from MockWebServer to the
+  in-memory `CountingTransport` (the body capture was added) after the enlarged v6 system
+  prompt hit a repeated transport timeout through the local mock server; the pinned bytes
+  and assertions are unchanged.
+
 #### 0.3 Checkout integrity — **possible now**
 
 1. **Off-page / browser-chrome detection and recovery.** After the checkout, a tap that
@@ -241,7 +263,15 @@ the subtask and the stage-2 slate excludes its candidate (the R1-PT five-submit 
 `SUBMIT:`/`fill-field:`/`fill-yield:` — the form-action loops the corpus exposed; a TAP
 loop keeps the Phase-16 L1/L2 recovery behavior (the existing stuck-law pins stay green).
 The full suites are green; `NavigationLoop.run()` 57,416/65,535 (8,119 headroom).
-**Pending: the condition-honesty half (the R1 self-satisfied WEAK condition).**
+**Decision on the condition-honesty half (2026-10-22): NO CODE CHANGE.** The corpus's R1
+self-satisfaction is already covered by the existing condition-honesty gate
+(`ConditionHonesty.proxySatisfied` + the repair/derive/refuse ladder,
+`ConditionHonestyLoopTest` 4/4): a WEAK condition true on the starting page AND naming a
+different page is repaired. The R1 tree run's real defect was the ACCEPT law (Path A
+STRONG-only refusing a satisfied-but-weak condition after the results had genuinely
+loaded), which the owner already decided: writer condition discipline first, no
+`ExitPolicy` change in Phase 17. The vision side has the equivalent weak-at-start rule
+(`VisionLoop.weakAtStart`, `VisionLoopEscapeHatchTest` 7/7).
 
 ---
 

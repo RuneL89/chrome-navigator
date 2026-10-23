@@ -272,7 +272,7 @@ class VisionLoopSearchSubmitTest {
             executor,
             listOf(observation(listOf(bar)), observation(listOf(bar)), doneObservation()),
             evidence,
-        ).run("find a hotel in Riga for next weekend", "search-submit-ungated") { false }
+        ).run("open hotels.test and find a hotel in Riga for next weekend", "search-submit-ungated") { false }
 
         assertEquals(VisionLoop.Terminal.GOAL_ACHIEVED, result.terminal)
         assertEquals(
@@ -306,7 +306,7 @@ class VisionLoopSearchSubmitTest {
             listOf(observation(listOf(bar)), observation(listOf(bar)), doneObservation()),
             evidence,
             gatePresenter = ScriptedGatePresenter(),
-        ).run("find a hotel in Riga for next weekend", "search-submit-product") { false }
+        ).run("open hotels.test and find a hotel in Riga for next weekend", "search-submit-product") { false }
 
         assertEquals(VisionLoop.Terminal.GOAL_ACHIEVED, result.terminal)
         assertEquals(1, executor.submits, "a null submit classification auto-submits on the product path")
@@ -342,7 +342,7 @@ class VisionLoopSearchSubmitTest {
             listOf(page, page, doneObservation()),
             evidence,
             gatePresenter = ScriptedGatePresenter(),
-        ).run("find a hotel in Riga for next weekend", "search-submit-classified") { false }
+        ).run("open hotels.test and find a hotel in Riga for next weekend", "search-submit-classified") { false }
 
         assertEquals(VisionLoop.Terminal.GOAL_ACHIEVED, result.terminal)
         assertEquals(1, executor.entered.size, "the type itself still executes")
@@ -384,7 +384,7 @@ class VisionLoopSearchSubmitTest {
             executor,
             listOf(observation(listOf(pageField)), observation(listOf(pageField)), doneObservation()),
             evidence,
-        ).run("search for hotels in Riga next weekend", "search-submit-page-field") { false }
+        ).run("open hotels.test and search for hotels in Riga next weekend", "search-submit-page-field") { false }
 
         assertEquals(VisionLoop.Terminal.GOAL_ACHIEVED, result.terminal)
         assertEquals(
@@ -412,7 +412,7 @@ class VisionLoopSearchSubmitTest {
             executor,
             listOf(observation(listOf(bar)), observation(listOf(bar)), doneObservation()),
             evidence,
-        ).run("find a hotel in Riga for next weekend", "search-submit-failed") { false }
+        ).run("open hotels.test and find a hotel in Riga for next weekend", "search-submit-failed") { false }
 
         assertEquals(VisionLoop.Terminal.GOAL_ACHIEVED, result.terminal, "a false submit never fails the run")
         assertEquals(1, executor.submits)
@@ -464,7 +464,7 @@ class VisionLoopSearchSubmitTest {
             listOf(page, page, doneObservation()),
             evidence,
             gatePresenter = ScriptedGatePresenter(GateResolution.ApproveWithSecret("card-secret-value")),
-        ).run("sign in to the site", "search-submit-credential") { false }
+        ).run("open accounts.test and sign in to the site", "search-submit-credential") { false }
 
         assertEquals(VisionLoop.Terminal.GOAL_ACHIEVED, result.terminal)
         assertEquals("card-secret-value", executor.entered.single().second, "the card's secret is typed")
@@ -506,7 +506,7 @@ class VisionLoopSearchSubmitTest {
             listOf(observation(listOf(bar)), observation(listOf(bar))),
             evidence,
             gatePresenter = ScriptedGatePresenter(GateResolution.DENIED),
-        ).run("type the saved card into the address bar", "plan-text-gated") { false }
+        ).run("open accounts.test and type the saved card into the address bar", "plan-text-gated") { false }
 
         assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal)
         assertTrue(executor.entered.isEmpty(), "the denied type NEVER executes")
@@ -535,7 +535,7 @@ class VisionLoopSearchSubmitTest {
             listOf(observation(listOf(bar)), observation(listOf(bar)), doneObservation()),
             evidence,
             gatePresenter = ScriptedGatePresenter(),
-        ).run("find a hotel in Riga for next weekend", "plan-text-ordinary") { false }
+        ).run("open hotels.test and find a hotel in Riga for next weekend", "plan-text-ordinary") { false }
 
         assertEquals(VisionLoop.Terminal.GOAL_ACHIEVED, result.terminal)
         assertEquals(
@@ -566,7 +566,7 @@ class VisionLoopSearchSubmitTest {
             executor,
             listOf(observation(listOf(bar)), observation(listOf(bar)), doneObservation()),
             evidence,
-        ).run("find a hotel in Riga for next weekend", "search-submit-same-text") { false }
+        ).run("open hotels.test and find a hotel in Riga for next weekend", "search-submit-same-text") { false }
 
         assertEquals(VisionLoop.Terminal.GOAL_ACHIEVED, result.terminal)
         assertEquals(
@@ -593,7 +593,7 @@ class VisionLoopSearchSubmitTest {
             executor,
             listOf(observation(listOf(bar)), observation(listOf(bar)), doneObservation()),
             evidence,
-        ).run("find a hotel in Riga for next weekend", "search-submit-no-plan-text") { false }
+        ).run("open hotels.test and find a hotel in Riga for next weekend", "search-submit-no-plan-text") { false }
 
         assertEquals(VisionLoop.Terminal.GOAL_ACHIEVED, result.terminal)
         assertEquals(
