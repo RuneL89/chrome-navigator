@@ -3,7 +3,7 @@
     "title":  "The tree-first hybrid â€” Stages 0-3",
     "phaseDoc":  "Implementation Plan/PHASE_17_tree_first_hybrid.md",
     "branch":  "phase-17-tree-first (from exp/tree-first d292a02; master stays at 1a0af26; Phase 16 resumes after Phase 17\u0027s implementation)",
-    "status":  "IN PROGRESS â€” Stage 0 is 7/8 DONE and gated (0.1, 0.2, 0.3, 0.5, 0.6, 0.7, 0.8); 0.4 (field-level forms) remains, then Stages 1-3; Stage 4 is deferred to the post-Phase-17 testing program.",
+    "status":  "IN PROGRESS â€” STAGE 0 IS COMPLETE (0.1-0.8 all DONE and gated). Stages 1-3 remain; Stage 4 is deferred to the post-Phase-17 testing program.",
     "startedAt":  "2026-10-22",
     "source":  "The UAT 16.2 closeout (.state/phase-16-closeout.md) and the Phase 16 UAT corpus",
     "ownerDecisions":  {
@@ -15,7 +15,7 @@
                            "r1Accept":  "STRONG-condition discipline first; no mid-ladder WEAK accept change in Stage 0.8 unless the writer cannot comply."
                        },
     "stages":  {
-                   "0":  "IN PROGRESS â€” 0.1 prefix audit DONE; 0.2 site-first DONE; 0.3 checkout integrity DONE; 0.5 account end state DONE; 0.6 spend/evidence DONE; 0.7 recovery/scroll DONE; 0.8 DONE; 0.4 field-level forms pending",
+                   "0":  "COMPLETE (gated) â€” 0.1 prefix audit, 0.2 site-first, 0.3 checkout integrity, 0.4 field-level forms, 0.5 account end state, 0.6 spend/evidence, 0.7 recovery/scroll, 0.8 same-action binding",
                    "1":  "PENDING â€” the hybrid spine (NavigationLoop + VisionToolStep; the modality and the three signals)",
                    "2":  "PENDING â€” event cadence + raw dual evidence",
                    "3":  "PENDING â€” policy/budget/toggle",
@@ -28,7 +28,8 @@
                         "Gate 17.0.3 â€” checkout integrity: CheckoutIntegrityTest 7/7, CheckoutRecoveryTest 1/1 (the launcher re-opens the checkout URL, never the New tab), NoRedoAfterCheckoutTest 1/1 (the redo ladder refused); the order-control detector (Jatka maksamaan is NOT the order); full suites green; APK 36,358,383; dex v17; run() 57,416/65,535 (8,119)",
                         "Gate 17.0.5 â€” the ACCOUNT_SWITCH end state: AccountEndAcceptTest 4/4 (the R4 refused shape; the switched account visible â†’ stands; the violation names the account; a non-account goal is never blocked); GoalFidelity.finalAcceptViolation wired into VisionLoop.acceptAdvance; full suites green",
                         "Gate 17.0.6 â€” spend/evidence: SpendRecordingTest 5/5 (the provider usage priced through NavigatorVisionBridge.newClients for BOTH channels; the real in=/out=/cost= evidence line with channel + image count; the text-only non-battery call; the run's ONE terminal record carrying modality + calls/jev/haiku/images/battery); ExperimentEvidenceTest (runs.csv jev_calls/haiku_calls/modality; run.json decisionCalls/writerCalls); billed-but-invalid 2xx answers still meter (lenient usage); full :app + :core suites green; APK 37,052,675; run() 57,416/65,535 (8,119)",
-                        "Gate 17.0.7 â€” recovery + long-list: RecoveryScrollTest 2/2 (a back into an unusable page fails the SUBTASK after 3 bounded reads instead of refusing the task after 20; a never-back dead page keeps the full bound); VisionScrollFindTest 3/3 (the pre-act battery held during a scroll sequence with the found-within-cap arrival; the SCROLL-FIND EXHAUSTED cap forcing the re-plan; the acted non-scroll reset); SiteEntryBudgetTest 4/4 (the open cap, the refusal surviving a re-plan, the advance clearing it, the URL key); the landing re-evaluation armed at a re-plan; full suites green; APK 36,830,379; run() 58,699/65,535 (6,836 headroom)"
+                        "Gate 17.0.7 â€” recovery + long-list: RecoveryScrollTest 2/2 (a back into an unusable page fails the SUBTASK after 3 bounded reads instead of refusing the task after 20; a never-back dead page keeps the full bound); VisionScrollFindTest 3/3 (the pre-act battery held during a scroll sequence with the found-within-cap arrival; the SCROLL-FIND EXHAUSTED cap forcing the re-plan; the acted non-scroll reset); SiteEntryBudgetTest 4/4 (the open cap, the refusal surviving a re-plan, the advance clearing it, the URL key); the landing re-evaluation armed at a re-plan; full suites green; APK 36,830,379; run() 58,699/65,535 (6,836 headroom)",
+                        "Gate 17.0.4 â€” field-level forms: FieldFormTest 7/7 (the R3 checkout field facts + the required-first FORM line + the password-value law + the Finnish glossary + the read-back helper + the end-to-end propose body carrying 'FORM: required empty: Etunimi * (first name)'); VisionLoopTypeEditableTest +2 (a landed and a lost field read-back on the SAME field; the loss feeds the failure path); vision-exp-v18 pinned (the proposer/planner form laws); full suites green; APK 36,830,379; dex v18 + FormFacts (v17 gone); run() 58,699/65,535"
                     ],
     "gatesFailed":  [
 
@@ -58,6 +59,6 @@
                    ],
     "llmCost":  0,
     "blocker":  null,
-    "nextAction":  "Stage 0.4 (field-level forms: FormFacts in the vision digest, the empty-required-field proposal, per-field battery facts, the autofill-chip rule, per-field read-back, the Finnish labels). Then the Stage 0 gate (UAT 17.1 corpus) and Stage 1.",
+    "nextAction":  "Stage 1 â€” the hybrid spine: extract VisionToolStep from VisionLoop (behavior-preserving), add the NavigationLoop visionTool seam + the modality field + the three code-owned escalation signals, the subtask reset, and the vision-mode accept; gates 17.1a/b/c (the full vision suite unchanged, ModalityTest/TreeFirstHybridTest, run() >= 6 KB headroom).",
     "mergePolicy":  "No master merge. Phase 16 resumes after Phase 17\u0027s implementation: exp/tree-first merges to master first; phase-17-tree-first rebases onto master and merges after its gates. Stage 4 runs after both merges; the product default decision waits for it."
 }

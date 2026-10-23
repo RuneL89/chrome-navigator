@@ -607,8 +607,20 @@ class VisionExperimentTest {
     }
 
     @Test
-    fun `the prompt version is vision-exp-v17`() {
-        assertEquals("vision-exp-v17", VisionPrompts.VISION_PROMPT_VERSION)
+    fun `the prompt version is vision-exp-v18`() {
+        assertEquals("vision-exp-v18", VisionPrompts.VISION_PROMPT_VERSION)
+    }
+
+    @Test
+    fun `the field-level form law pins v18`() {
+        // PHASE_17 Stage 0.4 — the R3 CDON gap: the empty first-name field was never a
+        // fact any model saw. The digest carries code-read FORM facts; both writers are
+        // told to fill the EMPTY field directly and never treat a chip as its filler.
+        assertTrue(VisionPrompts.PROPOSE_SYSTEM.contains("FIELD-LEVEL FORMS"))
+        assertTrue(VisionPrompts.PROPOSE_SYSTEM.contains("saved-address or autofill CHIP"))
+        assertTrue(VisionPrompts.PROPOSE_SYSTEM.contains("Etunimi"))
+        assertTrue(VisionPrompts.PLAN_SYSTEM.contains("FIELD-LEVEL FORMS"))
+        assertTrue(VisionPrompts.PLAN_SYSTEM.contains("fills only the FOCUSED field"))
     }
 
     @Test

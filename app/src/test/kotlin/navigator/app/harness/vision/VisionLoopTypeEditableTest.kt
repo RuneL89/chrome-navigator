@@ -13,6 +13,7 @@ import navigator.core.wire.WireHttpRequest
 import navigator.core.wire.WireHttpResponse
 import navigator.core.wire.WireTransport
 import navigator.core.wire.WireTransportException
+import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -322,6 +323,96 @@ class VisionLoopTypeEditableTest {
         val stepLine = result.subtaskOutcomes.first { it.startsWith("step 0:") }
         assertTrue("(jev-box)" in stepLine, "the Jev box grounded the editable node: $stepLine")
         assertFalse("(editable:" in stepLine, "no editable marker when the ground node is already editable: $stepLine")
+    }
+
+    // -- the FIELD read-back (PHASE_17 Stage 0.4) -----------------------------------------
+
+    private val typeEtunimi = """
+        {"proposals":[{"description":"the Etunimi field under the address form","action":"type",
+          "text":"Rune Lauritzen",
+          "box":{"top":0.02,"bottom":0.05,"left":0.10,"right":0.90},"confidence":0.9}]}
+    """.trimIndent()
+
+    /** A checkout-style page whose single editable field carries [value]. */
+    private fun etunimiPage(value: String): StepObservation {
+        val label = node(
+            "n0", left = 100, top = 0, right = 900, bottom = 30,
+            clickable = false, editable = false, text = "Etunimi *",
+        )
+        val field = node(
+            "n1", left = 100, top = 40, right = 900, bottom = 100,
+            clickable = false, editable = true, text = value,
+        )
+        return StepObservation(
+            url = "https://cdon.fi/kassa",
+            title = "Kassa | CDON",
+            lines = listOf("Etunimi *", "n1 \"$value\""),
+            nodes = listOf(label, field),
+            windowPackage = "com.android.chrome",
+        )
+    }
+
+    @Test
+    fun `a type whose text never lands is named on the SAME field - and feeds the failure path`() =
+        runBlocking {
+            val transport = ScriptedVisionTransport(
+                chatResponses = ArrayDeque(listOf(chatContent(plan), chatContent(typeEtunimi))),
+                jevResponses = ArrayDeque(
+                    listOf(jevGround(top = 0.02, bottom = 0.05, left = 0.10, right = 0.90), jevNoul(0.9)),
+                ),
+            )
+            val executor = RecordingExecutor()
+            val base = java.nio.file.Files.createTempDirectory("vexp17-readback").toFile()
+            val evidence = VisionEvidence(base, "readback-loss")
+
+            val result = loop(
+                transport, executor,
+                // initial frame, step 0's frame, then the step-1 frame the read-back reads.
+                listOf(etunimiPage(""), etunimiPage(""), etunimiPage("")),
+                evidence,
+            ).run("fill the delivery name on cdon.fi", "readback-loss") { false }
+
+            assertEquals(listOf((500 to 70) to "Rune Lauritzen"), executor.entered)
+            val events = File(base, "readback-loss/events.log").readText()
+            assertTrue(
+                "field read-back: 'Etunimi *' is STILL EMPTY after typing" in events,
+                "the read-back names the FIELD, not the page: $events",
+            )
+            assertEquals(
+                VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal,
+                "the lost text feeds the existing failure path: ${result.subtaskOutcomes}",
+            )
+        }
+
+    @Test
+    fun `a type whose text lands is recorded as landed on the same field`() = runBlocking {
+        val transport = ScriptedVisionTransport(
+            chatResponses = ArrayDeque(
+                listOf(chatContent(plan), chatContent(typeEtunimi), chatContent("""{"proposals":[]}""")),
+            ),
+            jevResponses = ArrayDeque(
+                listOf(jevGround(top = 0.02, bottom = 0.05, left = 0.10, right = 0.90), jevNoul(0.9)),
+            ),
+        )
+        val executor = RecordingExecutor()
+        val base = java.nio.file.Files.createTempDirectory("vexp17-readback-ok").toFile()
+        val evidence = VisionEvidence(base, "readback-ok")
+
+        val result = loop(
+            transport, executor,
+            listOf(etunimiPage(""), etunimiPage(""), etunimiPage("Rune Lauritzen")),
+            evidence,
+        ).run("fill the delivery name on cdon.fi", "readback-ok") { false }
+
+        val events = File(base, "readback-ok/events.log").readText()
+        assertTrue(
+            "field read-back: 'Etunimi *' carries the typed text" in events,
+            "the landed verdict is recorded: $events",
+        )
+        assertEquals(
+            VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal,
+            "the fixture's condition still asks for done.test: ${result.subtaskOutcomes}",
+        )
     }
 
     // -- the pure helper ------------------------------------------------------------------

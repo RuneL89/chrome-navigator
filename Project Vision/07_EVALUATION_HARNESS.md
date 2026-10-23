@@ -1,10 +1,14 @@
 # Verification & Evaluation
 
 **Document ID:** `NAVIGATOR-VISION-007`
-**Version:** 2.2.0 *(amended 2026-10-22: the tree-first TARGET evaluation — the
-switching-policy gates and the acceptance criteria (correctness first, then time per
-correct run, image calls and escalation rate) are recorded as target gates; they are
-explicitly NOT implemented. Owner-authorized DeepSeek Flash amendment; the GLM-5.3
+**Version:** 2.3.0 *(amended 2026-10-23 (PHASE_17 Stage 0.4): the vision prompt version is
+v18 and the field-level form law — the digest's code-read `FORM:` facts, the empty-field
+fill rule, the autofill-chip law and the per-field read-back — joins the change gate
+through `VISION_PROMPT_VERSION`. The live-run review for the v18 prompt change is UAT 17.1
+(the Stage 0 corpus), per the phase's scope. Amended 2026-10-22: the tree-first TARGET
+evaluation — the switching-policy gates and the acceptance criteria (correctness first,
+then time per correct run, image calls and escalation rate) are recorded as target gates;
+they are explicitly NOT implemented. Owner-authorized DeepSeek Flash amendment; the GLM-5.3
 exception is recorded in `Project Vision/AGENTS.md` and `.state/compliance-log.md`.
 Amended 2026-10-21 (PHASE_16): the prompt version is v16 and the goal-fidelity/loop-guard
 tests join the gates. Amended 2026-10-20 (UAT repair round 2): the pick-level translate
@@ -18,8 +22,8 @@ pins, capture law, gate floor and ladder schema join the change-gate list. That
 amendment was owner-authorized in a DeepSeek Flash session; the GLM-5.3 exception is
 recorded in `.state/compliance-log.md`)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-06, 2026-10-10, 2026-10-11,
-2026-10-12, 2026-10-17, 2026-10-18, 2026-10-20, 2026-10-21; tree-first target recorded
-2026-10-22 — target, not current capability)
+2026-10-12, 2026-10-17, 2026-10-18, 2026-10-20, 2026-10-21, 2026-10-23; tree-first
+target recorded 2026-10-22 — target, not current capability)
 **Date:** 2026-10-03
 **Implements:** ART-7 (versioned forms gate), doc 02 §5 (pins), doc 03 §3 (taxonomy),
 doc 04 (loop laws)

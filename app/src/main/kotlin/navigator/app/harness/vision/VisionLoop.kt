@@ -450,6 +450,16 @@ class VisionLoop(
     private var churnHintLogged = false
 
     /**
+     * PHASE_17 Stage 0.4 — the pending FIELD read-back: the (field node id, typed text)
+     * of the last successful type, verified against the SAME field on the next
+     * observation. Cleared when consumed and at every run start.
+     */
+    private var pendingTypeReadBack: Pair<String, String>? = null
+
+    /** The fields already reported as not-landed under the current subtask (one failure each). */
+    private val readBackLosses = mutableSetOf<String>()
+
+    /**
      * PHASE_16 — the SAME-ACTION counter (the binding loop guard). It follows ACTED
      * TAP/TYPE/SUBMIT proposals only (verb + target node); scroll/back and a Failed
      * proposal never touch it. At [Config.sameActionFilterAfter] the proposer is told to
@@ -593,6 +603,8 @@ class VisionLoop(
         consecutiveScrolls = 0
         churnHintLogged = false
         resetSameAction() // PHASE_16: the same-action memory never crosses runs/tasks
+        pendingTypeReadBack = null // PHASE_17 Stage 0.4: no read-back crosses a run
+        readBackLosses.clear()
         failuresSinceAdvance = 0 // PHASE_17: the prefix audit never crosses runs/tasks
         lastObservedUrl = obs.url
         stepPurchaseControlVisible = PurchaseControl.hasVisible(obs.nodes)
@@ -654,6 +666,8 @@ class VisionLoop(
             consecutiveScrolls = 0
             churnHintLogged = false
             resetSameAction() // PHASE_16: a new subtask is a new action space
+            pendingTypeReadBack = null // PHASE_17 Stage 0.4: no read-back crosses a subtask
+            readBackLosses.clear()
             step += 1
             return null
         }
@@ -719,6 +733,30 @@ class VisionLoop(
 
             obs = observer.observe()
             shot = captureSafely(screenshots++)
+            // PHASE_17 Stage 0.4 — THE FIELD READ-BACK (the R3 "the first name never
+            // landed" gap): a type's verdict is read from the SAME field, and a field
+            // that is still empty feeds the failure path instead of being re-typed
+            // blindly on a later page state.
+            pendingTypeReadBack?.let { (nodeId, typedText) ->
+                pendingTypeReadBack = null
+                val field = FormFacts.fieldById(obs.nodes, nodeId)
+                when {
+                    field == null -> evidence.event(
+                        "field read-back: the typed field $nodeId is no longer on the page",
+                    )
+                    FormFacts.landed(obs.nodes, nodeId, typedText) -> evidence.event(
+                        "field read-back: '${field.label}' carries the typed text",
+                    )
+                    readBackLosses.add(nodeId) -> {
+                        val line = "field read-back: '${field.label}' is STILL EMPTY after typing " +
+                            "(${typedText.length} chars) - the text did not land; the next proposal must fill THIS field"
+                        log("[vision] $line")
+                        evidence.event(line)
+                        consecutiveFailures += 1
+                        failuresSinceAdvance += 1
+                    }
+                }
+            }
             // PHASE_VEXP8: a URL change is a new page — the scroll-churn counter resets.
             if (lastObservedUrl != null && obs.url != lastObservedUrl) {
                 consecutiveScrolls = 0
@@ -1086,6 +1124,14 @@ class VisionLoop(
                         // re-plan gate never fires (measured live 2026-10-17).
                         if (attempted.progresses) consecutiveFailures = 0
                         if (attempted.typed != null) typedSoFar = attempted.typed
+                        // PHASE_17 Stage 0.4 — the FIELD read-back: a type's verdict is
+                        // read from the SAME field on the next observation (the R3
+                        // "the name never landed" gap), never from the page.
+                        if (attempted.action == VisionPrompts.ProposalAction.TYPE &&
+                            attempted.actedNodeId != null && attempted.typed != null
+                        ) {
+                            pendingTypeReadBack = attempted.actedNodeId to attempted.typed
+                        }
                     }
                     is Attempted.Failed -> {
                         stepLine += "FAILED (${attempted.reason})"
@@ -2762,6 +2808,9 @@ class VisionLoop(
     private fun digest(o: StepObservation): String = buildString {
         append("TITLE: ").append(o.title).append('\n')
         append("URL: ").append(o.url).append('\n')
+        // PHASE_17 Stage 0.4: the form's FIELD facts (code-read, never guessed) — the
+        // R3 gap: no step ever said "the first-name field is empty".
+        FormFacts.factLine(o.nodes)?.let { append(it).append('\n') }
         append(o.lines.take(60).joinToString("\n"))
     }
 }

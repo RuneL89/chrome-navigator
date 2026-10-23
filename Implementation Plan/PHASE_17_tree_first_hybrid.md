@@ -229,6 +229,44 @@ the order-control detection.
 refusal when the target input is unfocused; the field read-back on a rejected text entry;
 the Finnish label mapping.
 
+**0.4 implementation status (2026-10-23): DONE (JVM); the CDON tree-mode comparison is
+UAT 17.1.**
+- New `harness/vision/FormFacts.kt` (pure): every editable field with its label (desc →
+  placeholder → the row label just above → the container context), its value, its
+  `required` marker (`*` / required / pakollinen), the `empty` state, the one-line
+  `FORM:` digest fact (required-empty first, then empty, then filled, plus the chip law
+  sentence), the Finnish→English glossary (`Etunimi`=first name, `Katuosoite`=street
+  address, `Postinumero`=postal code, `Postitoimipaikka`=postal city, `Sukunimi`,
+  `Puhelin`, `Sähköposti`, …), and the per-field read-back (`landed`). A password field's
+  value never renders.
+- The vision digest now carries the `FORM:` line (one line, before the page text), so the
+  proposer, the re-plan and the repair turns all see the field facts.
+- `VisionPrompts` → **`vision-exp-v18`**: the proposer's FIELD-LEVEL FORMS rule (fill
+  every EMPTY field by targeting THAT field; a saved-address/autofill chip fills only the
+  FOCUSED field and is never a substitute; never continue/place-order while a required
+  field is empty) and the planner's field-level verify rule for form subtasks (a question
+  naming the specific field). The chip rule is writer-side BY DESIGN: the a11y tree
+  carries no focus flag, so a code-side "chip tap while another input is unfocused"
+  refusal would guess; the repeated-chip loop is already bounded by the same-action
+  binding.
+- The per-field READ-BACK in `VisionLoop`: after a successful `type`, the SAME field is
+  re-read on the next observation — `carries the typed text`, `STILL EMPTY … the text did
+  not land` (one failure per field per subtask → the existing re-plan path), or the field
+  is gone. Never a page-level judgement.
+- Tests: `FieldFormTest` 7/7 (the field facts, the required-first fact line, no fields, a
+  password value never rendered, the glossary, the read-back helper, and the end-to-end
+  propose request carrying `FORM: required empty: Etunimi * (first name)`);
+  `VisionLoopTypeEditableTest` +2 (a landed and a lost read-back on the SAME field, the
+  lost one feeding the failure path); `VisionExperimentTest` (the v18 pin + the form-law
+  pins). Full `:app` + `:core` suites green; APK 36,830,379 bytes; dex carries
+  `vision-exp-v18` + `FormFacts` (v17 gone); `NavigationLoop.run()` 58,699/65,535
+  (6,836 headroom).
+- **The prompt change gate (doc 07 §4):** the JVM run is green; the live-run review is
+  UAT 17.1 (the R3 checkout anchor), recorded as the phase's own corpus — no separate
+  waiver needed.
+- **Not code (UAT 17.1):** the CDON tree-mode comparison (the R3 tree arm never reached
+  the checkout) and the translate-first-at-checkout behaviour are judged live.
+
 #### 0.5 ACCOUNT_SWITCH end state at `GOAL_ACHIEVED` — **possible now**
 
 At the final accept, if `GoalFidelity` classes include `ACCOUNT_SWITCH`, require the
