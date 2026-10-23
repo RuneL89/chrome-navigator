@@ -476,6 +476,44 @@ boundary/re-plan); no flip in vision mode; the extraction is behavior-preserving
 a11y and vision suites green with no prompt/fixture changes); a tree-only policy arm
 reproduces the a11y ladder tests; a vision-only arm reproduces the vision tests.
 
+**1 implementation status (2026-10-23): DONE (the spine; one recorded shape deviation).**
+- **The seam:** `harness/hybrid/VisionToolStep` (`fun interface`) returning
+  `SubtaskOutcome.Done(steps, noul) | Failed(cause, steps) | Cancelled`, plus the
+  `VisionLoopTool` adapter. `NavigationLoop` gains `visionTool: VisionToolStep? = null`
+  (null = tree-only, byte-identical — the whole existing suite is the gate), the
+  `SubtaskModality` enum and the `subtaskModality`/`visionEscapeCause` class fields.
+- **The vision tool's implementation — the deviation:** the doc proposed physically moving
+  `attemptStep` + ~1,600 lines of helpers into `VisionToolStep`. Delivered instead:
+  `VisionLoop.runSubtask(goal, ladder, index, checks, isCancelled)` — a bounded
+  subtask-scoped mode over the SAME proven machinery (the same per-step resets,
+  propose/ground/gate/act, `attemptStep`, the code-first accept with the weak-at-start
+  guard, the accept-side battery concurrence, the battery/churn/scroll-find escalations as
+  causes). It never plans/advances/re-plans. Rationale: zero behavior-preservation risk,
+  ONE implementation shared with the always-vision reference, and the host depends on the
+  INTERFACE either way. The extraction remains available if the tool must run without a
+  `VisionLoop` instance.
+- **The three code-owned signals** (the model never requests the modality): thin/empty
+  tree → the unusable-tree branch hands the subtask to the tool (a mid-ladder vision
+  accept `continue`s; it never falls through to REFUSED); no unique candidate/ground →
+  `cascadeFallbackStep` (the UNCERTAIN-after-re-ask and no-good-target funnel) tries the
+  tool before the failure/re-plan; no screen change → the stuck L1 hint arms
+  `visionEscapeCause` and the loop top runs the escape next iteration.
+- **The host's routing:** Done → the SAME `advanceAfterSubtaskAccept` path the a11y accept
+  uses (one reset path; the synthesized verdict `HIGH/STRONG` carries the tool's own
+  recorded Jev noul) or the goal's conclusion on the final subtask; Failed → the existing
+  `handleSubtaskFailureOrKill` with the tool's cause; Cancelled → the owner cancel. The
+  modality resets to TREE on every exit, at run start, plan install and verified advance.
+- Tests: `ModalityTest` 3/3 (the thin-tree flip + tool index + the shared accept + the TREE
+  reset; the tool's failure entering the host's failure path; no tool → no flip, REFUSED
+  unchanged). Full `:app` + `:core` suites green; APK 36,868,562 bytes.
+- **Gate 17.1c DEVIATION (recorded):** `NavigationLoop.run()` is 61,197/65,535 — 4,338
+  bytes headroom, BELOW the 6 KB discipline gate (the hooks + the loop-top check cost
+  ~2,500 bytes; the JVM hard cap is untouched). The remediation — moving the
+  off-page/checkout tracking or the triage block out of `run` — is a **Stage 2
+  prerequisite**.
+- The product route is NOT wired yet (no product path constructs a tool): Stage 3 owns the
+  `TREE_FIRST` selector; `ALWAYS_VISION` stays the product default.
+
 ---
 
 ### Stage 2 — event-driven Haiku + raw dual evidence — **possible now**

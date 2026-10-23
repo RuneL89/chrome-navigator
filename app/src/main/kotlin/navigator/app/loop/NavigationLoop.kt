@@ -212,6 +212,16 @@ class NavigationLoop(
      * a decision (the same fire-and-forget discipline as [uiListener]).
      */
     private val experimentProbe: ExperimentProbe = ExperimentProbe.None,
+    /**
+     * PHASE_17 Stage 1 — THE HYBRID SEAM: the vision TOOL. When wired, the loop owns the
+     * ladder/pointer/accept/terminal exactly as today, and its three CODE-OWNED
+     * escalation signals (a thin/empty tree, no unique candidate/ground, no screen
+     * change) hand the ACTIVE subtask to the vision tool for the REST OF THAT SUBTASK;
+     * when the tool reports the outcome evidenced, the pointer advances and the next
+     * subtask starts on the tree again (modality reset). The model never requests the
+     * modality. Null (the default) = the tree-only loop, byte-identical.
+     */
+    private val visionTool: navigator.app.harness.hybrid.VisionToolStep? = null,
 ) {
 
     /**
@@ -309,6 +319,17 @@ class NavigationLoop(
      * CLASS field (the method-size discipline).
      */
     private var lastActionWasBack = false
+
+    /**
+     * PHASE_17 Stage 1 — the run's FRONT modality. Reset to TREE at run start, on a
+     * verified advance and on a plan install; set to VISION only by the code-owned
+     * escalation signals while the vision tool executes one subtask. A URL change never
+     * resets it (the vision tool keeps the subtask across pages).
+     */
+    private var subtaskModality = SubtaskModality.TREE
+
+    /** PHASE_17 Stage 1 — the pending escalation's cause (set by the stuck L1 hint). */
+    private var visionEscapeCause: String? = null
 
     data class Config(
         /** Vision 03 §5: fewer meaningful nodes than this = unusable tree. */
@@ -471,6 +492,9 @@ class NavigationLoop(
         typeMechSubtaskKey = null
         typeMechFailedLegs.clear()
         siteEntryBudget.onNewSubtask()
+        lastActionWasBack = false
+        subtaskModality = SubtaskModality.TREE
+        visionEscapeCause = null
         noGoodIntent = null
         noGoodIntentCount = 0
         failuresSinceAdvance = 0
@@ -976,6 +1000,14 @@ class NavigationLoop(
                 1 -> {
                     line("stuck: L1 hint injected (${assessment.signals})")
                     hints.add(StuckDetector.HINT)
+                    // PHASE_17 Stage 1 — the NO-SCREEN-CHANGE signal: the same screen with
+                    // no progress is the third code-owned cue for the vision tool (armed
+                    // here; the loop top runs the escape on the next iteration).
+                    if (visionTool != null && ladder != null && pointer != null &&
+                        subtaskModality == SubtaskModality.TREE
+                    ) {
+                        visionEscapeCause = "no screen change: ${assessment.signals}"
+                    }
                     if (binding) {
                         line("stuck: same action repeated - the next decide comes from the recovery set")
                         recoveryArmed = true
@@ -1051,6 +1083,8 @@ class NavigationLoop(
             siteEntryBudget.onNewPlan() // a new plan: fresh site-entry budget (refusals survive)
             bannedActionKey = null // a new plan: a fresh action space
             lastActionWasBack = false // a new plan: no stale back fact
+            subtaskModality = SubtaskModality.TREE // a new plan starts on the tree
+            visionEscapeCause = null
             noGoodIntent = null // a new plan: fresh intent-strategy memory
             noGoodIntentCount = 0
             lastCodeCheck = null // a fresh ladder: the code-check rate bound starts clean
@@ -1839,6 +1873,77 @@ class NavigationLoop(
                 ?: profile?.spendHardMicroUsd ?: TaskBudget.SPEND_HARD_MICRO_USD,
         )
 
+        // -- PHASE_17 Stage 1: the hybrid escalation (the vision tool) ------------------
+
+        /**
+         * The vision tool's ACCEPT: the tool evidenced the ACTIVE subtask's outcome, so
+         * the host advances through the SAME verified-subtask machinery the a11y accept
+         * uses ([advanceAfterSubtaskAccept] — one reset path, never two). The FINAL
+         * subtask concludes the goal. The modality resets to TREE: the next subtask
+         * starts on the tree (the target loop's law).
+         */
+        suspend fun acceptVisionSubtask(visionSteps: Int, noul: Double): RunResult? {
+            val p = pointer ?: return null
+            val l = ladder ?: return null
+            if (p.index == l.subtasks.lastIndex) {
+                return finish(
+                    TerminalState.GOAL_ACHIEVED,
+                    "the vision tool evidenced the final subtask " +
+                        "(${p.active.instruction.take(80)}) in $visionSteps vision step(s)",
+                    stepIndex + 1,
+                )
+            }
+            advanceAfterSubtaskAccept(ExitDecision.Accept(ExitPath.HIGH, GuardLevel.STRONG, noul), p)
+            line("modality: TREE (the vision tool's subtask is verified)")
+            return null
+        }
+
+        /**
+         * THE CODE-OWNED TREE→VISION ESCALATION (PHASE_17 Stage 1). Runs the vision tool
+         * for the ACTIVE subtask and routes its verdict into the EXISTING host paths:
+         * Done → the verified-subtask advance (or the goal's conclusion), Failed → the
+         * bounded failure/re-plan path (with the tool's cause), Cancelled → the owner
+         * cancel. Null only when no tool/ladder/subtask is wired (the tree-only loop is
+         * byte-identical: this is never called).
+         */
+        suspend fun tryVisionEscape(cause: String): RunResult? {
+            val tool = visionTool ?: return null
+            val l = ladder ?: return null
+            val p = pointer ?: return null
+            if (subtaskModality == SubtaskModality.VISION) return null
+            subtaskModality = SubtaskModality.VISION
+            val flip = "modality: VISION (escalated: $cause) - subtask ${p.activeOrdinal}/${p.total}"
+            line(flip)
+            history.add("step $stepIndex: modality VISION - $cause")
+            val outcome = try {
+                tool.runSubtask(goalText, l, p.index, isCancelled)
+            } catch (t: Throwable) {
+                navigator.app.harness.hybrid.SubtaskOutcome.Failed(
+                    "the vision tool failed loudly (${t::class.simpleName}: ${t.message?.take(120)})",
+                    0,
+                )
+            }
+            // Every exit resets the modality: a failed vision subtask returns the host to
+            // the tree (its re-plan is a tree plan).
+            subtaskModality = SubtaskModality.TREE
+            return when (outcome) {
+                is navigator.app.harness.hybrid.SubtaskOutcome.Done ->
+                    acceptVisionSubtask(outcome.steps, outcome.noul)
+                is navigator.app.harness.hybrid.SubtaskOutcome.Failed -> {
+                    line(
+                        "vision subtask ${p.activeOrdinal}/${p.total} FAILED " +
+                            "(${outcome.cause}) - modality: TREE",
+                    )
+                    handleSubtaskFailureOrKill("vision tool: ${outcome.cause}")
+                }
+                navigator.app.harness.hybrid.SubtaskOutcome.Cancelled -> finish(
+                    TerminalState.USER_CANCEL,
+                    "cancelled during the vision subtask",
+                    stepIndex,
+                )
+            }
+        }
+
         while (true) {
             /**
              * The post-step bookkeeping (extracted in Phase 10D — `run()`'s JVM 64 KB
@@ -2162,6 +2267,14 @@ class NavigationLoop(
             // -- budget (hard = clean stop; soft = warn once) ---------------------------
             budgetStep()?.let { return it }
 
+            // -- PHASE_17 Stage 1: the pending code-owned escalation -------------------
+            // The stuck L1 hint (no screen change) arms it; the vision tool takes the
+            // ACTIVE subtask for the rest of the subtask.
+            visionEscapeCause?.let { cause ->
+                visionEscapeCause = null
+                tryVisionEscape(cause)?.let { return it }
+            }
+
             /**
              * OBSERVE with the unusable-retry law (doc 03 §5; extracted in Phase 10C to keep
              * `run` under the JVM method-size limit): fresh reads until usable or the bound;
@@ -2269,6 +2382,18 @@ class NavigationLoop(
             // -- 1. OBSERVE (fresh; unusable tree -> graceful refusal, doc 03 §5) -------
             val obsOrNull = observeUsable()
             if (obsOrNull == null) {
+                // PHASE_17 Stage 1 — the THIN/EMPTY TREE signal: with the vision tool
+                // wired, an unusable a11y tree is the vision modality's cue, not a
+                // whole-task refusal (the model reads the screenshot). A mid-ladder
+                // vision ACCEPT returns null (the next subtask continues on the tree);
+                // the loop then re-observes rather than refusing the page.
+                if (visionTool != null && ladder != null && pointer != null &&
+                    subtaskModality == SubtaskModality.TREE
+                ) {
+                    tryVisionEscape("thin/empty tree: the accessibility tree is unusable")
+                        ?.let { return it }
+                    continue
+                }
                 // PHASE_17 Stage 0.7 (the R4-tree defect): a `back` that landed on an
                 // unreadable/no-browser surface is a SUBTASK failure, not a whole-task
                 // refusal — the ladder's re-plan can recover (e.g. re-open the site).
@@ -2777,6 +2902,10 @@ class NavigationLoop(
                 )
                 history.add("step $stepIndex: cascade fallback - $cause")
                 stepIndex += 1
+                // PHASE_17 Stage 1 — the NO-UNIQUE-CANDIDATE/GROUND signal: the tree could
+                // not pick a target (UNCERTAIN after the re-ask, or a no-good-target
+                // slate) — the vision tool takes the ACTIVE subtask before any re-plan.
+                tryVisionEscape("no unique candidate/ground: $cause")?.let { return it }
                 return handleSubtaskFailureOrKill(cause)
             }
 
@@ -4665,6 +4794,14 @@ data class RunResult(
     val decisionCalls: Int = 0,
     val writerCalls: Int = 0,
 )
+
+/**
+ * PHASE_17 Stage 1 — the run's FRONT modality in the hybrid host: TREE by default; VISION
+ * only while the code-owned escalation hands the ACTIVE subtask to the vision tool. The
+ * model never requests a modality; the code owns both directions (the three signals in,
+ * the subtask-boundary reset out).
+ */
+enum class SubtaskModality { TREE, VISION }
 
 /**
  * The stage-2 outcome of one live slate (Phase 10C extraction: the loop's `run` body stays

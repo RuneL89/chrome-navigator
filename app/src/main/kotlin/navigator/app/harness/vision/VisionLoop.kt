@@ -248,6 +248,11 @@ class VisionLoop(
          * non-scroll, a URL change, a subtask advance and a new plan.
          */
         val scrollFindMax: Int = 8,
+        /**
+         * PHASE_17 Stage 1 — the vision TOOL's step bound for ONE hybrid subtask (the
+         * host loop escalated to vision; the tool must report back, never wander).
+         */
+        val subtaskMaxSteps: Int = 40,
     ) {
         init {
             require(scrollChurnReplanAfter >= scrollChurnHintAfter) {
@@ -1387,6 +1392,232 @@ class VisionLoop(
          * refusal + the abort truth); it never renders typed values.
          */
         data class GateAborted(val detail: String) : Attempted
+    }
+
+    /**
+     * PHASE_17 Stage 1 — THE VISION TOOL ENTRY: run ONE ladder subtask and report its
+     * outcome. The host loop (`NavigationLoop`) escalated to vision; this method owns
+     * the vision STEP for the active subtask (propose/ground/gate/act + the writer's
+     * battery + the accept-side concurrence) and NEVER plans, advances, or re-plans —
+     * those are the host's laws. Bounded by [Config.subtaskMaxSteps] and
+     * [Config.stepFailuresBeforeReplan] consecutive failures.
+     *
+     * Behaviorally a subset of [runLoop]'s step: the same per-step resets, the same
+     * code-first accept with the weak-at-start guard, the same accept-side battery
+     * concurrence, the same battery/churn/scroll-find escalations (reported as causes,
+     * not re-planned here), and the same [attemptStep].
+     */
+    suspend fun runSubtask(
+        goal: String,
+        ladder: Ladder,
+        index: Int,
+        checks: List<VisionPrompts.VerifyCheck> = emptyList(),
+        isCancelled: () -> Boolean,
+    ): navigator.app.harness.hybrid.SubtaskOutcome {
+        val active = ladder.subtasks.getOrNull(index)
+            ?: return navigator.app.harness.hybrid.SubtaskOutcome.Failed(
+                "no subtask at index $index (ladder has ${ladder.subtasks.size})", 0,
+            )
+        val doneText = DoneConditionChecker.render(active.done)
+        val counters = mutableMapOf<String, Int>()
+        val actedNodeIds = mutableSetOf<String>()
+        var typedSoFar: String? = null
+        var step = 0
+        var screenshots = 0
+        var consecutiveFailures = 0
+        var subtaskStartHash: Int? = null
+
+        // The same per-subtask resets the host loop's advance performs.
+        stepBattery = emptyList()
+        stepEscalation = null
+        stepGrounding = null
+        stepConditionSatisfied = false
+        lastBatteryResults = emptyList()
+        lastBatteryHash = null
+        batteryEscalatedWithoutAction = false
+        repairAttempted.clear()
+        consecutiveScrolls = 0
+        churnHintLogged = false
+        resetSameAction()
+        pendingTypeReadBack = null
+        readBackLosses.clear()
+        lastObservedUrl = null
+        taskGate = TaskGate()
+
+        fun done() = navigator.app.harness.hybrid.SubtaskOutcome.Done(step)
+        fun failed(cause: String) = navigator.app.harness.hybrid.SubtaskOutcome.Failed(cause, step)
+
+        while (true) {
+            if (isCancelled()) return navigator.app.harness.hybrid.SubtaskOutcome.Cancelled
+            if (step >= config.subtaskMaxSteps) {
+                return failed("the vision subtask hit its step bound (${config.subtaskMaxSteps})")
+            }
+            when (val check = budget.stepCheck(step)) {
+                is ExpBudget.Check.Hard -> {
+                    evidence.event("budget hard stop: ${check.detail}")
+                    return failed("budget hard stop: ${check.detail}")
+                }
+                is ExpBudget.Check.Soft -> log("[vision] budget soft: ${check.detail}")
+                ExpBudget.Check.Ok -> {}
+            }
+            stepBattery = emptyList()
+            stepEscalation = null
+            stepGrounding = null
+            stepConditionSatisfied = false
+
+            val obs = observer.observe()
+            if (subtaskStartHash == null) subtaskStartHash = obs.screenHash
+            val shot = captureSafely(screenshots++)
+            if (readBackVerdict(obs)) consecutiveFailures += 1
+            if (lastObservedUrl != null && obs.url != lastObservedUrl) {
+                consecutiveScrolls = 0
+                churnHintLogged = false
+                resetSameAction()
+            }
+            lastObservedUrl = obs.url
+            stepPurchaseControlVisible = PurchaseControl.hasVisible(obs.nodes)
+
+            val weakAtStart = when (DoneConditionChecker.guardStrength(active.done)) {
+                DoneConditionChecker.GuardStrength.WEAK ->
+                    obs.screenHash == subtaskStartHash
+                else -> false
+            }
+            val doneNow = codeDone(active, obs, counters, answersProduced = 0)
+            stepConditionSatisfied = doneNow
+            if (!weakAtStart && doneNow) {
+                val finalWeak = index == ladder.subtasks.lastIndex &&
+                    DoneConditionChecker.guardStrength(active.done) ==
+                    DoneConditionChecker.GuardStrength.WEAK
+                val concurs = if (checks.isEmpty()) {
+                    !finalWeak
+                } else {
+                    batteryConcurs(
+                        batteryResults(checks, obs, shot),
+                        config.redFlagAbove,
+                        config.noulAgreeAbove,
+                    )
+                }
+                if (concurs) {
+                    val opinions = recordedOpinions(active, obs, shot)
+                    evidence.event(
+                        "vision subtask ${index + 1}/${ladder.subtasks.size} DONE after $step step(s) " +
+                            "(${active.instruction.take(60)}) ${opinions.render}",
+                    )
+                    return navigator.app.harness.hybrid.SubtaskOutcome.Done(
+                        steps = step,
+                        noul = opinions.noul ?: 0.0,
+                    )
+                }
+                consecutiveFailures += 1
+                evidence.event(
+                    "vision subtask ${index + 1}: ACCEPT REFUSED - the code condition is satisfied " +
+                        "but the verify battery does not concur",
+                )
+            }
+
+            val scrollFindInProgress = consecutiveScrolls > 0 && consecutiveScrolls < config.scrollFindMax
+            var escalateCause: String? = null
+            if (checks.isNotEmpty() && !batteryEscalatedWithoutAction && scrollFindInProgress) {
+                evidence.event(
+                    "battery held: a scroll-to-find is in progress ($consecutiveScrolls scroll(s))",
+                )
+            }
+            if (checks.isNotEmpty() && !batteryEscalatedWithoutAction && !scrollFindInProgress) {
+                val results = batteryResults(checks, obs, shot)
+                when (val gate = batteryGate(results, config.redFlagAbove, config.noulAgreeAbove)) {
+                    is BatteryGate.RedFlags -> {
+                        escalateCause = "verification battery red flag(s): " +
+                            gate.flags.joinToString("; ")
+                        stepEscalation = VisionPrompts.EscalationKind.RED_FLAGS
+                    }
+                    BatteryGate.OutcomeAchieved -> {
+                        // The repair turn belongs to the host loop (a plan change); the
+                        // tool reports the mis-shaped condition as its cause.
+                        escalateCause = "verification battery: the subtask outcome is ALREADY visible " +
+                            "on this page while the done-condition is not satisfied"
+                        stepEscalation = VisionPrompts.EscalationKind.OUTCOME_ACHIEVED_WHILE_CONDITION_UNMET
+                    }
+                    BatteryGate.Proceed -> {}
+                }
+                if (escalateCause != null) {
+                    evidence.event("vision subtask ${index + 1}: BATTERY ESCALATE - $escalateCause")
+                    return failed(escalateCause)
+                }
+            }
+            val churnStop = consecutiveScrolls >= config.scrollChurnReplanAfter &&
+                stepPurchaseControlVisible
+            if (churnStop) {
+                return failed(
+                    "scroll churn: $consecutiveScrolls consecutive scrolls with a visible purchase control",
+                )
+            }
+            if (consecutiveScrolls >= config.scrollFindMax) {
+                val exhausted = consecutiveScrolls
+                consecutiveScrolls = 0
+                return failed(
+                    "SCROLL-FIND EXHAUSTED - $exhausted consecutive scrolls without the target",
+                )
+            }
+
+            val churn = if (consecutiveScrolls >= config.scrollChurnHintAfter) {
+                VisionPrompts.ScrollChurn(consecutiveScrolls, stepPurchaseControlVisible)
+            } else {
+                null
+            }
+            when (val attempted = attemptStep(
+                active, doneText, obs, shot, counters, actedNodeIds, typedSoFar, "", churn,
+            )) {
+                is Attempted.Acted -> {
+                    if (attempted.typed != null) typedSoFar = attempted.typed
+                    if (attempted.progresses) consecutiveFailures = 0
+                    if (attempted.action == VisionPrompts.ProposalAction.TYPE &&
+                        attempted.actedNodeId != null && attempted.typed != null
+                    ) {
+                        pendingTypeReadBack = attempted.actedNodeId to attempted.typed
+                    }
+                }
+                is Attempted.Failed -> {
+                    consecutiveFailures += 1
+                    evidence.event(
+                        "vision subtask ${index + 1}: step $step FAILED (${attempted.reason})",
+                    )
+                    if (consecutiveFailures >= config.stepFailuresBeforeReplan) {
+                        return failed("the vision step failed: ${attempted.reason}")
+                    }
+                }
+                is Attempted.GateAborted -> return failed("guard abort: ${attempted.detail}")
+            }
+            step += 1
+        }
+    }
+
+    /**
+     * PHASE_17 Stage 0.4 — the field read-back verdict (shared by the reference loop and
+     * the hybrid tool). Returns true when a loss was recorded (the caller counts it).
+     */
+    private fun readBackVerdict(obs: StepObservation): Boolean {
+        val pending = pendingTypeReadBack ?: return false
+        pendingTypeReadBack = null
+        val (nodeId, typedText) = pending
+        val field = FormFacts.fieldById(obs.nodes, nodeId)
+        return when {
+            field == null -> {
+                evidence.event("field read-back: the typed field $nodeId is no longer on the page")
+                false
+            }
+            FormFacts.landed(obs.nodes, nodeId, typedText) -> {
+                evidence.event("field read-back: '${field.label}' carries the typed text")
+                false
+            }
+            readBackLosses.add(nodeId) -> {
+                val line = "field read-back: '${field.label}' is STILL EMPTY after typing " +
+                    "(${typedText.length} chars) - the text did not land; the next proposal must fill THIS field"
+                log("[vision] $line")
+                evidence.event(line)
+                true
+            }
+            else -> false
+        }
     }
 
     private suspend fun attemptStep(
