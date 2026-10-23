@@ -541,6 +541,29 @@ image present at every event request; the tree-side capture; the assist removed 
 stuck event carries the same evidence); the plan/re-plan prompts unchanged in their
 contracts.
 
+**2 implementation status (2026-10-23): PARTIAL — 2.1 and 2.2 DONE; 2.3/2.4 remain
+(prompt-gated).**
+- **2.1 (cadence) pinned:** `EventCadenceTest` — a ladder run over 3+ tree steps calls the
+  writer ONCE (the plan) and never per step. For the vision tool, the per-step propose is
+  the vision step's authoring (documented, not a writer event); the always-vision route is
+  unchanged.
+- **2.2 (raw dual evidence) DONE:** new `harness/vision/VisionLadderSource` — the hybrid's
+  ladder source over the VISION planner: ONE plan/re-plan call per event carrying the
+  CURRENT screenshot (capture read per call) + the a11y page digest, the re-plan carrying
+  the failure cause + page facts + the REPLAN_SKILL addendum, the SAME `LadderSchema` +
+  `GoalFidelity` validation as the a11y route, the writer-authored verify battery
+  (`parseVerifyBlocks`) and enterText fields, provenance `vision-exp-v18/gen<n>` and the
+  provider-reported cost. A capture failure degrades to text-only with a loud line; a
+  fidelity violation or a malformed plan is refused, never installed.
+- Tests: `VisionLadderSourceTest` 5/5 (the screenshot + digest on the plan; the re-plan's
+  cause/page facts/skill; the capture-failure degrade; the site-first violation refused;
+  the malformed plan refused).
+- **Remaining (2.3/2.4):** the subtask-boundary judgment (Haiku over the dual evidence
+  judging whether the plan still holds, feeding the re-plan) and the stuck event replacing
+  the a11y per-page assist handshake. Both add NEW prompt surfaces (`BOUNDARY_SYSTEM` /
+  the stuck prompt) and therefore require the doc 07 §4 prompt-change gate (a version
+  bump + the live-run review); they are scheduled as the next Stage 2 increment.
+
 ---
 
 ### Stage 3 — policy, budget, toggle — **possible now + owner decisions**

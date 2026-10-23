@@ -3,7 +3,7 @@
     "title":  "The tree-first hybrid â€” Stages 0-3",
     "phaseDoc":  "Implementation Plan/PHASE_17_tree_first_hybrid.md",
     "branch":  "phase-17-tree-first (from exp/tree-first d292a02; master stays at 1a0af26; Phase 16 resumes after Phase 17\u0027s implementation)",
-    "status":  "IN PROGRESS â€” STAGE 0 COMPLETE (8/8 gated); STAGE 1 DONE (the hybrid spine + the modality + the three signals; Gate 17.1c headroom deviation recorded). Stages 2-3 remain; Stage 4 is deferred to the post-Phase-17 testing program.",
+    "status":  "IN PROGRESS â€” STAGE 0 COMPLETE (8/8); STAGE 1 DONE (the hybrid spine; 17.1c resolved at 58,257/65,535); STAGE 2 PARTIAL (2.1 cadence + 2.2 VisionLadderSource DONE; 2.3 boundary judgment + 2.4 stuck event remain, prompt-gated). Stage 3 next; Stage 4 deferred.",
     "startedAt":  "2026-10-22",
     "source":  "The UAT 16.2 closeout (.state/phase-16-closeout.md) and the Phase 16 UAT corpus",
     "ownerDecisions":  {
@@ -17,7 +17,7 @@
     "stages":  {
                    "0":  "COMPLETE (gated) â€” 0.1 prefix audit, 0.2 site-first, 0.3 checkout integrity, 0.4 field-level forms, 0.5 account end state, 0.6 spend/evidence, 0.7 recovery/scroll, 0.8 same-action binding",
                    "1":  "DONE (gated; 17.1c headroom deviation recorded) â€” the VisionToolStep seam, the SubtaskModality state, the three code-owned signals, the host's accept/failure/cancel routing, the TREE reset",
-                   "2":  "PENDING â€” event cadence + raw dual evidence",
+                   "2":  "PARTIAL â€” 2.1 event cadence PINNED (EventCadenceTest: one writer call per plan, zero per tree step) and 2.2 raw dual evidence DONE (VisionLadderSource: the plan/re-plan over the vision planner with the screenshot + the a11y digest, the same schema/fidelity laws, the battery/enterText fields, vision-exp-v18 provenance); 2.3 the boundary judgment and 2.4 the stuck event REMAIN (new prompt surfaces -> the doc 07 section 4 gate)",
                    "3":  "PENDING â€” policy/budget/toggle",
                    "4":  "DEFERRED â€” the post-Phase-17 testing program"
                },
