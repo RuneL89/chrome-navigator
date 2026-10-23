@@ -58,11 +58,16 @@ class VisionJev(
     val model: String,
     private val apiKey: String,
     private val onUsage: (VisionUsage) -> Unit = {},
+
     /** Public read-only so the JVM tests pin the 100x directive's ceiling. */
     val maxRetries: Int = 20,
     private val backoffBaseMs: Long = 200L,
     private val retryDelay: suspend (Long) -> Unit = { delay(it) },
 ) {
+
+    /** The LAST successful call's usage (PHASE_17 Stage 0.6: the evidence's per-call cost). */
+    var lastUsage: VisionUsage? = null
+        private set
 
     /** Provider-reported usage of one call (the cost float is preferred when present). */
     data class VisionUsage(val inputTokens: Long, val outputTokens: Long, val costMicroUsd: Long)
@@ -147,7 +152,16 @@ class VisionJev(
                         "Body: ${response.body.take(300)}",
                 )
             }
-            val parsed = parseResponse(response.body, questions, what)
+            val parsed = try {
+                parseResponse(response.body, questions, what)
+            } catch (e: Exception) {
+                // PHASE_17 Stage 0.6: a 2xx answer that fails validation was still
+                // billed — meter the envelope's usage when it carries one, then rethrow
+                // (the caller's degrade path keeps the call's cost visible).
+                lenientUsage(response.body)?.let { lastUsage = it; onUsage(it) }
+                throw e
+            }
+            lastUsage = parsed.second
             onUsage(parsed.second)
             onRaw?.invoke(body, response.body)
             return parsed.first
@@ -314,6 +328,18 @@ class VisionJev(
             val costFloat = (o["cost"] as? JsonPrimitive)?.content?.toDoubleOrNull()
             val costMicro = if (costFloat != null) (costFloat * 1_000_000).toLong() else jevCost(input, output)
             return VisionUsage(input, output, costMicro)
+        }
+
+        /**
+         * PHASE_17 Stage 0.6: the usage of a response whose ANSWERS did not validate —
+         * null when the envelope carries no readable usage object. Never throws (the
+         * caller is already on an error path).
+         */
+        internal fun lenientUsage(responseBody: String): VisionUsage? = try {
+            val usage = Json.parseToJsonElement(responseBody).jsonObject["usage"] as? JsonObject
+            usage?.let { readUsage(it, "lenient") }
+        } catch (e: Exception) {
+            null
         }
 
         /** The production decision-engine price table (SpendPrices): $3/M in, $15/M out. */

@@ -230,6 +230,36 @@ class ExperimentEvidenceTest {
         )
     }
 
+    /**
+     * PHASE_17 Stage 0.6 — the run's call counts reach `runs.csv` (they were empty
+     * placeholders: the corpus had no measurement), and the shared record names the
+     * modality + the escalation cause.
+     */
+    @Test
+    fun `the runs csv fills the call counters and the modality`() {
+        val counted = run.copy(decisionCalls = 17, writerCalls = 6)
+        val csv = ExperimentEvidence.runsCsv(
+            runId = "task-1",
+            r = counted,
+            m = ExperimentEvidence.Meta(
+                goalId = "t1",
+                arm = "tree",
+                modality = "TREE",
+                escalationCause = null,
+            ),
+            rows = emptyList(),
+        )
+        val lines = csv.trim().lines()
+        assertEquals(ExperimentEvidence.RUNS_HEADER.joinToString(","), lines[0])
+        val fields = splitCsv(lines[1])
+        val byName = ExperimentEvidence.RUNS_HEADER.zip(fields).toMap()
+        assertEquals("17", byName["jev_calls"])
+        assertEquals("6", byName["haiku_calls"])
+        assertEquals("0", byName["images_sent"], "the tree arm sends no images")
+        assertEquals("TREE", byName["modality"])
+        assertEquals("", byName["escalation_cause"])
+    }
+
     // -- the files -------------------------------------------------------------------
 
     @Test
@@ -262,6 +292,9 @@ class ExperimentEvidenceTest {
             assertEquals("ENGINE_TERMINAL", json["stopReason"]!!.jsonPrimitive.content)
             assertEquals("true", json["success"]!!.jsonPrimitive.content)
             assertEquals(1, json["seams"]!!.let { it.toString().split("\"seam\"").size - 1 })
+            // PHASE_17 Stage 0.6: the record names the modality and the call counts.
+            assertEquals("TREE", json["modality"]!!.jsonPrimitive.content)
+            assertEquals("0", json["decisionCalls"]!!.jsonPrimitive.content)
 
             val steps = File(written, ExperimentEvidence.STEPS_CSV).readText().trim().lines()
             assertEquals(2, steps.size) // header + one decision

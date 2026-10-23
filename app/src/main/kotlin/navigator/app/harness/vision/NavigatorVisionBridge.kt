@@ -158,6 +158,41 @@ object NavigatorVisionBridge {
      * live-log masking (D2): the service supplies the corner overlay's current bounds;
      * null (the adb activity) leaves the capture byte-identical.
      */
+    /**
+     * The two model clients over ONE ledger — the exact construction [newVisionLoop]
+     * uses (extracted so the JVM gate can pin the spend wiring without a device):
+     * every Jev call meters decision spend, every Haiku call meters the task ledger
+     * AND the writer sub-ledger (whose soft/hard verdicts ride [log]).
+     */
+    fun newClients(
+        transport: WireTransport,
+        openRouterKey: String,
+        typesafeKey: String,
+        budget: ExpBudget,
+        log: (String) -> Unit = {},
+    ): Pair<VisionJev, VisionHaiku> {
+        val jev = VisionJev(
+            transport = transport,
+            baseUrl = VisionJev.DEFAULT_VISION_BASE_URL,
+            model = VisionJev.DEFAULT_VISION_MODEL,
+            apiKey = typesafeKey,
+            onUsage = { budget.recordSpend(it.costMicroUsd, writerSurface = false) },
+        )
+        val haiku = VisionHaiku(
+            transport = transport,
+            apiKey = openRouterKey,
+            onUsage = { usage ->
+                budget.recordSpend(usage.costMicroUsd, writerSurface = true)
+                when (val w = budget.writerCheck()) {
+                    is ExpBudget.Check.Soft -> log("[vision] ${w.detail}")
+                    is ExpBudget.Check.Hard -> log("[vision] writer hard cap: ${w.detail}")
+                    ExpBudget.Check.Ok -> {}
+                }
+            },
+        )
+        return jev to haiku
+    }
+
     fun newVisionLoop(
         observer: LoopObserver,
         executor: ActionExecutor,
@@ -192,25 +227,7 @@ object NavigatorVisionBridge {
     ): VisionLoop {
         val budget = ExpBudget()
         val evidence = VisionEvidence(evidenceDir, runId)
-        val jev = VisionJev(
-            transport = transport,
-            baseUrl = VisionJev.DEFAULT_VISION_BASE_URL,
-            model = VisionJev.DEFAULT_VISION_MODEL,
-            apiKey = typesafeKey,
-            onUsage = { budget.recordSpend(it.costMicroUsd, writerSurface = false) },
-        )
-        val haiku = VisionHaiku(
-            transport = transport,
-            apiKey = openRouterKey,
-            onUsage = { usage ->
-                budget.recordSpend(usage.costMicroUsd, writerSurface = true)
-                when (val w = budget.writerCheck()) {
-                    is ExpBudget.Check.Soft -> log("[vision] ${w.detail}")
-                    is ExpBudget.Check.Hard -> log("[vision] writer hard cap: ${w.detail}")
-                    ExpBudget.Check.Ok -> {}
-                }
-            },
-        )
+        val (jev, haiku) = newClients(transport, openRouterKey, typesafeKey, budget, log)
         return VisionLoop(
             observer = observer,
             executor = executor,

@@ -59,6 +59,14 @@ object ExperimentEvidence {
         val stopReason: String = "ENGINE_TERMINAL",
         val stoppedAtMs: Long? = null,
         val monitorStop: Boolean = false,
+        /**
+         * PHASE_17 Stage 0.6: the run's FRONT modality and the code-owned escalation
+         * cause that flipped it (null = no flip this run). Pre-Stage-1 the tree arm is
+         * always `TREE` with no escalation — the fields exist so the record schema is
+         * shared by both arms from the start.
+         */
+        val modality: String = "TREE",
+        val escalationCause: String? = null,
     )
 
     /**
@@ -122,6 +130,10 @@ object ExperimentEvidence {
         put("stopReason", m.stopReason)
         put("stoppedAtMs", m.stoppedAtMs)
         put("monitorStop", m.monitorStop)
+        put("modality", m.modality)
+        put("escalationCause", m.escalationCause)
+        put("decisionCalls", r.decisionCalls)
+        put("writerCalls", r.writerCalls)
         put("exit", (r.exit?.let {
             buildJsonObject {
                 put("path", it.path)
@@ -260,6 +272,9 @@ object ExperimentEvidence {
         "t_first_action_ms", "jev_calls", "haiku_calls", "images_sent", "spend_usd",
         "escalations", "escalations_by_mode", "interventions", "interventions_correct",
         "failure_class", "reset_ok", "stop_reason", "stopped_at_ms",
+        // PHASE_17 Stage 0.6 — shared by both arms: where the run started and what
+        // flipped it. The tree arm reports TREE / no cause until Stage 1 lands.
+        "modality", "escalation_cause",
     )
 
     fun runsCsv(runId: String, r: RunResult, m: Meta, rows: List<StepRow>): String {
@@ -278,9 +293,9 @@ object ExperimentEvidence {
                     r.steps.toString(),
                     r.elapsedMs.toString(),
                     firstAction,
-                    "", // jev_calls — the Stage-2 probe fills it
-                    "", // haiku_calls
-                    "", // images_sent
+                    r.decisionCalls.toString(), // jev_calls
+                    r.writerCalls.toString(), // haiku_calls
+                    "0", // images_sent — the a11y arm sends none
                     num(r.spendMicroUsd.toDouble() / 1_000_000.0),
                     "0", // escalations
                     "", // escalations_by_mode
@@ -290,6 +305,8 @@ object ExperimentEvidence {
                     m.resetOk?.toString() ?: "",
                     m.stopReason,
                     m.stoppedAtMs?.toString() ?: "",
+                    m.modality,
+                    csvField(m.escalationCause),
                 ).joinToString(","),
             )
         }

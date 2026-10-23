@@ -43,10 +43,15 @@ class SpendMeter : SpendRecorder {
 
     val spentMicroUsd: Long get() = microUsd
 
+    /** Completed engine (Jev) wire calls — the run record's `jev_calls` (PHASE_17 Stage 0.6). */
+    var calls: Int = 0
+        private set
+
     override fun record(inputTokens: Int, outputTokens: Int) {
         require(inputTokens >= 0 && outputTokens >= 0) { "token counts must be >= 0" }
         microUsd += inputTokens * SpendPrices.INPUT_MICRO_USD_PER_1K / 1_000
         microUsd += outputTokens * SpendPrices.OUTPUT_MICRO_USD_PER_1K / 1_000
+        calls += 1
     }
 }
 

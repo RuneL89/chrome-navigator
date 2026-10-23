@@ -36,11 +36,16 @@ class VisionHaiku(
     private val model: String = GenEngineConfigs.GENERATIVE_MODEL,
     val ablateVision: Boolean = false,
     private val onUsage: (VisionJev.VisionUsage) -> Unit = {},
+
     /** Public read-only so the JVM tests pin the 100x directive's ceiling. */
     val maxRetries: Int = 20,
     private val backoffBaseMs: Long = 200L,
     private val retryDelay: suspend (Long) -> Unit = { delay(it) },
 ) {
+
+    /** The LAST successful call's usage (PHASE_17 Stage 0.6: the evidence's per-call cost). */
+    var lastUsage: VisionJev.VisionUsage? = null
+        private set
 
     class VisionHaikuException(message: String) : IllegalStateException(message)
 
@@ -81,14 +86,21 @@ class VisionHaiku(
                         "during $what — not retried. Body: ${response.body.take(300)}",
                 )
             }
-            val content = parseContent(response.body, what)
-            val root = Json.parseToJsonElement(response.body).jsonObject
+            // PHASE_17 Stage 0.6: the usage is read and metered BEFORE the content parse
+            // — a 2xx response that answers badly was still billed, and the run's spend
+            // ledger must say so (the caller's degrade path can then record the call).
+            val root = try {
+                Json.parseToJsonElement(response.body).jsonObject
+            } catch (e: Exception) {
+                throw VisionHaikuException("$what: malformed JSON response: ${e.message}")
+            }
             val usage = root["usage"] as? kotlinx.serialization.json.JsonObject
             val input = longOf(usage, "prompt_tokens")
             val output = longOf(usage, "completion_tokens")
-            onUsage(
-                VisionJev.VisionUsage(input, output, GenClient.writerCostMicroUsd(input, output)),
-            )
+            val used = VisionJev.VisionUsage(input, output, GenClient.writerCostMicroUsd(input, output))
+            lastUsage = used
+            onUsage(used)
+            val content = parseContent(response.body, what)
             onRaw?.invoke(body, response.body)
             return content
         }

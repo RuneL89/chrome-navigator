@@ -91,6 +91,41 @@ class VisionEvidence(baseDir: File?, val runId: String) {
 
     val grounding = GroundingMetrics()
 
+    /**
+     * PHASE_17 Stage 0.6: which model channel a call took. The run record's
+     * `jev_calls`/`haiku_calls` split (the acceptance metrics) needs the fact the
+     * evidence line alone cannot infer from a free-form kind.
+     */
+    enum class Channel { JEV, HAIKU }
+
+    private val callCounts = mutableMapOf<String, Int>()
+
+    /** Completed calls by kind (`ground`, `verify-battery`, `plan`, ...). */
+    @Synchronized
+    fun callCounts(): Map<String, Int> = callCounts.toMap()
+
+    @Synchronized
+    fun totalCalls(): Int = callCounts.values.sum()
+
+    @Synchronized
+    fun channelCalls(channel: Channel): Int = channelCounts[channel] ?: 0
+
+    /** Images that actually rode a request (a call with no frame contributes zero). */
+    @Synchronized
+    fun imagesSent(): Int = images
+
+    /**
+     * The verification battery's calls (Jev nouls + Haiku confirms) — the acceptance
+     * metric that says how much of the spend the battery itself consumed.
+     */
+    @Synchronized
+    fun batteryCalls(): Int = callCounts.entries.sumOf { (kind, n) ->
+        if (kind == "battery" || kind == "verify-battery") n else 0
+    }
+
+    private val channelCounts = mutableMapOf<Channel, Int>()
+    private var images = 0
+
     /** Writes one screenshot + its metadata; returns the file path or null (memory-only). */
     @Synchronized
     fun screenshot(index: Int, shot: VisionCapture.ScreenShot, jpegBytes: ByteArray?): String? {
@@ -121,15 +156,23 @@ class VisionEvidence(baseDir: File?, val runId: String) {
         latencyMs: Long,
         usage: VisionJev.VisionUsage?,
         note: String? = null,
+        channel: Channel? = null,
+        images: Int = 0,
     ) {
         if (dir != null) {
             val n = nextCallIndex++
             File(dir, "call-%03d-$kind.req.json".format(n)).writeText(requestBody)
             File(dir, "call-%03d-$kind.res.json".format(n)).writeText(responseBody)
         }
+        callCounts[kind] = (callCounts[kind] ?: 0) + 1
+        channel?.let { channelCounts[it] = (channelCounts[it] ?: 0) + 1 }
+        this.images += images
         event(
             "call $kind ${latencyMs}ms in=${usage?.inputTokens ?: 0} out=${usage?.outputTokens ?: 0} " +
-                "cost=${usage?.costMicroUsd ?: 0}µ\$" + (note?.let { " $it" } ?: ""),
+                "cost=${usage?.costMicroUsd ?: 0}µ\$" +
+                (channel?.let { " channel=${it.name}" } ?: "") +
+                (if (images > 0) " images=$images" else "") +
+                (note?.let { " $it" } ?: ""),
         )
     }
 
@@ -141,11 +184,30 @@ class VisionEvidence(baseDir: File?, val runId: String) {
         dir?.let { File(it, "events.log").appendText(stamped + "\n") }
     }
 
+    /**
+     * PHASE_17 Stage 0.6: the run's call accounting as ONE record — total calls, the
+     * Jev/Haiku split, images that rode requests, and the battery's own share (the
+     * acceptance metrics of the target loop's vision tool).
+     */
+    @Synchronized
+    fun callSummaryJson(): kotlinx.serialization.json.JsonObject = buildJsonObject {
+        put("jevCalls", channelCalls(Channel.JEV))
+        put("haikuCalls", channelCalls(Channel.HAIKU))
+        put("totalCalls", totalCalls())
+        put("imagesSent", imagesSent())
+        put("batteryCalls", batteryCalls())
+        put(
+            "byKind",
+            buildJsonObject { callCounts.toSortedMap().forEach { (k, n) -> put(k, n) } },
+        )
+    }
+
     /** The metrics + event tail as JSON (the caller embeds it in the run report). */
     @Synchronized
     fun summaryJson(): kotlinx.serialization.json.JsonObject = buildJsonObject {
         put("runId", runId)
         put("grounding", grounding.summarize())
+        put("calls", callSummaryJson())
         put("events", buildJsonArray { events.takeLast(200).forEach { add(JsonPrimitive(it)) } })
     }
 

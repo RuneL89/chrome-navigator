@@ -390,6 +390,10 @@ class NavigatorService : Service() {
                         arm = "tree",
                         stopReason = stopReason,
                         monitorStop = monitorStop,
+                        // PHASE_17 Stage 0.6: the a11y arm is the tree-only arm; it has
+                        // no escalation cause until the hybrid host loop lands (Stage 1).
+                        modality = "TREE",
+                        escalationCause = null,
                     ),
                     seams = experimentProbe.snapshot(),
                 )

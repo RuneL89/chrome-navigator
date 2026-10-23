@@ -268,6 +268,37 @@ accepted only with the recorded evidence; no evidence → refused; PURCHASE unch
 **Tests:** a recorded spend > 0 on a scripted call; the modality/cause fields in a fixture
 run; the evidence fields present in both arms.
 
+**0.6 implementation status (2026-10-23): DONE.**
+- `VisionJev`/`VisionHaiku` now expose `lastUsage` (the last successful call's
+  provider-reported usage). A 2xx response whose ANSWERS fail validation is still billed,
+  so both clients meter it before/despite the parse: Jev reads the envelope's usage
+  leniently and rethrows (`lenientUsage`); Haiku prices before parsing the content.
+- Every vision model call now rides `VisionEvidence.call(..., channel, images)` — the
+  record's `in=/out=/cost=µ$` line carries the REAL usage, the channel, and the image
+  count. The previously unrecorded calls (`propose`, `confirm`, `extract`,
+  `verify-noul`, `verify-goal`) join the ledger; a degraded ground response is recorded
+  as `ground-failed` with its usage, so the call ledger balances against the spend ledger.
+  `VisionEvidence.callSummaryJson()` (jev/haiku/total/images/battery/byKind) rides
+  `summaryJson()`, and the vision run writes ONE terminal record:
+  `terminal=<T> steps=<n> replans=<n> modality=VISION calls=<n> jev=<n> haiku=<n>
+  images=<n> battery=<n> escalations=0`.
+- The a11y arm: `SpendMeter.calls` / `WriterBudget.calls` count the completed wire calls;
+  `RunResult.decisionCalls/writerCalls` carry them; `ExperimentEvidence` adds `modality`
+  + `escalation_cause` (run.json and runs.csv) and fills `jev_calls`/`haiku_calls`
+  (`images_sent` = 0 by construction on the tree arm).
+- The bridge's client construction is extracted as `NavigatorVisionBridge.newClients`
+  (one ledger, the exact product wiring) so the JVM gate pins the spend path, not a copy.
+- **Logcat decision (recorded, not a code change):** the app evidence IS the run record —
+  the vision `events.log` + `run-reports/vision-exp/` and the a11y `runs.csv`/`steps.csv`/
+  `run.json`. The product path has no logcat filter to fix (the vision evidence class is
+  Android-free and mirrors the corner log); a 0-line logcat capture costs the corpus
+  nothing as long as the evidence dir is pulled.
+- Tests: `SpendRecordingTest` 5/5 (the ledger through the product wiring, both channels;
+  the real `in=/out=/cost=` line with channel+images; the text-only non-battery call; the
+  run's terminal record); `ExperimentEvidenceTest` (the runs.csv counters + modality; the
+  run.json fields). Full `:app` + `:core` suites green; APK 37,052,675 bytes;
+  `NavigationLoop.run()` 57,416/65,535 (8,119 headroom).
+
 #### 0.7 Recovery + long-list policy — **possible now**
 
 - A `back` that lands on an unreadable/no-browser state fails the subtask into the re-plan

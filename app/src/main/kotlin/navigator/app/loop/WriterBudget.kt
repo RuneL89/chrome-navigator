@@ -26,6 +26,10 @@ class WriterBudget(
     /** Total writer spend so far this task (integer micro-dollars). */
     val spentMicroUsd: Long get() = microUsd
 
+    /** Completed writer calls — the run record's `haiku_calls` (PHASE_17 Stage 0.6). */
+    var calls: Int = 0
+        private set
+
     enum class Check {
         /** The call's cost fit under both caps. */
         OK,
@@ -47,6 +51,7 @@ class WriterBudget(
     fun record(costMicroUsd: Long): Check {
         require(costMicroUsd >= 0) { "writer cost must be >= 0 micro-USD: $costMicroUsd" }
         microUsd += costMicroUsd
+        calls += 1
         return when {
             microUsd >= hardMicroUsd -> Check.HARD
             microUsd >= softMicroUsd -> {

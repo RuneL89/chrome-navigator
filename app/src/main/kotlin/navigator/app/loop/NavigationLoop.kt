@@ -772,6 +772,8 @@ class NavigationLoop(
                 ladder = ladderReport(terminal),
                 answer = extractedAnswer?.let { it.copy(text = scrub(it.text)) },
                 writerSpendMicroUsd = writerBudget.spentMicroUsd,
+                decisionCalls = spendMeter.calls,
+                writerCalls = writerBudget.calls,
             )
         }
 
@@ -4601,6 +4603,13 @@ data class RunResult(
      * [spendMicroUsd], the decision spend; the two caps never mix.
      */
     val writerSpendMicroUsd: Long = 0,
+    /**
+     * PHASE_17 Stage 0.6 (the measurement prerequisite): completed engine wire calls
+     * (the decision cascade) and writer calls (restructure/re-plan/extraction). The
+     * a11y experiment record's `jev_calls`/`haiku_calls`; zero on a stub run.
+     */
+    val decisionCalls: Int = 0,
+    val writerCalls: Int = 0,
 )
 
 /**

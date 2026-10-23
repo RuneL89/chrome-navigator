@@ -507,6 +507,15 @@ class VisionLoop(
             ?.take(TERMINAL_ANSWER_CHARS)
         evidence.event(
             "terminal=${result.terminal.name} steps=${result.stepsUsed} replans=${result.replans}" +
+                // PHASE_17 Stage 0.6 — THE RUN RECORD: the modality, the call ledger
+                // (spend + images + the battery's share) and the escalation count ride
+                // ONE terminal line. The always-vision arm never escalates
+                // (modality=VISION, escalations=0 by construction); the hybrid host
+                // loop's record carries its own flips from Stage 1.
+                " modality=VISION calls=${evidence.totalCalls()}" +
+                " jev=${evidence.channelCalls(VisionEvidence.Channel.JEV)}" +
+                " haiku=${evidence.channelCalls(VisionEvidence.Channel.HAIKU)}" +
+                " images=${evidence.imagesSent()} battery=${evidence.batteryCalls()} escalations=0" +
                 (answer?.let { " answer=$it" } ?: ""),
         )
         return result
@@ -1305,6 +1314,9 @@ class VisionLoop(
         scrollChurn: VisionPrompts.ScrollChurn?,
     ): Attempted {
         val proposals = try {
+            var rawReq = ""
+            var rawRes = ""
+            val started = System.currentTimeMillis()
             VisionPrompts.parseProposals(
                 haiku.chat(
                     VisionPrompts.PROPOSE_SYSTEM,
@@ -1314,9 +1326,17 @@ class VisionLoop(
                     ),
                     shot?.base64,
                     "propose",
-                ),
+                ) { req, res -> rawReq = req; rawRes = res },
                 "propose",
-            )
+            ).also {
+                // PHASE_17 Stage 0.6: the primary writer call is recorded like every
+                // other model call — its spend AND its image count ride the evidence.
+                evidence.call(
+                    "propose", rawReq, rawRes, System.currentTimeMillis() - started, haiku.lastUsage,
+                    channel = VisionEvidence.Channel.HAIKU,
+                    images = if (shot != null) 1 else 0,
+                )
+            }
         } catch (e: Exception) {
             return Attempted.Failed("propose refused (${e.javaClass.simpleName}: ${e.message?.take(120)})")
         }
@@ -1355,15 +1375,20 @@ class VisionLoop(
                     ),
                 )
             }
+            var rawReq = ""
+            var rawRes = ""
+            val started = System.currentTimeMillis()
             try {
-                var rawReq = ""
-                var rawRes = ""
-                val started = System.currentTimeMillis()
                 val answers = jev.ask(
                     groundState(active, doneText, obs, imageRef), questions, shot.base64, imageRef, "ground",
                     onRaw = { req, res -> rawReq = req; rawRes = res },
                 )
-                evidence.call("ground", rawReq, rawRes, System.currentTimeMillis() - started, null, note = jev.describe)
+                evidence.call(
+                    "ground", rawReq, rawRes, System.currentTimeMillis() - started, jev.lastUsage,
+                    note = jev.describe,
+                    channel = VisionEvidence.Channel.JEV,
+                    images = 1,
+                )
                 val jevPick = answers["pick"] as? VisionJev.Answer.Choice
                 if (translateIndex != null) {
                     pickIndex = translateIndex
@@ -1384,6 +1409,17 @@ class VisionLoop(
                     (answers["b$i"] as? VisionJev.Answer.Box)?.let { jevBoxes[i] = it }
                 }
             } catch (e: Exception) {
+                // PHASE_17 Stage 0.6: a validated-failed answer is still a billed call —
+                // its usage (set leniently by the client) and its image ride the
+                // evidence under a distinct kind, so the corpus's call ledger balances.
+                if (rawReq.isNotEmpty()) {
+                    evidence.call(
+                        "ground-failed", rawReq, rawRes, System.currentTimeMillis() - started,
+                        jev.lastUsage,
+                        channel = VisionEvidence.Channel.JEV,
+                        images = 1,
+                    )
+                }
                 evidence.event("ground degraded (boxes+pick): ${e.message?.take(160)} — first proposal, haiku-box fallback")
                 pickIndex = translateIndex ?: 0
             }
@@ -1406,7 +1442,10 @@ class VisionLoop(
                     null, VisionJev.newImageRef(), "ground-choice",
                     onRaw = { req, res -> rawReq = req; rawRes = res },
                 )
-                evidence.call("ground-choice", rawReq, rawRes, System.currentTimeMillis() - started, null)
+                evidence.call(
+                    "ground-choice", rawReq, rawRes, System.currentTimeMillis() - started, jev.lastUsage,
+                    channel = VisionEvidence.Channel.JEV,
+                )
                 (answers["pick"] as? VisionJev.Answer.Choice)?.let { pick ->
                     pickIndex = when {
                         pick.chosen == "none" || !pick.chosen.startsWith("p") ->
@@ -2301,7 +2340,11 @@ class VisionLoop(
                 shot?.base64,
                 "repair",
             ) { req, res -> rawReq = req; rawRes = res }
-            evidence.call("repair", rawReq, rawRes, System.currentTimeMillis() - started, null)
+            evidence.call(
+                "repair", rawReq, rawRes, System.currentTimeMillis() - started, haiku.lastUsage,
+                channel = VisionEvidence.Channel.HAIKU,
+                images = if (shot != null) 1 else 0,
+            )
             answer
         } catch (e: Exception) {
             evidence.event(
@@ -2432,8 +2475,10 @@ class VisionLoop(
                 onRaw = { req, res -> rawReq = req; rawRes = res },
             )
             evidence.call(
-                "verify-battery", rawReq, rawRes, 0, null,
+                "verify-battery", rawReq, rawRes, 0, jev.lastUsage,
                 note = if (shot != null) jev.describe else null,
+                channel = VisionEvidence.Channel.JEV,
+                images = if (shot != null) 1 else 0,
             )
             checks.mapIndexed { i, _ -> (answers["v$i"] as? VisionJev.Answer.Noul)?.pTrue }
         } catch (e: Exception) {
@@ -2451,7 +2496,11 @@ class VisionLoop(
                     shot.base64,
                     "battery",
                 ) { req, res -> rawReq = req; rawRes = res }
-                evidence.call("battery", rawReq, rawRes, 0, null)
+                evidence.call(
+                    "battery", rawReq, rawRes, 0, haiku.lastUsage,
+                    channel = VisionEvidence.Channel.HAIKU,
+                    images = 1,
+                )
                 val answered = VisionPrompts.parseBatteryAnswers(content, questions, "battery")
                 checks.map { c -> answered.firstOrNull { it.question == c.question }?.answer }
             } catch (e: Exception) {
@@ -2476,7 +2525,10 @@ class VisionLoop(
     private suspend fun goalOpinion(goal: String, active: Subtask, obs: StepObservation): Double? {
         val doneText = DoneConditionChecker.render(active.done)
         return try {
-            (jev.ask(
+            var rawReq = ""
+            var rawRes = ""
+            val started = System.currentTimeMillis()
+            val noul = (jev.ask(
                 digest(obs),
                 listOf(
                     VisionJev.Question.Noul(
@@ -2487,7 +2539,13 @@ class VisionLoop(
                     ),
                 ),
                 null, VisionJev.newImageRef(), "verify-goal",
+                onRaw = { req, res -> rawReq = req; rawRes = res },
             )["goal"] as? VisionJev.Answer.Noul)?.pTrue
+            evidence.call(
+                "verify-goal", rawReq, rawRes, System.currentTimeMillis() - started, jev.lastUsage,
+                channel = VisionEvidence.Channel.JEV,
+            )
+            noul
         } catch (e: Exception) {
             evidence.event("goal noul refused: ${e.message?.take(120)}")
             null
@@ -2501,6 +2559,9 @@ class VisionLoop(
         // preserved); the battery is the channel that judges text+image together.
         var noul: Double? = null
         try {
+            var rawReq = ""
+            var rawRes = ""
+            val started = System.currentTimeMillis()
             noul = (jev.ask(
                 digest(obs),
                 listOf(
@@ -2511,20 +2572,33 @@ class VisionLoop(
                     ),
                 ),
                 null, VisionJev.newImageRef(), "verify-noul",
+                onRaw = { req, res -> rawReq = req; rawRes = res },
             )["done"] as? VisionJev.Answer.Noul)?.pTrue
+            evidence.call(
+                "verify-noul", rawReq, rawRes, System.currentTimeMillis() - started, jev.lastUsage,
+                channel = VisionEvidence.Channel.JEV,
+            )
         } catch (e: Exception) {
             evidence.event("verify noul refused: ${e.message?.take(120)}")
         }
         var confirm: Boolean? = null
         try {
+            var rawReq = ""
+            var rawRes = ""
+            val started = System.currentTimeMillis()
             confirm = VisionPrompts.parseConfirm(
                 haiku.chat(
                     VisionPrompts.CONFIRM_SYSTEM,
                     VisionPrompts.confirmUser(active.instruction, doneText, digest(obs)),
                     shot?.base64,
                     "confirm",
-                ),
+                ) { req, res -> rawReq = req; rawRes = res },
             )?.first
+            evidence.call(
+                "confirm", rawReq, rawRes, System.currentTimeMillis() - started, haiku.lastUsage,
+                channel = VisionEvidence.Channel.HAIKU,
+                images = if (shot != null) 1 else 0,
+            )
         } catch (e: Exception) {
             evidence.event("confirm refused: ${e.message?.take(120)}")
         }
@@ -2565,7 +2639,12 @@ class VisionLoop(
                 val content = haiku.chat(system, user, shot?.base64, "plan") { req, res ->
                     rawReq = req; rawRes = res
                 }
-                evidence.call(if (failure == null) "plan" else "replan", rawReq, rawRes, 0, null)
+                evidence.call(
+                    if (failure == null) "plan" else "replan",
+                    rawReq, rawRes, 0, haiku.lastUsage,
+                    channel = VisionEvidence.Channel.HAIKU,
+                    images = if (shot != null) 1 else 0,
+                )
                 // The battery parses FIRST (it is not part of the product Ladder type):
                 // a malformed battery is a refused attempt and feeds the error-fed retry.
                 val battery = VisionPrompts.parseVerifyBlocks(content, "plan")
@@ -2590,12 +2669,21 @@ class VisionLoop(
     }
 
     private suspend fun extractAnswer(goal: String, obs: StepObservation, shot: VisionCapture.ScreenShot?): String? = try {
-        haiku.chat(
+        var rawReq = ""
+        var rawRes = ""
+        val started = System.currentTimeMillis()
+        val text = haiku.chat(
             VisionPrompts.EXTRACT_SYSTEM,
             VisionPrompts.extractUser(goal, digest(obs)),
             shot?.base64,
             "extract",
-        ).trim().take(2_000)
+        ) { req, res -> rawReq = req; rawRes = res }.trim().take(2_000)
+        evidence.call(
+            "extract", rawReq, rawRes, System.currentTimeMillis() - started, haiku.lastUsage,
+            channel = VisionEvidence.Channel.HAIKU,
+            images = if (shot != null) 1 else 0,
+        )
+        text
     } catch (e: Exception) {
         evidence.event("extract refused: ${e.message?.take(120)}")
         null
