@@ -299,15 +299,23 @@ Program exit additionally requires 18.E5's release gates and the owner's Stage 4
 
 ---
 
-## 7. Vision amendment protocol (owner decision #3)
+## 7. Vision amendment protocol (owner decision #3; resolved 2026-11-10)
 
-When a stage item requires changing `Project Vision/` text: (1) implementation of that
-item pauses; (2) the amendment is drafted in a separate GLM-5.3 (non-Flash) session with
-the owner; (3) the owner ratifies or rejects; (4) ratified amendments are logged in
-`.state/compliance-log.md` with the session reference and the doc version bumps; (5) only
-then does the item's implementation resume. Items that are pure ART-5/ART-9 machinery and
-touch no vision text proceed without the gate; the boundary is judged by the
-compliance pre-check per item and recorded.
+**The amendment set is RATIFIED AHEAD of the stages.** In the GLM-5.3 session that
+canonized this phase (2026-11-10 — the same session, the model gate satisfied), the
+owner directed the vision amendments immediately rather than per stage: doc 04 §9 (the
+hardened control loop target), doc 05 §8 (the evidence target), doc 06 §2c + §4's
+checkout-integrity bullet (the gate targets), doc 07 §6 (the Stage E acceptance program +
+release gates) and §4's change-gate additions, and doc 01's status/table updates (the
+Stage 4 absorption). All are recorded as TARGET — not implemented — with status lines; a
+stage item that lands flips its item's status line to "implemented" in the same pass.
+
+A stage still pauses if it needs law BEYOND the ratified set (an unanticipated
+contradiction or a change to already-shipped law): the item halts, the amendment is
+drafted in a GLM-5.3 session, the owner ratifies, the compliance log records it, and only
+then does the item resume. Items that are pure ART-5/ART-9 machinery touching no vision
+text proceed without the gate; the boundary is judged by the compliance pre-check per
+item and recorded.
 
 ---
 

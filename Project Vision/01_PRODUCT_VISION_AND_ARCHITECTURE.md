@@ -1,7 +1,12 @@
 # Chrome Navigator (working title) — Product Vision and Architecture
 
 **Document ID:** `NAVIGATOR-VISION-001`
-**Version:** 2.2.0 *(amended 2026-10-23 (PHASE_17 Stages 1–3): the tree-first loop is
+**Version:** 2.3.0 *(amended 2026-11-10 (PHASE_18 canonized, owner-directed): the Phase 17
+Stage 4 acceptance program is ABSORBED into Phase 18 Stage E (`Implementation
+Plan/PHASE_18_reliability_hardening.md`); the UAT 17.1 R1–R4 runs seed that corpus. The
+reliability-hardening TARGET law is recorded (doc 04 §9, doc 05 §8, doc 06 §2c + the
+checkout-integrity policy, doc 07 §6) — targets, not current capability. Drafted in a
+GLM-5.3 session (the model gate satisfied; no exception needed). Amended 2026-10-23 (PHASE_17 Stages 1–3): the tree-first loop is
 implemented as the selectable `TREE_FIRST` policy — not the product default; §1a and the
 capability table now say "implemented, not the default". Amended 2026-10-22: the owner's
 TREE-FIRST TARGET — one loop with
@@ -17,7 +22,9 @@ GLM-5.3 credits were exhausted — the exception is recorded in
 `.state/compliance-log.md`)*
 **Status:** Ratified (2026-10-03; vision-engine promotion 2026-10-18; tree-first target
 recorded 2026-10-22; the target's mechanics **implemented 2026-10-23** as the selectable
-`TREE_FIRST` engine — Phase 17 Stages 1–3 — **pending the Stage 4 acceptance**; the product
+`TREE_FIRST` engine — Phase 17 Stages 1–3 — **pending the acceptance corpus** (owned since
+2026-11-10 by Phase 18 Stage E); the reliability-hardening target recorded 2026-11-10 —
+target, not current capability; the product
 default remains `ALWAYS_VISION`)
 **Date:** 2026-10-03
 
@@ -33,8 +40,14 @@ Stages 1–3, 2026-10-23):** the tree-first loop of §1a — `TREE_FIRST` runs t
 default, escalates the active subtask to the vision tool on the three code-owned signals,
 resets to the tree at the next, plans/re-plans over raw dual evidence, audits the plan at
 the subtask boundary, and keeps Haiku event-driven. It is NOT the product default: the
-default decision waits for the Stage 4 acceptance corpus, and the Setup selector for the
-three policies ships with that program.
+default decision waits for the Phase 18 Stage E acceptance corpus (the Stage 4 program
+absorbed there 2026-11-10; the UAT 17.1 R1–R4 runs seed it), and the Setup selector for the
+three policies ships with that program. **Target recorded 2026-11-10 (PHASE_18):** the
+reliability-hardening law of doc 04 §9 — snapshot identity, the pre-dispatch guard,
+action postconditions, the goal contract, prefix revalidation, the single final verifier,
+bounded model calls, bounded perception degradation, no-progress budgets, bounded
+recovery, Chrome-state/checkout recovery, clarification/handoff terminals — is a TARGET;
+nothing in it is shipped, and Stages 18.B–18.D land it item by item.
 
 ---
 
@@ -87,7 +100,8 @@ in the phase-14 status and the backlog, not hidden.
 | Stage | What ships | Why |
 |---|---|---|
 | Now | Vision engine default (`ALWAYS_VISION`) + a11y engine retained (`TREE_ONLY`) behind the toggle | The vision engine is the working product; the a11y engine preserves the speed/accuracy option |
-| Implemented 2026-10-23 (selectable, NOT the default) | The tree-first toolbox of §1a as the third policy `TREE_FIRST`: one loop, tree default, three code-owned escalation signals, vision for the rest of the subtask, tree at the next; Haiku event-driven; Jev reports, Haiku judges, code gates | PHASE_17 Stages 1–3 landed the mechanics; the product default waits for the Stage 4 acceptance corpus |
+| Implemented 2026-10-23 (selectable, NOT the default) | The tree-first toolbox of §1a as the third policy `TREE_FIRST`: one loop, tree default, three code-owned escalation signals, vision for the rest of the subtask, tree at the next; Haiku event-driven; Jev reports, Haiku judges, code gates | PHASE_17 Stages 1–3 landed the mechanics; the product default waits for the Phase 18 Stage E acceptance corpus (the absorbed Stage 4 program) |
+| Target recorded 2026-11-10 (PHASE_18, not implemented) | The hardened control loop (doc 04 §9): consistent snapshots, pre-dispatch guard, action postconditions, goal contract, prefix revalidation, one final verifier, bounded calls and degradation, no-progress budgets, bounded recovery, checkout recovery, clarification/handoff | The UAT 17.1 corpus's state-integrity failures (R2's lost site, R3's tab switcher and form gaps, R4's final-evidence gap) are the motivation |
 | Later | Tune the tree/vision policy from live evidence; the three-way Setup selector with the verdict | No on-device decision-model graduation requirement; the training program is retired |
 
 The Road L lifecycle (shadow student, RLCD accumulation, fine-tune, graduation) is
@@ -98,9 +112,10 @@ assume an on-device Laya engine, a shadow, a training corpus, or a graduation fl
 
 > **Status:** implemented in PHASE_17 Stages 1–3 as a SELECTABLE engine policy
 > (`TREE_FIRST`), reachable through the `engine-policy` preference (the debug/adb seam for
-> now; the Setup selector ships with the Stage 4 program). It is **not the product
-> default**: `ALWAYS_VISION` stays the default until the Stage 4 acceptance corpus (the
-> R1–R4 comparison) accepts the hybrid. The shipped default's behaviour is unchanged.
+> now; the Setup selector ships with the acceptance program). It is **not the product
+> default**: `ALWAYS_VISION` stays the default until the acceptance corpus — seeded by the
+> UAT 17.1 R1–R4 runs and run as Phase 18 Stage E since 2026-11-10 (the Stage 4 program
+> absorbed there) — accepts the hybrid. The shipped default's behaviour is unchanged.
 > The source is the owner's 2026-10-22 interview after the PHASE_VEXP9 corpus.
 
 **The claim.** One loop, two perception tools, tree-first. The tree carries ordinary steps

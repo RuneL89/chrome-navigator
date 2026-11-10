@@ -1,7 +1,14 @@
 # Verification & Evaluation
 
 **Document ID:** `NAVIGATOR-VISION-007`
-**Version:** 2.4.0 *(amended 2026-10-23 (PHASE_17 Stages 1–3): the tree-first gates are
+**Version:** 2.5.0 *(amended 2026-11-10 (PHASE_18 canonized, owner-directed): the hybrid
+acceptance program (the former Stage 4) is OWNED by Phase 18 Stage E — the corpus is
+seeded by the UAT 17.1 R1–R4 runs and completed under
+`Implementation Plan/PHASE_18_reliability_hardening.md`; §6 records its release gates.
+§4's change gate gains the Phase 18 surfaces (snapshot consistency, the pre-dispatch
+guard and its vocabulary, the postcondition set, the goal contract, the final verifier,
+the added terminals) — when implemented. Drafted in a GLM-5.3 session (the model gate
+satisfied; no exception needed). Amended 2026-10-23 (PHASE_17 Stages 1–3): the tree-first gates are
 LANDED (the signal flips, the event cadence, the dual evidence, the boundary audit, the
 policy matrix and the Stage 0 corpus suites); the prompt version is v19 (the boundary
 audit joins the change gate, its live review UAT 17.1); the acceptance corpus and the
@@ -25,19 +32,20 @@ pins, capture law, gate floor and ladder schema join the change-gate list. That
 amendment was owner-authorized in a DeepSeek Flash session; the GLM-5.3 exception is
 recorded in `.state/compliance-log.md`)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-06, 2026-10-10, 2026-10-11,
-2026-10-12, 2026-10-17, 2026-10-18, 2026-10-20, 2026-10-21, 2026-10-23; tree-first
-target recorded 2026-10-22 — target, not current capability)
+2026-10-12, 2026-10-17, 2026-10-18, 2026-10-20, 2026-10-21, 2026-10-22, 2026-10-23; the
+Phase 18 acceptance ownership + release gates recorded 2026-11-10)
 **Date:** 2026-10-03
 **Implements:** ART-7 (versioned forms gate), doc 02 §5 (pins), doc 03 §3 (taxonomy),
 doc 04 (loop laws)
 
 ---
 
-**Implementation status (2026-10-22).** Shipped: the JVM suites and the live-run layer
-for the two engines; the PHASE_16 goal-fidelity/loop-guard tests are current on
-`exp/tree-first`. **Not implemented:** the tree-first target's gates and acceptance (the
-switching policy, the three signals, the subtask reset, event-driven Haiku, raw dual
-evidence).
+**Implementation status (2026-10-22; updated 2026-11-10).** Shipped: the JVM suites and
+the live-run layer for the two engines; the PHASE_17 tree-first gates landed with Phase 17
+Stages 1–3 on `phase-17-tree-first`. **Not implemented:** the Phase 18 hardening gates
+(snapshot consistency, pre-dispatch guard, postconditions, goal contract, prefix
+revalidation, the final verifier, call deadlines, capture bounding, no-progress budgets,
+recovery, and the acceptance corpus of §6's Phase 18 Stage E ownership).
 
 ## 1. Purpose and regime
 
@@ -121,7 +129,11 @@ Any change to the following requires a full JVM run green **and** a live-run rev
 - the evidence schema, retention or redaction law;
 - the tree-first target's modality policy (the three signals, the subtask reset, the
   Haiku event cadence, raw dual evidence) — when implemented; the target text itself is
-  not a change to the shipped behaviour.
+  not a change to the shipped behaviour;
+- the Phase 18 target's surfaces (doc 04 §9) — the snapshot-consistency law, the
+  pre-dispatch guard and its refusal vocabulary, the postcondition set, the goal
+  contract, the final verifier, and the added terminal vocabulary — when implemented;
+  the target text itself is not a change to the shipped behaviour.
 
 A prompt change is never "just wording": it re-pins the prompt fixtures and runs the
 vision suite. A model pin bump is a commit of its own with the evidence review.
@@ -156,11 +168,22 @@ real goals run through the product overlay; the standing families are:
 - **The retained a11y engine** — the same goal with the toggle OFF must still run its
   cascade and gate.
 
-**Hybrid acceptance (the Stage 4 program — deferred, not run in Phase 17):** the VEXP9
-corpus (R1–R4) under the attendance rule, judged in this order: (1) the correctness
-anchors; (2) wall-clock time per correct run; (3) image-carrying calls and battery calls;
-(4) the escalation rate and its causes; (5) boundary catches — wrong actions caught at
-the subtask boundary rather than by a signal. A hybrid that is correct but not faster on
+**Hybrid acceptance (owned since 2026-11-10 by Phase 18 Stage E — the absorbed Stage 4
+program):** the corpus is seeded by the UAT 17.1 R1–R4 runs (the owner ruling made that
+corpus Phase 16's continuation) and completed under
+`Implementation Plan/PHASE_18_reliability_hardening.md` Stage E — the three policies
+(`ALWAYS_VISION`, `TREE_ONLY`, `TREE_FIRST`) on equivalent goals and budgets, attended,
+judged in this order: (1) the correctness anchors; (2) wall-clock time per correct run;
+(3) image-carrying calls and battery calls; (4) the escalation rate and its causes; (5)
+boundary catches — wrong actions caught at the subtask boundary rather than by a signal.
+**Release gates before any default change:** zero false successful terminals across the
+regression and acceptance corpus; zero wrong-window or stale-target dispatches in the
+guarded-execution tests; no unbounded model retry, capture degradation or semantic
+no-progress sequence; no checkout restart after a preserved checkout milestone without
+explicit owner instruction; no consequential action without fresh risk evaluation and the
+required owner approval; no advertised engine policy without a real route and route
+tests; and two consecutive attended runs per canonical goal without false completion or
+an unexplained full-plan restart. A hybrid that is correct but not faster on
 the corpus is not yet an acceptance; a hybrid that is faster but misses an anchor is a
 failure. The hybrid's budget split is in place (the a11y `TaskBudget` for tree steps + the
 vision `ExpBudget` sub-ledger for image calls); the owner may tune the profile before the

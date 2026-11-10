@@ -1,7 +1,13 @@
 # Evidence & Run Reports
 
 **Document ID:** `NAVIGATOR-VISION-005`
-**Version:** 2.2.0 *(amended 2026-10-23 (PHASE_17 Stages 0.6/2): the run record now carries
+**Version:** 2.3.0 *(amended 2026-11-10 (PHASE_18 canonized, owner-directed): §8 records
+the acceptance-grade EVIDENCE TARGET — additive versioned fields (snapshot identity,
+dispatch/postcondition results, grounding route, approval freshness, recovery and
+rollback causes, per-call attempts/elapsed/usage, capture status, final-verifier
+evidence), real durations, `UNKNOWN`-not-zero spend, the reconciling run summary, and the
+fixture-sanitization law. A TARGET (not implemented); §2–§7 remain the law. Drafted in a
+GLM-5.3 session (the model gate satisfied; no exception needed). Amended 2026-10-23 (PHASE_17 Stages 0.6/2): the run record now carries
 the modality, the escalation cause, the decision/writer call counters and the vision
 per-call `in=/out=/cost=` ledger; the two formats converge on shared fields but are not
 yet one file (open item). Amended 2026-10-22: the tree-first evidence shape — one run
@@ -15,17 +21,21 @@ EVIDENCE directory plus the run report. The a11y engine logs through `NoOpLogSin
 nothing writes a database. That amendment was owner-authorized in a DeepSeek Flash
 session; the GLM-5.3 exception is recorded in `.state/compliance-log.md`)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-04, 2026-10-06, 2026-10-10,
-2026-10-18; tree-first target recorded 2026-10-22 — target, not current capability)
+2026-10-18, 2026-10-22, 2026-10-23; the Phase 18 evidence target recorded 2026-11-10 —
+target, not current capability)
 **Date:** 2026-10-03
 **Implements:** ART-3 (everything a run decides is evidenced), ART-8 (privacy boundary)
 
 ---
 
-**Implementation status (2026-10-22).** Shipped: the vision `events.log` + raw call
+**Implementation status (2026-10-22; updated 2026-11-10).** Shipped: the vision
+`events.log` + raw call
 bodies + screenshots under `run-reports/vision-exp/`, and the a11y `steps.csv` +
 `runs.csv` under `run-reports/a11y-exp/`. **Not implemented:** the unified record and the
 `modality`/escalation fields of the tree-first target; the event-level raw dual evidence
-is not captured.
+is not captured; and §8's Phase 18 evidence target (snapshot identity, postcondition and
+recovery fields, real durations, `UNKNOWN` spend) — owned by
+`Implementation Plan/PHASE_18_reliability_hardening.md` Stages 18.B–18.D.
 
 ## 1. Purpose
 
@@ -147,3 +157,29 @@ Room (`DecisionLogDb`), `ShadowResultRow`, exit-check rows, `RlcdExport`, the ag
 calculators, the joined view, the Tier-A replay/eval harness and the graduation
 manifest are retired with the training program. Any reintroduction requires a vision
 amendment; the current law is evidence + report.
+
+## 8. The Phase 18 evidence target (NOT IMPLEMENTED)
+
+> **Status:** recorded 2026-11-10 (PHASE_18 canonization, owner-directed; drafted in a
+> GLM-5.3 session — the model gate satisfied). Target law for
+> `Implementation Plan/PHASE_18_reliability_hardening.md` Stages 18.B–18.D. §2–§7 remain
+> the law; nothing here is shipped.
+
+- The record gains additive, versioned fields: snapshot identity (id, parent snapshot id,
+  observation timestamps), engine and perception mode, goal-contract version + active
+  subtask key, target fingerprint + grounding route (never a secret value), risk decision
+  + approval-freshness result, dispatch result + action-postcondition result, current
+  host + context-transition category, per-call category/attempts/elapsed/usage/cost,
+  capture status + degradation count, prefix-audit/rollback/recovery/re-plan causes, and
+  final-verifier evidence + refusal reason.
+- **Duration truthfulness:** call records carry real elapsed times; a zero or placeholder
+  duration is a defect. Provider-omitted usage or cost is recorded `UNKNOWN`, never
+  silently zero — a spend ledger that understates is a false record.
+- **The run summary reconciles to the records:** verified and invalidated subtasks,
+  no-effect actions, wrong-context actions, stale-dispatch refusals, owner
+  interventions, model calls, elapsed time, and known-or-unknown spend — each total
+  derivable from the underlying call and action records.
+- **Fixture sanitization (extends §3's consent boundary):** UAT material imported into
+  source-controlled tests is sanitized at creation — no real addresses, account names,
+  credentials or private page content. Evidence of a refusal carries snapshot and target
+  facts, never secret text.

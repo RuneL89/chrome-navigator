@@ -1,7 +1,13 @@
 # Risk Gate & Safety
 
 **Document ID:** `NAVIGATOR-VISION-006`
-**Version:** 1.9.0 *(amended 2026-10-23 (PHASE_17 Stages 1–3): the tree-first loop is
+**Version:** 1.10.0 *(amended 2026-11-10 (PHASE_18 canonized, owner-directed): §2c
+records the FRESH-APPROVAL target — an approval is bound to the context it was granted
+for, and a changed site, target or classification voids it and re-gates; §4 gains the
+checkout-integrity target (restore the existing checkout, never a new tab, never a
+restart; fail closed when fresh evaluation is unavailable). TARGETS (not implemented);
+§1–§3 remain the law. Drafted in a GLM-5.3 session (the model gate satisfied; no
+exception needed). Amended 2026-10-23 (PHASE_17 Stages 1–3): the tree-first loop is
 implemented as the selectable `TREE_FIRST` policy; the gate stays modality-agnostic and
 unchanged in both tools (the hybrid's vision tool carries the SAME `OverlayGatePresenter`
 and per-task trust the always-vision route uses). Amended 2026-10-22: the tree-first gate is
@@ -22,8 +28,9 @@ before every TAP/TYPE/SUBMIT; the same owner cards and credential path). Owner-d
 2026-10-20; the earlier DeepSeek Flash model-gate exception remains recorded in
 `.state/compliance-log.md`)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-03, 2026-10-06, 2026-10-10,
-2026-10-12, 2026-10-18, 2026-10-20, 2026-10-21; tree-first target recorded 2026-10-22 —
-target, not current capability)
+2026-10-12, 2026-10-18, 2026-10-20, 2026-10-21, 2026-10-22, 2026-10-23; the Phase 18
+fresh-approval and checkout-integrity targets recorded 2026-11-10 — target, not current
+capability)
 **Date:** 2026-10-03
 **Implements:** ART-1 (code owns the gate), ART-4 (page text is untrusted), ART-5
 (numbers in code), ART-10 (attribution)
@@ -141,6 +148,22 @@ never carries a gate decision.
   is the translate-first law (doc 04 §2) — the page is normalized to English before the
   gate reads it, not a growing language dictionary.
 
+### 2c. The fresh-approval law (Phase 18 target — NOT IMPLEMENTED)
+
+> **Status:** recorded 2026-11-10 (PHASE_18 canonization, owner-directed; drafted in a
+> GLM-5.3 session). Target law for
+> `Implementation Plan/PHASE_18_reliability_hardening.md` Stage 18.B. Not shipped; §2/§2a/
+> §2b are the law.
+
+An approval is bound to the CONTEXT it was granted for: the snapshot, the site, the
+target and the classification. Before a gated action dispatches, code re-verifies that
+context fresh (doc 04 §9.2's pre-dispatch guard); a changed site, target or
+classification voids the approval and the fresh action re-gates
+(`NOT_DISPATCHED_RISK_CONTEXT_CHANGED`). An approval may never be spent on a different
+action. This extends §4's "a re-plan is never an authorization" across time and page
+change; it adds no class, removes none, and never weakens §2's mechanics — per-task
+trust inherits the same binding.
+
 ## 3. Why code detects and the human decides — the additive-only engine role
 
 - **Code owns the gate.** Code triggers are the floor and can never be suppressed or
@@ -186,6 +209,12 @@ These govern the model roles and are NOT safety substitutes:
   vision mode faces the same card; the tool switch cannot launder a denial; the finality
   and goal-fidelity laws apply to both tools. The implementing phase may not weaken this
   section.
+- **Checkout integrity (Phase 18 target — not implemented).** After a preserved checkout
+  milestone, recovery restores the EXISTING checkout and revalidates its contents; it
+  never restarts shopping, cart or address entry, never opens a new tab as recovery, and
+  never treats "continue to payment" as order confirmation (doc 04 §9.10). A
+  consequential action that cannot be freshly evaluated (capture or grounding repeatedly
+  failed) fails closed — owner handoff, never a guess.
 
 ## 5. Numeric logic (ART-5)
 

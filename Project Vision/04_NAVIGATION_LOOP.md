@@ -1,7 +1,16 @@
 # Navigation Loop
 
 **Document ID:** `NAVIGATOR-VISION-004`
-**Version:** 2.6.0 *(amended 2026-10-23 (PHASE_17 Stages 1–3): the tree-first loop of §8
+**Version:** 2.7.0 *(amended 2026-11-10 (PHASE_18 canonized, owner-directed): §9 records
+the HARDENED CONTROL LOOP target — the five-facts principle, snapshot identity, the
+pre-dispatch guard, action postconditions and semantic progress, the immutable goal
+contract, runtime prefix states and evidence-scoped revalidation, the single final
+verifier, model-call boundedness, bounded perception degradation, no-progress budgets, the
+recovery ladder with clarification/handoff terminals, and Chrome-state/checkout recovery.
+It is a TARGET (not implemented); §2–§8 remain the law until Phase 18
+(`Implementation Plan/PHASE_18_reliability_hardening.md`) lands its items. The Stage 4
+acceptance program is absorbed into Phase 18 Stage E. Drafted in a GLM-5.3 session (the
+model gate satisfied; no exception needed). Amended 2026-10-23 (PHASE_17 Stages 1–3): the tree-first loop of §8
 is IMPLEMENTED as the selectable `TREE_FIRST` policy — a11y tree by default, the vision
 tool on the three code-owned signals, subtask-scoped modality, Haiku plan/re-plan over raw
 dual evidence, the advisory boundary audit (v19) and the dual-evidence stuck event. It is
@@ -37,7 +46,9 @@ Owner-authorized DeepSeek Flash amendment; the GLM-5.3 exception is recorded in
 `.state/compliance-log.md`)*
 **Status:** Ratified (2026-10-03; amendments 2026-10-06, 2026-10-07, 2026-10-09,
 2026-10-10, 2026-10-11, 2026-10-12, 2026-10-13, 2026-10-17, 2026-10-18, 2026-10-20,
-2026-10-21; tree-first target recorded 2026-10-22 — target, not current capability)
+2026-10-21; tree-first target recorded 2026-10-22 — implemented 2026-10-23 as the
+selectable `TREE_FIRST` policy; the hardened-control-loop target recorded 2026-11-10 —
+target, not current capability)
 **Date:** 2026-10-03
 **Implements:** ART-1 (code owns the gate), ART-4 (no model self-completion), ART-5
 (numbers in code), ART-9 (bounded tasks), ART-2 (declared model roles)
@@ -51,8 +62,11 @@ exits/finality/goal fidelity, §5's loop guards, §6's result/evidence, §7's re
 subtask-scoped vision tool, Haiku plan/re-plan over raw dual evidence, the advisory
 boundary audit at v19, the dual-evidence stuck event, and the three-way policy with
 `ALWAYS_VISION`/`TREE_ONLY`). **§8 is NOT the product default:** `ALWAYS_VISION` stays the
-default until the Stage 4 acceptance corpus, and the Setup selector for the three policies
-ships with that program (Stage 3's selector moved there).
+default until the Phase 18 Stage E acceptance corpus (the Stage 4 program absorbed there
+2026-11-10), and the Setup selector for the three policies
+ships with that program (Stage 3's selector moved there). **Not implemented:** §9's
+hardened control loop — a Phase 18 target (recorded 2026-11-10); Stages 18.B–18.D land it
+item by item, and no §9 text may be read as current capability.
 
 ## 1. Task lifecycle
 
@@ -385,7 +399,8 @@ card. (The a11y engine is not on the vision engine's 100× ledger.)
 
 > **Status:** implemented in PHASE_17 Stages 1–3 as a SELECTABLE engine policy
 > (`TREE_FIRST`), not the product default. `ALWAYS_VISION` remains the default until the
-> Stage 4 acceptance corpus; the Setup selector for the three policies ships with that
+> Phase 18 Stage E acceptance corpus (the Stage 4 program absorbed there 2026-11-10); the
+> Setup selector for the three policies ships with that
 > program. The shipped default's behaviour (§2/§3) is unchanged; this section now
 > describes working code. The shared ladder (§1), exits (§4), guards (§5), evidence (§6)
 > and re-plan integrity (§7) survive unchanged. Doc 01 §1a is the product-level statement;
@@ -463,3 +478,146 @@ implementing phase must measure these boundary catches (doc 07 §6).
 law (§4.1), the risk gate (doc 06), the same-action/site-entry/strategy guards (§5), the
 capture law (doc 03 §2), the battery's max-gate, the one-answer extraction law (§6), the
 browser-readiness pre-step (§6) and the evidence truthfulness (doc 05).
+
+## 9. The hardened control loop (Phase 18 target — NOT IMPLEMENTED)
+
+> **Status:** recorded 2026-11-10 (PHASE_18 canonization, owner-directed; drafted in a
+> GLM-5.3 session — the model gate satisfied). Target law for
+> `Implementation Plan/PHASE_18_reliability_hardening.md` Stages 18.B–18.D. Nothing here
+> is shipped: §2–§8 are the law until a Phase 18 stage lands an item, and a landed item's
+> status line moves here at that point. No §9 text may be read as current capability, and
+> no §9 text weakens §1–§8 or doc 06.
+
+**The principle — five facts.** The loop must distinguish, at runtime: (1) a dispatch was
+accepted by Android; (2) the action reached its intended Chrome target; (3) the action
+produced its intended effect; (4) the effect advanced the active subtask; (5) every
+condition the goal requires still holds. No earlier fact is ever evidence of a later one.
+The UAT 17.1 corpus's failures (R2's 107-step drift off a lost site, R3's tab-switcher and
+form gaps, R4's final-evidence omission) are the motivating evidence.
+
+**9.1 Snapshot identity.** Every decision reads ONE consistent snapshot: observe →
+capture → re-read the navigation context → the pre-capture and post-capture contexts must
+match (active package + navigation identity; NOT the full tree hash — irrelevant nodes may
+churn) → ONE bounded retry on mismatch → a persistent mismatch is a typed stale refusal,
+never an action. Planning, battery, proposals, grounding, gate and dispatch all consume
+the SAME snapshot; a re-plan takes a fresh one. Observation-local node IDs are not
+durable identities across fresh reads.
+
+**9.2 The pre-dispatch guard.** After model work and after any owner approval, immediately
+before dispatch, code re-verifies fresh: the expected browser foreground, the target
+re-resolved with the expected role and valid bounds, no overlay/keyboard occlusion, and —
+for a gated action — that the fresh action is still the approved one. A changed site,
+target or classification voids the approval and re-gates (`RISK_CONTEXT_CHANGED`; doc 06
+§2c). Refusals are typed (`NOT_DISPATCHED_STALE_SNAPSHOT` / `_WRONG_WINDOW` /
+`_TARGET_CHANGED` / `_OCCLUDED` / `_RISK_CONTEXT_CHANGED` / `DISPATCH_REJECTED` vs
+`DISPATCH_ACCEPTED`) and evidenced; a refusal is not by itself a subtask failure. The
+landed-text verification law is preserved and reused, never weakened.
+
+**9.3 Action postconditions and semantic progress.** Every action carries an expected
+effect from a CLOSED code-owned set (field value landed, target state changed, navigation
+occurred, expected host reached, expected element appeared, viewport moved, Chrome UI
+state changed, unknown). `progresses` is set ONLY from a postcondition verified on a fresh
+post-action observation; a dispatch Boolean, a URL change or a screen-hash change alone is
+not progress; a wrong-host navigation is `WRONG_CONTEXT`, never progress; an unknown
+effect never resets no-progress accounting. Same-action accounting consumes the completed
+action receipt, not the pre-observation dispatch result. Mechanical repetition detection
+stays separate from semantic progress.
+
+**9.4 The goal contract.** Before the first navigation the goal becomes an immutable
+`GoalContract`: the original goal text verbatim, detected goal classes (an unclassified
+goal keeps the generic rules — no fabricated class-specific proof), the named site or an
+explicit site-resolution requirement, required parameters (quantity with unit, budget,
+address, account, media item, requested answer shape), required final-evidence types, and
+the irreversible/owner-approval boundaries. The writer may propose the structured
+extraction; deterministic validation rejects missing and contradictory fields; a required
+value that is ambiguous or absent asks the owner (9.9) — it is never guessed. Every
+re-plan reuses the SAME contract: strategy may change; parameters may not weaken.
+Parameter checks are parameter-specific (a quantity is the same parsed value and unit; an
+address stays bound to its subtask), never substring presence in plan text. Secrets are
+referenced by redacted identifiers only (doc 06 §2a).
+
+**9.5 Runtime prefix states and revalidation.** Subtasks carry runtime states
+(`PENDING`/`ACTIVE`/`VERIFIED`/`INVALIDATED`/`BLOCKED`). A verified milestone keeps its
+condition, proving snapshot, host context, timestamp and evidence type; invalidation
+APPENDS evidence — proof history is never deleted. This EXTENDS §7's audit: location
+conditions (`urlHost`/`urlContains`) revalidate against current navigation; content
+conditions (`markerText`/`elementPresent`) only when their declared evidence scope is
+persistent (page-local markers stay historical after a lawful transition — no false
+rollback); a count keeps the action history that produced it; an extracted answer never
+proves the other conditions. Rollback goes to the earliest invalid subtask, attempts
+restoration before planning, and NEVER crosses a verified irreversible milestone (an order
+confirmation is never re-executed by rollback). A new ladder's claimed prefix is mapped to
+contracts and evidence — the writer's word is not proof; the first subtask without valid
+current or recorded evidence becomes active.
+
+**9.6 The single final verifier.** ONE verifier gates every success path — the code
+accept, the repaired-condition accept, the §4.1 hatch, and the §8 boundary: the contract's
+parameters satisfied by runtime evidence; every required subtask verified or validly
+persistent; the final condition on the CURRENT snapshot; class-specific end-state
+evidence; answers present, nonblank and tied to a source observation; no unresolved red
+flag or owner denial. A purchase completes only on order-specific evidence (an order
+number or explicit order-placed language) — generic "confirmation" does not complete it
+(extends §4.2); an account switch completes on fresh OR recorded account evidence from the
+verified switching subtask. A failed verification returns the active subtask and the
+evidence deficiency to the controller; it never yields `GOAL_ACHIEVED`, from any path.
+
+**9.7 Model-call boundedness and no-progress budgets.** Every logical model call has a
+finite total deadline that respects remaining run time; cancellation propagates to the
+socket. Only transport failures and HTTP 408/429/5xx retry — within the deadline and
+`Retry-After`; ordinary 4xx and malformed 200s are loud content failures, never retried,
+never answer-shopped. Call failures are typed (category, attempts, elapsed — never
+secrets). Independent no-progress ledgers (no-effect actions, wrong-context actions,
+grounding failures, capture failures, model failures, planning attempts, ordinary and
+battery re-plans per subtask and run) reset ONLY on a verified effect; the §5 global
+ceilings remain the outer disaster limits. The writer cap is enforced BEFORE the next
+writer call, and the post-call check remains.
+
+**9.8 Perception degradation.** Capture failures are typed
+(`CAPTURED_BROWSER_WINDOW`/`CAPTURED_DISPLAY_FALLBACK`/`UNAVAILABLE_RETRYABLE`/
+`UNAVAILABLE_SECURE_OR_UNSUPPORTED`/`UNAVAILABLE_STALE_CONTEXT`) and bounded per subtask
+and run: one bounded retry; text-only operation only for deterministic fresh-node actions
+and code-readable verification; image-dependent work (boxes, visual batteries, raw-coordinate
+grounding) is disabled while capture is unavailable; past the calibrated limit the run
+hands off or stops honestly. No blank, black, stale or placeholder pixels are ever
+presented as the current page. Grounding never silently degrades: a failed Jev pick is
+`GROUNDING_UNAVAILABLE`, not the first proposal; a low-confidence box without an adequate
+fresh node match is `LOW_CONFIDENCE_GROUND`, not a raw dispatch; a `none` or malformed
+choice is a loud refusal. A deterministic route exists only on a uniquely identified fresh
+target, is labeled `DETERMINISTIC_NODE_MATCH`, and never reports itself as independent
+model agreement.
+
+**9.9 Recovery, clarification and handoff.** Recovery is a failure-appropriate ladder —
+fresh observation → bounded stability wait → fresh target grounding → one mechanism retry
+→ bounded scroll-to-find or browser-context restoration → perception-tool switch (§8) →
+prefix rollback (9.5) → informed re-plan → clarify / hand off / stop honestly — and not
+every failure walks every stage (a wrong window goes straight to foreground recovery; an
+invalid host prefix goes straight to rollback). Scroll-to-find keeps the list and target
+across scrolls and stops at the end or cap; a complete new plan is not requested per
+scroll. Action and landing bans persist across recovery and re-plans; a changed verb alone
+is not a new strategy. The terminal vocabulary gains, additively to §4's table:
+`CLARIFICATION_REQUIRED`, `NEEDS_USER`, `MODEL_UNAVAILABLE`, `CAPTURE_UNAVAILABLE`,
+`STALE_CONTEXT_UNRESOLVED`, `GOAL_BLOCKED`. A clarification names the missing contract
+field with bounded choices, exposes no chain-of-thought and no untrusted page
+instructions, and updates the contract only through an explicit owner answer; a
+consequential clarification timeout fails closed; a non-consequential one stops the run
+rather than guess.
+
+**9.10 Chrome-state and checkout recovery.** Code detects generic Chrome UI states (web
+content, omnibox/search, tab switcher, menu/dialog, other Chrome surfaces, non-Chrome
+foreground, unknown) from package, resource IDs, node roles, URL availability and
+page-root structure — never one store's text or one language's labels. Navigation
+milestones record when cart, checkout, payment review and order confirmation were reached.
+Once checkout is active: the tab switcher is an off-page state; recovery identifies and
+restores the EXISTING checkout tab (its contents revalidated after restoration); "New tab"
+is never checkout recovery; shopping, cart entry and address entry are never restarted
+because the checkout is temporarily hidden; an unidentifiable tab hands off to the owner.
+A re-plan after checkout resumes from the preserved milestone and cannot bypass the
+no-restart rule; "continue to payment" and "place order" remain distinct action classes
+and distinct milestones (doc 06 §4).
+
+**What §9 does not change.** §1's ladder law; §2/§3's step orders (the hardening wraps
+them, it does not reorder them); §4.1's hatch conditions (the verifier subsumes its
+evidence checks when it lands); §5's budgets (the no-progress ledgers are additive); §7's
+audit (9.5 extends it); §8's signals and authority split; doc 06's gate (9.2 binds
+approvals to their context — it never weakens a class or the card law); the one-answer
+law (§6).

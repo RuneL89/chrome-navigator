@@ -12,7 +12,8 @@ implementation is checked against them for compliance.
   engine default + retained a11y engine), the 11 core articles (ART-1…ART-11),
   architecture, stack, repo layout, non-goals, glossary, locked-decision register; the
   tree-first loop (§1a: recorded 2026-10-22, **implemented 2026-10-23 as the selectable
-  `TREE_FIRST` policy — not the product default**) and the current-vs-target table
+  `TREE_FIRST` policy — not the product default**) and the current-vs-target table (which
+  carries the Phase 18 hardening target row, recorded 2026-11-10)
 * `02_DECISION_ENGINE_AND_PROTOCOL.md` — the two engines' model roles, the wire/question
   protocol, the retained `DecisionEngine` cascade, pinning, keys and refusals, retired
   Laya/shadow/graduation elements; the target division of labour (§2.4) and the Jev
@@ -25,24 +26,43 @@ implementation is checked against them for compliance.
   grounding, gate, act, verify), the translate-first law and the pick-level code
   preference, the retained a11y step order, exits/terminals, the finality law, condition
   repair, CTA/churn, budgets, result/answer, re-plan integrity; §8 the tree-first loop
-  (**implemented as `TREE_FIRST`, not the default**)
+  (**implemented as `TREE_FIRST`, not the default**); §9 the hardened control loop
+  (Phase 18 target, recorded 2026-11-10 — five facts, snapshot identity, pre-dispatch
+  guard, postconditions, goal contract, prefix revalidation, the single final verifier,
+  call boundedness, degradation bounds, no-progress budgets, recovery + new terminals,
+  checkout recovery; NOT implemented)
 * `05_DECISION_LOG_AND_RLCD.md` — the evidence record and run-report law (the training
   program is retired; the a11y engine logs through `NoOpLogSink`); the target's unified
-  modality record
+  modality record; §8 the Phase 18 evidence target (additive fields, real durations,
+  `UNKNOWN` spend, the reconciling run summary, fixture sanitization — NOT implemented)
 * `06_RISK_GATE_AND_SAFETY.md` — the risk gate: H1–H9, the English/structural floor and
   the translate-first normalization (the PHASE_14 Finnish floor is withdrawn), gate
   mechanics, credential law, the vision-loop integration, additive-only engine check,
-  operational policies, attribution; the target's modality-agnostic gate note
+  operational policies, attribution; the target's modality-agnostic gate note; §2c the
+  fresh-approval target + §4's checkout-integrity target (Phase 18, recorded 2026-11-10
+  — NOT implemented)
 * `07_EVALUATION_HARNESS.md` — the JVM verification regime, the live-run evidence layer,
-  the change-gate list, fixtures, acceptance goals, the retained a11y-engine checks; the
-  target gates and acceptance
+  the change-gate list (which includes the Phase 18 surfaces when implemented), fixtures,
+  acceptance goals, the retained a11y-engine checks; the hybrid acceptance program owned
+  since 2026-11-10 by Phase 18 Stage E (the absorbed Stage 4 corpus, seeded by the UAT
+  17.1 R1–R4 runs) with its release gates
 
-**The 2026-10-22 current-vs-target split, updated 2026-10-23.** All seven docs carry an
+**The 2026-10-22 current-vs-target split, updated 2026-11-10.** All seven docs carry an
 implementation-status line. The shipped DEFAULT is still the two-engine model
 (`ALWAYS_VISION` + retained `TREE_ONLY`). The owner's tree-first target (01 §1a, 04 §8) is
-now **implemented as the selectable `TREE_FIRST` policy** (Phase 17 Stages 1–3); it is
+**implemented as the selectable `TREE_FIRST` policy** (Phase 17 Stages 1–3); it is
 labeled "implemented, not the default" everywhere it appears, and the product default
-moves only on the Stage 4 acceptance verdict.
+moves only on the Phase 18 Stage E acceptance verdict (the Stage 4 program absorbed
+there 2026-11-10; the UAT 17.1 R1–R4 runs seed the corpus). The owner's
+reliability-hardening target (04 §9, 05 §8, 06 §2c + §4's checkout-integrity bullet,
+07 §6) is recorded 2026-11-10 as TARGET — not implemented; Stages 18.B–18.D land it item
+by item.
+
+**Recorded (2026-11-10):** the Phase 18 target amendments above were drafted in a
+GLM-5.3 session — the canon model gate was satisfied, no DeepSeek Flash exception was
+needed, and none is recorded. The owner directed the amendment set in the same session
+that canonized PHASE_18 (resolving the pre-check's Finding 4 mechanics: the per-stage
+GLM-5.3 amendment sessions were held once, ahead of the stages).
 
 ## Local Contracts
 
