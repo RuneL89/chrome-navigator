@@ -214,3 +214,4 @@ When the user requests a durable behavior change, record it here or in the relev
   additive). See `app/AGENTS.md`
 * `tools/` — Phase-8/8C model-acquisition + reference-vector scripts (uv-driven; build-time
   HF downloads only). See `tools/AGENTS.md`
+* `docs/` — repo-facing documents: the device UAT session guide, and the README's diagrams (`docs/diagrams/*.mmd` sources, each carrying its render command in a `%` comment; `docs/images/*.png` renders embedded by `README.md`). No child AGENTS.md yet; the root doc owns it
