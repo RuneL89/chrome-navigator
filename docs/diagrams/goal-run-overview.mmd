@@ -1,0 +1,19 @@
+%% Render: ~/.zcode/tools/mermaid-render/render.sh -i goal-run-overview.mmd -o ../images/goal-run-overview.png -b white -s 2 -w 1600
+flowchart TD
+    A["You type a goal in the overlay"] --> B["The writer model plans a ladder of small subtasks"]
+
+    subgraph LOOP["The step loop, once per subtask"]
+        C["Read the page: accessibility tree + screenshot"] --> D{"Is this subtask done?"}
+        D -->|No| E["Propose up to 3 controls, ground each, pick one"]
+        E --> F{"Does code classify the action as risky?"}
+        F -->|Yes| G["Gate card: you approve or deny within 30 seconds"]
+        F -->|No| H["The action runs in Chrome"]
+        G -->|Approved| H
+        H --> C
+    end
+
+    B --> C
+    D -->|Yes| J{"More subtasks left?"}
+    J -->|Yes| C
+    J -->|No| K["Goal achieved: the answer and the evidence record land on the device"]
+    G -->|Denied or timeout| I["The step is refused and logged"] --> C
