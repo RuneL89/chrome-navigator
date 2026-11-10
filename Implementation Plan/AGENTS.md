@@ -2,11 +2,15 @@
 
 ## Purpose
 
-The phased implementation plan for Chrome Navigator: phases 0–10D and 14–17 (phases 11–13
+The phased implementation plan for Chrome Navigator: phases 0–10D and 14–18 (phases 11–13
 were removed by owner directive 2026-10-20), each a standalone deliverable with technical
 gates and user acceptance tests, plus the master index and the prompts that drive the
 implementing agent. Phase 17's Stages 0–3 are implemented on `phase-17-tree-first`; its UAT
-and the merges are open, and Stage 4 is the deferred post-phase program.
+and the merges are open, and its deferred Stage 4 acceptance program was absorbed into
+Phase 18 Stage E (owner decision 2026-11-10). Phase 18 (the reliability-hardening program,
+canonized 2026-11-10 from the owner-attached plan adapted to the frontier) runs on
+`phase-18-reliability-hardening`; its Stages A–E are gated in order, and its vision-doc
+amendments ride separate GLM-5.3 sessions per the owner's model-gate decision.
 
 ## Ownership
 
@@ -16,9 +20,13 @@ and the merges are open, and Stage 4 is the deferred post-phase program.
 * `START_PHASE_PROMPT.md` — kickoff prompt template for starting a phase
 * `PHASE_TEMPLATE.md` — anatomy template for new phase documents
 * `PHASE_00_*.md` … `PHASE_10D_*.md`, `PHASE_14_*.md`, `PHASE_15_*.md`,
-  `PHASE_16_*.md`, `PHASE_17_tree_first_hybrid.md` — one document per phase: objective,
+  `PHASE_16_*.md`, `PHASE_17_tree_first_hybrid.md`,
+  `PHASE_18_reliability_hardening.md` — one document per phase: objective,
   files to build, gates, UAT, checklist, integration notes. A phase doc's "implementation
   status" notes are the durable record of what its stages actually delivered.
+  PHASE_18's source specification (the owner-attached reliability plan, adapted to the
+  frontier) lives in `handoff/RELIABILITY_IMPROVEMENT_PLAN.md` — input material, not law;
+  the adaptation record and owner decisions live in `.state/phase-18-contradiction-report.md`.
 
 ## Local Contracts
 

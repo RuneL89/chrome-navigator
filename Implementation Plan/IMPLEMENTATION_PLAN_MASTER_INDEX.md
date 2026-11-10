@@ -9,10 +9,11 @@
 
 ## Overview
 
-This implementation plan breaks Chrome Navigator into phases 0–10D plus 14–15
+This implementation plan breaks Chrome Navigator into phases 0–10D plus 14–18
 (Phases 11–13 removed by owner directive 2026-10-20), carrying the
 project from an empty repo through **v1**, the 2026-10-18 **vision-engine promotion**,
-and the 2026-10-20 translate-first follow-up. Each phase is a standalone deliverable that
+the 2026-10-20 translate-first follow-up, the 2026-10-21/23 goal-fidelity and tree-first
+programs, and the 2026-11-10 reliability-hardening program. Each phase is a standalone deliverable that
 can be tested in isolation and integrated with previously accepted phases. **You do not
 move to the next phase until every gate in the current phase passes.**
 
@@ -56,6 +57,9 @@ human-verifiable steps), a hard sign-off checklist, and integration notes.
 | 10D | [PHASE_10D_informed_replan.md](PHASE_10D_informed_replan.md) | **Informed re-plan** (owner-ratified 2026-10-12, after UAT 10C Test 1: three byte-identical re-plans → `STUCK_KILL` with zero actions): the failure re-plan carries a bounded failure-context block (failing subtask + its condition, the code's failure reason, the page and its action buckets, history, assist text); CODE enforces plan integrity — verified subtasks immutable except ONE declared `rollback` step with its lesson, growth (split the failing subtask) allowed, resume-never-restart; failing-slate evidence persisted on the no-good-target path; general placeholder/blank-label field legibility (the search-box wall). Three stages, one verifier+emulator loop each, then the owner battery | live legs only | 10-17h |
 | 14 | [PHASE_14_vision_promotion.md](PHASE_14_vision_promotion.md) | **The vision-engine promotion (2026-10-18)**: promote the vision engine to the product default; the a11y engine retained behind the explicit toggle; product identity `navigator.app` (no `.visionexp`); Project Vision 01–07 rewritten; master fast-forward | $0 | 2-3h |
 | 15 | [PHASE_15_translate_first.md](PHASE_15_translate_first.md) | **Translate first, not a language dictionary (2026-10-20)**: the vision engine always accepts the browser's translate-to-English prompt before acting; the PHASE_14 Finnish gate floor and matrix row withdrawn; prompt v14; the English/structural gate floor applies to the translated page | $0 | 1-2h |
+| 16 | [PHASE_16_goal_fidelity_and_loop_guards.md](PHASE_16_goal_fidelity_and_loop_guards.md) | Goal fidelity + loop guards (2026-10-21): done-condition fidelity and exit-evidence laws (vision 04 §4, 06 §4); its R corpus continued as UAT 17.1 by the owner ruling | $0 | 3-5h |
+| 17 | [PHASE_17_tree_first_hybrid.md](PHASE_17_tree_first_hybrid.md) | **The tree-first hybrid (2026-10-22/23)**: Stages 0–3 implemented on `phase-17-tree-first` as the selectable `TREE_FIRST` policy — NOT the default; UAT 17.1 ran (R1–R4); the deferred Stage 4 acceptance program was absorbed into Phase 18 Stage E (owner decision 2026-11-10) | $0 | 8-14h |
+| 18 | [PHASE_18_reliability_hardening.md](PHASE_18_reliability_hardening.md) | **Reliability and goal-fidelity hardening (canonized 2026-11-10)**: one consistent snapshot, fresh pre-dispatch guard, action postconditions, immutable goal contract, prefix revalidation, one final verifier, bounded model calls, no unsafe grounding/capture fallbacks, no-progress budgets, Chrome-UI/checkout recovery, field-level forms, search-first planning, clarification/handoff terminals, acceptance-grade evidence, bounded recovery — then the hybrid hardened onto those contracts + the Stage 4 acceptance corpus. Source plan adapted to the frontier (owner decisions in `.state/phase-18-contradiction-report.md`) | $0 (A–D scripted) · E live legs | 50-80h |
 
 **Total Estimated LLM Cost (all phases):** ≈ $6 (hard caps; expected well under)
 **Total Estimated Time:** ≈ 45–64h of agent+device work
@@ -126,6 +130,9 @@ Before starting each phase, read the mapped vision documents (all in `Project Vi
 | 10 | 01 §3, 04, 06 §4 | Role boundaries, budgets, policies |
 | 14 | 01–07 (2026-10-18 promotion amendment), 06 §1a/§2b | Two-engine product law, product identity, gate floor, legacy retention |
 | 15 | 04 §2, 06 §1a/§2b, 03 §4.2 | Translate-first law; the Finnish floor withdrawn; prompt v14 |
+| 16 | 04 §4, 06 §4 | Goal-fidelity conditions, exit-evidence laws |
+| 17 | 01 §1a, 02 §2.4, 03, 04 §8, 05, 06, 07 | The tree-first loop (implemented as `TREE_FIRST`, not the default), the shared Phase 17 laws |
+| 18 | 01 §1a/§3, 02 §2/§5, 03, 04 §1/§2/§3/§5/§6, 05, 06 §2/§3, 07 | Control-loop hardening (snapshot, guard, postcondition, contract, prefix, finality, budgets, recovery, evidence) + the Stage 4 acceptance program |
 
 After completing each phase, update the affected vision document only **with user
 approval** (Contradiction Protocol otherwise). The vision documents are the source of

@@ -1,0 +1,26 @@
+{
+  "phase": "18",
+  "status": "canonized-awaiting-stage-a-start",
+  "goal": "All Stage 18.A gates pass (docs audit with zero unmapped README claims; sanitized R2/R3/R4 fixtures + characterization suite green in gradlew :core:test :app:testDebugUnitTest; baseline metrics recorded), UAT 18.1 owner-accepted, compliance log clean, and zero code outside Stage 18.A's scope.",
+  "branch": "phase-18-reliability-hardening",
+  "canonization": {
+    "date": "2026-11-10",
+    "sourceSpec": "handoff/RELIABILITY_IMPROVEMENT_PLAN.md",
+    "contradictionReport": ".state/phase-18-contradiction-report.md",
+    "ownerDecisions": [
+      "C15 interview gate (2026-10-25) amended away for Phase 18; brain-hands concerns absorbed into CN-04 and CN-17",
+      "The plan is adapted to the phase-17-tree-first frontier (CN-01/CN-08/CN-18 rewritten; CN-18 absorbs the deferred Phase 17 Stage 4 program as Stage E; every other CN's defect claims re-verified against frontier code before building)",
+      "Vision-doc amendments are drafted in separate GLM-5.3 sessions per amendment; implementation pauses at any unratified amendment"
+    ]
+  },
+  "lastAction": "Phase doc canonized; master index + prompt mapping + DOX chain updated; status seeded.",
+  "gatesPassed": [],
+  "gatesFailed": [],
+  "gatesPending": ["18.A1", "18.A2", "18.A3", "18.A4"],
+  "stageOrder": ["18.A", "18.B", "18.C (vision-amendment-gated)", "18.D", "18.E (absorbs the Phase 17 Stage 4 acceptance program)"],
+  "llmCost": "$0.00",
+  "tokenBudgetRemaining": "$5.00 program cap (Stage A budget $0 — deterministic)",
+  "blocker": null,
+  "deviations": [],
+  "nextAction": "Owner says 'Start Phase 18' (or 'Start Stage 18.A') to begin the loop: compliance pre-check for Stage 18.A, then canon-implementer."
+}

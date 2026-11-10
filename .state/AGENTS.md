@@ -28,14 +28,27 @@ remembers."
   the UAT round (owner directive 2026-10-24): one numbered conclusion per finding
   (C1–C11 so far), the headline R3 finding (the search-first law vs the tree executor)
   up front, seeded from the six completed runs and extended after each later run; the
-  per-run evidence stays in the sibling REPORT.md files. C15 carries an owner process
+  per-run evidence stays in the sibling REPORT.md files. C15 carried an owner process
   gate (2026-10-25): after R4 and BEFORE the next UAT round, an interview session
   refines the brain-hands interaction (the Haiku episodic context) — no implementation
-  before it. Also the deferred Stage 4
+  before it. **OWNER AMENDMENT (2026-11-10): that gate is lifted for the Phase 18
+  reliability program; its brain-hands concerns are absorbed into PHASE_18's CN-04
+  (structured expected-effect proposals) and CN-17 (bounded recovery ladder).** Also the
+  deferred Stage 4
   program (the hybrid acceptance corpus — recorded HERE when the owner starts it; no new
-  phase doc until then). The attended hybrid smoke selects the policy through
+  phase doc until then). **STARTED 2026-11-10: the Stage 4 acceptance corpus is absorbed
+  into `Implementation Plan/PHASE_18_reliability_hardening.md` Stage E (owner decision
+  2026-11-10, recorded in `.state/phase-18-contradiction-report.md`).** The attended
+  hybrid smoke selects the policy through
   `OverlayDebugReceiver.SET_ENGINE_POLICY` and its evidence lands under
   `run-reports/vision-exp/task-<ts>/` plus `run-reports/a11y-exp/<task>/`.
+* `phase-18-contradiction-report.md` + `phase-18-status.json` + `phase-18-verification.md`
+  (when written) — the Phase 18 records: the canonization contradiction report and the
+  owner decisions (C15 amended away for the program; the source plan adapted to the
+  frontier; vision amendments ride GLM-5.3 sessions per amendment), the stage-gate
+  status, and the Verifier's per-stage evidence. The program's source specification is
+  `handoff/RELIABILITY_IMPROVEMENT_PLAN.md` (input material, adapted by
+  `Implementation Plan/PHASE_18_reliability_hardening.md` §3).
 * `preUAT2-emulator/` — the `fix-record.md` from the owner-ordered pre-UAT automation
   pass (2026-10-08, the implementer's defect-fix record); the emulator prepass run
   reports were removed with the historical run data (owner request 2026-10-19)

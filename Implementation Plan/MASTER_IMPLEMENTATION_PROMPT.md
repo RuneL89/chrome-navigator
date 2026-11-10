@@ -249,6 +249,9 @@ Phase documents live in `Implementation Plan/`; vision documents live in `Projec
 | 10 | `PHASE_10_cloud_llm_roles.md` | `01` §3 v1.4.0, `03` §4 v2.2.0, `04` v1.4.0, `05` §4, `06` §4 | Ladder pipeline, per-subtask exit law, format v3, writer budget |
 | 14 | `PHASE_14_vision_promotion.md` | `01`–`07` (2026-10-18 promotion amendment), `06` §1a/§2b | Two-engine product law, product identity, gate floor, legacy retention |
 | 15 | `PHASE_15_translate_first.md` | `04` §2, `06` §1a/§2b, `03` §4.2 | Translate-first law; the Finnish floor withdrawn; prompt v14 |
+| 16 | `PHASE_16_goal_fidelity_and_loop_guards.md` | `04` §4, `06` §4 | Goal-fidelity conditions, exit-evidence laws |
+| 17 | `PHASE_17_tree_first_hybrid.md` | `01` §1a, `02` §2.4, `03`, `04` §8, `05`, `06`, `07` | The tree-first loop (implemented as `TREE_FIRST`, not the default), the shared Phase 17 laws |
+| 18 | `PHASE_18_reliability_hardening.md` | `01` §1a/§3, `02` §2/§5, `03`, `04` §1/§2/§3/§5/§6, `05`, `06` §2/§3, `07` | Control-loop hardening (snapshot, guard, postcondition, contract, prefix, finality, budgets, recovery, evidence) + the Stage 4 acceptance program |
 
 ---
 
