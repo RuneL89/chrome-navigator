@@ -1,0 +1,30 @@
+%% Render: ~/.zcode/tools/mermaid-render/render.sh -i vision-step-detail.mmd -o ../images/vision-step-detail.png -b white -s 2 -w 1600
+sequenceDiagram
+    autonumber
+    participant L as Loop code
+    participant W as Writer model (Haiku)
+    participant J as Judgment model (Jev)
+    participant C as Chrome
+    participant Y as You
+
+    L->>C: read the page - accessibility tree + window screenshot
+    C-->>L: page state
+    Note over L: code checks the done condition first
+    L->>W: author the verification battery for the active subtask
+    W->>J: batched checks over text + image
+    J-->>W: answer per check
+    W->>W: one image confirmation pass
+    W-->>L: battery verdicts
+    Note over L,W: a confident red flag stops the step before anything is touched
+    L->>W: propose up to 3 controls
+    W-->>L: verb + description per control
+    L->>J: ground each control - one box, then pick one
+    J-->>L: box + pick
+    L->>L: the risk gate classifies the action
+    alt consequential action
+        L->>Y: gate card - class, site, consequence
+        Y-->>L: approve within 30 seconds (a timeout denies)
+    end
+    L->>C: tap, type, or scroll as gestures
+    C-->>L: the screen changes
+    Note over L: the next iteration verifies the outcome - code owns finality
