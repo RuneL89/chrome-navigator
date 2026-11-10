@@ -37,3 +37,10 @@ app/src/main/assets-local/
 # ZCode session state (plans/logs)
 .zcode/
 .state/vision-iter/**/REPORT.md
+
+# UAT session bulk: per-step screenshots and raw model-call evidence stay out of git
+# (the *.md reports, logcat logs, and run.json/csv summaries ARE tracked; the
+# phase-16-uat precedent tracked its reports only)
+.state/**/shots/
+.state/**/evidence/
+.state/phase-17-uat/**/*.jpg

@@ -22,11 +22,19 @@ remembers."
   binding companion of `Implementation Plan/PHASE_17_tree_first_hybrid.md`.
 * `phase-17-status.json` — the Phase 17 record (Stages 0–3 gated; the UAT and the merges
   pending; Stage 4 deferred). Durable companions: the Phase 17 UAT reports under
-  `phase-16-uat/` (the owner ruling makes that corpus Phase 16's continuation - the
-  reports are named by goal, so a Phase 17 run gets its own subdirectory), and the
-  deferred Stage 4 program (the hybrid acceptance corpus — recorded HERE when the owner
-  starts it; no new phase doc until then). The attended hybrid smoke selects the policy
-  through `OverlayDebugReceiver.SET_ENGINE_POLICY` and its evidence lands under
+  `phase-17-uat/17.1/` (the owner ruling makes that corpus Phase 16's continuation — one
+  subdirectory per run, named by run and arm; R1/R2 ran 2026-10-23, R3/R4 on 2026-10-24)
+  and `phase-17-uat/17.1/CONCLUSIONS.md` — the accumulating corpus of conclusions for
+  the UAT round (owner directive 2026-10-24): one numbered conclusion per finding
+  (C1–C11 so far), the headline R3 finding (the search-first law vs the tree executor)
+  up front, seeded from the six completed runs and extended after each later run; the
+  per-run evidence stays in the sibling REPORT.md files. C15 carries an owner process
+  gate (2026-10-25): after R4 and BEFORE the next UAT round, an interview session
+  refines the brain-hands interaction (the Haiku episodic context) — no implementation
+  before it. Also the deferred Stage 4
+  program (the hybrid acceptance corpus — recorded HERE when the owner starts it; no new
+  phase doc until then). The attended hybrid smoke selects the policy through
+  `OverlayDebugReceiver.SET_ENGINE_POLICY` and its evidence lands under
   `run-reports/vision-exp/task-<ts>/` plus `run-reports/a11y-exp/<task>/`.
 * `preUAT2-emulator/` — the `fix-record.md` from the owner-ordered pre-UAT automation
   pass (2026-10-08, the implementer's defect-fix record); the emulator prepass run

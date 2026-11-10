@@ -1,0 +1,131 @@
+      11  run start goal=<open verkkokauppa.com and add two cases of lemon lime celsius energy drink to th> budget=100x writer=true
+      96  screenshot #0 723x1568 scope=window:com.android.chrome:id=1334:bounds=1181,117,2153,2223 sha256=980a2aa1fb13eb21 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1792757792160/screen-0000.jpg
+    7528  call plan 0ms in=4951 out=1232 cost=8888µ$ channel=HAIKU images=1
+    7530  plan: Open verkkokauppa.com, search for Celsius lemon lime energy drink, set quantity to two, add to cart, and verify the cart. (4 subtasks, ACTION)
+    7679  screenshot #1 723x1568 scope=window:com.android.chrome:id=1334:bounds=0,0,1080,2340 sha256=980a2aa1fb13eb21 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1792757792160/screen-0001.jpg
+    8317  call verify-battery 0ms in=3870 out=38 cost=12180µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   10399  call battery 0ms in=1683 out=180 cost=2066µ$ channel=HAIKU images=1
+   13201  call propose 2798ms in=3568 out=246 cost=3838µ$ channel=HAIKU images=1
+   13597  call ground 394ms in=6955 out=50 cost=21615µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   13603  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+   13603  cross-check: haiku box conf=0.95 iou-vs-jev-rect=0.74
+   13604  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+   14463  step 0: type "verkkokauppa.com" into [raw (550,538) conf=0.95] causes=[SET_TEXT_REJECTED, PASTE_FAILED]
+   14540  screenshot #2 723x1568 scope=window:com.android.chrome:id=1334:bounds=0,0,1080,2340 sha256=2754ebaf0d0d22d6 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1792757792160/screen-0002.jpg
+   14958  call verify-battery 0ms in=4340 out=38 cost=13590µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   17119  call battery 0ms in=1683 out=81 cost=1670µ$ channel=HAIKU images=1
+   19600  call propose 2479ms in=4120 out=240 cost=4256µ$ channel=HAIKU images=1
+   20189  call ground 588ms in=4467 out=33 cost=13896µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   20899  step 1: submit (IME) [node n15 iou=1.00 (label-match)]
+   21375  screenshot #3 723x1568 scope=window:com.android.chrome:id=1334:bounds=0,0,1080,2340 sha256=7ccc094110f101b1 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1792757792160/screen-0003.jpg
+   21837  call verify-battery 0ms in=4298 out=38 cost=13464µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   24719  call battery 0ms in=1683 out=81 cost=1670µ$ channel=HAIKU images=1
+   27823  call repair 3101ms in=3532 out=352 cost=4233µ$ channel=HAIKU images=1
+   27827  condition repair: planner source -> the URL host is verkkokauppa.com
+   27827  step 2: CONDITION REPAIRED - 'an element matching 'verkkokauppa.com store header with a search field' is present' -> 'the URL host is verkkokauppa.com' (the outcome was visible)
+   27827  subtask 1 done (condition repaired): Enter verkkokauppa.com in the address bar and open the site 
+   28299  screenshot #4 723x1568 scope=window:com.android.chrome:id=1334:bounds=0,0,1080,2340 sha256=226d62b7246858b2 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1792757792160/screen-0004.jpg
+   29100  call verify-battery 0ms in=4824 out=38 cost=15042µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   31179  call battery 0ms in=1682 out=80 cost=1665µ$ channel=HAIKU images=1
+   35028  call propose 3846ms in=4278 out=425 cost=5122µ$ channel=HAIKU images=1
+   35499  call ground 468ms in=7428 out=50 cost=23034µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   35499  translate-first: preferring p0 '"Translate" button (blue text link) on the "Translate page? Finnish to English" prompt bar at the top of the screen; acc' over jev pick 'p0'
+   35501  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.85
+   36210  step 3: tap '"Translate" button (blue text link) on the "Translate page? ' [node n14 iou=0.48 (jev-box) conf=0.90] (translate-first)
+   36649  screenshot #5 723x1568 scope=window:com.android.chrome:id=1334:bounds=0,0,1080,2340 sha256=70d117c0bf8a56bf -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1792757792160/screen-0005.jpg
+   37312  call verify-battery 0ms in=4488 out=38 cost=14034µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   39658  call battery 0ms in=1682 out=80 cost=1665µ$ channel=HAIKU images=1
+   45044  call propose 5384ms in=4220 out=769 cost=6452µ$ channel=HAIKU images=1
+   45818  call ground 771ms in=7307 out=50 cost=22671µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   45818  jev box sub-floor (conf=0.13 < 0.60) — haiku-box fallback
+   45820  fallback grounding: '"Etsi" (Search) control in the store header bar, the magnifi' conf=0.40 iou=0.75 node=n12
+   46527  step 4: tap '"Etsi" (Search) control in the store header bar, the magnifi' [node n12 iou=0.75 (haiku-box-fallback) conf=0.40]
+   46937  screenshot #6 723x1568 scope=window:com.android.chrome:id=1334:bounds=0,0,1080,2340 sha256=70d117c0bf8a56bf -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1792757792160/screen-0006.jpg
+   47518  call verify-battery 0ms in=4377 out=38 cost=13701µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   49368  call battery 0ms in=1682 out=80 cost=1665µ$ channel=HAIKU images=1
+   49368  step 5: ACCEPT REFUSED - the code condition is satisfied but the verify battery does not concur (the outcome is not visible)
+   54320  call propose 4948ms in=4144 out=708 cost=6147µ$ channel=HAIKU images=1
+   54804  call ground 479ms in=7263 out=50 cost=22539µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   54805  jev box sub-floor (conf=0.08 < 0.60) — haiku-box fallback
+   54805  fallback grounding: '"Search" icon button in the store header bar, just right of ' conf=0.50 iou=0.51 node=n12
+   55512  step 6: tap '"Search" icon button in the store header bar, just right of ' [node n12 iou=0.51 (haiku-box-fallback) conf=0.50]
+   55969  screenshot #7 723x1568 scope=window:com.android.chrome:id=1334:bounds=0,0,1080,2340 sha256=70d117c0bf8a56bf -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1792757792160/screen-0007.jpg
+   55979  step 7: ACCEPT REFUSED - the code condition is satisfied but the verify battery does not concur (the outcome is not visible)
+   61840  call propose 5859ms in=4144 out=850 cost=6715µ$ channel=HAIKU images=1
+   62319  call ground 478ms in=7262 out=50 cost=22536µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   62319  jev box sub-floor (conf=0.10 < 0.60) — haiku-box fallback
+   62320  fallback grounding: 'Header 'Search' icon button (magnifier) at the top right of ' conf=0.50 iou=0.75 node=n12
+   63025  step 8: tap 'Header 'Search' icon button (magnifier) at the top right of ' [node n12 iou=0.75 (haiku-box-fallback) conf=0.50]
+   63430  screenshot #8 723x1568 scope=window:com.android.chrome:id=1334:bounds=0,0,1080,2340 sha256=70d117c0bf8a56bf -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1792757792160/screen-0008.jpg
+   63440  step 9: ACCEPT REFUSED - the code condition is satisfied but the verify battery does not concur (the outcome is not visible)
+   63440  stuck: screen unchanged x3 - scroll probe
+   63440  stuck probe: covered start -> moved to (540,780)
+   64938  screenshot #9 723x1568 scope=window:com.android.chrome:id=1334:bounds=0,0,1080,2340 sha256=a86919affefe40d0 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1792757792160/screen-0009.jpg
+   65676  call verify-battery 0ms in=4602 out=38 cost=14376µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   67839  call battery 0ms in=1682 out=80 cost=1665µ$ channel=HAIKU images=1
+   73519  call propose 5678ms in=4320 out=713 cost=6308µ$ channel=HAIKU images=1
+   74317  call ground 795ms in=7414 out=58 cost=23112µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   74317  translate-first: preferring p0 'Empty area of the homepage hero image below the 'Page translated' bar (outside the bar), to dismiss the translate banner' over jev pick 'p1'
+   74317  step 11: FAILED (the same 'tap' action was acted 3 times with no progress - refusing to repeat it)
+   74391  screenshot #10 723x1568 scope=window:com.android.chrome:id=1334:bounds=0,0,1080,2340 sha256=6f8e2794e0973475 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1792757792160/screen-0010.jpg
+   82321  call replan 0ms in=7017 out=1508 cost=11645µ$ channel=HAIKU images=1
+   82322  REPLAN #1: Search verkkokauppa.com for the Celsius lemon lime drink, open the product, set quantity to two and add it to the cart, then verify the cart. (resume at subtask 2)
+   82774  screenshot #11 723x1568 scope=window:com.android.chrome:id=1334:bounds=0,0,1080,2340 sha256=6f8e2794e0973475 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1792757792160/screen-0011.jpg
+   83677  call verify-battery 0ms in=4534 out=38 cost=14172µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   86319  call battery 0ms in=1690 out=88 cost=1704µ$ channel=HAIKU images=1
+   90351  call propose 4029ms in=4254 out=539 cost=5559µ$ channel=HAIKU images=1
+   91041  call ground 688ms in=7375 out=50 cost=22875µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   91042  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+   91042  cross-check: haiku box conf=0.60 iou-vs-jev-rect=0.64
+   91043  haiku box below PARTIAL (iou=0.05 < 0.20) — label match
+   92102  step 12: type "verkkokauppa.com Celsius Lemon Lime" into [raw (426,163) conf=0.60]
+   92193  screenshot #12 723x1568 scope=window:com.android.chrome:id=1334:bounds=0,0,1080,2340 sha256=e3bec643e21bfae3 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1792757792160/screen-0012.jpg
+   92797  call verify-battery 0ms in=4052 out=38 cost=12726µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   95441  call battery 0ms in=1690 out=229 cost=2268µ$ channel=HAIKU images=1
+   95442  step 13: ACCEPT REFUSED - the code condition is satisfied but the verify battery does not concur (the outcome is not visible)
+   98649  call propose 3206ms in=3831 out=225 cost=3964µ$ channel=HAIKU images=1
+   99119  call ground 466ms in=4186 out=33 cost=13053µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   99832  step 14: submit (IME) [node n17 iou=1.00 (label-match)]
+   99937  screenshot #13 723x1568 scope=window:com.android.chrome:id=1334:bounds=0,0,1080,2340 sha256=2930b8b3b4047ffb -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1792757792160/screen-0013.jpg
+  100390  call verify-battery 0ms in=3855 out=38 cost=12135µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  103203  call battery 0ms in=1690 out=131 cost=1876µ$ channel=HAIKU images=1
+  103204  step 15: ACCEPT REFUSED - the code condition is satisfied but the verify battery does not concur (the outcome is not visible)
+  103204  step 16: BATTERY ESCALATE - verification battery red flag(s): Is the page still the search results list rather than a product page?
+  103286  screenshot #14 723x1568 scope=window:com.android.chrome:id=1334:bounds=0,0,1080,2340 sha256=c3907a58c7eaef06 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1792757792160/screen-0014.jpg
+  111765  call replan 0ms in=6425 out=1523 cost=11232µ$ channel=HAIKU images=1
+  111767  REPLAN (battery #2): Open verkkokauppa.com directly, search the store for Celsius Lemon Lime, add two to the cart, and verify the cart contents. (resume at subtask 2)
+  112090  screenshot #15 723x1568 scope=window:com.android.chrome:id=1334:bounds=0,0,1080,2340 sha256=c3907a58c7eaef06 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1792757792160/screen-0015.jpg
+  112117  battery held one step: the re-planned plan acts first
+  115765  call propose 3643ms in=4276 out=431 cost=5144µ$ channel=HAIKU images=1
+  116316  call ground 550ms in=7324 out=50 cost=22722µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  116317  cross-check: haiku box conf=0.70 iou-vs-jev-rect=0.53
+  116592  covered action: tap (540,2146) -> node click
+  117294  step 17: tap 'The 'Verkkokauppa.com' organic result link (https://www.verk' [node n71 iou=0.31 (jev-box) conf=0.70] (behind-log: node click)
+  117593  screenshot #16 723x1568 scope=window:com.android.chrome:id=1334:bounds=0,0,1080,2340 sha256=c3907a58c7eaef06 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1792757792160/screen-0016.jpg
+  118083  call verify-battery 0ms in=4722 out=38 cost=14736µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  121358  call battery 0ms in=1678 out=377 cost=2850µ$ channel=HAIKU images=1
+  124013  call repair 2648ms in=3727 out=286 cost=4125µ$ channel=HAIKU images=1
+  124018  condition repair: planner source -> the page contains 'Sponsored Results'
+  124018  step 18: CONDITION REPAIRED - 'an element matching 'product result cards for Celsius Lemon Lime with prices shown on the verkkokauppa.com results page' is present' -> 'the page contains 'Sponsored Results'' (the outcome was visible)
+  124018  subtask 2 done (condition repaired): Tap the store's search field, type the product name, and sub
+  124377  screenshot #17 723x1568 scope=window:com.android.chrome:id=1334:bounds=0,0,1080,2340 sha256=c3907a58c7eaef06 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1792757792160/screen-0017.jpg
+  125038  call verify-battery 0ms in=4722 out=38 cost=14736µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  127200  call battery 0ms in=1678 out=76 cost=1646µ$ channel=HAIKU images=1
+  127200  step 19: BATTERY ESCALATE - verification battery red flag(s): Is the page still the search results list?
+  127294  screenshot #18 723x1568 scope=window:com.android.chrome:id=1334:bounds=0,0,1080,2340 sha256=c3907a58c7eaef06 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1792757792160/screen-0018.jpg
+  136722  call replan 0ms in=6980 out=1809 cost=12820µ$ channel=HAIKU images=1
+  136724  REPLAN (battery #2): Open verkkokauppa.com, search for Celsius Lemon Lime, open the store's own product page, set quantity to 2 and add to cart, then verify the cart. (resume at subtask 3)
+  137149  screenshot #19 723x1568 scope=window:com.android.chrome:id=1334:bounds=0,0,1080,2340 sha256=c3907a58c7eaef06 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1792757792160/screen-0019.jpg
+  137161  battery held one step: the re-planned plan acts first
+  141366  call propose 4200ms in=4320 out=545 cost=5636µ$ channel=HAIKU images=1
+  142398  call ground 1031ms in=10381 out=74 cost=32253µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  142398  step 20: FAILED (jev picked none of the proposals)
+  142751  screenshot #20 723x1568 scope=window:com.android.chrome:id=1334:bounds=0,0,1080,2340 sha256=c3907a58c7eaef06 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1792757792160/screen-0020.jpg
+  143356  call verify-battery 0ms in=4735 out=38 cost=14775µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  145361  call battery 0ms in=1695 out=93 cost=1728µ$ channel=HAIKU images=1
+  145362  step 21: ACCEPT REFUSED - the code condition is satisfied but the verify battery does not concur (the outcome is not visible)
+  145363  step 22: BATTERY ESCALATE - verification battery red flag(s): Is the page still the search results list or a Google page?
+  145447  screenshot #21 723x1568 scope=window:com.android.chrome:id=1334:bounds=0,0,1080,2340 sha256=c3907a58c7eaef06 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1792757792160/screen-0021.jpg
+  154135  call replan 0ms in=7111 out=1686 cost=12432µ$ channel=HAIKU images=1
+  154136  REPLAN (battery #3): Leave the sponsored Google results, open verkkokauppa.com's own organic result, search its catalogue for Celsius Lemon Lime, add two to the cart, and verify the cart. (resume at subtask 3)
+  154137  terminal=CANCELLED steps=23 replans=1 modality=VISION calls=55 jev=24 haiku=31 images=55 battery=26 escalations=0

@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VEXP5 probe</title>
+  <style>
+    body { font-family: sans-serif; margin: 0; background: #f7f7f7; }
+    .ctl { position: absolute; font-size: 20px; padding: 14px 22px; }
+    #alpha { left: 24px; top: 90px; }
+    #beta { left: 210px; top: 240px; width: 170px; }
+    #gamma { left: 24px; top: 420px; }
+    #delta { right: 24px; top: 560px; }
+    #epsilon { left: 90px; top: 720px; }
+    #status { position: absolute; left: 24px; top: 820px; font-size: 18px; color: #0a0; }
+  </style>
+</head>
+<body>
+  <button class="ctl" id="alpha" onclick="hit('ALPHA')">ALPHA BUTTON</button>
+  <input class="ctl" id="beta" aria-label="BETA FIELD" placeholder="BETA FIELD">
+  <a class="ctl" id="gamma" href="#gamma" onclick="hit('GAMMA'); return false;">GAMMA LINK</a>
+  <button class="ctl" id="delta" onclick="hit('DELTA')">DELTA BUTTON</button>
+  <button class="ctl" id="epsilon" onclick="hit('EPSILON')">EPSILON BUTTON</button>
+  <div id="status">no control pressed</div>
+  <script>
+    function hit(name) { document.getElementById('status').textContent = 'PRESSED ' + name; }
+  </script>
+</body>
+</html>

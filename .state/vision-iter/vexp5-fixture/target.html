@@ -1,0 +1,49 @@
+<!doctype html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VEXP5 target</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #ffffff; font-family: sans-serif; }
+    h1 { margin: 28px 24px 8px; font-size: 28px; color: #222; }
+    p { margin: 0 24px; font-size: 18px; color: #555; }
+    #bottom-target {
+      position: fixed;
+      right: 24px;
+      bottom: 48px;
+      width: 200px;
+      height: 72px;
+      background: #d32f2f;
+      color: #ffffff;
+      border: 0;
+      border-radius: 12px;
+      font-size: 20px;
+      font-weight: bold;
+      z-index: 5;
+    }
+    #tapped {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #ffffff;
+      color: #1b5e20;
+      font-size: 44px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>VEXP5 TARGET PAGE</h1>
+  <p>The red button sits in the bottom-right corner, under the live log.</p>
+  <p>Its accessibility label is exactly: BOTTOM TARGET.</p>
+  <button id="bottom-target" onclick="tap()">BOTTOM TARGET</button>
+  <script>
+    function tap() {
+      document.body.innerHTML = '<div id="tapped">TAPPED</div>';
+      document.title = 'TAPPED';
+    }
+  </script>
+</body>
+</html>
