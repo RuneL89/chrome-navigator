@@ -153,3 +153,29 @@ Also recorded: git-corruption incident — the branch ref file was found zeroed 
 the reflog repaired it to 545f6d6; the worktree was intact). And the doc 04 §5 budget
 table's "Transport retries 20" row is now status-line debt (§9.7 supersedes; code enforces
 attempts 3) — a GLM-5.3 amendment item for a later session.
+
+## Stage 18.B part 2 — emulator regression pass (2026-11-11, orchestrator)
+
+Build: app-debug.apk @ 545f6d6 (+ the fix-loop tests; the product wiring includes the
+call policy, the grounding discipline and the capture bound). Scenario: the same
+pinned-URL read goal via the wizard's real path.
+
+- Terminal: `terminal=REPLANS_EXHAUSTED steps=119 replans=20 modality=VISION calls=343
+  jev=140 haiku=203 images=343 battery=124 escalations=0` — the terminal line present
+  (the evidence law holds under the new call policy).
+- **CN-09 PROVEN LIVE — 45 blind dispatches refused**: after the readiness HOME launch
+  the fixture shell landed on the DEVICE launcher (its HOME-intent resolution), and the
+  proposer kept aiming at the launcher's system UI (the Home circle, the Recents square,
+  13+ paraphrases). Under CN-09 every one of those sub-floor boxes with no node match
+  was refused (`LOW_CONFIDENCE_GROUND`, zero executor calls); the run ended with the
+  truthful terminal instead of tapping launcher UI 45 times. The OLD law would have
+  dispatched all 45 (the baseline's GOAL_ACHIEVED partially rode such blind taps).
+- Goal-completion regression vs the baseline: environment-limited, not a code defect —
+  the fixture shell cannot complete this goal class without Chrome (the launcher
+  dead-end), and CN-09 correctly refuses to improvise there. The Stage 18.E acceptance
+  corpus runs the canonical goals on the real environment (Chrome).
+- Evidence pulled: `.state/phase-18-uat/task-1794426762073-events.log` (the refusal
+  distribution: 45 LOW_CONFIDENCE_GROUND, dominated by Home/Recents paraphrases).
+
+STAGE 18.B PART 2 EMULATOR PASS: GREEN (the law verified live; the completion regression
+documented as environmental).

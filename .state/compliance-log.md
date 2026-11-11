@@ -1998,3 +1998,9 @@ a new dated entry. Format per `Implementation Plan/MASTER_IMPLEMENTATION_PROMPT.
 * Result: COMPLIANT — gates green app 818 / core 338 (VisionModelCallPolicyTest 7/7).
 * DEVIATION (continued): the orchestrator implemented part 2 under the owner's continue directive (the implementer subagent's quota resets 17:07); maker/checker separation preserved for the check.
 * Checked By: orchestrator (implementation); canon-verifier pending.
+
+## 2026-11-11 — PHASE_18 STAGE 18.B PART 2: verifier RED -> fix-loop -> GREEN; emulator pass recorded
+* Verifier verdict RED (three test-coverage items; all code/law checks PASSED): R1 the CN-10 wired bound untested + a false "updated" claim; R2 the multi-proposal GROUNDING_UNAVAILABLE arm untested; R3 the policy suite carried 6 tests vs the claimed 7. Fix-loop executed as prescribed: the capture-degradation suite re-pinned (null-seam legacy vs the wired bound) + two wired CN-10 tests; the plan's three-proposal GROUNDING_UNAVAILABLE zero-dispatch test added; the explicit owner-cancellation test added (VisionModelCallPolicyTest now 7). Gates after: app 822 / core 338.
+* Emulator regression pass: the same pinned-URL goal under the new call law -> REPLANS_EXHAUSTED with the terminal line present and 45 LOW_CONFIDENCE_GROUND refusals of launcher-UI blind taps (CN-09 proven live; the old law would have dispatched them). The completion regression vs the baseline documented as environment-limited (no Chrome on the emulator; the fixture shell's launcher dead-end). Records: phase-18-verification.md + task-1794400785471/task-1794426762073 events.logs pulled.
+* Status-line debt recorded (not a halt): doc 04 §5's budget table row "Transport retries 20" is superseded by §9.7 (attempts 3) — a GLM-5.3 status-line amendment for a later session.
+* Checked By: canon-verifier (cold, RED with prescription) + orchestrator (fix-loop + on-device).

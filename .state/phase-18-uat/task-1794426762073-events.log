@@ -1,0 +1,959 @@
+      45  run start goal=<Open http://127.0.0.1:8099/r2-site-a-home.html and report the page headline.> budget=100x writer=true
+     679  screenshot #0 705x1567 scope=display:log-excluded sha256=3e2454029b384c80 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0000.jpg
+    6826  call plan 0ms in=4288 out=760 cost=6470µ$ channel=HAIKU images=1
+    6833  plan: Open the r2-site-a-home page on the local site and report its headline. (2 subtasks, READ)
+    6994  screenshot #1 705x1567 scope=display:log-excluded sha256=e01461d296436abd -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0001.jpg
+    8005  call verify-battery 0ms in=3268 out=38 cost=10374µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+    9623  call battery 0ms in=1706 out=104 cost=1780µ$ channel=HAIKU images=1
+   12415  call propose 2789ms in=2933 out=295 cost=3526µ$ channel=HAIKU images=1
+   12690  call ground 273ms in=3422 out=33 cost=10761µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   12693  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+   14721  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'navigator.app' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+   14721  step 0: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'navigator.app' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+   14944  screenshot #2 705x1567 scope=display:log-excluded sha256=e5ed832d9a5374e2 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0002.jpg
+   17174  call propose 2030ms in=2933 out=213 cost=3198µ$ channel=HAIKU images=1
+   17429  call ground 254ms in=3418 out=33 cost=10749µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   17430  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+   19450  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'navigator.app' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+   19450  step 1: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'navigator.app' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+   19658  screenshot #3 705x1567 scope=display:log-excluded sha256=96a741ca7e751c8e -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0003.jpg
+   24889  call replan 0ms in=5747 out=863 cost=8049µ$ channel=HAIKU images=1
+   24892  REPLAN #1: Leave the Navigator setup screen, open a browser, load the r2-site-a-home page on 127.0.0.1:8099, and report its headline. (resume at subtask 1)
+   24998  screenshot #4 705x1567 scope=display:log-excluded sha256=fe7de37a8ad3c008 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0004.jpg
+   25318  call verify-battery 0ms in=3289 out=55 cost=10692µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   26927  call battery 0ms in=1725 out=133 cost=1912µ$ channel=HAIKU images=1
+   30039  call propose 3109ms in=2952 out=471 cost=4245µ$ channel=HAIKU images=1
+   30379  call ground 338ms in=6422 out=58 cost=20136µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   30379  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+   30380  cross-check: haiku box conf=0.85 iou-vs-jev-rect=0.54
+   30380  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+   30381  step 2: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Home button (circle icon) in the bottom system navigation ba' (raw arm iou=0.00, jev box conf=0.65) - zero executor calls (one fresh snapshot re-observes next step))
+   30661  screenshot #5 705x1567 scope=display:log-excluded sha256=db1a662d8cc21d6d -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0005.jpg
+   33211  call propose 2342ms in=2952 out=232 cost=3289µ$ channel=HAIKU images=1
+   33467  call ground 253ms in=3419 out=33 cost=10752µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   35516  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'navigator.app' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+   35523  step 3: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'navigator.app' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+   35796  screenshot #6 705x1567 scope=display:log-excluded sha256=20119f788227f1e4 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0006.jpg
+   40266  call replan 0ms in=5762 out=845 cost=7989µ$ channel=HAIKU images=1
+   40268  REPLAN #2: Leave the Navigator Setup screen, load the r2-site-a-home page in the browser, and report its headline. (resume at subtask 1)
+   40395  screenshot #7 705x1567 scope=display:log-excluded sha256=44acb94691ba34a9 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0007.jpg
+   40690  call verify-battery 0ms in=3290 out=55 cost=10695µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   42003  call battery 0ms in=1725 out=133 cost=1912µ$ channel=HAIKU images=1
+   45215  call propose 3211ms in=2936 out=457 cost=4176µ$ channel=HAIKU images=1
+   45504  call ground 287ms in=6404 out=58 cost=20082µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   45504  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+   45504  cross-check: haiku box conf=0.85 iou-vs-jev-rect=0.45
+   45505  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+   45506  step 4: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'System Home button (circle icon) in the bottom navigation ba' (raw arm iou=0.00, jev box conf=0.69) - zero executor calls (one fresh snapshot re-observes next step))
+   45607  screenshot #8 705x1567 scope=display:log-excluded sha256=44acb94691ba34a9 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0008.jpg
+   48638  call propose 2985ms in=2936 out=374 cost=3844µ$ channel=HAIKU images=1
+   49040  call ground 400ms in=9340 out=75 cost=29145µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   49040  jev box sub-floor (conf=0.52 < 0.60) — haiku-box fallback
+   49041  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+   49041  step 5: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'The Home circle button in the system navigation bar at the b' (raw arm iou=0.00, jev box conf=0.52) - zero executor calls (one fresh snapshot re-observes next step))
+   49246  screenshot #9 705x1567 scope=display:log-excluded sha256=44acb94691ba34a9 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0009.jpg
+   56726  call replan 0ms in=5729 out=1325 cost=9883µ$ channel=HAIKU images=1
+   56730  REPLAN #3: Leave the Navigator Setup screen, load the r2-site-a-home page in the browser, and report its headline. (resume at subtask 1)
+   56842  screenshot #10 705x1567 scope=display:log-excluded sha256=48ba12a67541957a -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0010.jpg
+   57291  call verify-battery 0ms in=3247 out=38 cost=10311µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   59885  call battery 0ms in=1692 out=201 cost=2157µ$ channel=HAIKU images=1
+   59885  step 6: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still visible on the screen?
+   60055  screenshot #11 705x1567 scope=display:log-excluded sha256=48ba12a67541957a -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0011.jpg
+   66322  call replan 0ms in=5672 out=1195 cost=9317µ$ channel=HAIKU images=1
+   66324  REPLAN (battery #2): Leave the Navigator Setup screen, open Chrome, load the given local URL, then report the page headline. (resume at subtask 1)
+   66415  screenshot #12 705x1567 scope=display:log-excluded sha256=e384c3a061dc5dd6 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0012.jpg
+   66483  battery held one step: the re-planned plan acts first
+   68766  call propose 2281ms in=2939 out=273 cost=3443µ$ channel=HAIKU images=1
+   69030  call ground 262ms in=6394 out=50 cost=19932µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   69030  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+   69031  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.37
+   69031  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+   69032  step 7: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'The system Home button (circle icon) in the Android navigati' (raw arm iou=0.00, jev box conf=0.68) - zero executor calls (one fresh snapshot re-observes next step))
+   69272  screenshot #13 705x1567 scope=display:log-excluded sha256=038293d868cf9159 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0013.jpg
+   69788  call verify-battery 0ms in=3273 out=55 cost=10644µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   71957  call battery 0ms in=1720 out=316 cost=2640µ$ channel=HAIKU images=1
+   71957  step 8: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still visible on the screen?
+   72124  screenshot #14 705x1567 scope=display:log-excluded sha256=9fb400ee438e60fe -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0014.jpg
+   78308  call replan 0ms in=5801 out=1106 cost=9064µ$ channel=HAIKU images=1
+   78311  REPLAN (battery #3): Switch away from the stuck Navigator Setup screen via the Recents button, load the local r2-site-a page in the browser, and report its headline. (resume at subtask 1)
+   78409  screenshot #15 705x1567 scope=display:log-excluded sha256=bb6f387d51e18e73 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0015.jpg
+   78478  battery held one step: the re-planned plan acts first
+   80542  call propose 2062ms in=2981 out=229 cost=3300µ$ channel=HAIKU images=1
+   80788  call ground 244ms in=6406 out=50 cost=19968µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   80788  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+   80789  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.39
+   80789  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+   80789  step 9: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Square 'Recents' button on the system navigation bar at the ' (raw arm iou=0.00, jev box conf=0.72) - zero executor calls (one fresh snapshot re-observes next step))
+   80900  screenshot #16 705x1567 scope=display:log-excluded sha256=7ab9fad48cfbb556 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0016.jpg
+   81163  call verify-battery 0ms in=3249 out=38 cost=10317µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   82526  call battery 0ms in=1697 out=95 cost=1737µ$ channel=HAIKU images=1
+   82526  step 10: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still visible in the foreground?
+   82599  screenshot #17 705x1567 scope=display:log-excluded sha256=7ab9fad48cfbb556 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0017.jpg
+   88315  call replan 0ms in=5803 out=1049 cost=8838µ$ channel=HAIKU images=1
+   88319  REPLAN (battery #4): Leave the Navigator Setup screen for Chrome via the home screen and app drawer, load the target URL, and report the page headline. (resume at subtask 1)
+   88407  screenshot #18 705x1567 scope=display:log-excluded sha256=7ab9fad48cfbb556 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0018.jpg
+   88464  battery held one step: the re-planned plan acts first
+   90653  call propose 2187ms in=2954 out=259 cost=3399µ$ channel=HAIKU images=1
+   91001  call ground 347ms in=6391 out=50 cost=19923µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   91002  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+   91002  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.49
+   91002  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+   91003  step 11: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'The circular 'Home' button in the Android navigation bar at ' (raw arm iou=0.00, jev box conf=0.66) - zero executor calls (one fresh snapshot re-observes next step))
+   91108  screenshot #19 705x1567 scope=display:log-excluded sha256=7ab9fad48cfbb556 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0019.jpg
+   91417  call verify-battery 0ms in=3245 out=38 cost=10305µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   92648  call battery 0ms in=1690 out=88 cost=1704µ$ channel=HAIKU images=1
+   92649  step 12: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still the foreground screen?
+   92736  screenshot #20 705x1567 scope=display:log-excluded sha256=7ab9fad48cfbb556 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0020.jpg
+   99832  call replan 0ms in=5772 out=1339 cost=9973µ$ channel=HAIKU images=1
+   99834  REPLAN (battery #5): Switch away from Navigator Setup via Recents (not Home/app drawer), load the local site in Chrome, and report its headline. (resume at subtask 1)
+   99926  screenshot #21 705x1567 scope=display:log-excluded sha256=3e9f3d6b1bad6ba4 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0021.jpg
+   99980  battery held one step: the re-planned plan acts first
+  102280  call propose 2298ms in=2979 out=213 cost=3235µ$ channel=HAIKU images=1
+  102520  call ground 237ms in=6399 out=50 cost=19947µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  102520  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  102521  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.53
+  102521  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  102522  step 13: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Square 'Recents' button on the system navigation bar at the ' (raw arm iou=0.00, jev box conf=0.78) - zero executor calls (one fresh snapshot re-observes next step))
+  102625  screenshot #22 705x1567 scope=display:log-excluded sha256=3e9f3d6b1bad6ba4 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0022.jpg
+  103026  call verify-battery 0ms in=3246 out=38 cost=10308µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  104273  call battery 0ms in=1690 out=84 cost=1688µ$ channel=HAIKU images=1
+  104274  step 14: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still the foreground screen?
+  104360  screenshot #23 705x1567 scope=display:log-excluded sha256=3e9f3d6b1bad6ba4 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0023.jpg
+  110735  call replan 0ms in=5790 out=1250 cost=9632µ$ channel=HAIKU images=1
+  110737  REPLAN (battery #6): Leave the Navigator Setup screen via the Home button, open Chrome from the launcher, load the site URL, and report its headline. (resume at subtask 1)
+  110879  screenshot #24 705x1567 scope=display:log-excluded sha256=3e9f3d6b1bad6ba4 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0024.jpg
+  110936  battery held one step: the re-planned plan acts first
+  113111  call propose 2174ms in=2944 out=252 cost=3363µ$ channel=HAIKU images=1
+  113363  call ground 250ms in=6391 out=50 cost=19923µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  113364  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  113365  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.44
+  113365  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  113366  step 15: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'The circular 'Home' button in the system navigation bar at t' (raw arm iou=0.00, jev box conf=0.67) - zero executor calls (one fresh snapshot re-observes next step))
+  113523  screenshot #25 705x1567 scope=display:log-excluded sha256=3e9f3d6b1bad6ba4 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0025.jpg
+  113808  call verify-battery 0ms in=3239 out=38 cost=10287µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  115050  call battery 0ms in=1678 out=76 cost=1646µ$ channel=HAIKU images=1
+  115051  step 16: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still the foreground screen?
+  115170  screenshot #26 705x1567 scope=display:log-excluded sha256=7acdf920772ac698 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0026.jpg
+  121702  call replan 0ms in=5743 out=1232 cost=9522µ$ channel=HAIKU images=1
+  121706  REPLAN (battery #7): Leave the Navigator Setup screen, open a browser via the app drawer search instead of the home screen, load the site URL, and report its headline. (resume at subtask 1)
+  121857  screenshot #27 705x1567 scope=display:log-excluded sha256=7acdf920772ac698 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0027.jpg
+  121929  battery held one step: the re-planned plan acts first
+  123801  call propose 1871ms in=2964 out=211 cost=3215µ$ channel=HAIKU images=1
+  124061  call ground 259ms in=6378 out=50 cost=19884µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  124061  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  124061  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.49
+  124062  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  124062  step 17: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'The Home circle button (center circle) in the bottom navigat' (raw arm iou=0.00, jev box conf=0.84) - zero executor calls (one fresh snapshot re-observes next step))
+  124244  screenshot #28 705x1567 scope=display:log-excluded sha256=7acdf920772ac698 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0028.jpg
+  124555  call verify-battery 0ms in=3240 out=38 cost=10290µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  126172  call battery 0ms in=1678 out=76 cost=1646µ$ channel=HAIKU images=1
+  126173  step 18: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still the foreground screen?
+  126313  screenshot #29 705x1567 scope=display:log-excluded sha256=7acdf920772ac698 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0029.jpg
+  133273  call replan 0ms in=5763 out=1210 cost=9450µ$ channel=HAIKU images=1
+  133275  plan attempt 1 refused: Subtask: instruction exceeds 300 chars: 303
+  140023  call replan 0ms in=5823 out=1324 cost=9954µ$ channel=HAIKU images=1
+  140027  REPLAN (battery #8): Leave the Navigator Setup screen via Recents or Home, open a browser, load the r2-site-a-home page, and report its headline. (resume at subtask 1)
+  140122  screenshot #30 705x1567 scope=display:log-excluded sha256=192ee5e4007f37d4 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0030.jpg
+  140171  battery held one step: the re-planned plan acts first
+  142165  call propose 1992ms in=2931 out=235 cost=3284µ$ channel=HAIKU images=1
+  142443  call ground 275ms in=6352 out=50 cost=19806µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  142443  jev box sub-floor (conf=0.52 < 0.60) — haiku-box fallback
+  142443  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  142444  step 19: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'The Recents (square) navigation button at the bottom right o' (raw arm iou=0.00, jev box conf=0.52) - zero executor calls (one fresh snapshot re-observes next step))
+  142583  screenshot #31 705x1567 scope=display:log-excluded sha256=192ee5e4007f37d4 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0031.jpg
+  142852  call verify-battery 0ms in=3247 out=38 cost=10311µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  144154  call battery 0ms in=1690 out=84 cost=1688µ$ channel=HAIKU images=1
+  144154  step 20: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still the foreground screen?
+  144295  screenshot #32 705x1567 scope=display:log-excluded sha256=192ee5e4007f37d4 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0032.jpg
+  150695  call replan 0ms in=5738 out=1150 cost=9190µ$ channel=HAIKU images=1
+  150698  REPLAN (battery #9): Leave the Navigator Setup screen via Home, launch Chrome from the app drawer instead of Recents, load the given site, and report its headline. (resume at subtask 1)
+  150846  screenshot #33 705x1567 scope=display:log-excluded sha256=bd61d75765c6d85f -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0033.jpg
+  150907  battery held one step: the re-planned plan acts first
+  152958  call propose 2050ms in=2963 out=242 cost=3338µ$ channel=HAIKU images=1
+  153224  call ground 262ms in=6375 out=50 cost=19875µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  153224  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  153225  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.45
+  153225  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  153225  step 21: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'The Home button: the circle icon at the bottom centre of the' (raw arm iou=0.00, jev box conf=0.91) - zero executor calls (one fresh snapshot re-observes next step))
+  153394  screenshot #34 705x1567 scope=display:log-excluded sha256=bd61d75765c6d85f -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0034.jpg
+  153705  call verify-battery 0ms in=3241 out=38 cost=10293µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  154909  call battery 0ms in=1685 out=83 cost=1680µ$ channel=HAIKU images=1
+  154910  step 22: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still the foreground screen?
+  155033  screenshot #35 705x1567 scope=display:log-excluded sha256=bd61d75765c6d85f -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0035.jpg
+  161125  call replan 0ms in=5774 out=1137 cost=9167µ$ channel=HAIKU images=1
+  161127  REPLAN (battery #10): Leave the Navigator Setup screen by a different route (Recents, not the app drawer), load the exact URL, then report the headline. (resume at subtask 1)
+  161256  screenshot #36 705x1567 scope=display:log-excluded sha256=bd61d75765c6d85f -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0036.jpg
+  161304  battery held one step: the re-planned plan acts first
+  163681  call propose 2374ms in=2978 out=241 cost=3346µ$ channel=HAIKU images=1
+  163919  call ground 237ms in=6391 out=50 cost=19923µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  163920  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  163920  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.25
+  163920  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  163920  step 23: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Recents button (the square icon) in the bottom navigation ba' (raw arm iou=0.00, jev box conf=0.66) - zero executor calls (one fresh snapshot re-observes next step))
+  164071  screenshot #37 705x1567 scope=display:log-excluded sha256=bd61d75765c6d85f -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0037.jpg
+  164352  call verify-battery 0ms in=3240 out=38 cost=10290µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  165590  call battery 0ms in=1685 out=79 cost=1664µ$ channel=HAIKU images=1
+  165591  step 24: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still the foreground screen?
+  165712  screenshot #38 705x1567 scope=display:log-excluded sha256=bd61d75765c6d85f -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0038.jpg
+  171878  call replan 0ms in=5788 out=1252 cost=9638µ$ channel=HAIKU images=1
+  171881  REPLAN (battery #11): Leave the Navigator Setup screen via the Home button, open Chrome, load the goal's site, and report its headline. (resume at subtask 1)
+  172024  screenshot #39 705x1567 scope=display:log-excluded sha256=bd61d75765c6d85f -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0039.jpg
+  172141  battery held one step: the re-planned plan acts first
+  174111  call propose 1969ms in=2956 out=238 cost=3316µ$ channel=HAIKU images=1
+  174358  call ground 246ms in=6377 out=50 cost=19881µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  174359  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  174359  cross-check: haiku box conf=0.95 iou-vs-jev-rect=0.16
+  174359  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  174360  step 25: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Home circle button at the bottom centre of the Android navig' (raw arm iou=0.00, jev box conf=0.61) - zero executor calls (one fresh snapshot re-observes next step))
+  174510  screenshot #40 705x1567 scope=display:log-excluded sha256=bd61d75765c6d85f -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0040.jpg
+  174815  call verify-battery 0ms in=3240 out=38 cost=10290µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  175976  call battery 0ms in=1685 out=83 cost=1680µ$ channel=HAIKU images=1
+  175977  step 26: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still the foreground screen?
+  176114  screenshot #41 705x1567 scope=display:log-excluded sha256=bd61d75765c6d85f -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0041.jpg
+  182322  call replan 0ms in=5766 out=1210 cost=9452µ$ channel=HAIKU images=1
+  182325  REPLAN (battery #12): Leave the Navigator Setup screen with the system Back control instead of the Home/Chrome-icon route that already failed, open the target URL in the browser, then report the headline. (resume at subtask 1)
+  182456  screenshot #42 705x1567 scope=display:log-excluded sha256=bd61d75765c6d85f -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0042.jpg
+  182517  battery held one step: the re-planned plan acts first
+  184405  call propose 1887ms in=2950 out=223 cost=3252µ$ channel=HAIKU images=1
+  184694  call ground 288ms in=6370 out=50 cost=19860µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  184695  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  184695  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.43
+  184696  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  184696  step 27: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'System Back triangle icon at the bottom-left of the navigati' (raw arm iou=0.00, jev box conf=0.92) - zero executor calls (one fresh snapshot re-observes next step))
+  184846  screenshot #43 705x1567 scope=display:log-excluded sha256=bd61d75765c6d85f -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0043.jpg
+  185131  call verify-battery 0ms in=3241 out=38 cost=10293µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  186431  call battery 0ms in=1679 out=77 cost=1651µ$ channel=HAIKU images=1
+  188684  call propose 2252ms in=2950 out=309 cost=3596µ$ channel=HAIKU images=1
+  188908  call ground 221ms in=3421 out=33 cost=10758µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  188908  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  190949  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'navigator.app' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  190950  step 28: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'navigator.app' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  191070  screenshot #44 705x1567 scope=display:log-excluded sha256=607030a22461360d -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0044.jpg
+  196998  call replan 0ms in=5807 out=1115 cost=9105µ$ channel=HAIKU images=1
+  197000  REPLAN #4: Leave the Navigator Setup screen via Recents instead of Back, open a browser, load the R2 site A home page, and report its headline. (resume at subtask 1)
+  197103  screenshot #45 705x1567 scope=display:log-excluded sha256=13f185aaaa3079d0 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0045.jpg
+  197422  call verify-battery 0ms in=3243 out=38 cost=10299µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  198602  call battery 0ms in=1684 out=82 cost=1675µ$ channel=HAIKU images=1
+  198602  step 29: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still in the foreground?
+  198736  screenshot #46 705x1567 scope=display:log-excluded sha256=13f185aaaa3079d0 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0046.jpg
+  203961  call replan 0ms in=5689 out=1025 cost=8651µ$ channel=HAIKU images=1
+  203964  REPLAN (battery #2): Leave the Navigator Setup screen, open a browser, load the r2-site-a home page, and report its headline. (resume at subtask 1)
+  204043  screenshot #47 705x1567 scope=display:log-excluded sha256=6dd9b662fde7846d -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0047.jpg
+  204105  battery held one step: the re-planned plan acts first
+  206718  call propose 2611ms in=2947 out=235 cost=3297µ$ channel=HAIKU images=1
+  206975  call ground 252ms in=6389 out=50 cost=19917µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  206975  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  206976  cross-check: haiku box conf=0.85 iou-vs-jev-rect=0.38
+  206976  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  206977  step 30: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Recents button (square icon) in the bottom navigation bar, b' (raw arm iou=0.00, jev box conf=0.67) - zero executor calls (one fresh snapshot re-observes next step))
+  207163  screenshot #48 705x1567 scope=display:log-excluded sha256=84f16f2efe3410a4 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0048.jpg
+  207498  call verify-battery 0ms in=3244 out=38 cost=10302µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  208790  call battery 0ms in=1687 out=81 cost=1673µ$ channel=HAIKU images=1
+  208791  step 31: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still in the foreground?
+  208918  screenshot #49 705x1567 scope=display:log-excluded sha256=13f185aaaa3079d0 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0049.jpg
+  214398  call replan 0ms in=5746 out=1040 cost=8756µ$ channel=HAIKU images=1
+  214400  REPLAN (battery #3): Leave the Navigator Setup screen via Home and the app drawer, open the goal URL in a browser, and report the headline. (resume at subtask 1)
+  214480  screenshot #50 705x1567 scope=display:log-excluded sha256=6dd9b662fde7846d -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0050.jpg
+  214544  battery held one step: the re-planned plan acts first
+  216875  call propose 2330ms in=2947 out=260 cost=3397µ$ channel=HAIKU images=1
+  217131  call ground 254ms in=6384 out=50 cost=19902µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  217131  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  217132  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.57
+  217132  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  217132  step 32: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'The Home button: the circle icon in the middle of the bottom' (raw arm iou=0.00, jev box conf=0.79) - zero executor calls (one fresh snapshot re-observes next step))
+  217248  screenshot #51 705x1567 scope=display:log-excluded sha256=6dd9b662fde7846d -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0051.jpg
+  217585  call verify-battery 0ms in=3244 out=38 cost=10302µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  219132  call battery 0ms in=1687 out=81 cost=1673µ$ channel=HAIKU images=1
+  219132  step 33: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still in the foreground?
+  219203  screenshot #52 705x1567 scope=display:log-excluded sha256=6dd9b662fde7846d -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0052.jpg
+  227051  call replan 0ms in=5751 out=1349 cost=9996µ$ channel=HAIKU images=1
+  227054  REPLAN (battery #4): Switch from the Navigator Setup screen to a browser via Recents, load the site's URL, then report the headline. (resume at subtask 1)
+  227135  screenshot #53 705x1567 scope=display:log-excluded sha256=d4c5c6a994cad86c -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0053.jpg
+  227200  battery held one step: the re-planned plan acts first
+  229602  call propose 2400ms in=2983 out=237 cost=3334µ$ channel=HAIKU images=1
+  229851  call ground 248ms in=6394 out=50 cost=19932µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  229852  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  229853  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.37
+  229853  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  229854  step 34: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Recents (square) button in the bottom navigation bar, at the' (raw arm iou=0.00, jev box conf=0.60) - zero executor calls (one fresh snapshot re-observes next step))
+  229991  screenshot #54 705x1567 scope=display:log-excluded sha256=d4c5c6a994cad86c -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0054.jpg
+  230255  call verify-battery 0ms in=3246 out=38 cost=10308µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  231514  call battery 0ms in=1687 out=85 cost=1689µ$ channel=HAIKU images=1
+  231515  step 35: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still in the foreground?
+  231589  screenshot #55 705x1567 scope=display:log-excluded sha256=d4c5c6a994cad86c -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0055.jpg
+  237392  call replan 0ms in=5798 out=1146 cost=9222µ$ channel=HAIKU images=1
+  237394  REPLAN (battery #5): Leave Navigator Setup via Home, open Chrome from the home screen or app drawer, load the r2-site-a-home page, and report its headline. (resume at subtask 1)
+  237476  screenshot #56 705x1567 scope=display:log-excluded sha256=d4c5c6a994cad86c -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0056.jpg
+  237529  battery held one step: the re-planned plan acts first
+  239970  call propose 2438ms in=2952 out=225 cost=3261µ$ channel=HAIKU images=1
+  240240  call ground 269ms in=6366 out=50 cost=19848µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  240240  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  240240  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.42
+  240240  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  240241  step 36: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Home button: the bottom-center circle in the Android navigat' (raw arm iou=0.00, jev box conf=0.89) - zero executor calls (one fresh snapshot re-observes next step))
+  240343  screenshot #57 705x1567 scope=display:log-excluded sha256=d4c5c6a994cad86c -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0057.jpg
+  240615  call verify-battery 0ms in=3246 out=38 cost=10308µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  241910  call battery 0ms in=1690 out=88 cost=1704µ$ channel=HAIKU images=1
+  241911  step 37: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still in the foreground?
+  242006  screenshot #58 705x1567 scope=display:log-excluded sha256=d4c5c6a994cad86c -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0058.jpg
+  248355  call replan 0ms in=5763 out=1247 cost=9598µ$ channel=HAIKU images=1
+  248359  REPLAN (battery #6): Leave the Navigator Setup screen, open any installed browser via the app drawer instead of Chrome specifically, load the local URL, and report the headline. (resume at subtask 1)
+  248452  screenshot #59 705x1567 scope=display:log-excluded sha256=bdca2bded704af7f -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0059.jpg
+  248512  battery held one step: the re-planned plan acts first
+  252845  call propose 4331ms in=2961 out=722 cost=5256µ$ channel=HAIKU images=1
+  253121  call ground 274ms in=6447 out=58 cost=20211µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  255154  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'navigator.app' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  255154  step 38: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'navigator.app' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  255326  screenshot #60 705x1567 scope=display:log-excluded sha256=500978e93561a750 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0060.jpg
+  255704  call verify-battery 0ms in=3251 out=38 cost=10323µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  257415  call battery 0ms in=1693 out=194 cost=2130µ$ channel=HAIKU images=1
+  260759  call propose 3342ms in=2961 out=465 cost=4228µ$ channel=HAIKU images=1
+  261028  call ground 267ms in=6420 out=50 cost=20010µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  261029  jev box sub-floor (conf=0.56 < 0.60) — haiku-box fallback
+  261029  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  261031  step 39: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'The round 'home' button (circle icon) in the bottom navigati' (raw arm iou=0.00, jev box conf=0.56) - zero executor calls (one fresh snapshot re-observes next step))
+  261182  screenshot #61 705x1567 scope=display:log-excluded sha256=6fd76d001828ae9f -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0061.jpg
+  267281  call replan 0ms in=5774 out=1186 cost=9363µ$ channel=HAIKU images=1
+  267284  REPLAN #5: Leave the Navigator Setup screen via Home, open a browser from the home screen or launcher search, load the site, and report its headline. (resume at subtask 1)
+  267378  screenshot #62 705x1567 scope=display:log-excluded sha256=682ccdab2c84e8e8 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0062.jpg
+  267715  call verify-battery 0ms in=3248 out=38 cost=10314µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  269383  call battery 0ms in=1691 out=89 cost=1708µ$ channel=HAIKU images=1
+  269385  step 40: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still in the foreground?
+  269540  screenshot #63 705x1567 scope=display:log-excluded sha256=682ccdab2c84e8e8 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0063.jpg
+  274779  call replan 0ms in=5729 out=900 cost=8183µ$ channel=HAIKU images=1
+  274783  REPLAN (battery #2): Leave the Navigator Setup screen, open a browser, load the named site, and report its headline. (resume at subtask 1)
+  274863  screenshot #64 705x1567 scope=display:log-excluded sha256=afd10279a8a112ee -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0064.jpg
+  274926  battery held one step: the re-planned plan acts first
+  277243  call propose 2316ms in=2953 out=273 cost=3454µ$ channel=HAIKU images=1
+  277474  call ground 229ms in=6397 out=50 cost=19941µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  277474  jev box sub-floor (conf=0.44 < 0.60) — haiku-box fallback
+  277474  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  277475  step 41: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'The round 'Home' button (circle icon) in the Android navigat' (raw arm iou=0.00, jev box conf=0.44) - zero executor calls (one fresh snapshot re-observes next step))
+  277677  screenshot #65 705x1567 scope=display:log-excluded sha256=e4506fd3b4234416 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0065.jpg
+  278021  call verify-battery 0ms in=3243 out=38 cost=10299µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  280095  call battery 0ms in=1683 out=190 cost=2106µ$ channel=HAIKU images=1
+  280095  step 42: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still in the foreground?
+  280224  screenshot #66 705x1567 scope=display:log-excluded sha256=e0543e86c8e094d9 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0066.jpg
+  285577  call replan 0ms in=5756 out=976 cost=8508µ$ channel=HAIKU images=1
+  285579  REPLAN (battery #3): Leave the Navigator Setup screen via Home, open a browser app, load the site, and report its headline. (resume at subtask 1)
+  285656  screenshot #67 705x1567 scope=display:log-excluded sha256=fc339929d5a45a7e -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0067.jpg
+  285708  battery held one step: the re-planned plan acts first
+  287809  call propose 2099ms in=2941 out=223 cost=3244µ$ channel=HAIKU images=1
+  288109  call ground 297ms in=6386 out=50 cost=19908µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  288109  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  288109  cross-check: haiku box conf=0.93 iou-vs-jev-rect=0.43
+  288110  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  288110  step 43: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Home button: the white circle icon in the bottom navigation ' (raw arm iou=0.00, jev box conf=0.63) - zero executor calls (one fresh snapshot re-observes next step))
+  288241  screenshot #68 705x1567 scope=display:log-excluded sha256=afd10279a8a112ee -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0068.jpg
+  288535  call verify-battery 0ms in=3244 out=38 cost=10302µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  290079  call battery 0ms in=1683 out=159 cost=1982µ$ channel=HAIKU images=1
+  290080  step 44: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still in the foreground?
+  290167  screenshot #69 705x1567 scope=display:log-excluded sha256=afd10279a8a112ee -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0069.jpg
+  296902  call replan 0ms in=5735 out=1212 cost=9436µ$ channel=HAIKU images=1
+  296904  REPLAN (battery #4): Leave the Navigator Setup screen via Home, open Chrome from the app drawer, load the named site URL, then report its headline. (resume at subtask 1)
+  296987  screenshot #70 705x1567 scope=display:log-excluded sha256=afd10279a8a112ee -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0070.jpg
+  297044  battery held one step: the re-planned plan acts first
+  299150  call propose 2104ms in=2968 out=260 cost=3414µ$ channel=HAIKU images=1
+  299393  call ground 240ms in=6387 out=50 cost=19911µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  299394  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  299394  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.57
+  299395  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  299395  step 45: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'The round Home circle button in the bottom navigation bar, c' (raw arm iou=0.00, jev box conf=0.84) - zero executor calls (one fresh snapshot re-observes next step))
+  299551  screenshot #71 705x1567 scope=display:log-excluded sha256=afd10279a8a112ee -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0071.jpg
+  299840  call verify-battery 0ms in=3241 out=38 cost=10293µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  301364  call battery 0ms in=1685 out=153 cost=1960µ$ channel=HAIKU images=1
+  301366  step 46: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still in the foreground?
+  301456  screenshot #72 705x1567 scope=display:log-excluded sha256=afd10279a8a112ee -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0072.jpg
+  307273  call replan 0ms in=5790 out=1045 cost=8812µ$ channel=HAIKU images=1
+  307275  REPLAN (battery #5): Leave the Navigator Setup screen via Recents, open Chrome, load the site URL, and report its headline. (resume at subtask 1)
+  307358  screenshot #73 705x1567 scope=display:log-excluded sha256=6355f6517b0d9e40 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0073.jpg
+  307418  battery held one step: the re-planned plan acts first
+  309531  call propose 2112ms in=2956 out=230 cost=3284µ$ channel=HAIKU images=1
+  309791  call ground 259ms in=6373 out=50 cost=19869µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  309792  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  309792  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.23
+  309792  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  309793  step 47: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Recents (square) button in the bottom navigation bar, at the' (raw arm iou=0.00, jev box conf=0.62) - zero executor calls (one fresh snapshot re-observes next step))
+  309900  screenshot #74 705x1567 scope=display:log-excluded sha256=6355f6517b0d9e40 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0074.jpg
+  310270  call verify-battery 0ms in=3242 out=38 cost=10296µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  311864  call battery 0ms in=1685 out=161 cost=1992µ$ channel=HAIKU images=1
+  311865  step 48: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still in the foreground?
+  311947  screenshot #75 705x1567 scope=display:log-excluded sha256=6355f6517b0d9e40 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0075.jpg
+  317443  call replan 0ms in=5763 out=1053 cost=8822µ$ channel=HAIKU images=1
+  317446  REPLAN (battery #6): Leave the Navigator Setup screen via the Home button, open Chrome from the app drawer, load the local site, and report its headline. (resume at subtask 1)
+  317530  screenshot #76 705x1567 scope=display:log-excluded sha256=6355f6517b0d9e40 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0076.jpg
+  317572  battery held one step: the re-planned plan acts first
+  319723  call propose 2148ms in=2944 out=236 cost=3299µ$ channel=HAIKU images=1
+  319993  call ground 266ms in=6374 out=50 cost=19872µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  319993  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  319994  cross-check: haiku box conf=0.95 iou-vs-jev-rect=0.42
+  319994  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  319995  step 49: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Home button (unlabeled circle icon) in the Android navigatio' (raw arm iou=0.00, jev box conf=0.82) - zero executor calls (one fresh snapshot re-observes next step))
+  320109  screenshot #77 705x1567 scope=display:log-excluded sha256=6355f6517b0d9e40 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0077.jpg
+  320406  call verify-battery 0ms in=3239 out=38 cost=10287µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  321924  call battery 0ms in=1685 out=157 cost=1976µ$ channel=HAIKU images=1
+  321925  step 50: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still in the foreground?
+  322007  screenshot #78 705x1567 scope=display:log-excluded sha256=6355f6517b0d9e40 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0078.jpg
+  328727  call replan 0ms in=5751 out=1259 cost=9636µ$ channel=HAIKU images=1
+  328728  REPLAN (battery #7): Leave the Navigator Setup screen via Recents and open the target URL in an existing browser window rather than launching Chrome from the app drawer. (resume at subtask 1)
+  328826  screenshot #79 705x1567 scope=display:log-excluded sha256=e8d13628c1e27444 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0079.jpg
+  328897  battery held one step: the re-planned plan acts first
+  330139  call propose 1239ms in=2953 out=85 cost=2702µ$ channel=HAIKU images=1
+  330425  call ground 285ms in=6373 out=50 cost=19869µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  330425  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  330425  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.40
+  330425  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  330426  step 51: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Recents (square) button at the bottom right of the navigatio' (raw arm iou=0.00, jev box conf=0.72) - zero executor calls (one fresh snapshot re-observes next step))
+  330522  screenshot #80 705x1567 scope=display:log-excluded sha256=e8d13628c1e27444 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0080.jpg
+  330782  call verify-battery 0ms in=3247 out=38 cost=10311µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  332377  call battery 0ms in=1688 out=86 cost=1694µ$ channel=HAIKU images=1
+  332378  step 52: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still in the foreground?
+  332475  screenshot #81 705x1567 scope=display:log-excluded sha256=e8d13628c1e27444 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0081.jpg
+  338647  call replan 0ms in=5764 out=1275 cost=9711µ$ channel=HAIKU images=1
+  338650  REPLAN (battery #8): Leave Navigator Setup via the Home button instead of Recents, open a browser, load the URL, and report the headline. (resume at subtask 1)
+  338742  screenshot #82 705x1567 scope=display:log-excluded sha256=e8d13628c1e27444 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0082.jpg
+  338806  battery held one step: the re-planned plan acts first
+  341157  call propose 2349ms in=2942 out=213 cost=3205µ$ channel=HAIKU images=1
+  341414  call ground 252ms in=6376 out=50 cost=19878µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  341414  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  341414  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.45
+  341415  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  341415  step 53: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Home button: the circle icon at the bottom centre of the And' (raw arm iou=0.00, jev box conf=0.84) - zero executor calls (one fresh snapshot re-observes next step))
+  341524  screenshot #83 705x1567 scope=display:log-excluded sha256=e8d13628c1e27444 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0083.jpg
+  341813  call verify-battery 0ms in=3243 out=38 cost=10299µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  343737  call battery 0ms in=1683 out=81 cost=1670µ$ channel=HAIKU images=1
+  343738  step 54: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still in the foreground?
+  343830  screenshot #84 705x1567 scope=display:log-excluded sha256=e8d13628c1e27444 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0084.jpg
+  349015  call replan 0ms in=5756 out=1054 cost=8820µ$ channel=HAIKU images=1
+  349018  REPLAN (battery #9): Leave the Navigator app via Recents, open the target URL in a browser, then report the page headline. (resume at subtask 1)
+  349134  screenshot #85 705x1567 scope=display:log-excluded sha256=e8d13628c1e27444 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0085.jpg
+  349212  battery held one step: the re-planned plan acts first
+  351319  call propose 2105ms in=2942 out=261 cost=3397µ$ channel=HAIKU images=1
+  351564  call ground 244ms in=6382 out=50 cost=19896µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  351564  jev box sub-floor (conf=0.58 < 0.60) — haiku-box fallback
+  351564  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  351564  step 55: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'The square 'Recents' button at the bottom right of the Andro' (raw arm iou=0.00, jev box conf=0.58) - zero executor calls (one fresh snapshot re-observes next step))
+  351692  screenshot #86 705x1567 scope=display:log-excluded sha256=e8d13628c1e27444 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0086.jpg
+  352023  call verify-battery 0ms in=3248 out=38 cost=10314µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  353337  call battery 0ms in=1692 out=86 cost=1697µ$ channel=HAIKU images=1
+  353337  step 56: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still in the foreground?
+  353536  screenshot #87 705x1567 scope=display:log-excluded sha256=e8d13628c1e27444 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0087.jpg
+  359054  call replan 0ms in=5758 out=1085 cost=8946µ$ channel=HAIKU images=1
+  359055  REPLAN (battery #10): Leave the Navigator Setup screen for the home screen, open Chrome, load the given local URL, and report the page headline. (resume at subtask 1)
+  359185  screenshot #88 705x1567 scope=display:log-excluded sha256=cfaa69adafa0e459 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0088.jpg
+  359240  battery held one step: the re-planned plan acts first
+  361140  call propose 1898ms in=2955 out=221 cost=3248µ$ channel=HAIKU images=1
+  361419  call ground 278ms in=6382 out=50 cost=19896µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  361419  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  361419  cross-check: haiku box conf=0.95 iou-vs-jev-rect=0.41
+  361419  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  361420  step 57: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Home (circle) button in the bottom navigation bar, centered ' (raw arm iou=0.00, jev box conf=0.86) - zero executor calls (one fresh snapshot re-observes next step))
+  361566  screenshot #89 705x1567 scope=display:log-excluded sha256=cfaa69adafa0e459 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0089.jpg
+  361866  call verify-battery 0ms in=3246 out=38 cost=10308µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  363122  call battery 0ms in=1691 out=85 cost=1692µ$ channel=HAIKU images=1
+  363123  step 58: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still in the foreground?
+  363247  screenshot #90 705x1567 scope=display:log-excluded sha256=cfaa69adafa0e459 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0090.jpg
+  368832  call replan 0ms in=5771 out=1094 cost=8992µ$ channel=HAIKU images=1
+  368835  REPLAN (battery #11): Leave the Navigator Setup screen for a real browser via Recents or the app drawer, load the site URL, and report the page headline. (resume at subtask 1)
+  368964  screenshot #91 705x1567 scope=display:log-excluded sha256=072677a7f53ff875 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0091.jpg
+  369010  battery held one step: the re-planned plan acts first
+  371181  call propose 2169ms in=2974 out=258 cost=3411µ$ channel=HAIKU images=1
+  371423  call ground 240ms in=6405 out=50 cost=19965µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  371423  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  371424  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.24
+  371424  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  371424  step 59: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Recents (square) navigation button at the bottom right of th' (raw arm iou=0.00, jev box conf=0.70) - zero executor calls (one fresh snapshot re-observes next step))
+  371538  screenshot #92 705x1567 scope=display:log-excluded sha256=072677a7f53ff875 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0092.jpg
+  371857  call verify-battery 0ms in=3246 out=38 cost=10308µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  373623  call battery 0ms in=1690 out=170 cost=2032µ$ channel=HAIKU images=1
+  373623  step 60: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still in the foreground?
+  373755  screenshot #93 705x1567 scope=display:log-excluded sha256=072677a7f53ff875 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0093.jpg
+  379934  call replan 0ms in=5787 out=1126 cost=9133µ$ channel=HAIKU images=1
+  379935  REPLAN (battery #12): Leave the Navigator app for the home screen, open a browser, load the site, and report its headline. (resume at subtask 1)
+  380061  screenshot #94 705x1567 scope=display:log-excluded sha256=6f630c9efada469a -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0094.jpg
+  380118  battery held one step: the re-planned plan acts first
+  382678  call propose 2560ms in=2949 out=257 cost=3387µ$ channel=HAIKU images=1
+  382908  call ground 228ms in=6389 out=50 cost=19917µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  382908  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  382908  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.49
+  382908  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  382909  step 61: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'The round Home button (circle) in the Android navigation bar' (raw arm iou=0.00, jev box conf=0.75) - zero executor calls (one fresh snapshot re-observes next step))
+  383055  screenshot #95 705x1567 scope=display:log-excluded sha256=6f630c9efada469a -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0095.jpg
+  383377  call verify-battery 0ms in=3243 out=38 cost=10299µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  384806  call battery 0ms in=1685 out=83 cost=1680µ$ channel=HAIKU images=1
+  387008  call propose 2199ms in=2949 out=237 cost=3307µ$ channel=HAIKU images=1
+  387290  call ground 281ms in=6391 out=50 cost=19923µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  387290  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  387290  cross-check: haiku box conf=0.93 iou-vs-jev-rect=0.45
+  387290  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  387290  step 62: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'The Home button: the circle icon in the Android navigation b' (raw arm iou=0.00, jev box conf=0.80) - zero executor calls (one fresh snapshot re-observes next step))
+  387425  screenshot #96 705x1567 scope=display:log-excluded sha256=6f630c9efada469a -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0096.jpg
+  394354  call replan 0ms in=5757 out=1262 cost=9653µ$ channel=HAIKU images=1
+  394356  REPLAN #6: Switch from the stuck Navigator Setup screen to a browser via Recents, load the target URL, then report the headline. (resume at subtask 1)
+  394450  screenshot #97 705x1567 scope=display:log-excluded sha256=b5741eb62a328dbe -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0097.jpg
+  394748  call verify-battery 0ms in=3245 out=38 cost=10305µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  396014  call battery 0ms in=1688 out=86 cost=1694µ$ channel=HAIKU images=1
+  396014  step 63: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still in the foreground?
+  396191  screenshot #98 705x1567 scope=display:log-excluded sha256=b5741eb62a328dbe -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0098.jpg
+  401539  call replan 0ms in=5674 out=1035 cost=8679µ$ channel=HAIKU images=1
+  401543  REPLAN (battery #2): Leave the Navigator Setup screen, open a browser, load the r2-site-a-home page, and report its headline. (resume at subtask 1)
+  401692  screenshot #99 705x1567 scope=display:log-excluded sha256=2e71af1979faccce -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0099.jpg
+  401764  battery held one step: the re-planned plan acts first
+  404736  call propose 2971ms in=2934 out=422 cost=4035µ$ channel=HAIKU images=1
+  405092  call ground 354ms in=9352 out=75 cost=29181µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  405092  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  405092  cross-check: haiku box conf=0.85 iou-vs-jev-rect=0.43
+  405092  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  405093  step 64: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Home (circle) navigation button in the bottom system navigat' (raw arm iou=0.00, jev box conf=0.61) - zero executor calls (one fresh snapshot re-observes next step))
+  405368  screenshot #100 705x1567 scope=display:log-excluded sha256=4935a22ce1d8667a -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0100.jpg
+  405828  call verify-battery 0ms in=3243 out=38 cost=10299µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  407215  call battery 0ms in=1688 out=86 cost=1694µ$ channel=HAIKU images=1
+  407216  step 65: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still in the foreground?
+  407466  screenshot #101 705x1567 scope=display:log-excluded sha256=67cadc0ee72e632e -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0101.jpg
+  413102  call replan 0ms in=5734 out=1121 cost=9071µ$ channel=HAIKU images=1
+  413104  REPLAN (battery #3): Leave Navigator Setup for a real browser by a different route (home screen, then Chrome), load the goal's URL, and report the page headline. (resume at subtask 1)
+  413179  screenshot #102 705x1567 scope=display:log-excluded sha256=f0b4129ea6e48759 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0102.jpg
+  413243  battery held one step: the re-planned plan acts first
+  415106  call propose 1861ms in=2938 out=212 cost=3198µ$ channel=HAIKU images=1
+  415524  call ground 417ms in=6365 out=50 cost=19845µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  415524  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  415524  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.30
+  415524  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  415525  step 66: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Home button: the circle icon in the bottom navigation bar, b' (raw arm iou=0.00, jev box conf=0.76) - zero executor calls (one fresh snapshot re-observes next step))
+  415613  screenshot #103 705x1567 scope=display:log-excluded sha256=0042b5a7232a5773 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0103.jpg
+  416032  call verify-battery 0ms in=3245 out=38 cost=10305µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  417375  call battery 0ms in=1688 out=86 cost=1694µ$ channel=HAIKU images=1
+  417376  step 67: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still in the foreground?
+  417488  screenshot #104 705x1567 scope=display:log-excluded sha256=0042b5a7232a5773 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0104.jpg
+  423106  call replan 0ms in=5738 out=1020 cost=8670µ$ channel=HAIKU images=1
+  423108  REPLAN (battery #4): Leave the Navigator Setup screen for a browser, open the goal URL, and report the page headline. (resume at subtask 1)
+  423186  screenshot #105 705x1567 scope=display:log-excluded sha256=0042b5a7232a5773 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0105.jpg
+  423238  battery held one step: the re-planned plan acts first
+  425880  call propose 2640ms in=2948 out=397 cost=3946µ$ channel=HAIKU images=1
+  426275  call ground 392ms in=9368 out=75 cost=29229µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  426275  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  426276  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.38
+  426276  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  426277  step 68: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Android back control (triangle icon) at the bottom-left of t' (raw arm iou=0.00, jev box conf=0.82) - zero executor calls (one fresh snapshot re-observes next step))
+  426378  screenshot #106 705x1567 scope=display:log-excluded sha256=0042b5a7232a5773 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0106.jpg
+  426694  call verify-battery 0ms in=3248 out=38 cost=10314µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  428044  call battery 0ms in=1692 out=90 cost=1713µ$ channel=HAIKU images=1
+  428046  step 69: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still in the foreground?
+  428145  screenshot #107 705x1567 scope=display:log-excluded sha256=25abe0c71c2b4097 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0107.jpg
+  433305  call replan 0ms in=5752 out=1018 cost=8673µ$ channel=HAIKU images=1
+  433308  REPLAN (battery #5): Switch away from the Navigator Setup screen via Recents into a browser, open the site URL, and report its headline. (resume at subtask 1)
+  433397  screenshot #108 705x1567 scope=display:log-excluded sha256=25abe0c71c2b4097 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0108.jpg
+  433457  battery held one step: the re-planned plan acts first
+  435781  call propose 2323ms in=2950 out=249 cost=3356µ$ channel=HAIKU images=1
+  436055  call ground 273ms in=6372 out=50 cost=19866µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  436055  jev box sub-floor (conf=0.59 < 0.60) — haiku-box fallback
+  436055  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  436056  step 70: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Android Recents (square) button in the bottom navigation bar' (raw arm iou=0.00, jev box conf=0.59) - zero executor calls (one fresh snapshot re-observes next step))
+  436143  screenshot #109 705x1567 scope=display:log-excluded sha256=25abe0c71c2b4097 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0109.jpg
+  436437  call verify-battery 0ms in=3248 out=38 cost=10314µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  437594  call battery 0ms in=1691 out=89 cost=1708µ$ channel=HAIKU images=1
+  437594  step 71: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still in the foreground?
+  437701  screenshot #110 705x1567 scope=display:log-excluded sha256=25abe0c71c2b4097 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0110.jpg
+  443022  call replan 0ms in=5753 out=965 cost=8462µ$ channel=HAIKU images=1
+  443024  REPLAN (battery #6): Leave the Navigator Setup screen via Home, open a browser from the app drawer, load the site URL, and report its headline. (resume at subtask 1)
+  443108  screenshot #111 705x1567 scope=display:log-excluded sha256=25abe0c71c2b4097 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0111.jpg
+  443160  battery held one step: the re-planned plan acts first
+  445729  call propose 2567ms in=2942 out=283 cost=3485µ$ channel=HAIKU images=1
+  445979  call ground 247ms in=6383 out=50 cost=19899µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  445979  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  445979  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.28
+  445979  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  445980  step 72: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'The Android Home control: the circular home icon in the bott' (raw arm iou=0.00, jev box conf=0.65) - zero executor calls (one fresh snapshot re-observes next step))
+  446084  screenshot #112 705x1567 scope=display:log-excluded sha256=25abe0c71c2b4097 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0112.jpg
+  446371  call verify-battery 0ms in=3243 out=38 cost=10299µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  447793  call battery 0ms in=1683 out=147 cost=1934µ$ channel=HAIKU images=1
+  447794  step 73: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still in the foreground?
+  447897  screenshot #113 705x1567 scope=display:log-excluded sha256=25abe0c71c2b4097 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0113.jpg
+  454410  call replan 0ms in=5745 out=1339 cost=9952µ$ channel=HAIKU images=1
+  454412  REPLAN (battery #7): Leave the Navigator Setup screen via Home, open Chrome from the launcher, load the goal URL, and report the page headline. (resume at subtask 1)
+  454504  screenshot #114 705x1567 scope=display:log-excluded sha256=7b5ddc3a71fd4478 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0114.jpg
+  454555  battery held one step: the re-planned plan acts first
+  456588  call propose 2031ms in=2934 out=243 cost=3319µ$ channel=HAIKU images=1
+  456837  call ground 248ms in=6368 out=50 cost=19854µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  456837  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  456838  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.53
+  456838  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  456838  step 74: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'The Android Home button (circle icon) in the bottom system n' (raw arm iou=0.00, jev box conf=0.76) - zero executor calls (one fresh snapshot re-observes next step))
+  456930  screenshot #115 705x1567 scope=display:log-excluded sha256=7b5ddc3a71fd4478 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0115.jpg
+  457242  call verify-battery 0ms in=3238 out=38 cost=10284µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  458441  call battery 0ms in=1678 out=72 cost=1630µ$ channel=HAIKU images=1
+  458441  step 75: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still in the foreground?
+  458533  screenshot #116 705x1567 scope=display:log-excluded sha256=7b5ddc3a71fd4478 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0116.jpg
+  464139  call replan 0ms in=5741 out=1046 cost=8776µ$ channel=HAIKU images=1
+  464140  REPLAN (battery #8): Leave the Navigator Setup app via the Recents switcher instead of Home, open the browser, load the goal URL, and report the headline. (resume at subtask 1)
+  464219  screenshot #117 705x1567 scope=display:log-excluded sha256=7b5ddc3a71fd4478 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0117.jpg
+  464278  battery held one step: the re-planned plan acts first
+  466747  call propose 2468ms in=2937 out=277 cost=3457µ$ channel=HAIKU images=1
+  467022  call ground 272ms in=6391 out=50 cost=19923µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  467022  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  467022  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.26
+  467022  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  467023  step 76: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'The square 'Recents' button in the bottom navigation bar, on' (raw arm iou=0.00, jev box conf=0.65) - zero executor calls (one fresh snapshot re-observes next step))
+  467112  screenshot #118 705x1567 scope=display:log-excluded sha256=7b5ddc3a71fd4478 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0118.jpg
+  467423  call verify-battery 0ms in=3240 out=38 cost=10290µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  468602  call battery 0ms in=1676 out=74 cost=1636µ$ channel=HAIKU images=1
+  470742  call propose 2138ms in=2937 out=240 cost=3309µ$ channel=HAIKU images=1
+  471018  call ground 275ms in=6373 out=50 cost=19869µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  471018  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  471018  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.40
+  471018  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  471019  step 77: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'The square "Recents" button in the bottom navigation bar, at' (raw arm iou=0.00, jev box conf=0.71) - zero executor calls (one fresh snapshot re-observes next step))
+  471148  screenshot #119 705x1567 scope=display:log-excluded sha256=7b5ddc3a71fd4478 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0119.jpg
+  477730  call replan 0ms in=5722 out=1250 cost=9577µ$ channel=HAIKU images=1
+  477732  REPLAN #7: Leave the Navigator Setup screen via Home and open Chrome, load the goal URL, then report the page headline. (resume at subtask 1)
+  477831  screenshot #120 705x1567 scope=display:log-excluded sha256=92850e7f30bdaf20 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0120.jpg
+  478136  call verify-battery 0ms in=3246 out=38 cost=10308µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  479438  call battery 0ms in=1682 out=80 cost=1665µ$ channel=HAIKU images=1
+  481434  call propose 1995ms in=2937 out=244 cost=3325µ$ channel=HAIKU images=1
+  481679  call ground 242ms in=6381 out=50 cost=19893µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  481679  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  481680  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.49
+  481680  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  481681  step 78: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Home button: the filled circle icon in the center of the bot' (raw arm iou=0.00, jev box conf=0.67) - zero executor calls (one fresh snapshot re-observes next step))
+  481840  screenshot #121 705x1567 scope=display:log-excluded sha256=a14c2bc4bc51be9f -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0121.jpg
+  485224  call propose 3304ms in=2937 out=483 cost=4281µ$ channel=HAIKU images=1
+  485533  call ground 307ms in=6373 out=50 cost=19869µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  485533  jev box sub-floor (conf=0.38 < 0.60) — haiku-box fallback
+  485533  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  485534  step 79: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'The Home button (filled circle icon) in the center of the bo' (raw arm iou=0.00, jev box conf=0.38) - zero executor calls (one fresh snapshot re-observes next step))
+  485621  screenshot #122 705x1567 scope=display:log-excluded sha256=968b536b50807d6f -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0122.jpg
+  490708  call replan 0ms in=5657 out=902 cost=8133µ$ channel=HAIKU images=1
+  490711  REPLAN #8: Leave the Navigator Setup app, open a browser, load the named site page, and report its headline. (resume at subtask 1)
+  490798  screenshot #123 705x1567 scope=display:log-excluded sha256=77c09a0e44e52d6d -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0123.jpg
+  491113  call verify-battery 0ms in=3250 out=38 cost=10320µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  492945  call battery 0ms in=1690 out=88 cost=1704µ$ channel=HAIKU images=1
+  495193  call propose 2246ms in=2951 out=262 cost=3408µ$ channel=HAIKU images=1
+  495522  call ground 325ms in=6387 out=50 cost=19911µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  495523  jev box sub-floor (conf=0.28 < 0.60) — haiku-box fallback
+  495523  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  495524  step 80: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'The Home navigation button (white circle) at the bottom cent' (raw arm iou=0.00, jev box conf=0.28) - zero executor calls (one fresh snapshot re-observes next step))
+  495692  screenshot #124 705x1567 scope=display:log-excluded sha256=94a407a04f199f38 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0124.jpg
+  498144  call propose 2401ms in=2951 out=274 cost=3456µ$ channel=HAIKU images=1
+  498424  call ground 277ms in=6383 out=50 cost=19899µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  498424  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  498424  cross-check: haiku box conf=0.85 iou-vs-jev-rect=0.31
+  498425  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  498426  step 81: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Home button (circle icon) in the bottom navigation bar, cent' (raw arm iou=0.00, jev box conf=0.76) - zero executor calls (one fresh snapshot re-observes next step))
+  498539  screenshot #125 705x1567 scope=display:log-excluded sha256=717426bdcec77444 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0125.jpg
+  502934  call replan 0ms in=5690 out=753 cost=7564µ$ channel=HAIKU images=1
+  502935  REPLAN #9: Leave Navigator Setup, open a browser, load the local r2-site-a-home page, and report its headline. (resume at subtask 1)
+  503017  screenshot #126 705x1567 scope=display:log-excluded sha256=717426bdcec77444 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0126.jpg
+  503330  call verify-battery 0ms in=3271 out=55 cost=10638µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  505595  call battery 0ms in=1711 out=272 cost=2456µ$ channel=HAIKU images=1
+  507919  call propose 2322ms in=2947 out=248 cost=3349µ$ channel=HAIKU images=1
+  508244  call ground 323ms in=6387 out=50 cost=19911µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  508245  jev box sub-floor (conf=0.43 < 0.60) — haiku-box fallback
+  508245  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  508245  step 82: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Home button (white circle icon) in the bottom navigation bar' (raw arm iou=0.00, jev box conf=0.43) - zero executor calls (one fresh snapshot re-observes next step))
+  508356  screenshot #127 705x1567 scope=display:log-excluded sha256=ee072f0b1a431f19 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0127.jpg
+  511114  call propose 2695ms in=2947 out=392 cost=3925µ$ channel=HAIKU images=1
+  511357  call ground 241ms in=9393 out=75 cost=29304µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  511357  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  511358  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.38
+  511358  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  511359  step 83: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'The round 'Home' button in the bottom navigation bar, center' (raw arm iou=0.00, jev box conf=0.75) - zero executor calls (one fresh snapshot re-observes next step))
+  511501  screenshot #128 705x1567 scope=display:log-excluded sha256=ee072f0b1a431f19 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0128.jpg
+  516315  call replan 0ms in=5726 out=1060 cost=8820µ$ channel=HAIKU images=1
+  516316  REPLAN #10: Leave Navigator Setup, open a browser, load the given URL, and report the page headline. (resume at subtask 1)
+  516393  screenshot #129 705x1567 scope=display:log-excluded sha256=ee072f0b1a431f19 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0129.jpg
+  516735  call verify-battery 0ms in=3236 out=38 cost=10278µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  518743  call battery 0ms in=1676 out=208 cost=2172µ$ channel=HAIKU images=1
+  518745  step 84: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still showing?
+  518859  screenshot #130 705x1567 scope=display:log-excluded sha256=ee072f0b1a431f19 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0130.jpg
+  523878  call replan 0ms in=5648 out=1018 cost=8590µ$ channel=HAIKU images=1
+  523880  REPLAN (battery #2): Leave Navigator Setup, open a browser, load the r2-site-a-home page, and report its headline. (resume at subtask 1)
+  523956  screenshot #131 705x1567 scope=display:log-excluded sha256=ee072f0b1a431f19 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0131.jpg
+  524007  battery held one step: the re-planned plan acts first
+  526037  call propose 2028ms in=2944 out=238 cost=3307µ$ channel=HAIKU images=1
+  526402  call ground 361ms in=6382 out=50 cost=19896µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  526402  jev box sub-floor (conf=0.57 < 0.60) — haiku-box fallback
+  526402  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  526403  step 85: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Home button (circle icon) in the Android navigation bar at t' (raw arm iou=0.00, jev box conf=0.57) - zero executor calls (one fresh snapshot re-observes next step))
+  526521  screenshot #132 705x1567 scope=display:log-excluded sha256=48059e9b1b97ab50 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0132.jpg
+  526822  call verify-battery 0ms in=3274 out=55 cost=10647µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  528673  call battery 0ms in=1713 out=226 cost=2274µ$ channel=HAIKU images=1
+  528673  step 86: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still showing?
+  528799  screenshot #133 705x1567 scope=display:log-excluded sha256=48059e9b1b97ab50 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0133.jpg
+  534539  call replan 0ms in=5796 out=1062 cost=8884µ$ channel=HAIKU images=1
+  534541  REPLAN (battery #3): Leave the Navigator Setup screen via the system Home button, then open the browser from the launcher and load the r2-site-a-home URL, changing the route that failed twice. (resume at subtask 1)
+  534631  screenshot #134 705x1567 scope=display:log-excluded sha256=802ef81ba5f93d22 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0134.jpg
+  534695  battery held one step: the re-planned plan acts first
+  536732  call propose 2036ms in=2947 out=230 cost=3277µ$ channel=HAIKU images=1
+  536985  call ground 250ms in=6383 out=50 cost=19899µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  536987  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  536987  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.38
+  536988  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  536988  step 87: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'The system Home button: the circle icon at the bottom centre' (raw arm iou=0.00, jev box conf=0.75) - zero executor calls (one fresh snapshot re-observes next step))
+  537092  screenshot #135 705x1567 scope=display:log-excluded sha256=f7bb96ceb843ce66 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0135.jpg
+  537382  call verify-battery 0ms in=3236 out=38 cost=10278µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  538969  call battery 0ms in=1675 out=73 cost=1632µ$ channel=HAIKU images=1
+  538969  step 88: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still showing?
+  539066  screenshot #136 705x1567 scope=display:log-excluded sha256=f7bb96ceb843ce66 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0136.jpg
+  545158  call replan 0ms in=5756 out=1202 cost=9412µ$ channel=HAIKU images=1
+  545159  REPLAN (battery #4): Leave the Navigator Setup screen via Recents into a browser, load the local site URL, and report its headline. (resume at subtask 1)
+  545234  screenshot #137 705x1567 scope=display:log-excluded sha256=f7bb96ceb843ce66 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0137.jpg
+  545300  battery held one step: the re-planned plan acts first
+  547518  call propose 2215ms in=2951 out=260 cost=3400µ$ channel=HAIKU images=1
+  547824  call ground 302ms in=6403 out=50 cost=19959µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  547824  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  547824  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.47
+  547825  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  547826  step 89: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'The square 'Recents' button at the bottom right of the Andro' (raw arm iou=0.00, jev box conf=0.64) - zero executor calls (one fresh snapshot re-observes next step))
+  547938  screenshot #138 705x1567 scope=display:log-excluded sha256=f2149747d465144f -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0138.jpg
+  548242  call verify-battery 0ms in=3249 out=38 cost=10317µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  549832  call battery 0ms in=1690 out=88 cost=1704µ$ channel=HAIKU images=1
+  549833  step 90: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still showing?
+  549923  screenshot #139 705x1567 scope=display:log-excluded sha256=f2149747d465144f -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0139.jpg
+  555409  call replan 0ms in=5754 out=1027 cost=8711µ$ channel=HAIKU images=1
+  555410  REPLAN (battery #5): Leave the Navigator Setup screen for a browser by a different route, then open the given site and report its headline. (resume at subtask 1)
+  555500  screenshot #140 705x1567 scope=display:log-excluded sha256=f2149747d465144f -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0140.jpg
+  555562  battery held one step: the re-planned plan acts first
+  558144  call propose 2577ms in=2944 out=239 cost=3311µ$ channel=HAIKU images=1
+  558485  call ground 337ms in=6368 out=50 cost=19854µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  558486  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  558486  cross-check: haiku box conf=0.93 iou-vs-jev-rect=0.43
+  558486  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  558486  step 91: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Android Back triangle icon at the bottom left of the system ' (raw arm iou=0.00, jev box conf=0.95) - zero executor calls (one fresh snapshot re-observes next step))
+  558581  screenshot #141 705x1567 scope=display:log-excluded sha256=f2149747d465144f -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0141.jpg
+  558865  call verify-battery 0ms in=3246 out=38 cost=10308µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  560269  call battery 0ms in=1688 out=82 cost=1678µ$ channel=HAIKU images=1
+  560270  step 92: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still showing?
+  560374  screenshot #142 705x1567 scope=display:log-excluded sha256=f2149747d465144f -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0142.jpg
+  566879  call replan 0ms in=5745 out=1230 cost=9516µ$ channel=HAIKU images=1
+  566881  REPLAN (battery #6): Leave the Navigator Setup screen via Home and open Chrome, load the local test page by typing its URL, then report the headline. (resume at subtask 1)
+  566957  screenshot #143 705x1567 scope=display:log-excluded sha256=f2149747d465144f -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0143.jpg
+  567015  battery held one step: the re-planned plan acts first
+  569119  call propose 2099ms in=2925 out=205 cost=3160µ$ channel=HAIKU images=1
+  569358  call ground 237ms in=6364 out=50 cost=19842µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  569358  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  569358  cross-check: haiku box conf=0.95 iou-vs-jev-rect=0.47
+  569358  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  569358  step 93: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Android Home button: the circle icon at the bottom centre of' (raw arm iou=0.00, jev box conf=0.84) - zero executor calls (one fresh snapshot re-observes next step))
+  569466  screenshot #144 705x1567 scope=display:log-excluded sha256=f2149747d465144f -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0144.jpg
+  569760  call verify-battery 0ms in=3246 out=38 cost=10308µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  571006  call battery 0ms in=1689 out=87 cost=1699µ$ channel=HAIKU images=1
+  571006  step 94: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still showing?
+  571087  screenshot #145 705x1567 scope=display:log-excluded sha256=f2149747d465144f -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0145.jpg
+  577338  call replan 0ms in=5721 out=1053 cost=8788µ$ channel=HAIKU images=1
+  577339  REPLAN (battery #7): Leave the Navigator Setup screen via the Recents switcher, load the local site in Chrome, and report its headline. (resume at subtask 1)
+  577434  screenshot #146 705x1567 scope=display:log-excluded sha256=f2149747d465144f -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0146.jpg
+  577495  battery held one step: the re-planned plan acts first
+  579801  call propose 2305ms in=2943 out=272 cost=3442µ$ channel=HAIKU images=1
+  580042  call ground 240ms in=6376 out=50 cost=19878µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  580042  jev box sub-floor (conf=0.57 < 0.60) — haiku-box fallback
+  580042  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  580043  step 95: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Square 'Recents' button at the bottom right of the navigatio' (raw arm iou=0.00, jev box conf=0.57) - zero executor calls (one fresh snapshot re-observes next step))
+  580135  screenshot #147 705x1567 scope=display:log-excluded sha256=f2149747d465144f -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0147.jpg
+  580474  call verify-battery 0ms in=3241 out=38 cost=10293µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  581746  call battery 0ms in=1685 out=83 cost=1680µ$ channel=HAIKU images=1
+  581747  step 96: BATTERY ESCALATE - verification battery red flag(s): Is the Navigator Setup screen still showing?
+  581843  screenshot #148 705x1567 scope=display:log-excluded sha256=f2149747d465144f -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0148.jpg
+  588547  call replan 0ms in=5747 out=1237 cost=9545µ$ channel=HAIKU images=1
+  588549  REPLAN (battery #8): Leave the Navigator Setup screen by Back and open Chrome from the launcher, then load the URL and report the headline. (resume at subtask 1)
+  588626  screenshot #149 705x1567 scope=display:log-excluded sha256=193082f6c2b9ff60 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0149.jpg
+  588689  battery held one step: the re-planned plan acts first
+  591101  call propose 2410ms in=2975 out=236 cost=3324µ$ channel=HAIKU images=1
+  591354  call ground 249ms in=6375 out=50 cost=19875µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  591354  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  591354  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.43
+  591354  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  591355  step 97: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'The Back triangle button in the bottom-left of the Android n' (raw arm iou=0.00, jev box conf=0.96) - zero executor calls (one fresh snapshot re-observes next step))
+  591467  screenshot #150 705x1567 scope=display:log-excluded sha256=193082f6c2b9ff60 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0150.jpg
+  591741  call verify-battery 0ms in=3244 out=38 cost=10302µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  592954  call battery 0ms in=1682 out=80 cost=1665µ$ channel=HAIKU images=1
+  595467  call propose 2511ms in=2975 out=233 cost=3312µ$ channel=HAIKU images=1
+  595747  call ground 279ms in=6383 out=50 cost=19899µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  595747  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  595747  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.43
+  595748  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  595748  step 98: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Back triangle icon at the bottom left of the Android navigat' (raw arm iou=0.00, jev box conf=0.96) - zero executor calls (one fresh snapshot re-observes next step))
+  595856  screenshot #151 705x1567 scope=display:log-excluded sha256=193082f6c2b9ff60 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0151.jpg
+  601515  call replan 0ms in=5778 out=1110 cost=9062µ$ channel=HAIKU images=1
+  601517  REPLAN #11: Leave the stuck Navigator Setup screen via the Home button, open Chrome from the launcher, load the URL, and report the headline. (resume at subtask 1)
+  601598  screenshot #152 705x1567 scope=display:log-excluded sha256=7c04cdf3fa04c946 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0152.jpg
+  601926  call verify-battery 0ms in=3243 out=38 cost=10299µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  603163  call battery 0ms in=1682 out=80 cost=1665µ$ channel=HAIKU images=1
+  605986  call propose 2823ms in=2965 out=234 cost=3308µ$ channel=HAIKU images=1
+  606232  call ground 245ms in=6398 out=50 cost=19944µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  606233  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  606233  cross-check: haiku box conf=0.95 iou-vs-jev-rect=0.35
+  606233  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  606233  step 99: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'The Home button: the circle icon at the bottom center of the' (raw arm iou=0.00, jev box conf=0.88) - zero executor calls (one fresh snapshot re-observes next step))
+  606462  screenshot #153 705x1567 scope=display:log-excluded sha256=1bec3a7dfd82a151 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0153.jpg
+  609731  call propose 3187ms in=2965 out=436 cost=4116µ$ channel=HAIKU images=1
+  610004  call ground 268ms in=6386 out=50 cost=19908µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  610004  jev box sub-floor (conf=0.57 < 0.60) — haiku-box fallback
+  610005  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  610006  step 100: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'The Home button: the circle icon at the bottom center of the' (raw arm iou=0.00, jev box conf=0.57) - zero executor calls (one fresh snapshot re-observes next step))
+  610088  screenshot #154 705x1567 scope=display:log-excluded sha256=36fe569299fac04e -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0154.jpg
+  616708  call replan 0ms in=5697 out=1338 cost=9909µ$ channel=HAIKU images=1
+  616710  REPLAN #12: Leave the Navigator Setup app, open Chrome, load the local r2-site-a-home page, and report its headline. (resume at subtask 1)
+  616806  screenshot #155 705x1567 scope=display:log-excluded sha256=49f23559ea3f4e0d -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0155.jpg
+  617091  call verify-battery 0ms in=3243 out=38 cost=10299µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  618315  call battery 0ms in=1684 out=82 cost=1675µ$ channel=HAIKU images=1
+  621181  call propose 2865ms in=2973 out=243 cost=3350µ$ channel=HAIKU images=1
+  621430  call ground 245ms in=6385 out=50 cost=19905µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  621430  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  621431  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.50
+  621431  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  621433  step 101: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Home button: the circle icon in the bottom navigation bar, b' (raw arm iou=0.00, jev box conf=0.86) - zero executor calls (one fresh snapshot re-observes next step))
+  621602  screenshot #156 705x1567 scope=display:log-excluded sha256=4021932f547d6cf9 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0156.jpg
+  623724  call propose 2066ms in=2973 out=226 cost=3282µ$ channel=HAIKU images=1
+  623949  call ground 224ms in=6399 out=50 cost=19947µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  623949  jev box sub-floor (conf=0.54 < 0.60) — haiku-box fallback
+  623949  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  623950  step 102: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Home button: the circle icon at the bottom center of the And' (raw arm iou=0.00, jev box conf=0.54) - zero executor calls (one fresh snapshot re-observes next step))
+  624026  screenshot #157 705x1567 scope=display:log-excluded sha256=3ff8a51dc94482e8 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0157.jpg
+  629744  call replan 0ms in=5707 out=1189 cost=9321µ$ channel=HAIKU images=1
+  629746  REPLAN #13: Leave the Navigator app, open Chrome, load the r2-site-a home page, and report its headline. (resume at subtask 1)
+  629823  screenshot #158 705x1567 scope=display:log-excluded sha256=3ff8a51dc94482e8 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0158.jpg
+  630164  call verify-battery 0ms in=3242 out=38 cost=10296µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  631971  call battery 0ms in=1684 out=82 cost=1675µ$ channel=HAIKU images=1
+  634047  call propose 2075ms in=2952 out=256 cost=3385µ$ channel=HAIKU images=1
+  634324  call ground 275ms in=6381 out=50 cost=19893µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  634324  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  634324  cross-check: haiku box conf=0.93 iou-vs-jev-rect=0.49
+  634324  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  634325  step 103: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Home button: the white circle at the bottom center of the An' (raw arm iou=0.00, jev box conf=0.85) - zero executor calls (one fresh snapshot re-observes next step))
+  634427  screenshot #159 705x1567 scope=display:log-excluded sha256=3ff8a51dc94482e8 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0159.jpg
+  636600  call propose 2097ms in=2952 out=215 cost=3221µ$ channel=HAIKU images=1
+  636847  call ground 245ms in=6363 out=50 cost=19839µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  636847  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  636847  cross-check: haiku box conf=0.95 iou-vs-jev-rect=0.39
+  636847  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  636848  step 104: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Home button: the white circle icon at the bottom center of t' (raw arm iou=0.00, jev box conf=0.85) - zero executor calls (one fresh snapshot re-observes next step))
+  636941  screenshot #160 705x1567 scope=display:log-excluded sha256=6e7dcda65d87e6cb -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0160.jpg
+  643884  call replan 0ms in=5686 out=1310 cost=9788µ$ channel=HAIKU images=1
+  643886  REPLAN #14: Leave the Navigator Setup screen, open Chrome, load the r2-site-a-home page, and report its headline. (resume at subtask 1)
+  643994  screenshot #161 705x1567 scope=display:log-excluded sha256=6e7dcda65d87e6cb -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0161.jpg
+  644264  call verify-battery 0ms in=3242 out=38 cost=10296µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  645494  call battery 0ms in=1682 out=80 cost=1665µ$ channel=HAIKU images=1
+  647366  call propose 1870ms in=2953 out=218 cost=3234µ$ channel=HAIKU images=1
+  647709  call ground 342ms in=6370 out=50 cost=19860µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  647709  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  647709  cross-check: haiku box conf=0.93 iou-vs-jev-rect=0.42
+  647709  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  647710  step 105: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Home button: the white circle at the bottom center of the An' (raw arm iou=0.00, jev box conf=0.84) - zero executor calls (one fresh snapshot re-observes next step))
+  647794  screenshot #162 705x1567 scope=display:log-excluded sha256=6e7dcda65d87e6cb -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0162.jpg
+  650038  call propose 2192ms in=2953 out=228 cost=3274µ$ channel=HAIKU images=1
+  650279  call ground 239ms in=6388 out=50 cost=19914µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  650280  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  650281  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.36
+  650281  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  650282  step 106: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Home button: the white circle at the bottom center of the An' (raw arm iou=0.00, jev box conf=0.75) - zero executor calls (one fresh snapshot re-observes next step))
+  650362  screenshot #163 705x1567 scope=display:log-excluded sha256=6e7dcda65d87e6cb -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0163.jpg
+  655934  call replan 0ms in=5685 out=1045 cost=8728µ$ channel=HAIKU images=1
+  655936  REPLAN #15: Leave the Navigator Setup screen, load the site-A home page in Chrome, then report its headline. (resume at subtask 1)
+  656020  screenshot #164 705x1567 scope=display:log-excluded sha256=6e7dcda65d87e6cb -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0164.jpg
+  656299  call verify-battery 0ms in=3280 out=55 cost=10665µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  657993  call battery 0ms in=1718 out=214 cost=2230µ$ channel=HAIKU images=1
+  660415  call propose 2419ms in=2949 out=242 cost=3327µ$ channel=HAIKU images=1
+  660683  call ground 265ms in=6374 out=50 cost=19872µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  660684  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  660685  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.52
+  660685  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  660686  step 107: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'The Home button: the white circle icon at the bottom center ' (raw arm iou=0.00, jev box conf=0.96) - zero executor calls (one fresh snapshot re-observes next step))
+  660796  screenshot #165 705x1567 scope=display:log-excluded sha256=6e7dcda65d87e6cb -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0165.jpg
+  663170  call propose 2318ms in=2949 out=255 cost=3379µ$ channel=HAIKU images=1
+  663419  call ground 246ms in=6374 out=50 cost=19872µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  663419  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  663419  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.51
+  663419  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  663420  step 108: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'The Home button: the white circle icon at the bottom center ' (raw arm iou=0.00, jev box conf=0.92) - zero executor calls (one fresh snapshot re-observes next step))
+  663497  screenshot #166 705x1567 scope=display:log-excluded sha256=6e7dcda65d87e6cb -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0166.jpg
+  668256  call replan 0ms in=5735 out=923 cost=8280µ$ channel=HAIKU images=1
+  668258  REPLAN #16: Leave the Navigator Setup app, load the local site in Chrome, then report its headline. (resume at subtask 1)
+  668342  screenshot #167 705x1567 scope=display:log-excluded sha256=2c4f1a1ba45c8559 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0167.jpg
+  668604  call verify-battery 0ms in=3253 out=38 cost=10329µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  670641  call battery 0ms in=1695 out=223 cost=2248µ$ channel=HAIKU images=1
+  672700  call propose 2057ms in=2958 out=244 cost=3342µ$ channel=HAIKU images=1
+  672994  call ground 291ms in=6395 out=50 cost=19935µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  672995  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  672995  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.49
+  672995  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  672997  step 109: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Home button: the white circle at the bottom center of the na' (raw arm iou=0.00, jev box conf=0.71) - zero executor calls (one fresh snapshot re-observes next step))
+  673160  screenshot #168 705x1567 scope=display:log-excluded sha256=2c4f1a1ba45c8559 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0168.jpg
+  675247  call propose 2022ms in=2958 out=251 cost=3370µ$ channel=HAIKU images=1
+  675687  call ground 438ms in=6397 out=50 cost=19941µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  675687  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  675688  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.49
+  675688  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  675689  step 110: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Home button: the white circle icon at bottom center of the A' (raw arm iou=0.00, jev box conf=0.66) - zero executor calls (one fresh snapshot re-observes next step))
+  675766  screenshot #169 705x1567 scope=display:log-excluded sha256=2c4f1a1ba45c8559 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0169.jpg
+  680262  call replan 0ms in=5716 out=786 cost=7716µ$ channel=HAIKU images=1
+  680263  REPLAN #17: Open the given local URL in Chrome and report the page headline. (resume at subtask 1)
+  680357  screenshot #170 705x1567 scope=display:log-excluded sha256=2c4f1a1ba45c8559 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0170.jpg
+  680641  call verify-battery 0ms in=3252 out=38 cost=10326µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  682774  call battery 0ms in=1692 out=267 cost=2421µ$ channel=HAIKU images=1
+  684545  call propose 1769ms in=2943 out=196 cost=3138µ$ channel=HAIKU images=1
+  684800  call ground 253ms in=6377 out=50 cost=19881µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  684801  jev box sub-floor (conf=0.55 < 0.60) — haiku-box fallback
+  684801  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  684802  step 111: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Home circle button at the bottom center of the navigation ba' (raw arm iou=0.00, jev box conf=0.55) - zero executor calls (one fresh snapshot re-observes next step))
+  684899  screenshot #171 705x1567 scope=display:log-excluded sha256=2c4f1a1ba45c8559 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0171.jpg
+  687353  call propose 2388ms in=2943 out=310 cost=3594µ$ channel=HAIKU images=1
+  687590  call ground 234ms in=6377 out=50 cost=19881µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  687591  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  687591  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.45
+  687591  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  687592  step 112: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'The round home button (circle) at the bottom center of the n' (raw arm iou=0.00, jev box conf=0.76) - zero executor calls (one fresh snapshot re-observes next step))
+  687691  screenshot #172 705x1567 scope=display:log-excluded sha256=2c4f1a1ba45c8559 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0172.jpg
+  691901  call replan 0ms in=5684 out=801 cost=7751µ$ channel=HAIKU images=1
+  691904  REPLAN #18: Leave the Navigator Setup screen, open the browser, load the site page, and report its headline. (resume at subtask 1)
+  691999  screenshot #173 705x1567 scope=display:log-excluded sha256=2c4f1a1ba45c8559 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0173.jpg
+  692289  call verify-battery 0ms in=3250 out=38 cost=10320µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  693498  call battery 0ms in=1692 out=90 cost=1713µ$ channel=HAIKU images=1
+  695437  call propose 1938ms in=2940 out=231 cost=3276µ$ channel=HAIKU images=1
+  695672  call ground 233ms in=6368 out=50 cost=19854µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  695672  jev box sub-floor (conf=0.47 < 0.60) — haiku-box fallback
+  695672  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  695673  step 113: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Home navigation button (white circle icon) in the bottom sys' (raw arm iou=0.00, jev box conf=0.47) - zero executor calls (one fresh snapshot re-observes next step))
+  695773  screenshot #174 705x1567 scope=display:log-excluded sha256=2c4f1a1ba45c8559 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0174.jpg
+  698027  call propose 2190ms in=2940 out=259 cost=3388µ$ channel=HAIKU images=1
+  698257  call ground 230ms in=6392 out=50 cost=19926µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  698258  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  698258  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.22
+  698258  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  698258  step 114: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'The Android home navigation button, the white circle in the ' (raw arm iou=0.00, jev box conf=0.73) - zero executor calls (one fresh snapshot re-observes next step))
+  698329  screenshot #175 705x1567 scope=display:log-excluded sha256=2c4f1a1ba45c8559 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0175.jpg
+  702734  call replan 0ms in=5681 out=828 cost=7856µ$ channel=HAIKU images=1
+  702735  REPLAN #19: Leave the Navigator Setup screen, load the r2-site-a home page in the browser, and report its headline. (resume at subtask 1)
+  702831  screenshot #176 705x1567 scope=display:log-excluded sha256=2c4f1a1ba45c8559 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0176.jpg
+  703108  call verify-battery 0ms in=3249 out=38 cost=10317µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  704291  call battery 0ms in=1688 out=86 cost=1694µ$ channel=HAIKU images=1
+  706703  call propose 2408ms in=2951 out=299 cost=3556µ$ channel=HAIKU images=1
+  707042  call ground 334ms in=6392 out=50 cost=19926µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  707042  jev box sub-floor (conf=0.47 < 0.60) — haiku-box fallback
+  707043  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  707044  step 115: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Home button (white circle icon) in the Android navigation ba' (raw arm iou=0.00, jev box conf=0.47) - zero executor calls (one fresh snapshot re-observes next step))
+  707147  screenshot #177 705x1567 scope=display:log-excluded sha256=2c4f1a1ba45c8559 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0177.jpg
+  710177  call propose 2964ms in=2951 out=450 cost=4160µ$ channel=HAIKU images=1
+  710562  call ground 380ms in=9391 out=75 cost=29298µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  710562  jev box sub-floor (conf=0.36 < 0.60) — haiku-box fallback
+  710562  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  710563  step 116: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'The Home button (white circle icon) in the bottom navigation' (raw arm iou=0.00, jev box conf=0.36) - zero executor calls (one fresh snapshot re-observes next step))
+  710638  screenshot #178 705x1567 scope=display:log-excluded sha256=2c4f1a1ba45c8559 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0178.jpg
+  715087  call replan 0ms in=5688 out=901 cost=8154µ$ channel=HAIKU images=1
+  715088  REPLAN #20: Leave the Navigator app, open Chrome, load the r2-site-a-home page, and report its headline. (resume at subtask 1)
+  715176  screenshot #179 705x1567 scope=display:log-excluded sha256=6f9bd48d039ee954 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0179.jpg
+  715456  call verify-battery 0ms in=3285 out=55 cost=10680µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  717821  call battery 0ms in=1726 out=354 cost=2796µ$ channel=HAIKU images=1
+  720215  call propose 2390ms in=2946 out=286 cost=3500µ$ channel=HAIKU images=1
+  720560  call ground 343ms in=6392 out=50 cost=19926µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  720561  jev box sub-floor (conf=0.57 < 0.60) — haiku-box fallback
+  720561  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  720563  step 117: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'Home button (white circle icon) in the bottom navigation bar' (raw arm iou=0.00, jev box conf=0.57) - zero executor calls (one fresh snapshot re-observes next step))
+  720670  screenshot #180 705x1567 scope=display:log-excluded sha256=6f9bd48d039ee954 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794426762073/screen-0180.jpg
+  723442  call propose 2707ms in=2946 out=391 cost=3920µ$ channel=HAIKU images=1
+  723712  call ground 268ms in=9387 out=75 cost=29286µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  723713  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  723713  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.32
+  723713  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  723714  step 118: FAILED (LOW_CONFIDENCE_GROUND: no node match for 'The round 'Home' button in the bottom navigation bar, center' (raw arm iou=0.00, jev box conf=0.69) - zero executor calls (one fresh snapshot re-observes next step))
+  723714  REPLANS_EXHAUSTED after 20 re-plans
+  723715  terminal=REPLANS_EXHAUSTED steps=119 replans=20 modality=VISION calls=343 jev=140 haiku=203 images=343 battery=124 escalations=0
