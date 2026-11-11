@@ -13,7 +13,7 @@
       "Vision-doc amendments are drafted in separate GLM-5.3 sessions per amendment; implementation pauses at any unratified amendment"
     ]
   },
-  "lastAction": "Stage 18.B part 1 (CN-02+CN-03) implemented by the orchestrator (the implementer subagent hit the plan 5-hour usage limit mid-stage; the owner continue directive applied); gates green app 810 / core 338.",
+  "lastAction": "Stage 18.B part 2 implemented (orchestrator, same usage-limit deviation); gates green app 818 / core 338.",
   "gatesPassed": [
     "18.A1",
     "18.A2",
@@ -51,7 +51,7 @@
     "gates": "core 338 / 0; app 790 / 0 (fresh --rerun-tasks full run)",
     "runMethodSize": "NavigationLoop.run() javap 58,285 -> 58,301 of 65,535 (+16 bytes; the write lives in class-scope writeTerminalEvidence + the run$finish synthetic)"
   },
-  "nextAction": "emulator pass for Stage 18.B part 1 (orchestrator)",
+  "nextAction": "canon-verifier cold-check of Stage 18.B part 2, then the emulator regression pass",
   "stage18B": {
     "part1": {
       "scope": "CN-02 consistent snapshot + CN-03 fresh pre-dispatch guard (landed together)",
@@ -59,6 +59,11 @@
       "wiring": "NavigatorVisionBridge.newVisionLoop constructs both from capture.a11yService when bound (the product paths); null service (every JVM test) = byte-identical legacy loop.",
       "tests": "VisionSnapshotterTest 5/5 (the plan five cases); PreDispatchGuardTest 15/15 (the plan eight cases + back/stale laws)"
     },
-    "part2": "CN-08/09/10 pending"
+    "part2": {
+      "scope": "CN-08 bounded model calls + cancellable transport; CN-09 grounding discipline; CN-10 capture bounds (landed together)",
+      "implemented": "ModelCallPolicy + ModelCallException (core/wire); OkHttpWireTransport async/cancellable; VisionHaiku/VisionJev on the policy (maxRetries 2 = attempts 3, deadline 90s, 408/429/5xx + bounded Retry-After, ordinary 4xx/malformed never retried); grounding discipline (GROUNDING_UNAVAILABLE for multi-proposal pick failures; LOW_CONFIDENCE_GROUND for unmatched TAP/TYPE rectangles; the deterministic editable route preserved for the omnibox; the calibration ledger records refused misses); capture bounds (consecutive counter on the product wiring, one bounded re-capture, limit 2 -> honest GUARD_ABORT; the CAPTURE_UNAVAILABLE terminal waits for 18.D)",
+      "tests": "VisionModelCallPolicyTest 7/7 (MockWebServer end-to-end); Phase18TerminalAndRetry updated to the new law; grounding/capture characterization updated per §9.8",
+      "correction": "the adaptation record was WRONG: the 20-retry ceiling IS real on the frontier (VisionHaiku/VisionJev default maxRetries=20 — the earlier check read SystemOneClient, capped at 2). CN-08 implemented in FULL. Correction recorded in the contradiction report."
+    }
   }
 }

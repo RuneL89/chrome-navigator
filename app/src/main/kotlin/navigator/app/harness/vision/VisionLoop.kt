@@ -198,6 +198,14 @@ class VisionLoop(
 
     data class Config(
         val settleMs: Long = 700,
+        /**
+         * PHASE_18 CN-10 (doc 04 §9.8): the capture-degradation bound — one bounded
+         * re-capture on the first degraded frame, and after [captureFailureLimit]
+         * CONSECUTIVE failures the run ends honestly (the terminal's evidence names the
+         * capture cause) instead of degrading to text-only forever.
+         */
+        val captureFailureLimit: Int = 2,
+        val captureRetryWaitMs: Long = 400,
         /** 100x the product loop's bounded re-plans (owner directive 2026-10-19). */
         val maxReplans: Int = 20,
         val stepFailuresBeforeReplan: Int = 2,
@@ -532,6 +540,14 @@ class VisionLoop(
     /** Whether the one-per-run "exclusion bounds unavailable" evidence note already fired (D2). */
     private var exclusionNoteLogged = false
 
+    /**
+     * PHASE_18 CN-10 — the consecutive capture-failure counter (doc 04 §9.8): incremented
+     * by [captureSafely] on a degraded capture, reset on a success, and checked against
+     * [Config.captureFailureLimit] at the per-step site — past the limit the run ends
+     * honestly instead of degrading to text-only forever.
+     */
+    private var consecutiveCaptureFailures = 0
+
     /** Whether the one-per-run first-frame source line already fired (PHASE_VEXP5 WI1). */
     private var sourceNoteLogged = false
 
@@ -679,6 +695,8 @@ class VisionLoop(
         taskGate = TaskGate()
         // D2: the unavailable-bounds note fires at most once per run.
         exclusionNoteLogged = false
+        // PHASE_18 CN-10: the consecutive capture-failure count never crosses runs.
+        consecutiveCaptureFailures = 0
         // PHASE_VEXP5 WI1: the first frame's scope line fires once per run.
         sourceNoteLogged = false
         // PHASE_VEXP7: the one-repair allowance never crosses runs/tasks.
@@ -822,7 +840,31 @@ class VisionLoop(
             when (val v = verifiedObserve(screenshots++)) {
                 is VerifiedObs.Got -> {
                     obs = v.obs
-                    shot = v.shot
+                    // PHASE_18 CN-10: ONE bounded re-capture on the first degraded frame
+                    // (a success resets the consecutive counter inside captureSafely);
+                    // past Config.captureFailureLimit CONSECUTIVE failures the run ends
+                    // honestly — no unbounded text-only degrade, no fabricated frame.
+                    var gotShot = v.shot
+                    if (gotShot == null) {
+                        // The CN-10 bounded re-capture re-takes THE FRAME only (the same
+                        // observation stays the decision's read; the next step re-verifies
+                        // the full identity) after the short bounded wait.
+                        delay(config.captureRetryWaitMs)
+                        gotShot = captureSafely(screenshots++)
+                    }
+                    if (snapshotter != null &&
+                        consecutiveCaptureFailures >= config.captureFailureLimit
+                    ) {
+                        val line = "capture unavailable past the bounded limit " +
+                            "($consecutiveCaptureFailures consecutive failures, limit " +
+                            "${config.captureFailureLimit}) - the run ends honestly; no " +
+                            "fabricated frame and no unbounded text-only degrade"
+                        outcomes.add(line)
+                        log("[vision] $line")
+                        evidence.event(line)
+                        return terminal(Terminal.GUARD_ABORT, null)
+                    }
+                    shot = gotShot
                 }
                 VerifiedObs.Stale -> {
                     val line = "step $step: NOT_DISPATCHED_STALE_SNAPSHOT - the navigation " +
@@ -1542,6 +1584,7 @@ class VisionLoop(
         readBackLosses.clear()
         lastObservedUrl = null
         taskGate = TaskGate()
+        consecutiveCaptureFailures = 0 // PHASE_18 CN-10: never crosses subtasks
 
         fun done() = navigator.app.harness.hybrid.SubtaskOutcome.Done(step)
         fun failed(cause: String) = navigator.app.harness.hybrid.SubtaskOutcome.Failed(cause, step)
@@ -1578,6 +1621,18 @@ class VisionLoop(
             val got = verified as VerifiedObs.Got
             val obs = got.obs
             if (subtaskStartHash == null) subtaskStartHash = obs.screenHash
+            if (snapshotter != null &&
+                got.shot == null &&
+                consecutiveCaptureFailures >= config.captureFailureLimit
+            ) {
+                // PHASE_18 CN-10: the hybrid tool refuses an unbounded text-only degrade;
+                // the host's failure machinery owns the bounded response.
+                return failed(
+                    "CAPTURE_UNAVAILABLE - the capture degraded $consecutiveCaptureFailures " +
+                        "times consecutively (limit ${config.captureFailureLimit}); the vision " +
+                        "tool refuses to keep acting without images",
+                )
+            }
             val shot = got.shot
             if (readBackVerdict(obs)) consecutiveFailures += 1
             if (lastObservedUrl != null && obs.url != lastObservedUrl) {
@@ -1849,7 +1904,30 @@ class VisionLoop(
                         images = 1,
                     )
                 }
-                evidence.event("ground degraded (boxes+pick): ${e.message?.take(160)} — first proposal, haiku-box fallback")
+                val locationDependent = proposals.any {
+                    it.action == VisionPrompts.ProposalAction.TAP ||
+                        it.action == VisionPrompts.ProposalAction.TYPE ||
+                        it.action == VisionPrompts.ProposalAction.SUBMIT
+                }
+                if (locationDependent && proposals.size > 1) {
+                    // PHASE_18 CN-09 (doc 04 §9.8): a failed Jev pick with MULTIPLE
+                    // proposals is GROUNDING_UNAVAILABLE — the pick's choice matters and
+                    // is unavailable (zero executor calls; the next step's fresh snapshot
+                    // is the bounded retry).
+                    return Attempted.Failed(
+                        "GROUNDING_UNAVAILABLE: the Jev ground call failed " +
+                            "(${e.message?.take(120)}) with ${proposals.size} location-dependent " +
+                            "proposals - zero executor calls (one fresh snapshot re-observes next step)",
+                    )
+                }
+                // A SINGLE location-dependent proposal (or scroll/back): the pick adds no
+                // information — the step proceeds on the DETERMINISTIC route (doc 04
+                // §9.8: the code-established unique target; the pre-dispatch guard
+                // re-verifies it fresh and the landed-text verification is the proof).
+                evidence.event(
+                    "ground degraded (boxes+pick): ${e.message?.take(160)} — the deterministic " +
+                        "route carries the single proposal (or scroll/back needs no grounding)",
+                )
                 pickIndex = translateIndex ?: 0
             }
         } else if (proposals.size > 1) {
@@ -1884,7 +1962,25 @@ class VisionLoop(
                     }
                 }
             } catch (e: Exception) {
-                evidence.event("ground-choice degraded: ${e.message?.take(160)} — using the first proposal")
+                // The text-only pick only ever runs for MULTIPLE proposals (a single
+                // proposal needs no pick) — so its failure is GROUNDING_UNAVAILABLE for
+                // location-dependent actions (doc 04 §9.8; scroll/back need no grounding).
+                if (proposals.any {
+                        it.action == VisionPrompts.ProposalAction.TAP ||
+                            it.action == VisionPrompts.ProposalAction.TYPE ||
+                            it.action == VisionPrompts.ProposalAction.SUBMIT
+                    }
+                ) {
+                    return Attempted.Failed(
+                        "GROUNDING_UNAVAILABLE: the text-only Jev pick failed " +
+                            "(${e.message?.take(120)}) and the proposals are location-dependent " +
+                            "- zero executor calls (one fresh snapshot re-observes next step)",
+                    )
+                }
+                evidence.event(
+                    "ground-choice degraded: ${e.message?.take(160)} — using the first proposal " +
+                        "(scroll/back need no grounding)",
+                )
                 pickIndex = 0
             }
         }
@@ -2023,12 +2119,33 @@ class VisionLoop(
         // (d) the raw-coordinate arm. A TYPE must land inside an EDITABLE node — the
         // NO_FIELD_AT_POINT churn ends here, loudly, instead of calling enterText.
         if (target == null) {
-            if (proposal.action == VisionPrompts.ProposalAction.TYPE &&
-                VisionMath.editableNodeAt(obs.nodes, x, y) == null
-            ) {
+            // PHASE_18 CN-09 (doc 04 §9.8): a rectangle with NO node match never
+            // dispatches a TAP — LOW_CONFIDENCE_GROUND, zero executor calls. The
+            // DETERMINISTIC route stays open for EDITABLE targets with the required
+            // role (the address-bar/omnibox typed entry: code establishes the fresh
+            // editable target, and the landed-text verification is the proof — the
+            // plan's DETERMINISTIC_NODE_MATCH maps to this route).
+            val editableHere = VisionMath.editableNodeAt(obs.nodes, x, y)
+            if (proposal.action == VisionPrompts.ProposalAction.TAP && editableHere == null) {
+                // The calibration ledger STILL records the answered Jev box as the miss
+                // it was — the locator's calibration must see refused grounds too.
+                jevBox?.let {
+                    evidence.grounding.record(proposal.description, it.confidence, 0.0, null)
+                }
                 return Attempted.Failed(
-                    "type grounding refused - no editable field at the raw point ($x,$y) " +
-                        "(NO_FIELD_AT_POINT); refusing the doomed enterText",
+                    "LOW_CONFIDENCE_GROUND: no node match for " +
+                        "'${proposal.description.take(60)}' (raw arm iou=0.00, jev box " +
+                        "conf=%.2f)".format(jevBox?.confidence ?: 0.0) +
+                        " - zero executor calls (one fresh snapshot re-observes next step)",
+                )
+            }
+            if (proposal.action == VisionPrompts.ProposalAction.TYPE && editableHere == null) {
+                jevBox?.let {
+                    evidence.grounding.record(proposal.description, it.confidence, 0.0, null)
+                }
+                return Attempted.Failed(
+                    "LOW_CONFIDENCE_GROUND: no editable field at the raw point ($x,$y) " +
+                        "(NO_FIELD_AT_POINT) - refusing the doomed enterText; zero executor calls",
                 )
             }
             if (rawRect != null) {
@@ -2048,7 +2165,9 @@ class VisionLoop(
         // node centre. Any other shape behaves exactly as before.
         val convertedText = planEnterText.takeIf { it.isNotBlank() }
         val tapConverted = proposal.action == VisionPrompts.ProposalAction.TAP &&
-            convertedText != null && target?.node?.editable == true
+            convertedText != null &&
+            (target?.node?.editable == true ||
+                (target == null && VisionMath.editableNodeAt(obs.nodes, x, y) != null))
         val effectiveAction =
             if (tapConverted) VisionPrompts.ProposalAction.TYPE else proposal.action
         // -- PHASE_VEXP6 WI2: the PLAN TEXT's authority over a native TYPE --------------
@@ -3204,6 +3323,8 @@ class VisionLoop(
             log("[vision] $line")
         }
         capture.capture(exclusion).also { shot ->
+            // PHASE_18 CN-10: a successful capture resets the consecutive-failure count.
+            consecutiveCaptureFailures = 0
             if (!sourceNoteLogged) {
                 sourceNoteLogged = true
                 log("[vision] screen: ${shot.source}")
@@ -3211,7 +3332,14 @@ class VisionLoop(
             evidence.screenshot(index, shot, shot.jpegBytes)
         }
     } catch (e: Exception) {
-        evidence.event("capture degraded: ${e.message?.take(120)} — TEXT-ONLY step")
+        // The bound is a PRODUCT-path mechanism (CN-10): it counts only when the
+        // snapshotter is wired — the scripted/JVM seam (snapshotter null) keeps the
+        // legacy unbounded text-only law byte-identically.
+        if (snapshotter != null) consecutiveCaptureFailures += 1
+        evidence.event(
+            "capture degraded (consecutive=$consecutiveCaptureFailures/" +
+                "${config.captureFailureLimit}): ${e.message?.take(120)} — TEXT-ONLY step",
+        )
         null
     }
 

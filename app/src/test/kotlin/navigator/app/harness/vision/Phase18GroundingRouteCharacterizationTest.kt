@@ -131,11 +131,14 @@ class Phase18GroundingRouteCharacterizationTest {
     }
 
     @Test
-    fun `the raw arm acts at the box centre on a sub-floor Jev box with no node match`() =
+    fun `the raw arm is refused (LOW_CONFIDENCE_GROUND) on a sub-floor Jev box with no node match`() =
         runBlocking {
             // Layout: the only node is far from the boxes; the description matches no
             // label. The Jev box is confidence 0.3 (BELOW the 0.6 accept floor) and its
-            // rectangle overlaps nothing — CURRENT behavior: the raw arm still acts.
+            // rectangle overlaps nothing. UPDATED by Stage 18.B CN-09 (doc 04 §9.8):
+            // the raw arm no longer dispatches a location-dependent action without a
+            // node match — LOW_CONFIDENCE_GROUND, zero executor calls, and the honest
+            // refusal feeds the failed-step/re-plan gate (maxReplans 0 -> REPLANS_EXHAUSTED).
             val homeNode = ObservedNode(
                 id = "n1", text = "Home", desc = "", clickable = true, editable = false,
                 scrollable = false, left = 800, top = 100, right = 900, bottom = 160,
@@ -190,17 +193,23 @@ class Phase18GroundingRouteCharacterizationTest {
                 ++iterations > 10
             }
 
-            assertEquals(VisionLoop.Terminal.GOAL_ACHIEVED, result.terminal, result.subtaskOutcomes.toString())
-            // CURRENT behavior: the tap fired at the RAW rectangle's centre (650,1250) —
-            // no a11y node match, no confidence floor on the Haiku box that supplied it.
-            assertEquals(listOf(650 to 1250), executor.taps, "the raw-centre tap is the dispatch")
-            assertTrue(executor.nodeClicks.isEmpty(), "no node action backed the raw touch")
+            assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal, result.subtaskOutcomes.toString())
+            // NEW behavior (doc 04 §9.8): ZERO dispatches — the raw-centre tap is gone.
+            assertTrue(executor.taps.isEmpty(), "no raw tap may fire without a node match")
+            assertTrue(executor.nodeClicks.isEmpty(), "no node action backs an unmatched box")
             val stepLine = result.subtaskOutcomes.first { it.startsWith("step") }
-            assertTrue("raw (650,1250)" in stepLine, "the step line names the raw arm: $stepLine")
+            assertTrue(
+                "LOW_CONFIDENCE_GROUND" in stepLine,
+                "the step line names the typed refusal: $stepLine",
+            )
             val log = java.io.File(base, "raw-route/events.log").readText()
             assertTrue(
                 "jev box sub-floor" in log,
-                "the sub-floor Jev box is logged loudly, then the raw arm acts anyway",
+                "the sub-floor Jev box is logged loudly before the refusal",
+            )
+            assertTrue(
+                "LOW_CONFIDENCE_GROUND" in log,
+                "the refusal rides the evidence: $log".take(200),
             )
             // The ledger records the truth: a MISS (bestIou below the PARTIAL floor).
             val summary = evidence.grounding.summarize()

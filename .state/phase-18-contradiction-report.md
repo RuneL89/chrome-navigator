@@ -85,3 +85,15 @@ exception (the 2026-10-18/22/23 precedents).
 
 The phase doc `Implementation Plan/PHASE_18_reliability_hardening.md` is written under
 these decisions.
+
+## Correction (2026-11-11, CN-08 adaptation row)
+
+The Finding-1 table said CN-08's "20-retry storm" was false on the frontier — that check
+looked at `SystemOneClient` (the retained a11y engine's client, law-capped at 2). The
+VISION clients are NOT that client: `VisionHaiku`/`VisionJev` default `maxRetries = 20`
+with `200 shl attempt` backoff (the 100x budget directive's ceiling) — the plan's
+~58-hour worst case is arithmetically real THERE. The implementation-status law (doc 01's
+capability table names the vision engine as the shipped default) makes the vision
+clients the product path. CN-08 is therefore implemented in FULL (policy + deadline +
+status-selective retry + typed failures + cancellable transport), not the reduced form
+the §3 table described. The a11y engine's SystemOneClient law is untouched.

@@ -473,10 +473,13 @@ class VisionExperimentTest {
         assertEquals(30, config.batteryReplansPerSubtask)
         assertEquals(20, config.planAttempts)
         val transport = CapturingTransport("{}")
-        assertEquals(20, VisionJev(
+        // PHASE_18 CN-08 (doc 04 §9.7): the vision clients' call law supersedes the 100x
+        // directive's 20-retry ceiling — attempts bounded at 3 (maxRetries 2 + the first
+        // try), a finite total deadline, status-selective retry, typed failures.
+        assertEquals(2, VisionJev(
             transport, VisionJev.DEFAULT_VISION_BASE_URL, VisionJev.DEFAULT_VISION_MODEL, "fixture",
         ).maxRetries)
-        assertEquals(20, VisionHaiku(transport, "fixture").maxRetries)
+        assertEquals(2, VisionHaiku(transport, "fixture").maxRetries)
     }
 
     @Test

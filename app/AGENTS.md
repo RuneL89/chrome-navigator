@@ -1515,6 +1515,41 @@ three-way selector ships with that program.
     when bound (the product paths); null service (every JVM test) = byte-identical.
   * Gates: VisionSnapshotterTest 5/5 (the plan's five cases), PreDispatchGuardTest
     15/15 (the plan's eight + the back/stale laws); full app 810 / core 338 green.
+* **PHASE_18 Stage 18.B part 2 (CN-08+CN-09+CN-10, 2026-11-11): call boundedness,
+  grounding discipline, capture bounds (doc 04 §9.7/§9.8 — implemented now).**
+  * `core/wire/ModelCallPolicy.kt` — the shared call law: maxAttempts 3, a finite total
+    deadline (90s), bounded backoff (200ms→2s), status-selective retry (408/429/5xx +
+    `Retry-After` honored up to the deadline), and the typed `ModelCallException`
+    (category/attempts/elapsed — safe metadata only). SUPERSEDES the vision clients'
+    100x-directive 20-retry ceiling (doc 04 §9.7 ratified; the retained a11y engine's
+    `SystemOneClient` keeps its own vision 02 §2 law — max 2, transport-only, unchanged).
+  * `core/wire/WireTransport.kt` — the OkHttp transport moved to the ASYNC enqueue +
+    `suspendCancellableCoroutine` path: coroutine cancellation (withTimeout, the owner's
+    stop) now cancels the underlying socket call; resumption exactly once.
+  * `VisionHaiku`/`VisionJev` — both clients ride the policy: the maxRetries default is
+    2 (attempts 3), the deadline check heads every loop pass, ordinary 4xx/malformed 200
+    stay loud content failures, and `WireHttpResponse` now carries headers (Retry-After).
+  * `VisionLoop` grounding discipline (CN-09): a failed Jev pick with MULTIPLE
+    location-dependent proposals is `GROUNDING_UNAVAILABLE` (typed failed step, zero
+    executor calls); a SINGLE proposal proceeds on the DETERMINISTIC route (doc 04 §9.8's
+    carve-out: the code-established unique target — the pre-dispatch guard re-verifies it
+    fresh and landed-text verification is the proof); a TAP/TYPE rectangle with no node
+    match is `LOW_CONFIDENCE_GROUND` (never a raw dispatch; the calibration ledger still
+    records the refused miss); the address-bar/omnibox TYPE keeps its deterministic
+    editable route (tap-conversion extended to the raw editable point with plan text).
+  * `VisionLoop` capture bounds (CN-10): `consecutiveCaptureFailures` counted per
+    capture (product wiring only — the scripted/JVM seam stays unbounded legacy), ONE
+    bounded re-capture (400ms) on the first degraded frame, and past
+    `Config.captureFailureLimit` (2) the run ends GUARD_ABORT with the capture cause in
+    the evidence; a success resets. (The CAPTURE_UNAVAILABLE terminal vocabulary lands
+    with Stage 18.D CN-15.)
+  * Gates: VisionModelCallPolicyTest 7/7 (MockWebServer end-to-end: bounded transport
+    failures, 503→success, 400/malformed no-retry, deadline typed, 429 Retry-After
+    bounded), VisionModelCallPolicy coverage via Phase18TerminalAndRetryCharacterization
+    (updated to the new law: status-selective retry + 400 no-retry); grounding/capture
+    characterization updated to the §9.8 law (LOW_CONFIDENCE_GROUND pins; the
+    repair-once scenario adapted lawfully — its ground answer scripted, no blind tap).
+    Full app 818 / core 338 green.
 
 ## Local Contracts
 

@@ -10,6 +10,8 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 import navigator.app.gen.GenClient
 import navigator.app.gen.GenEngineConfigs
+import navigator.core.wire.ModelCallException
+import navigator.core.wire.ModelCallPolicy
 import navigator.core.wire.WireHttpRequest
 import navigator.core.wire.WireTransport
 import navigator.core.wire.WireTransportException
@@ -25,9 +27,12 @@ import navigator.core.wire.WireTransportException
  *
  * [ablateVision] = the text-only ABLATION arm: identical calls, the image part never
  * attached — so a before/after pair attributes gains to VISION rather than to "another
- * model looked". Retry law mirrors the production writer (transport only); the retry
- * ceiling rides the 100x budget directive (owner, 2026-10-19): [maxRetries] defaults
- * to 20. Usage is priced with the same pinned conservative table
+ * model looked". CALL LAW (PHASE_18 CN-08, doc 04 §9.7): every logical call rides
+ * [ModelCallPolicy] — max attempts (3), a finite total deadline, status-selective
+ * retries (408/429/5xx + bounded `Retry-After`), and a typed final failure; ordinary
+ * 4xx and malformed 2xx bodies are loud content failures, never retried. (The previous
+ * 20-retry/unchecked-backoff ceiling from the 100x directive is superseded by §9.7.)
+ * Usage is priced with the same pinned conservative table
  * ([GenClient.writerCostMicroUsd]).
  */
 class VisionHaiku(
@@ -37,10 +42,21 @@ class VisionHaiku(
     val ablateVision: Boolean = false,
     private val onUsage: (VisionJev.VisionUsage) -> Unit = {},
 
-    /** Public read-only so the JVM tests pin the 100x directive's ceiling. */
-    val maxRetries: Int = 20,
+    /**
+     * PHASE_18 CN-08: the attempt bound supersedes the 100x directive's 20 — doc 04
+     * §9.7's [ModelCallPolicy] maxAttempts (default 3 = maxRetries 2 + the first try).
+     * Public read-only so the JVM tests pin the new bound.
+     */
+    val maxRetries: Int = 2,
     private val backoffBaseMs: Long = 200L,
     private val retryDelay: suspend (Long) -> Unit = { delay(it) },
+    /** The call policy (deadline + bounds); the default implements doc 04 §9.7. */
+    val policy: ModelCallPolicy = ModelCallPolicy(
+        maxAttempts = maxRetries + 1,
+        initialBackoffMs = backoffBaseMs,
+    ),
+    /** Elapsed-realtime seam (the deadline's clock; tests inject a fixed clock). */
+    private val nowMs: () -> Long = System::currentTimeMillis,
 ) {
 
     /** The LAST successful call's usage (PHASE_17 Stage 0.6: the evidence's per-call cost). */
@@ -62,7 +78,15 @@ class VisionHaiku(
     ): String {
         val body = buildChatBody(model, system, userText, imageBase64?.takeUnless { ablateVision })
         var attempt = 0
+        val started = nowMs()
         while (true) {
+            val elapsed = nowMs() - started
+            if (elapsed > policy.totalDeadlineMs) {
+                throw ModelCallException(
+                    ModelCallException.Category.DEADLINE, attempt, elapsed,
+                    "$what: the total call deadline (${policy.totalDeadlineMs}ms) expired",
+                )
+            }
             val response = try {
                 transport.execute(
                     WireHttpRequest(
@@ -75,12 +99,47 @@ class VisionHaiku(
                     ),
                 )
             } catch (e: WireTransportException) {
-                if (attempt >= maxRetries) throw e
-                retryDelay(backoffBaseMs shl attempt)
                 attempt++
+                if (attempt >= policy.maxAttempts) {
+                    throw ModelCallException(
+                        ModelCallException.Category.TRANSPORT, attempt, nowMs() - started,
+                        "$what: transport errors persisted past the attempts: ${e.message}", e,
+                    )
+                }
+                val d = policy.delayMs(attempt - 1, null, nowMs() - started)
+                if (d < 0) {
+                    throw ModelCallException(
+                        ModelCallException.Category.DEADLINE, attempt, nowMs() - started,
+                        "$what: the total call deadline expired before the retry",
+                    )
+                }
+                retryDelay(d)
                 continue
             }
             if (response.code !in 200..299) {
+                if (ModelCallPolicy.retryableStatus(response.code)) {
+                    attempt++
+                    if (attempt >= policy.maxAttempts) {
+                        throw ModelCallException(
+                            ModelCallException.Category.STATUS, attempt, nowMs() - started,
+                            "$what: HTTP ${response.code} from the provider persisted past " +
+                                "the attempts. Body: ${response.body.take(300)}",
+                        )
+                    }
+                    val d = policy.delayMs(
+                        attempt - 1,
+                        ModelCallPolicy.retryAfterMs(response.headers),
+                        nowMs() - started,
+                    )
+                    if (d < 0) {
+                        throw ModelCallException(
+                            ModelCallException.Category.DEADLINE, attempt, nowMs() - started,
+                            "$what: the total call deadline expired before the retry",
+                        )
+                    }
+                    retryDelay(d)
+                    continue
+                }
                 throw VisionHaikuException(
                     "HTTP ${response.code} from ${GenEngineConfigs.OPENROUTER_CHAT_URL} (model $model) " +
                         "during $what — not retried. Body: ${response.body.take(300)}",

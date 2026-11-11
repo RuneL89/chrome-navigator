@@ -132,6 +132,37 @@ class VisionLoopConditionRepairTest {
     }.toString()
 
     /** The recorded-opinion noul (the normal accept's Jev half). */
+    /** The GROUND answer: the box for the only proposal (b0) + the pick choosing p0. */
+    private fun jevGround(
+        top: Double,
+        bottom: Double,
+        left: Double,
+        right: Double,
+        confidence: Double = 0.9,
+    ): String = buildJsonObject {
+        put("answers", buildJsonObject {
+            put("b0", buildJsonObject {
+                put("type", JsonPrimitive("box"))
+                put("box", buildJsonObject {
+                    put("top", JsonPrimitive(top))
+                    put("bottom", JsonPrimitive(bottom))
+                    put("left", JsonPrimitive(left))
+                    put("right", JsonPrimitive(right))
+                })
+                put("confidence", JsonPrimitive(confidence))
+            })
+            put("pick", buildJsonObject {
+                put("type", JsonPrimitive("choice"))
+                put("choice", JsonPrimitive("p0"))
+                put("probabilities", buildJsonObject {
+                    put("p0", JsonPrimitive(0.9))
+                    put("none", JsonPrimitive(0.1))
+                })
+            })
+        })
+        put("usage", buildJsonObject { put("input_tokens", 10); put("output_tokens", 1) })
+    }.toString()
+
     private fun jevNoul(pTrue: Double): String = buildJsonObject {
         put("answers", buildJsonObject {
             put("done", buildJsonObject {
@@ -496,13 +527,21 @@ class VisionLoopConditionRepairTest {
                     chatContent(outcomesPlan),
                     chatContent(haikuBattery(resultsQuestion to true)),
                     chatContent(repairContent("""{"markerText":"RESULTS-ONLY-ON-ANOTHER-PAGE"}""")),
-                    chatContent("""{"proposals":[{"description":"the Search button","action":"tap"}]}"""),
+                    chatContent("""{"proposals":[{"description":"the Book now button","action":"tap"}]}"""),
                     chatContent("""{"proposals":[]}"""),
                     chatContent("""{"complete":false,"reason":"no results list"}"""),
                 ),
             ),
+            // PHASE_18 CN-09 (doc 04 §9.8): the ground answer carries the box for the
+            // single proposal's node (the OLD scenario relied on a blind centre tap —
+            // exactly what §9.8 forbids; the deterministic jev-box grounding preserves
+            // the choreography lawfully).
             jevResponses = ArrayDeque(
-                listOf(jevBattery("v0" to 0.95), jevPick(), jevNoul(0.1)),
+                listOf(
+                    jevBattery("v0" to 0.95),
+                    jevGround(top = 0.10, bottom = 0.13, left = 0.10, right = 0.30),
+                    jevNoul(0.1),
+                ),
             ),
         )
         val (evidence, eventsFile) = newEvidence("repair-once")

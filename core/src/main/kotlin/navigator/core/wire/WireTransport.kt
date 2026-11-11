@@ -1,13 +1,19 @@
 package navigator.core.wire
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import okhttp3.Call
+import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 /**
  * A transport-layer error (timeout, connection failure). The ONLY error class the retry
@@ -34,6 +40,8 @@ class WireHttpRequest(
 class WireHttpResponse(
     val code: Int,
     val body: String,
+    /** The response headers (PHASE_18 CN-08: `Retry-After` rides here). Safe metadata. */
+    val headers: Map<String, String> = emptyMap(),
 )
 
 /**
@@ -76,16 +84,47 @@ class OkHttpWireTransport(
                 if (!name.equals("Content-Type", ignoreCase = true)) builder.header(name, value)
             }
             builder.post(request.body.toRequestBody(contentType.toMediaType()))
-            try {
-                client.newCall(builder.build()).execute().use { response ->
-                    WireHttpResponse(response.code, response.body?.string() ?: "")
-                }
-            } catch (e: IOException) {
-                // URL only — the key is in a header and never appears in errors/logs.
-                throw WireTransportException(
-                    "transport error calling ${request.url}: ${e.javaClass.simpleName}: ${e.message}",
-                    e,
-                )
+            val call = client.newCall(builder.build())
+            // PHASE_18 CN-08: the ASYNC enqueue path (doc 04 §9.7) — coroutine
+            // cancellation (withTimeout, the owner's stop) now CANCELS the underlying
+            // OkHttp call, so an in-flight socket read cannot outlive its caller. The
+            // continuation resumes exactly once; a cancelled call surfaces as a
+            // transport error carrying only the URL (the key is a header, never logged).
+            suspendCancellableCoroutine { cont ->
+                cont.invokeOnCancellation { call.cancel() }
+                call.enqueue(object : Callback {
+                    override fun onFailure(call: Call, e: IOException) {
+                        if (cont.isCancelled) return
+                        cont.resumeWithException(
+                            WireTransportException(
+                                "transport error calling ${request.url}: " +
+                                    "${e.javaClass.simpleName}: ${e.message}",
+                                e,
+                            ),
+                        )
+                    }
+
+                    override fun onResponse(call: Call, response: Response) {
+                        response.use { r ->
+                            val body = try {
+                                r.body?.string() ?: ""
+                            } catch (e: IOException) {
+                                if (cont.isCancelled) return@use
+                                cont.resumeWithException(
+                                    WireTransportException(
+                                        "transport error reading ${request.url}: " +
+                                            "${e.javaClass.simpleName}: ${e.message}",
+                                        e,
+                                    ),
+                                )
+                                return
+                            }
+                            val headers = r.headers.toMultimap()
+                                .mapValues { it.value.joinToString(", ") }
+                            if (cont.isActive) cont.resume(WireHttpResponse(r.code, body, headers))
+                        }
+                    }
+                })
             }
         }
 

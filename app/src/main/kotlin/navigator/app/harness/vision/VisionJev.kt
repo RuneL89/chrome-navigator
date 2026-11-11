@@ -9,6 +9,8 @@ import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
+import navigator.core.wire.ModelCallException
+import navigator.core.wire.ModelCallPolicy
 import navigator.core.wire.WireHttpRequest
 import navigator.core.wire.WireTransport
 import navigator.core.wire.WireTransportException
@@ -26,11 +28,13 @@ import navigator.core.wire.WireTransportException
  *   (the proposition IS the instructions), `choice` (record criteria keyed by option id).
  *   N boxes + 1 choice ride ONE request (the scoreBatch one-call habit).
  *
- * Retry law mirrors the production client: transport errors only, exponential
- * backoff; any HTTP status and any malformed 200 are loud content failures. The retry
- * ceiling rides the 100x budget directive (owner, 2026-10-19): [maxRetries] defaults
- * to 20 (the production client keeps <=2). Usage is
- * reported per completed call; images price as text tokens, so the ledger prices tokens
+ * CALL LAW (PHASE_18 CN-08, doc 04 §9.7): every logical call rides [ModelCallPolicy] —
+ * max attempts (3), a finite total deadline, status-selective retries (408/429/5xx +
+ * bounded `Retry-After`), and a typed final failure; ordinary 4xx and any malformed 200
+ * are loud content failures, never retried. (The previous transport-only 20-retry
+ * ceiling from the 100x directive is superseded by §9.7; the retained a11y engine's
+ * `SystemOneClient` keeps its own vision 02 §2 law — max 2, transport only.)
+ * Usage is reported per completed call; images price as text tokens, so the ledger prices tokens
  * at the production decision-engine table.
  *
  * SETTLED 2026-10-18 (all routes/formats tested, known-answer frame):
@@ -59,10 +63,21 @@ class VisionJev(
     private val apiKey: String,
     private val onUsage: (VisionUsage) -> Unit = {},
 
-    /** Public read-only so the JVM tests pin the 100x directive's ceiling. */
-    val maxRetries: Int = 20,
+    /**
+     * PHASE_18 CN-08: the attempt bound supersedes the 100x directive's 20 — doc 04
+     * §9.7's [ModelCallPolicy] maxAttempts (default 3 = maxRetries 2 + the first try).
+     * Public read-only so the JVM tests pin the new bound.
+     */
+    val maxRetries: Int = 2,
     private val backoffBaseMs: Long = 200L,
     private val retryDelay: suspend (Long) -> Unit = { delay(it) },
+    /** The call policy (deadline + bounds); the default implements doc 04 §9.7. */
+    val policy: ModelCallPolicy = ModelCallPolicy(
+        maxAttempts = maxRetries + 1,
+        initialBackoffMs = backoffBaseMs,
+    ),
+    /** Elapsed-realtime seam (the deadline's clock; tests inject a fixed clock). */
+    private val nowMs: () -> Long = System::currentTimeMillis,
 ) {
 
     /** The LAST successful call's usage (PHASE_17 Stage 0.6: the evidence's per-call cost). */
@@ -131,7 +146,15 @@ class VisionJev(
         }
         val body = buildRequestJson(state, model, questions, imageBase64, imageRef).toString()
         var attempt = 0
+        val started = nowMs()
         while (true) {
+            val elapsed = nowMs() - started
+            if (elapsed > policy.totalDeadlineMs) {
+                throw ModelCallException(
+                    ModelCallException.Category.DEADLINE, attempt, elapsed,
+                    "$what: the total call deadline (${policy.totalDeadlineMs}ms) expired",
+                )
+            }
             val response = try {
                 transport.execute(
                     WireHttpRequest(
@@ -141,12 +164,47 @@ class VisionJev(
                     ),
                 )
             } catch (e: WireTransportException) {
-                if (attempt >= maxRetries) throw e
-                retryDelay(backoffBaseMs shl attempt)
                 attempt++
+                if (attempt >= policy.maxAttempts) {
+                    throw ModelCallException(
+                        ModelCallException.Category.TRANSPORT, attempt, nowMs() - started,
+                        "$what: transport errors persisted past the attempts: ${e.message}", e,
+                    )
+                }
+                val d = policy.delayMs(attempt - 1, null, nowMs() - started)
+                if (d < 0) {
+                    throw ModelCallException(
+                        ModelCallException.Category.DEADLINE, attempt, nowMs() - started,
+                        "$what: the total call deadline expired before the retry",
+                    )
+                }
+                retryDelay(d)
                 continue
             }
             if (response.code !in 200..299) {
+                if (ModelCallPolicy.retryableStatus(response.code)) {
+                    attempt++
+                    if (attempt >= policy.maxAttempts) {
+                        throw ModelCallException(
+                            ModelCallException.Category.STATUS, attempt, nowMs() - started,
+                            "$what: HTTP ${response.code} from the provider persisted past " +
+                                "the attempts. Body: ${response.body.take(300)}",
+                        )
+                    }
+                    val d = policy.delayMs(
+                        attempt - 1,
+                        ModelCallPolicy.retryAfterMs(response.headers),
+                        nowMs() - started,
+                    )
+                    if (d < 0) {
+                        throw ModelCallException(
+                            ModelCallException.Category.DEADLINE, attempt, nowMs() - started,
+                            "$what: the total call deadline expired before the retry",
+                        )
+                    }
+                    retryDelay(d)
+                    continue
+                }
                 throw VisionJevException(
                     "HTTP ${response.code} from $baseUrl (model $model) during $what — not retried. " +
                         "Body: ${response.body.take(300)}",

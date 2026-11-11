@@ -36,8 +36,13 @@ import navigator.core.wire.WireTransportException
  *    loud content failure with no retry"); this suite pins the vision clients
  *    ([VisionHaiku], [VisionJev]), which are separate implementations with their own
  *    100x budget-directive cap (maxRetries = 20 in production). Stage 18.B CN-08
- *    adds the finite total deadline, status-selective retry (408/429/5xx) and
- *    coroutine-cancellable transport ON TOP of this law.
+ *    SUPERSEDED that part of the baseline (doc 04 §9.7, ratified): the vision clients
+ *    now ride [ModelCallPolicy] — attempts bounded at 3, a finite total deadline,
+ *    status-selective retry (408/429/5xx + bounded Retry-After), typed
+ *    [ModelCallException] failures, and the coroutine-cancellable transport. The
+ *    status tests below are UPDATED to the new law (the malformed-200 and
+ *    transport-bounding pins are unchanged). VisionModelCallPolicyTest pins the new
+ *    law end to end against MockWebServer.
  */
 class Phase18TerminalAndRetryCharacterizationTest {
 
@@ -138,16 +143,32 @@ class Phase18TerminalAndRetryCharacterizationTest {
     }
 
     @Test
-    fun `jev - an HTTP status is a loud content failure and is never retried`() = runBlocking {
+    fun `jev - a retryable status (503) retries within the bound then fails typed`() = runBlocking {
+        // UPDATED by Stage 18.B CN-08 (doc 04 §9.7): 5xx is now STATUS-selective retry —
+        // bounded by maxAttempts — and the final failure is the typed ModelCallException.
         val transport = CountingTransport(body = "server said no", code = 503)
         try {
             jevAsk(transport, maxRetries = 5)
-            error("the 503 must throw")
-        } catch (e: VisionJev.VisionJevException) {
+            error("the persistent 503 must throw")
+        } catch (e: navigator.core.wire.ModelCallException) {
+            assertEquals(navigator.core.wire.ModelCallException.Category.STATUS, e.category)
+            assertEquals(6, e.attempts, "maxRetries 5 + the first try")
             assertTrue("HTTP 503" in (e.message ?: ""), e.message ?: "")
+        }
+        assertEquals(6, transport.attempts, "every attempt called the transport")
+    }
+
+    @Test
+    fun `jev - an ordinary 400 is a loud content failure and is never retried`() = runBlocking {
+        val transport = CountingTransport(body = "bad request", code = 400)
+        try {
+            jevAsk(transport, maxRetries = 5)
+            error("the 400 must throw")
+        } catch (e: VisionJev.VisionJevException) {
+            assertTrue("HTTP 400" in (e.message ?: ""), e.message ?: "")
             assertTrue("not retried" in (e.message ?: ""), e.message ?: "")
         }
-        assertEquals(1, transport.attempts, "a status answer is never retried")
+        assertEquals(1, transport.attempts, "an ordinary 4xx is never retried")
     }
 
     @Test
@@ -173,16 +194,30 @@ class Phase18TerminalAndRetryCharacterizationTest {
     }
 
     @Test
-    fun `haiku - an HTTP status is a loud content failure and is never retried`() = runBlocking {
+    fun `haiku - a retryable status (429) retries within the bound then fails typed`() = runBlocking {
+        // UPDATED by Stage 18.B CN-08 (doc 04 §9.7): 429 is now STATUS-selective retry.
         val transport = CountingTransport(body = "no", code = 429)
         try {
             haikuChat(transport, maxRetries = 5)
-            error("the 429 must throw")
+            error("the persistent 429 must throw")
+        } catch (e: navigator.core.wire.ModelCallException) {
+            assertEquals(navigator.core.wire.ModelCallException.Category.STATUS, e.category)
+            assertEquals(6, e.attempts, "maxRetries 5 + the first try")
+        }
+        assertEquals(6, transport.attempts, "every attempt called the transport")
+    }
+
+    @Test
+    fun `haiku - an ordinary 400 is a loud content failure and is never retried`() = runBlocking {
+        val transport = CountingTransport(body = "no", code = 400)
+        try {
+            haikuChat(transport, maxRetries = 5)
+            error("the 400 must throw")
         } catch (e: VisionHaiku.VisionHaikuException) {
-            assertTrue("HTTP 429" in (e.message ?: ""), e.message ?: "")
+            assertTrue("HTTP 400" in (e.message ?: ""), e.message ?: "")
             assertTrue("not retried" in (e.message ?: ""), e.message ?: "")
         }
-        assertEquals(1, transport.attempts, "a status answer is never retried")
+        assertEquals(1, transport.attempts, "an ordinary 4xx is never retried")
     }
 
     @Test
