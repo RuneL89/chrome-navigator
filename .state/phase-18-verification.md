@@ -55,3 +55,15 @@ RED items: none.
 Note (not RED, Stage E scope): the host's own writer calls (VisionLadderSource, stuck
 event, boundary judge via the second client pair) still record into no evidence — the
 Phase 18 Stage E record-unification work.
+
+### Fix-loop on-device re-check (2026-11-11, orchestrator)
+
+The fixed build (installed over the running emulator) ran the same hybrid scenario
+(policy tree-first via the debug seam, pinned-URL goal through the wizard's real
+"New task" path). The run ended STUCK_KILL (escalation-card timeout again, unattended)
+and its evidence record NOW carries the mandatory line:
+
+`terminal=STUCK_KILL steps=0 replans=2 modality=HYBRID calls=112 jev=56 haiku=56 images=112 battery=0 escalations=5`
+
+(task-1794378596096; grep-verified on-device: terminal_lines=1). The defect is fixed and
+verified end to end: implemented → verifier GREEN → on-device proof. Fix loop CLOSED.

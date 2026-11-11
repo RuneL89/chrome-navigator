@@ -1973,3 +1973,10 @@ a new dated entry. Format per `Implementation Plan/MASTER_IMPLEMENTATION_PROMPT.
 * Changed (this stage, committed by the orchestrator): README.md (6 corrections), app/src/test/** (29 new tests + fixtures + 1 additive bridge test), .state/phase-18-{docs-audit.md,status.json,verification.md}, app/AGENTS.md + .state/AGENTS.md (DOX pass).
 * Result: STAGE 18.A GREEN — proceeding to the orchestrator's emulator leg (18.A4 baseline + UI verification) per the owner's directive; per-stage UAT presentation superseded by the owner's continuous-run order (recorded 2026-11-10/11).
 * Checked By: canon-verifier; recorded by orchestrator.
+
+## 2026-11-11 — PHASE_18 FIX-LOOP CLOSED: hybrid terminal line (implemented → verifier GREEN → on-device proof)
+* Defect: the hybrid STUCK_KILL evidence record lacked the mandatory terminal= line (doc 05 §2 / ART-3), found by the emulator baseline leg.
+* Fix: one shared VisionEvidence (newVisionLoop evidence param) + NavigationLoop runEvidence seam + writeTerminalEvidence() on the finish() funnel; run() 58,301/65,535 (+16B javap-verified).
+* Verification: canon-verifier GREEN (6/6 checks, own evidence; cold gates core 338/0, app 790/0; HybridTerminalEvidenceTest 3/3); on-device re-check: the fixed build's hybrid run wrote terminal=STUCK_KILL ... modality=HYBRID calls=112 ... escalations=5 (task-1794378596096, grep-verified).
+* Residual (Stage E): the host's own writer calls ride a second client pair recording into no evidence — record-unification work.
+* Checked By: canon-verifier + orchestrator (on-device).
