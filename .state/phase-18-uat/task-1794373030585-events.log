@@ -1,0 +1,415 @@
+      28  run start goal=<Open http://127.0.0.1:8099/r2-site-a-home.html and report the page headline.> budget=100x writer=true
+     292  screenshot #0 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0000.jpg
+    6093  call plan 0ms in=4441 out=698 cost=6344µ$ channel=HAIKU images=1
+    6100  plan: Load the r2-site-a-home page in the WebView tester and report its headline. (2 subtasks, READ)
+    6189  screenshot #1 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=f96ac62fc96a4a75 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0001.jpg
+    7030  call verify-battery 0ms in=3414 out=38 cost=10812µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+    8346  call battery 0ms in=1686 out=80 cost=1668µ$ channel=HAIKU images=1
+   10917  call propose 2568ms in=3078 out=388 cost=4014µ$ channel=HAIKU images=1
+   11142  call ground 223ms in=6500 out=50 cost=20250µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   11146  jev box below PARTIAL (iou=0.01 < 0.20) — haiku-box fallback
+   11147  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.64
+   11147  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+   11857  step 0: tap 'The URL edit field showing "about:blank" at the top left of ' [node n2 iou=1.00 (label-match) conf=0.90]
+   12048  screenshot #2 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0002.jpg
+   14698  call propose 2646ms in=3078 out=346 cost=3846µ$ channel=HAIKU images=1
+   14945  call ground 246ms in=6516 out=50 cost=20298µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   14946  jev box below PARTIAL (iou=0.01 < 0.20) — haiku-box fallback
+   14946  cross-check: haiku box conf=0.95 iou-vs-jev-rect=0.63
+   14946  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+   15651  step 1: tap 'The 'about:blank' URL edit field at the top left of the tool' [node n2 iou=1.00 (label-match) conf=0.95]
+   15840  screenshot #3 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0003.jpg
+   15842  stuck: screen unchanged x3 - scroll probe
+   16643  screenshot #4 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0004.jpg
+   21079  call replan 0ms in=5843 out=756 cost=7698µ$ channel=HAIKU images=1
+   21084  REPLAN #1: Navigate the browser to the target address on 127.0.0.1:8099, then report the page headline. (resume at subtask 1)
+   21190  screenshot #5 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0005.jpg
+   21415  call verify-battery 0ms in=3414 out=38 cost=10812µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   22831  call battery 0ms in=1686 out=84 cost=1684µ$ channel=HAIKU images=1
+   25704  call propose 2872ms in=3087 out=350 cost=3869µ$ channel=HAIKU images=1
+   25911  call ground 206ms in=6504 out=50 cost=20262µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   25912  jev box below PARTIAL (iou=0.01 < 0.20) — haiku-box fallback
+   25912  cross-check: haiku box conf=0.95 iou-vs-jev-rect=0.74
+   25912  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+   26617  step 2: tap 'the URL edit field showing "about:blank" at the top left of ' [node n2 iou=1.00 (label-match) conf=0.95]
+   26800  screenshot #6 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0006.jpg
+   29301  call propose 2498ms in=3087 out=324 cost=3765µ$ channel=HAIKU images=1
+   29519  call ground 217ms in=6518 out=50 cost=20304µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   29520  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+   29520  cross-check: haiku box conf=0.93 iou-vs-jev-rect=0.74
+   29520  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+   30223  step 3: tap 'The URL edit field showing "about:blank" at the top of the b' [node n2 iou=1.00 (label-match) conf=0.93]
+   30430  screenshot #7 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0007.jpg
+   30432  stuck: screen unchanged x3 - scroll probe
+   31235  screenshot #8 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0008.jpg
+   36057  call replan 0ms in=5848 out=762 cost=7726µ$ channel=HAIKU images=1
+   36060  REPLAN #2: Navigate the WebView to the target address, then read the page headline. (resume at subtask 1)
+   36163  screenshot #9 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0009.jpg
+   36397  call verify-battery 0ms in=3413 out=38 cost=10809µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   37549  call battery 0ms in=1686 out=80 cost=1668µ$ channel=HAIKU images=1
+   39655  call propose 2105ms in=3089 out=264 cost=3527µ$ channel=HAIKU images=1
+   39882  call ground 225ms in=6517 out=50 cost=20301µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   39883  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+   39883  cross-check: haiku box conf=0.93 iou-vs-jev-rect=0.74
+   39883  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+   40589  step 4: tap 'The URL edit field showing "about:blank" at the top left of ' [node n2 iou=1.00 (label-match) conf=0.93]
+   40780  screenshot #10 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0010.jpg
+   42995  call propose 2213ms in=3089 out=295 cost=3651µ$ channel=HAIKU images=1
+   43353  call ground 356ms in=6529 out=50 cost=20337µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   43353  jev box below PARTIAL (iou=0.01 < 0.20) — haiku-box fallback
+   43354  cross-check: haiku box conf=0.95 iou-vs-jev-rect=0.70
+   43354  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+   44058  step 5: tap 'The URL edit field showing "about:blank" at the top of the b' [node n2 iou=1.00 (label-match) conf=0.95]
+   44228  screenshot #11 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0011.jpg
+   44229  stuck: screen unchanged x3 - scroll probe
+   44230  stuck probe: covered start -> moved to (540,800)
+   45029  screenshot #12 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0012.jpg
+   49966  call replan 0ms in=5850 out=886 cost=8224µ$ channel=HAIKU images=1
+   49968  REPLAN #3: Type the target URL into the WebView address field, load it, then read the page headline. (resume at subtask 1)
+   50061  screenshot #13 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0013.jpg
+   50280  call verify-battery 0ms in=3414 out=38 cost=10812µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   51448  call battery 0ms in=1684 out=82 cost=1675µ$ channel=HAIKU images=1
+   54293  call propose 2843ms in=3093 out=332 cost=3802µ$ channel=HAIKU images=1
+   54596  call ground 301ms in=6517 out=50 cost=20301µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   54596  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+   54596  cross-check: haiku box conf=0.95 iou-vs-jev-rect=0.88
+   54596  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+   55302  step 6: tap 'The address edit field showing "about:blank" at the top of t' [node n3 iou=1.00 (label-match) conf=0.95]
+   55439  screenshot #14 862x1045 scope=window:org.chromium.webview_shell:id=27:bounds=218,294,1080,1339 sha256=120d29615bbaf786 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0014.jpg
+   55680  call verify-battery 0ms in=2903 out=38 cost=9279µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   57168  call battery 0ms in=1406 out=151 cost=1728µ$ channel=HAIKU images=1
+   59513  call propose 2343ms in=2862 out=246 cost=3273µ$ channel=HAIKU images=1
+   59784  call ground 270ms in=3076 out=33 cost=9723µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   60487  step 7: back
+   60689  screenshot #15 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0015.jpg
+   60915  call verify-battery 0ms in=3414 out=38 cost=10812µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   62393  call battery 0ms in=1684 out=82 cost=1675µ$ channel=HAIKU images=1
+   64439  call propose 2045ms in=3093 out=271 cost=3558µ$ channel=HAIKU images=1
+   64680  call ground 239ms in=6531 out=50 cost=20343µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   64680  jev box below PARTIAL (iou=0.01 < 0.20) — haiku-box fallback
+   64680  cross-check: haiku box conf=0.93 iou-vs-jev-rect=0.62
+   64681  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+   65387  step 8: tap 'The address edit field showing "about:blank" (white text box' [node n3 iou=1.00 (label-match) conf=0.93]
+   65495  screenshot #16 862x1045 scope=window:org.chromium.webview_shell:id=28:bounds=218,294,1080,1339 sha256=120d29615bbaf786 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0016.jpg
+   65729  call verify-battery 0ms in=2902 out=38 cost=9276µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   67194  call battery 0ms in=1406 out=148 cost=1716µ$ channel=HAIKU images=1
+   69418  call propose 2223ms in=2862 out=257 cost=3317µ$ channel=HAIKU images=1
+   69660  call ground 241ms in=3082 out=33 cost=9741µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   69660  haiku box below PARTIAL (iou=0.16 < 0.20) — label match
+   70364  step 9: back
+   70560  screenshot #17 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0017.jpg
+   70776  call verify-battery 0ms in=3412 out=38 cost=10806µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   72637  call battery 0ms in=1684 out=82 cost=1675µ$ channel=HAIKU images=1
+   75585  call propose 2944ms in=3093 out=418 cost=4146µ$ channel=HAIKU images=1
+   75823  call ground 236ms in=6527 out=50 cost=20331µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   75824  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+   75824  cross-check: haiku box conf=0.93 iou-vs-jev-rect=0.85
+   75824  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+   76529  step 10: tap 'the address edit field showing "about:blank" at the top left' [node n3 iou=1.00 (label-match) conf=0.93]
+   76638  screenshot #18 862x1045 scope=window:org.chromium.webview_shell:id=29:bounds=218,294,1080,1339 sha256=120d29615bbaf786 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0018.jpg
+   76935  call verify-battery 0ms in=2902 out=38 cost=9276µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   78583  call battery 0ms in=1406 out=158 cost=1756µ$ channel=HAIKU images=1
+   81059  call propose 2474ms in=2862 out=294 cost=3465µ$ channel=HAIKU images=1
+   81320  call ground 257ms in=3074 out=33 cost=9717µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   82025  step 11: back
+   82244  screenshot #19 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0019.jpg
+   82460  call verify-battery 0ms in=3412 out=38 cost=10806µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   83807  call battery 0ms in=1684 out=82 cost=1675µ$ channel=HAIKU images=1
+   87193  call propose 3383ms in=3093 out=548 cost=4666µ$ channel=HAIKU images=1
+   87426  call ground 232ms in=9504 out=75 cost=29637µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   87427  jev box below PARTIAL (iou=0.01 < 0.20) — haiku-box fallback
+   87427  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.71
+   87427  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+   88131  step 12: tap 'The address edit field showing "about:blank" at the top of t' [node n3 iou=1.00 (label-match) conf=0.90]
+   88245  screenshot #20 862x1045 scope=window:org.chromium.webview_shell:id=30:bounds=218,294,1080,1339 sha256=120d29615bbaf786 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0020.jpg
+   88494  call verify-battery 0ms in=2904 out=38 cost=9282µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   90003  call battery 0ms in=1406 out=158 cost=1756µ$ channel=HAIKU images=1
+   92241  call propose 2237ms in=2862 out=235 cost=3229µ$ channel=HAIKU images=1
+   92481  call ground 239ms in=3078 out=33 cost=9729µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   93186  step 13: back
+   93375  screenshot #21 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0021.jpg
+   93646  call verify-battery 0ms in=3413 out=38 cost=10809µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   94855  call battery 0ms in=1684 out=82 cost=1675µ$ channel=HAIKU images=1
+   97032  call propose 2174ms in=3093 out=282 cost=3602µ$ channel=HAIKU images=1
+   97279  call ground 246ms in=6525 out=50 cost=20325µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   97280  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+   97280  cross-check: haiku box conf=0.95 iou-vs-jev-rect=0.76
+   97280  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+   97986  step 14: tap 'The address edit field showing "about:blank" at the top of t' [node n3 iou=1.00 (label-match) conf=0.95]
+   98099  screenshot #22 862x1045 scope=window:org.chromium.webview_shell:id=31:bounds=218,294,1080,1339 sha256=120d29615bbaf786 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0022.jpg
+   98332  call verify-battery 0ms in=2904 out=38 cost=9282µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   99826  call battery 0ms in=1406 out=149 cost=1720µ$ channel=HAIKU images=1
+  102321  call propose 2494ms in=2862 out=316 cost=3553µ$ channel=HAIKU images=1
+  102616  call ground 293ms in=3084 out=33 cost=9747µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  103320  step 15: back
+  103475  screenshot #23 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0023.jpg
+  103707  call verify-battery 0ms in=3413 out=38 cost=10809µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  105102  call battery 0ms in=1684 out=82 cost=1675µ$ channel=HAIKU images=1
+  107139  call propose 2034ms in=3093 out=245 cost=3454µ$ channel=HAIKU images=1
+  107372  call ground 231ms in=6519 out=50 cost=20307µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  107373  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  107374  cross-check: haiku box conf=0.95 iou-vs-jev-rect=0.73
+  107374  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  108079  step 16: tap 'The address edit field showing "about:blank" at the top of t' [node n3 iou=1.00 (label-match) conf=0.95]
+  108187  screenshot #24 862x1045 scope=window:org.chromium.webview_shell:id=32:bounds=218,294,1080,1339 sha256=120d29615bbaf786 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0024.jpg
+  108493  call verify-battery 0ms in=2904 out=38 cost=9282µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  110279  call battery 0ms in=1406 out=159 cost=1760µ$ channel=HAIKU images=1
+  112571  call propose 2289ms in=2862 out=264 cost=3345µ$ channel=HAIKU images=1
+  112800  call ground 227ms in=3078 out=33 cost=9729µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  113503  step 17: back
+  113657  screenshot #25 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0025.jpg
+  113874  call verify-battery 0ms in=3412 out=38 cost=10806µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  115188  call battery 0ms in=1684 out=82 cost=1675µ$ channel=HAIKU images=1
+  118043  call propose 2853ms in=3093 out=417 cost=4142µ$ channel=HAIKU images=1
+  118276  call ground 231ms in=6525 out=50 cost=20325µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  118276  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  118276  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.73
+  118277  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  118278  step 18: FAILED (type grounding refused - the ground node n2 is not editable and no editable field could be resolved at its centre (850,257) (NO_FIELD_AT_POINT); refusing the doomed enterText)
+  118467  screenshot #26 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0026.jpg
+  120889  call propose 2418ms in=3093 out=354 cost=3890µ$ channel=HAIKU images=1
+  121105  call ground 215ms in=6527 out=50 cost=20331µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  121106  jev box below PARTIAL (iou=0.01 < 0.20) — haiku-box fallback
+  121106  cross-check: haiku box conf=0.93 iou-vs-jev-rect=0.63
+  121106  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  121811  step 19: tap 'the address edit field showing "about:blank" at the top of t' [node n2 iou=1.00 (label-match) conf=0.93]
+  121996  screenshot #27 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0027.jpg
+  121997  stuck: screen unchanged x3 - scroll probe
+  122794  screenshot #28 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0028.jpg
+  127444  call replan 0ms in=5850 out=772 cost=7768µ$ channel=HAIKU images=1
+  127446  REPLAN #4: Load the r2-site-a-home page on the local test server in the WebView tester, then report its headline. (resume at subtask 1)
+  127536  screenshot #29 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0029.jpg
+  127744  call verify-battery 0ms in=3414 out=38 cost=10812µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  128980  call battery 0ms in=1684 out=82 cost=1675µ$ channel=HAIKU images=1
+  130953  call propose 1970ms in=3085 out=233 cost=3400µ$ channel=HAIKU images=1
+  131213  call ground 254ms in=6514 out=50 cost=20292µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  131214  jev box below PARTIAL (iou=0.01 < 0.20) — haiku-box fallback
+  131214  cross-check: haiku box conf=0.95 iou-vs-jev-rect=0.74
+  131214  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  131923  step 20: tap 'The address bar text field showing 'about:blank' at the top ' [node n3 iou=1.00 (label-match) conf=0.95]
+  132039  screenshot #30 862x1045 scope=window:org.chromium.webview_shell:id=33:bounds=218,294,1080,1339 sha256=120d29615bbaf786 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0030.jpg
+  132481  call verify-battery 0ms in=2903 out=38 cost=9279µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  133952  call battery 0ms in=1406 out=152 cost=1732µ$ channel=HAIKU images=1
+  135779  call propose 1826ms in=2854 out=187 cost=3031µ$ channel=HAIKU images=1
+  136011  call ground 229ms in=3071 out=33 cost=9708µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  136715  step 21: back
+  136853  screenshot #31 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0031.jpg
+  137067  call verify-battery 0ms in=3412 out=38 cost=10806µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  138255  call battery 0ms in=1684 out=82 cost=1675µ$ channel=HAIKU images=1
+  140641  call propose 2384ms in=3085 out=387 cost=4016µ$ channel=HAIKU images=1
+  140851  call ground 208ms in=6520 out=50 cost=20310µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  140851  jev box below PARTIAL (iou=0.01 < 0.20) — haiku-box fallback
+  140851  cross-check: haiku box conf=0.93 iou-vs-jev-rect=0.74
+  140852  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  141556  step 22: tap 'Tap the address field showing "about:blank" at the top left ' [node n2 iou=1.00 (label-match) conf=0.93]
+  141670  screenshot #32 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=f96ac62fc96a4a75 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0032.jpg
+  143799  call propose 2125ms in=3085 out=251 cost=3472µ$ channel=HAIKU images=1
+  144025  call ground 225ms in=6516 out=50 cost=20298µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  144026  jev box below PARTIAL (iou=0.01 < 0.20) — haiku-box fallback
+  144026  cross-check: haiku box conf=0.93 iou-vs-jev-rect=0.65
+  144026  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  144731  step 23: tap 'The address bar text field showing "about:blank" at the top ' [node n3 iou=1.00 (label-match) conf=0.93]
+  144896  screenshot #33 862x1045 scope=window:org.chromium.webview_shell:id=34:bounds=218,294,1080,1339 sha256=120d29615bbaf786 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0033.jpg
+  145171  call verify-battery 0ms in=2902 out=38 cost=9276µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  146754  call battery 0ms in=1406 out=151 cost=1728µ$ channel=HAIKU images=1
+  149177  call propose 2420ms in=2854 out=289 cost=3439µ$ channel=HAIKU images=1
+  149426  call ground 247ms in=3076 out=33 cost=9723µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  150133  step 24: back
+  150298  screenshot #34 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0034.jpg
+  150640  call verify-battery 0ms in=3413 out=38 cost=10809µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  151900  call battery 0ms in=1684 out=82 cost=1675µ$ channel=HAIKU images=1
+  154526  call propose 2622ms in=3085 out=341 cost=3832µ$ channel=HAIKU images=1
+  154756  call ground 229ms in=6518 out=50 cost=20304µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  154756  jev box below PARTIAL (iou=0.01 < 0.20) — haiku-box fallback
+  154756  cross-check: haiku box conf=0.93 iou-vs-jev-rect=0.62
+  154757  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  155461  step 25: tap 'The address field showing "about:blank" (editable URL text b' [node n2 iou=1.00 (label-match) conf=0.93]
+  155580  screenshot #35 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=f96ac62fc96a4a75 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0035.jpg
+  157730  call propose 2148ms in=3085 out=264 cost=3524µ$ channel=HAIKU images=1
+  157961  call ground 230ms in=6516 out=50 cost=20298µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  157961  jev box below PARTIAL (iou=0.01 < 0.20) — haiku-box fallback
+  157962  cross-check: haiku box conf=0.95 iou-vs-jev-rect=0.74
+  157962  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  158666  step 26: tap 'The address bar text field showing "about:blank" at the top ' [node n3 iou=1.00 (label-match) conf=0.95]
+  158779  screenshot #36 862x1045 scope=window:org.chromium.webview_shell:id=35:bounds=218,294,1080,1339 sha256=120d29615bbaf786 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0036.jpg
+  159066  call verify-battery 0ms in=2902 out=38 cost=9276µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  160688  call battery 0ms in=1406 out=134 cost=1660µ$ channel=HAIKU images=1
+  162673  call propose 1981ms in=2854 out=162 cost=2931µ$ channel=HAIKU images=1
+  162958  call ground 283ms in=3083 out=33 cost=9744µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  163663  step 27: back
+  163776  screenshot #37 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0037.jpg
+  164002  call verify-battery 0ms in=3412 out=38 cost=10806µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  165224  call battery 0ms in=1684 out=82 cost=1675µ$ channel=HAIKU images=1
+  167935  call propose 2710ms in=3085 out=382 cost=3996µ$ channel=HAIKU images=1
+  168172  call ground 235ms in=6520 out=50 cost=20310µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  168172  jev box below PARTIAL (iou=0.01 < 0.20) — haiku-box fallback
+  168172  cross-check: haiku box conf=0.92 iou-vs-jev-rect=0.62
+  168172  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  168878  step 28: tap 'Tap the address text field showing "about:blank" at the top ' [node n2 iou=1.00 (label-match) conf=0.92]
+  168991  screenshot #38 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=f96ac62fc96a4a75 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0038.jpg
+  171107  call propose 2113ms in=3085 out=306 cost=3692µ$ channel=HAIKU images=1
+  171327  call ground 219ms in=6518 out=50 cost=20304µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  171327  jev box below PARTIAL (iou=0.01 < 0.20) — haiku-box fallback
+  171328  cross-check: haiku box conf=0.95 iou-vs-jev-rect=0.65
+  171328  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  172032  step 29: tap 'the address field showing "about:blank" (editable text field' [node n3 iou=1.00 (label-match) conf=0.95]
+  172139  screenshot #39 862x1045 scope=window:org.chromium.webview_shell:id=36:bounds=218,294,1080,1339 sha256=120d29615bbaf786 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0039.jpg
+  172577  call verify-battery 0ms in=2902 out=38 cost=9276µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  174369  call battery 0ms in=1406 out=150 cost=1724µ$ channel=HAIKU images=1
+  176869  call propose 2498ms in=2854 out=322 cost=3571µ$ channel=HAIKU images=1
+  177113  call ground 243ms in=3086 out=33 cost=9753µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  177113  haiku box below PARTIAL (iou=0.16 < 0.20) — label match
+  177820  step 30: back
+  177946  screenshot #40 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0040.jpg
+  178197  call verify-battery 0ms in=3414 out=38 cost=10812µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  179971  call battery 0ms in=1684 out=82 cost=1675µ$ channel=HAIKU images=1
+  182180  call propose 2205ms in=3085 out=254 cost=3484µ$ channel=HAIKU images=1
+  182399  call ground 218ms in=6504 out=50 cost=20262µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  182400  jev box below PARTIAL (iou=0.01 < 0.20) — haiku-box fallback
+  182400  cross-check: haiku box conf=0.93 iou-vs-jev-rect=0.77
+  182400  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  183104  step 31: tap 'the address bar text field showing "about:blank" at the top ' [node n3 iou=1.00 (label-match) conf=0.93]
+  183216  screenshot #41 862x1045 scope=window:org.chromium.webview_shell:id=37:bounds=218,294,1080,1339 sha256=120d29615bbaf786 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0041.jpg
+  183463  call verify-battery 0ms in=2900 out=38 cost=9270µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  185053  call battery 0ms in=1406 out=151 cost=1728µ$ channel=HAIKU images=1
+  187154  call propose 2100ms in=2854 out=228 cost=3195µ$ channel=HAIKU images=1
+  187417  call ground 260ms in=3070 out=33 cost=9705µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  188121  step 32: back
+  188409  screenshot #42 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0042.jpg
+  188635  call verify-battery 0ms in=3413 out=38 cost=10809µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  189947  call battery 0ms in=1684 out=82 cost=1675µ$ channel=HAIKU images=1
+  192239  call propose 2289ms in=3085 out=265 cost=3528µ$ channel=HAIKU images=1
+  192462  call ground 221ms in=6514 out=50 cost=20292µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  192463  jev box below PARTIAL (iou=0.01 < 0.20) — haiku-box fallback
+  192463  cross-check: haiku box conf=0.95 iou-vs-jev-rect=0.74
+  192464  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  193169  step 33: tap 'The address bar text field showing "about:blank" at the top ' [node n3 iou=1.00 (label-match) conf=0.95]
+  193341  screenshot #43 862x1045 scope=window:org.chromium.webview_shell:id=38:bounds=218,294,1080,1339 sha256=120d29615bbaf786 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0043.jpg
+  193683  call verify-battery 0ms in=2902 out=38 cost=9276µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  195197  call battery 0ms in=1406 out=154 cost=1740µ$ channel=HAIKU images=1
+  198190  call propose 2992ms in=2854 out=323 cost=3575µ$ channel=HAIKU images=1
+  198694  call ground 503ms in=3076 out=33 cost=9723µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  199400  step 34: back
+  199617  screenshot #44 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0044.jpg
+  199848  call verify-battery 0ms in=3414 out=38 cost=10812µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  201131  call battery 0ms in=1684 out=82 cost=1675µ$ channel=HAIKU images=1
+  203377  call propose 2242ms in=3085 out=318 cost=3740µ$ channel=HAIKU images=1
+  203586  call ground 208ms in=6517 out=50 cost=20301µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  203586  jev box below PARTIAL (iou=0.01 < 0.20) — haiku-box fallback
+  203587  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.63
+  203587  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  204291  step 35: tap '"about:blank" address field (text edit) at the top left of t' [node n3 iou=1.00 (label-match) conf=0.90]
+  204455  screenshot #45 862x1045 scope=window:org.chromium.webview_shell:id=39:bounds=218,294,1080,1339 sha256=120d29615bbaf786 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0045.jpg
+  204684  call verify-battery 0ms in=2904 out=38 cost=9282µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  206301  call battery 0ms in=1406 out=157 cost=1752µ$ channel=HAIKU images=1
+  208790  call propose 2488ms in=2854 out=309 cost=3519µ$ channel=HAIKU images=1
+  209052  call ground 259ms in=3073 out=33 cost=9714µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  209757  step 36: back
+  209884  screenshot #46 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0046.jpg
+  210076  call verify-battery 0ms in=3411 out=38 cost=10803µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  211205  call battery 0ms in=1684 out=82 cost=1675µ$ channel=HAIKU images=1
+  213421  call propose 2213ms in=3085 out=271 cost=3552µ$ channel=HAIKU images=1
+  213646  call ground 223ms in=6516 out=50 cost=20298µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  213646  jev box below PARTIAL (iou=0.01 < 0.20) — haiku-box fallback
+  213646  cross-check: haiku box conf=0.93 iou-vs-jev-rect=0.77
+  213647  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  214351  step 37: tap 'The address field showing 'about:blank' (text field, top-lef' [node n3 iou=1.00 (label-match) conf=0.93]
+  214470  screenshot #47 862x1045 scope=window:org.chromium.webview_shell:id=40:bounds=218,294,1080,1339 sha256=120d29615bbaf786 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0047.jpg
+  214725  call verify-battery 0ms in=2902 out=38 cost=9276µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  216399  call battery 0ms in=1406 out=151 cost=1728µ$ channel=HAIKU images=1
+  218803  call propose 2403ms in=2854 out=283 cost=3415µ$ channel=HAIKU images=1
+  219042  call ground 238ms in=3076 out=33 cost=9723µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  219746  step 38: back
+  219886  screenshot #48 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0048.jpg
+  220157  call verify-battery 0ms in=3413 out=38 cost=10809µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  221502  call battery 0ms in=1684 out=82 cost=1675µ$ channel=HAIKU images=1
+  223742  call propose 2238ms in=3085 out=257 cost=3496µ$ channel=HAIKU images=1
+  223994  call ground 251ms in=6516 out=50 cost=20298µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  223995  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  223995  cross-check: haiku box conf=0.95 iou-vs-jev-rect=0.87
+  223995  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  224699  step 39: tap 'The address field showing "about:blank" at the top of the br' [node n3 iou=1.00 (label-match) conf=0.95]
+  224841  screenshot #49 862x1045 scope=window:org.chromium.webview_shell:id=41:bounds=218,294,1080,1339 sha256=120d29615bbaf786 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0049.jpg
+  225086  call verify-battery 0ms in=2902 out=38 cost=9276µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  226937  call battery 0ms in=1406 out=151 cost=1728µ$ channel=HAIKU images=1
+  229540  call propose 2602ms in=2854 out=341 cost=3647µ$ channel=HAIKU images=1
+  229782  call ground 240ms in=3073 out=33 cost=9714µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  230486  step 40: back
+  230620  screenshot #50 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0050.jpg
+  230831  call verify-battery 0ms in=3413 out=38 cost=10809µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  232129  call battery 0ms in=1684 out=82 cost=1675µ$ channel=HAIKU images=1
+  234047  call propose 1916ms in=3086 out=235 cost=3408µ$ channel=HAIKU images=1
+  234281  call ground 233ms in=6500 out=50 cost=20250µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  234281  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  234282  cross-check: haiku box conf=0.95 iou-vs-jev-rect=0.88
+  234282  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  234986  step 41: tap 'The address bar text field showing "about:blank" at the top ' [node n3 iou=1.00 (label-match) conf=0.95]
+  235171  screenshot #51 862x1045 scope=window:org.chromium.webview_shell:id=42:bounds=218,294,1080,1339 sha256=120d29615bbaf786 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0051.jpg
+  235404  call verify-battery 0ms in=2904 out=38 cost=9282µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  236923  call battery 0ms in=1406 out=150 cost=1724µ$ channel=HAIKU images=1
+  239204  call propose 2280ms in=2854 out=293 cost=3455µ$ channel=HAIKU images=1
+  239464  call ground 257ms in=3076 out=33 cost=9723µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  240168  step 42: back
+  240302  screenshot #52 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0052.jpg
+  240524  call verify-battery 0ms in=3411 out=38 cost=10803µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  241731  call battery 0ms in=1684 out=82 cost=1675µ$ channel=HAIKU images=1
+  244379  call propose 2646ms in=3086 out=404 cost=4084µ$ channel=HAIKU images=1
+  244624  call ground 242ms in=6516 out=50 cost=20298µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  244624  jev box below PARTIAL (iou=0.01 < 0.20) — haiku-box fallback
+  244624  cross-check: haiku box conf=0.95 iou-vs-jev-rect=0.74
+  244625  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  245329  step 43: tap 'The address field showing "about:blank" at the top left of t' [node n3 iou=1.00 (label-match) conf=0.95]
+  245454  screenshot #53 862x1045 scope=window:org.chromium.webview_shell:id=43:bounds=218,294,1080,1339 sha256=120d29615bbaf786 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0053.jpg
+  245760  call verify-battery 0ms in=2904 out=38 cost=9282µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  247247  call battery 0ms in=1406 out=149 cost=1720µ$ channel=HAIKU images=1
+  249551  call propose 2303ms in=2854 out=236 cost=3227µ$ channel=HAIKU images=1
+  249784  call ground 229ms in=3069 out=33 cost=9702µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  250489  step 44: back
+  250625  screenshot #54 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0054.jpg
+  250918  call verify-battery 0ms in=3413 out=38 cost=10809µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  252450  call battery 0ms in=1684 out=82 cost=1675µ$ channel=HAIKU images=1
+  254719  call propose 2265ms in=3086 out=232 cost=3396µ$ channel=HAIKU images=1
+  254932  call ground 212ms in=6508 out=50 cost=20274µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  254932  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  254932  cross-check: haiku box conf=0.95 iou-vs-jev-rect=0.87
+  254932  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  255636  step 45: tap 'the address field showing "about:blank" (editable text field' [node n3 iou=1.00 (label-match) conf=0.95]
+  255747  screenshot #55 862x1045 scope=window:org.chromium.webview_shell:id=44:bounds=218,294,1080,1339 sha256=120d29615bbaf786 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0055.jpg
+  256014  call verify-battery 0ms in=2904 out=38 cost=9282µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  257669  call battery 0ms in=1406 out=149 cost=1720µ$ channel=HAIKU images=1
+  259881  call propose 2209ms in=2854 out=266 cost=3347µ$ channel=HAIKU images=1
+  260109  call ground 226ms in=3077 out=33 cost=9726µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  260815  step 46: back
+  260961  screenshot #56 705x1567 scope=window:org.chromium.webview_shell:id=26:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0056.jpg
+  261207  call verify-battery 0ms in=3411 out=38 cost=10803µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  262494  call battery 0ms in=1684 out=82 cost=1675µ$ channel=HAIKU images=1
+  264729  call propose 2234ms in=3086 out=289 cost=3624µ$ channel=HAIKU images=1
+  264948  call ground 217ms in=6522 out=50 cost=20316µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  264948  jev box below PARTIAL (iou=0.01 < 0.20) — haiku-box fallback
+  264948  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.73
+  264948  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  265652  step 47: tap 'The "about:blank" address field (text edit) at the top left ' [node n3 iou=1.00 (label-match) conf=0.90]
+  265807  screenshot #57 862x1045 scope=window:org.chromium.webview_shell:id=45:bounds=218,294,1080,1339 sha256=120d29615bbaf786 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0057.jpg
+  266090  call verify-battery 0ms in=2901 out=38 cost=9273µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  267608  call battery 0ms in=1406 out=151 cost=1728µ$ channel=HAIKU images=1
+  269396  call propose 1786ms in=2854 out=197 cost=3071µ$ channel=HAIKU images=1
+  269640  call ground 243ms in=3072 out=33 cost=9711µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  269641  haiku box below PARTIAL (iou=0.16 < 0.20) — label match
+  270346  step 48: back
+  270638  screenshot #58 705x1567 scope=window:org.chromium.webview_shell:id=16:bounds=0,0,1080,2400 sha256=a7e898a5e0196bd8 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0058.jpg
+  270875  call verify-battery 0ms in=3549 out=38 cost=11217µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  273368  call battery 0ms in=1684 out=364 cost=2803µ$ channel=HAIKU images=1
+  276987  call repair 3616ms in=2701 out=582 cost=4488µ$ channel=HAIKU images=1
+  276988  condition repair: planner source -> the address contains 'r2-site-a-home.html'
+  276988  step 49: CONDITION REPAIRED - 'the address contains '127.0.0.1:8099/r2-site-a-home.html'' -> 'the address contains 'r2-site-a-home.html'' (the outcome was visible)
+  276989  subtask 1 done (condition repaired): Tap the address field (currently about:blank), clear it, typ
+  277200  screenshot #59 705x1567 scope=window:org.chromium.webview_shell:id=16:bounds=0,0,1080,2400 sha256=a5d608794973c366 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794373030585/screen-0059.jpg
+  278401  call extract 1199ms in=1927 out=12 cost=1589µ$ channel=HAIKU images=1
+  278401  report extraction ran (answer The page headline is "Site A".)
+  278632  call verify-battery 0ms in=3551 out=38 cost=11223µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  279985  call battery 0ms in=1684 out=82 cost=1675µ$ channel=HAIKU images=1
+  280196  call verify-noul 209ms in=620 out=20 cost=2160µ$ channel=JEV
+  283528  call confirm 3330ms in=1980 out=466 cost=3448µ$ channel=HAIKU images=1
+  283528  subtask 2 done: Read the page headline of the loaded r2-site-a-home page and Opinions(noul=0.59, confirm=true, render=[DISAGREE(0.59) confirm=true])
+  283529  GOAL_ACHIEVED after 50 steps
+  283529  terminal=GOAL_ACHIEVED steps=50 replans=4 modality=VISION calls=195 jev=94 haiku=101 images=194 battery=88 escalations=0 answer=The page headline is "Site A".
