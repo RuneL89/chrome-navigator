@@ -3,10 +3,16 @@ package navigator.app.harness.vision
 import kotlinx.coroutines.delay
 import navigator.app.gen.LadderSchema
 import navigator.app.loop.ActionExecutor
+import navigator.app.loop.ExecutionRequest
+import navigator.app.loop.FrameBounds
 import navigator.app.loop.GatePresenter
 import navigator.app.loop.GateResolution
+import navigator.app.loop.GuardActionKind
 import navigator.app.loop.LoopObserver
+import navigator.app.loop.PreDispatchGuard
+import navigator.app.loop.RectPxBox
 import navigator.app.loop.StepObservation
+import navigator.app.loop.TargetExpectation
 import navigator.app.loop.TextEntryFailure
 import navigator.app.loop.TextSource
 import navigator.core.gate.ActionKind
@@ -167,6 +173,27 @@ class VisionLoop(
      * tools (doc 01 §1a); the seam mirrors the a11y engine's [navigator.app.loop.BrowserLauncher].
      */
     private val browserLauncher: navigator.app.loop.BrowserLauncher? = null,
+    /**
+     * PHASE_18 Stage 18.B CN-02 — the consistent-snapshot seam (doc 04 §9.1): when
+     * wired, every observe+capture runs through [VisionSnapshotter]'s bounded sequence
+     * (observe -> capture -> re-read the navigation identity -> ONE bounded retry ->
+     * the typed STALE_SNAPSHOT refusal rather than acting on an inconsistent context),
+     * and the decision consumes the snapshot's observation + frame under ONE id the
+     * pre-dispatch guard references. NULL (the default; every existing caller/test) =
+     * today's independent observe + capture, byte-identical.
+     */
+    private val snapshotter: VisionSnapshotter? = null,
+    /**
+     * PHASE_18 Stage 18.B CN-03 — the fresh pre-dispatch guard (doc 04 §9.2 + doc 06
+     * §2c): when wired, IMMEDIATELY before every dispatch (after model work and after
+     * the gate/owner approval) the loop re-verifies — fresh — the browser foreground,
+     * the target's semantic identity + role + bounds, the occlusion, and the approval's
+     * context; a refusal is a typed `NOT_DISPATCHED_*` evidence line with ZERO executor
+     * calls, feeding the existing failed-step/re-plan gate (a refusal is not by itself
+     * a subtask failure beyond that ordinary accounting). NULL (the default; every
+     * existing caller/test) = today's dispatch, byte-identical.
+     */
+    private val preDispatchGuard: PreDispatchGuard? = null,
 ) {
 
     data class Config(
@@ -517,6 +544,44 @@ class VisionLoop(
     private var taskGate: TaskGate = TaskGate()
 
     /**
+     * PHASE_18 CN-02 — the snapshot the CURRENT decision consumed (set by
+     * [verifiedObserve] when the snapshotter is wired; null = snapshotter-less legacy
+     * path). [attemptStep]'s pre-dispatch request carries its id, expected browser
+     * package and navigation key (doc 04 §9.1 -> §9.2's handoff).
+     */
+    private var currentSnapshot: VisionSnapshot? = null
+
+    /** The snapshot serial (rides the snapshot id + the capture's evidence index). */
+    private var snapshotSerial = 0
+
+    /** The verified observe+capture outcome (CN-02): got a consistent pair, or stale. */
+    private sealed interface VerifiedObs {
+        data class Got(val obs: StepObservation, val shot: VisionCapture.ScreenShot?) : VerifiedObs
+        data object Stale : VerifiedObs
+    }
+
+    /**
+     * The CN-02 observe+capture edge: through the snapshotter when wired (the bounded
+     * consistency sequence; a persistent mismatch is [VerifiedObs.Stale] and the caller
+     * refuses to act), otherwise the legacy independent observe + capture
+     * byte-identically. [index] is the evidence capture index (`screenshots++`).
+     */
+    private suspend fun verifiedObserve(index: Int): VerifiedObs {
+        val snap = snapshotter ?: return VerifiedObs.Got(observer.observe(), captureSafely(index))
+        return when (val o = snap.snapshot(index) { i -> captureSafely(i) }) {
+            is VisionSnapshotter.Outcome.Consistent -> {
+                currentSnapshot = o.snapshot
+                VerifiedObs.Got(o.snapshot.observation, o.snapshot.frame.orNull())
+            }
+            is VisionSnapshotter.Outcome.Stale -> {
+                evidence.event("NOT_DISPATCHED_STALE_SNAPSHOT: ${o.reason}")
+                log("[vision] stale snapshot: ${o.reason}")
+                VerifiedObs.Stale
+            }
+        }
+    }
+
+    /**
      * PHASE_VEXP6 WI4 — the TERMINAL EVIDENCE wrapper: every return path of [runLoop]
      * (goal achieved, every terminal, the owner's cancel) writes ONE final events.log
      * line `terminal=<TERMINAL> steps=<n> replans=<n>` (+ the answer, flattened and
@@ -579,8 +644,25 @@ class VisionLoop(
         )
 
         evidence.event("run start goal=<${goal.take(80)}> budget=100x writer=${budget.hasWriterHardRoom()}")
-        var obs = observer.observe()
-        var shot = captureSafely(screenshots++)
+        // PHASE_18 CN-02: the run-start read goes through the verified snapshot edge —
+        // a persistent inconsistency before the plan is a loud GUARD_ABORT (the guard
+        // refused twice+; the evidence line names the true cause), never a plan on
+        // evidence the loop cannot trust to be one context.
+        var obs: StepObservation
+        var shot: VisionCapture.ScreenShot?
+        when (val start = verifiedObserve(screenshots++)) {
+            is VerifiedObs.Got -> {
+                obs = start.obs
+                shot = start.shot
+            }
+            VerifiedObs.Stale -> {
+                val line = "the snapshot context never stabilized before the plan " +
+                    "(active package + navigation key compared around the capture twice)"
+                evidence.event(line)
+                log("[vision] $line")
+                return terminal(Terminal.GUARD_ABORT, null)
+            }
+        }
         var planned = planLadder(goal, obs, failure = null, shot) ?: run {
             evidence.event("PLAN_REFUSED: no valid ladder in ${config.planAttempts} attempts")
             return terminal(Terminal.PLAN_REFUSED, null)
@@ -736,8 +818,28 @@ class VisionLoop(
             stepGrounding = null
             stepConditionSatisfied = false
 
-            obs = observer.observe()
-            shot = captureSafely(screenshots++)
+            // PHASE_18 CN-02: the per-step read goes through the verified snapshot edge.
+            // A persistent inconsistency skips the step LOUDLY (typed evidence, zero
+            // executor calls) and feeds the existing failed-step/re-plan gate — a stale
+            // read is never acted on, and never acted on silently.
+            when (val v = verifiedObserve(screenshots++)) {
+                is VerifiedObs.Got -> {
+                    obs = v.obs
+                    shot = v.shot
+                }
+                VerifiedObs.Stale -> {
+                    val line = "step $step: NOT_DISPATCHED_STALE_SNAPSHOT - the navigation " +
+                        "context changed around the capture twice (active package + URL " +
+                        "compared; tree hash deliberately ignored) - the step is skipped"
+                    outcomes.add(line)
+                    log("[vision] $line")
+                    evidence.event(line)
+                    consecutiveFailures += 1
+                    failuresSinceAdvance += 1
+                    step += 1
+                    continue
+                }
+            }
             // PHASE_17 Stage 0.4 — THE FIELD READ-BACK (the R3 "the first name never
             // landed" gap): a type's verdict is read from the SAME field, and a field
             // that is still empty feeds the failure path instead of being re-typed
@@ -1465,9 +1567,21 @@ class VisionLoop(
             stepGrounding = null
             stepConditionSatisfied = false
 
-            val obs = observer.observe()
+            // PHASE_18 CN-02: the hybrid tool's read goes through the same verified
+            // snapshot edge; a persistent inconsistency fails the subtask loudly (the
+            // host's failure/re-plan machinery owns the bounded retry).
+            val verified = verifiedObserve(screenshots++)
+            if (verified is VerifiedObs.Stale) {
+                return failed(
+                    "NOT_DISPATCHED_STALE_SNAPSHOT - the navigation context changed around " +
+                        "the capture twice (active package + URL compared); the vision tool " +
+                        "refused to act on inconsistent evidence",
+                )
+            }
+            val got = verified as VerifiedObs.Got
+            val obs = got.obs
             if (subtaskStartHash == null) subtaskStartHash = obs.screenHash
-            val shot = captureSafely(screenshots++)
+            val shot = got.shot
             if (readBackVerdict(obs)) consecutiveFailures += 1
             if (lastObservedUrl != null && obs.url != lastObservedUrl) {
                 consecutiveScrolls = 0
@@ -2032,6 +2146,11 @@ class VisionLoop(
         // falls through).
         var secretSwap: String? = null
         var gateMarker: String? = null
+        // PHASE_18 CN-03: the approval's (class, site) key — set on EVERY approval path
+        // (secret, per-task trust, card) so the pre-dispatch guard can bind the approval
+        // to its context (doc 06 §2c: a changed context voids it and re-gates).
+        var approvedGateClass: String? = null
+        var approvedGateSite: String? = null
         if (gatePresenter != null &&
             (effectiveAction == VisionPrompts.ProposalAction.TAP ||
                 effectiveAction == VisionPrompts.ProposalAction.TYPE ||
@@ -2110,6 +2229,8 @@ class VisionLoop(
                             }
                             secretSwap = resolution.secret
                             gateMarker = mark("approved")
+                            approvedGateClass = hclass.name
+                            approvedGateSite = site
                             evidence.event(
                                 "gate: $hclass on $site - owner APPROVED \"${card.classLabel}\" - secret typed " +
                                     "on the card (${TextSource.REDACTED}, never logged)",
@@ -2127,6 +2248,8 @@ class VisionLoop(
                     when (val decision = taskGate.decide(GateEvent.REQUEST(hclass, site))) {
                         is GateDecision.EXECUTE -> {
                             gateMarker = mark(if (decision.trustedFromTask) "approved (trusted)" else "approved")
+                            approvedGateClass = hclass.name
+                            approvedGateSite = site
                             if (decision.trustedFromTask) {
                                 evidence.event("gate: $hclass on $site - trusted per-task - executing (trustedFromTask)")
                             }
@@ -2136,6 +2259,8 @@ class VisionLoop(
                                 val approved = taskGate.decide(GateEvent.APPROVE)
                                 val trusted = approved is GateDecision.EXECUTE && approved.trustedFromTask
                                 gateMarker = mark(if (trusted) "approved (trusted)" else "approved")
+                                approvedGateClass = hclass.name
+                                approvedGateSite = site
                                 evidence.event("gate: $hclass on $site - owner APPROVED \"${card.classLabel}\"")
                             }
                             is GateResolution.ApproveWithSecret -> throw IllegalStateException(
@@ -2182,6 +2307,62 @@ class VisionLoop(
         val executed: Boolean
         var detail: String
         var typed: String? = null
+        // -- PHASE_18 CN-03: the fresh pre-dispatch guard (doc 04 §9.2 + doc 06 §2c) ---
+        // Built from the DECISION-time facts, checked against FRESH reads immediately
+        // before dispatch (after the gate/owner approval): the browser foreground, the
+        // navigation context, the target's semantic identity + role + fresh bounds, the
+        // occlusion, and — for a gated action — that the fresh action is STILL the
+        // approved one. A refusal is a typed NOT_DISPATCHED_* failed step with ZERO
+        // executor calls; the existing failed-step/re-plan gate owns the bounded retry,
+        // and a voided approval re-gates through the ordinary next-step machinery.
+        if (preDispatchGuard != null) {
+            val snap = currentSnapshot
+            val request = ExecutionRequest(
+                snapshotId = snap?.id.orEmpty(),
+                expectedBrowserPackage = snap?.activePackage.orEmpty(),
+                windowIdentity = snap?.windowIdentity.orEmpty(),
+                navigationContext = snap?.navigationKey.orEmpty(),
+                action = when (effectiveAction) {
+                    VisionPrompts.ProposalAction.TAP ->
+                        if (actCovered) GuardActionKind.NODE_CLICK else GuardActionKind.RAW_TAP
+                    VisionPrompts.ProposalAction.TYPE -> GuardActionKind.TYPE_TEXT
+                    VisionPrompts.ProposalAction.SUBMIT -> GuardActionKind.SUBMIT_IME
+                    VisionPrompts.ProposalAction.BACK -> GuardActionKind.GLOBAL_BACK
+                    else -> GuardActionKind.SCROLL
+                },
+                x = if (effectiveAction == VisionPrompts.ProposalAction.TYPE) actX else x,
+                y = if (effectiveAction == VisionPrompts.ProposalAction.TYPE) actY else y,
+                target = when {
+                    effectiveAction == VisionPrompts.ProposalAction.TYPE && actTarget != null ->
+                        TargetExpectation.forType(actTarget.node)
+                    target != null -> TargetExpectation.forNodeClick(target.node)
+                    else -> null
+                },
+                approvedRiskClass = approvedGateClass,
+                approvedSite = approvedGateSite,
+                recoveryReason = if (effectiveAction == VisionPrompts.ProposalAction.BACK) {
+                    "back serves the active subtask: ${active.instruction.take(60)}"
+                } else {
+                    null
+                },
+                frame = shot?.let {
+                    FrameBounds(it.originX, it.originY, it.screenWidth, it.screenHeight)
+                },
+                occluders = occluders.map { RectPxBox(it.left, it.top, it.right, it.bottom) },
+            )
+            when (val verdict = preDispatchGuard.check(request)) {
+                is PreDispatchGuard.Verdict.Allow -> {}
+                is PreDispatchGuard.Verdict.Refuse -> {
+                    val line = "${verdict.refusal.name}: ${verdict.detail} - zero executor calls " +
+                        "(the existing failed-step/re-plan gate owns the bounded retry" +
+                        (if (request.gated) "; the approval is void and the fresh action re-gates" else "") +
+                        ")"
+                    evidence.event("pre-dispatch refusal: $line")
+                    log("[vision] pre-dispatch refusal: ${verdict.refusal.name}")
+                    return Attempted.Failed(line)
+                }
+            }
+        }
         when (effectiveAction) {
             VisionPrompts.ProposalAction.TAP -> {
                 if (actCovered) {

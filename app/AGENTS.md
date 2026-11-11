@@ -1485,6 +1485,36 @@ three-way selector ships with that program.
   `checks = emptyList()` (the a11y `Ladder` has no battery field), so a WEAK FINAL
   subtask cannot be accepted by the vision tool; the fix (threading the plan's battery to
   the tool) is scheduled before the 17.2 smoke.
+* **PHASE_18 Stage 18.B part 1 (CN-02+CN-03, 2026-11-11): the hardened control loop's
+  first two mechanisms (doc 04 §9.1/§9.2 — implemented now).**
+  * `harness/vision/VisionSnapshot.kt` + `VisionSnapshotter.kt` — ONE consistent browser
+    snapshot per decision: observe -> capture -> re-read the navigation identity
+    (active package + URL key over `DoneConditionChecker.normalizeUrl`; the tree hash is
+    deliberately ignored) -> ONE bounded retry -> the typed `Outcome.Stale` refusal.
+    `CapturedFrame` makes a degraded capture an explicit status.
+  * `loop/ExecutionRequest.kt` (+`TargetExpectation`: the decision-time node with NO
+    observation-local id — the semantic-identity + bounds law; the 0.5 overlap floor),
+    `loop/ExecutionResult.kt` (the closed `NOT_DISPATCHED_*`/`DISPATCH_*` vocabulary),
+    `loop/PreDispatchGuard.kt` (the pure verdict over `FreshContextReader`: the browser
+    foreground via `activePackage`, the navigation context, per-action fresh target
+    checks, the occlusion margin, and — per doc 06 §2c — EVERY approval bound to its
+    context: a drifted site/target/class voids it, `RISK_CONTEXT_CHANGED`, re-gates).
+    `loop/GuardedActionExecutor.kt` from the plan collapsed into VisionLoop's ACT choke
+    point (removed as dead code).
+  * `harness/vision/VisionFreshReader.kt` — the production reader: bounded browser wait
+    (2s/250ms cadence, the focus-gate precedent), fresh-root walks on a 400-node budget.
+  * Wiring: `VisionLoop`'s two ADDITIVE constructor seams (`snapshotter`,
+    `preDispatchGuard`, null = byte-identical legacy); `verifiedObserve()` at the
+    run-start (persistent stale -> `GUARD_ABORT` with the honest cause), the per-step
+    site (stale -> the loud skipped step feeding the failed-step/re-plan gate), and the
+    hybrid tool's site (stale -> the subtask's typed Failed outcome); the ACT block
+    builds the `ExecutionRequest` from decision-time facts and returns
+    `Attempted.Failed` on a refusal (zero executor calls; the step line carries the
+    `NOT_DISPATCHED_*` label; refusals are secret-free by construction).
+    `NavigatorVisionBridge.newVisionLoop` constructs both from `capture.a11yService`
+    when bound (the product paths); null service (every JVM test) = byte-identical.
+  * Gates: VisionSnapshotterTest 5/5 (the plan's five cases), PreDispatchGuardTest
+    15/15 (the plan's eight + the back/stale laws); full app 810 / core 338 green.
 
 ## Local Contracts
 

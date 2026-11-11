@@ -216,8 +216,12 @@ class NavigatorAccessibilityService : AccessibilityService() {
     private fun isEditableClass(className: String?): Boolean =
         className?.equals("android.widget.EditText", ignoreCase = true) == true
 
-    /** Adapts a live node onto the URL-bar strategy's fakeable node view. */
-    private class A11yNodeView(private val node: AccessibilityNodeInfo) : UrlBarReader.NodeView {
+    /**
+     * Adapts a live node onto the URL-bar strategy's fakeable node view. INTERNAL since
+     * PHASE_18 CN-02: the snapshotter's service identity edge reuses the same adapter
+     * for its fresh URL read (one adapter, one read law) — no behavior change.
+     */
+    internal class A11yNodeView(private val node: AccessibilityNodeInfo) : UrlBarReader.NodeView {
         override val viewId: String? get() = node.viewIdResourceName
         override val text: String? get() = node.text?.toString()
         override val className: String? get() = node.className?.toString()

@@ -52,6 +52,14 @@ import kotlin.math.roundToInt
  */
 open class VisionCapture(private val service: NavigatorAccessibilityService?) {
 
+    /**
+     * The bound a11y service, for the PHASE_18 CN-02/CN-03 wiring only: the bridge
+     * derives the snapshotter's identity reader and the pre-dispatch guard's fresh
+     * execution reader from the SAME service this capture already holds (null = the
+     * JVM-test seam — no snapshotter, no guard, byte-identical legacy loop).
+     */
+    internal val a11yService: NavigatorAccessibilityService? get() = service
+
     /** One encoded capture. [jpegBytes] rides only long enough for the evidence write. */
     class ScreenShot(
         val base64: String,

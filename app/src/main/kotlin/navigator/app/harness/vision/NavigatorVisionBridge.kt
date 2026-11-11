@@ -3,6 +3,7 @@ package navigator.app.harness.vision
 import kotlinx.coroutines.delay
 import navigator.app.loop.ActionExecutor
 import navigator.app.loop.LoopObserver
+import navigator.app.loop.PreDispatchGuard
 import navigator.app.observe.BrowserPackages
 import navigator.core.wire.OkHttpWireTransport
 import navigator.core.wire.WireTransport
@@ -354,6 +355,22 @@ object NavigatorVisionBridge {
         val budget = ExpBudget()
         val ev = evidence ?: VisionEvidence(evidenceDir, runId)
         val (jev, haiku) = newClients(transport, openRouterKey, typesafeKey, budget, log)
+        // PHASE_18 Stage 18.B CN-02/CN-03: the PRODUCT wiring — when a bound a11y
+        // service exists (both product paths ride one), the loop runs the
+        // consistent-snapshot sequence (doc 04 §9.1) and the fresh pre-dispatch guard
+        // (doc 04 §9.2 + doc 06 §2c), both derived from the SAME service the capture
+        // holds. Null service (the JVM-test seam) = both seams stay null and every
+        // existing test's loop is byte-identical.
+        val snapshotter = capture.a11yService?.let { svc ->
+            VisionSnapshotter(
+                observer = observer,
+                identity = VisionSnapshotter.serviceIdentity(svc),
+                runId = runId,
+            )
+        }
+        val guard = capture.a11yService?.let { svc ->
+            PreDispatchGuard(VisionFreshReader(svc))
+        }
         return VisionLoop(
             observer = observer,
             executor = executor,
@@ -366,6 +383,8 @@ object NavigatorVisionBridge {
             gatePresenter = gatePresenter,
             exclusionBounds = exclusionBounds,
             coveredBounds = coveredBounds,
+            snapshotter = snapshotter,
+            preDispatchGuard = guard,
         )
     }
 
