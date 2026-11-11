@@ -89,3 +89,28 @@ Post-verdict cleanups applied (orchestrator): the ACT refusal line now carries t
 `NOT_DISPATCHED_<REFUSAL>` prefix (the plan's vocabulary; the per-step/hybrid stale lines
 already did); the dead `ExecutionResult.kt` (0 refs) deleted; the dead `snapshotSerial`
 field harvested. Full gates re-greened after the cleanups.
+
+## Stage 18.B part 1 — emulator pass (2026-11-11, orchestrator)
+
+Build: app-debug.apk @ 3cbd8cf (CN-02+CN-03 wired on the product path). Scenario: the
+pinned-URL read goal via the wizard's real "New task" path; HOME pressed mid-run.
+
+- **GUARD PROVEN LIVE**: after the HOME press the evidence carries 18 NOT_DISPATCHED/stale
+  hits; steps 24-26 show the consecutive refusals
+  `pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package
+  'com.android.launcher3' is not an allowlisted browser - zero executor calls` +
+  the step line `FAILED (NOT_DISPATCHED_WRONG_WINDOW: ...)`. The corner log renders them
+  (screenshot `.state/phase-18-uat/guard-pass.png`). No dispatch reached the launcher.
+- Terminal: `terminal=CANCELLED steps=72 replans=20 modality=VISION calls=223 jev=91
+  haiku=132 images=223 battery=78 escalations=0` via the lawful stop intent
+  (`ACTION_STOP_TASK` — the notification action's exact PendingIntent), terminal line
+  present (the fix-loop fix holds on this build). Evidence pulled to
+  `.state/phase-18-uat/task-1794400785471-events.log`.
+- FINDINGS (recorded, non-blocking):
+  1. The shade's "Stop task" action renders UNDER the corner log overlay (the a11y
+     overlay draws above the shade, covering the action) — the action is reachable by
+     collapsing the shade first or via the ⏹ control; z-order note for the device UAT.
+  2. Three scripted taps on the corner log's ⏹ chip (pixel-measured) did not register;
+     the cancel machinery itself verified via the stop intent (same TaskCancelFlag path).
+     Flag for the attended device UAT (human finger, not scripted taps).
+STAGE 18.B PART 1 EMULATOR PASS: GREEN

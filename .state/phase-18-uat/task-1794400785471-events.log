@@ -1,0 +1,586 @@
+      87  run start goal=<Open http://127.0.0.1:8099/r2-site-a-home.html and report the page headline.> budget=100x writer=true
+     679  screenshot #0 705x1567 scope=window:org.chromium.webview_shell:id=174:bounds=0,0,1080,2400 sha256=f96ac62fc96a4a75 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0000.jpg
+    5472  call plan 0ms in=4441 out=652 cost=6160µ$ channel=HAIKU images=1
+    5486  plan: Load the home page at 127.0.0.1:8099 in the WebView and report its headline. (2 subtasks, READ)
+    5603  screenshot #1 705x1567 scope=window:org.chromium.webview_shell:id=174:bounds=0,0,1080,2400 sha256=f96ac62fc96a4a75 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0001.jpg
+    6523  call verify-battery 0ms in=3428 out=38 cost=10854µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+    7926  call battery 0ms in=1697 out=95 cost=1737µ$ channel=HAIKU images=1
+   10398  call propose 2470ms in=3082 out=275 cost=3565µ$ channel=HAIKU images=1
+   10661  call ground 260ms in=6523 out=50 cost=20319µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   10681  jev box below PARTIAL (iou=0.01 < 0.20) — haiku-box fallback
+   10682  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.75
+   10682  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+   10686  step 0: FAILED (type grounding refused - the ground node n2 is not editable and no editable field could be resolved at its centre (850,257) (NO_FIELD_AT_POINT); refusing the doomed enterText)
+   10901  screenshot #2 705x1567 scope=window:org.chromium.webview_shell:id=174:bounds=0,0,1080,2400 sha256=f96ac62fc96a4a75 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0002.jpg
+   13846  call propose 2911ms in=3082 out=467 cost=4333µ$ channel=HAIKU images=1
+   14102  call ground 254ms in=9489 out=75 cost=29592µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   14102  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+   14103  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.88
+   14103  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+   14104  step 1: FAILED (type grounding refused - the ground node n3 is not editable and no editable field could be resolved at its centre (1003,257) (NO_FIELD_AT_POINT); refusing the doomed enterText)
+   14289  screenshot #3 705x1567 scope=window:org.chromium.webview_shell:id=174:bounds=0,0,1080,2400 sha256=f96ac62fc96a4a75 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0003.jpg
+   19236  call replan 0ms in=5828 out=864 cost=8118µ$ channel=HAIKU images=1
+   19239  REPLAN #1: Load the explicitly named site URL in the WebView address bar, then report the page headline. (resume at subtask 1)
+   19362  screenshot #4 705x1567 scope=window:org.chromium.webview_shell:id=174:bounds=0,0,1080,2400 sha256=f96ac62fc96a4a75 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0004.jpg
+   19595  call verify-battery 0ms in=3428 out=38 cost=10854µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   20929  call battery 0ms in=1697 out=95 cost=1737µ$ channel=HAIKU images=1
+   20930  step 2: BATTERY ESCALATE - verification battery red flag(s): Does the page show a connection error or a blank page instead of site content?
+   21119  screenshot #5 705x1567 scope=window:org.chromium.webview_shell:id=174:bounds=0,0,1080,2400 sha256=f96ac62fc96a4a75 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0005.jpg
+   25948  call replan 0ms in=5844 out=863 cost=8127µ$ channel=HAIKU images=1
+   25952  REPLAN (battery #2): Load the r2-site-a-home page in the WebView browser and report its headline. (resume at subtask 1)
+   26082  screenshot #6 705x1567 scope=window:org.chromium.webview_shell:id=174:bounds=0,0,1080,2400 sha256=f96ac62fc96a4a75 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0006.jpg
+   26094  battery held one step: the re-planned plan acts first
+   28715  call propose 2619ms in=3092 out=266 cost=3537µ$ channel=HAIKU images=1
+   28944  call ground 228ms in=6510 out=50 cost=20280µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   28945  jev box below PARTIAL (iou=0.01 < 0.20) — haiku-box fallback
+   28945  cross-check: haiku box conf=0.95 iou-vs-jev-rect=0.76
+   28945  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+   29673  step 3: tap 'The address field showing 'about:blank' (edit field, top-lef' [node n3 iou=1.00 (label-match) conf=0.95]
+   29990  screenshot #7 862x1045 scope=window:org.chromium.webview_shell:id=175:bounds=218,294,1080,1339 sha256=120d29615bbaf786 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0007.jpg
+   30416  call verify-battery 0ms in=2919 out=38 cost=9327µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   32571  call battery 0ms in=1419 out=233 cost=2067µ$ channel=HAIKU images=1
+   35841  call propose 3269ms in=2861 out=318 cost=3560µ$ channel=HAIKU images=1
+   36128  call ground 284ms in=3080 out=33 cost=9735µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   36839  step 4: back
+   37052  screenshot #8 705x1567 scope=window:org.chromium.webview_shell:id=174:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0008.jpg
+   37352  call verify-battery 0ms in=3429 out=38 cost=10857µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   38767  call battery 0ms in=1697 out=95 cost=1737µ$ channel=HAIKU images=1
+   38768  step 5: BATTERY ESCALATE - verification battery red flag(s): Does the page show a connection error or a blank white page instead of site content?
+   38940  screenshot #9 705x1567 scope=window:org.chromium.webview_shell:id=174:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0009.jpg
+   46682  call replan 0ms in=5923 out=1115 cost=9198µ$ channel=HAIKU images=1
+   46686  REPLAN (battery #3): Load the r2-site-a-home page by typing its URL into the WebView's address bar and tapping the load control, then report the headline. (resume at subtask 1)
+   46807  screenshot #10 705x1567 scope=window:org.chromium.webview_shell:id=174:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0010.jpg
+   46826  battery held one step: the re-planned plan acts first
+   50374  call propose 3547ms in=3140 out=223 cost=3404µ$ channel=HAIKU images=1
+   50604  call ground 227ms in=6551 out=50 cost=20403µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   50605  jev box below PARTIAL (iou=0.01 < 0.20) — haiku-box fallback
+   50605  cross-check: haiku box conf=0.93 iou-vs-jev-rect=0.63
+   50605  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+   51316  step 6: tap 'The 'about:blank' address bar text field at the top of the b' [node n3 iou=1.00 (label-match) conf=0.93]
+   51531  screenshot #11 862x1045 scope=window:org.chromium.webview_shell:id=176:bounds=218,294,1080,1339 sha256=120d29615bbaf786 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0011.jpg
+   51977  call verify-battery 0ms in=2942 out=55 cost=9651µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   55489  call battery 0ms in=1446 out=405 cost=2776µ$ channel=HAIKU images=1
+   58583  call propose 3092ms in=2909 out=334 cost=3663µ$ channel=HAIKU images=1
+   58828  call ground 244ms in=3120 out=33 cost=9855µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   59540  step 7: back
+   59769  screenshot #12 705x1567 scope=window:org.chromium.webview_shell:id=174:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0012.jpg
+   60023  call verify-battery 0ms in=3453 out=55 cost=11184µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   61528  call battery 0ms in=1724 out=132 cost=1907µ$ channel=HAIKU images=1
+   61529  step 8: BATTERY ESCALATE - verification battery red flag(s): Does the page show a connection error or a blank white page instead of site content?
+   61701  screenshot #13 705x1567 scope=window:org.chromium.webview_shell:id=174:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0013.jpg
+   66739  call replan 0ms in=5958 out=978 cost=8678µ$ channel=HAIKU images=1
+   66743  REPLAN (battery #4): Load the r2-site-a-home page via the labeled Load URL control, then report its headline. (resume at subtask 1)
+   66902  screenshot #14 705x1567 scope=window:org.chromium.webview_shell:id=174:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0014.jpg
+   66915  battery held one step: the re-planned plan acts first
+   69495  call propose 2577ms in=3110 out=323 cost=3780µ$ channel=HAIKU images=1
+   69706  call ground 211ms in=6526 out=50 cost=20328µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   69707  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+   69707  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.87
+   69707  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+   70418  step 9: tap 'the address field showing 'about:blank' (text edit, top-left' [node n3 iou=1.00 (label-match) conf=0.90]
+   70656  screenshot #15 862x1045 scope=window:org.chromium.webview_shell:id=177:bounds=218,294,1080,1339 sha256=120d29615bbaf786 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0015.jpg
+   71030  call verify-battery 0ms in=2918 out=38 cost=9324µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   73971  call battery 0ms in=1420 out=263 cost=2188µ$ channel=HAIKU images=1
+   77015  call propose 3042ms in=2879 out=280 cost=3423µ$ channel=HAIKU images=1
+   77286  call ground 268ms in=3094 out=33 cost=9777µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   77997  step 10: back
+   78229  screenshot #16 705x1567 scope=window:org.chromium.webview_shell:id=174:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0016.jpg
+   78495  call verify-battery 0ms in=3429 out=38 cost=10857µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   80017  call battery 0ms in=1698 out=96 cost=1742µ$ channel=HAIKU images=1
+   80017  step 11: BATTERY ESCALATE - verification battery red flag(s): Does the page show a connection error or a blank white page instead of site content?
+   80192  screenshot #17 705x1567 scope=window:org.chromium.webview_shell:id=174:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0017.jpg
+   87278  call replan 0ms in=5942 out=1045 cost=8933µ$ channel=HAIKU images=1
+   87280  REPLAN (battery #5): Load the r2-site-a home page by typing the URL into the address box and submitting with the arrow Go button, then report its headline. (resume at subtask 1)
+   87408  screenshot #18 705x1567 scope=display:log-excluded sha256=f05e380b97b2d983 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0018.jpg
+   87443  battery held one step: the re-planned plan acts first
+   89184  call propose 1739ms in=2966 out=169 cost=3048µ$ channel=HAIKU images=1
+   89185  step 12: FAILED (no proposals for this page)
+   89439  screenshot #19 705x1567 scope=display:log-excluded sha256=2f83e1cd13da775a -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0019.jpg
+   89734  call verify-battery 0ms in=3268 out=38 cost=10374µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   93226  call battery 0ms in=1698 out=321 cost=2642µ$ channel=HAIKU images=1
+   96028  call propose 2800ms in=2966 out=192 cost=3140µ$ channel=HAIKU images=1
+   96028  step 13: FAILED (no proposals for this page)
+   96029  MODELS_CONFIRM_DONE suppressed: subtask 1/2 is not final - the hatch never terminates a non-final subtask
+   96154  screenshot #20 705x1567 scope=display:log-excluded sha256=a0dd15fc302b8821 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0020.jpg
+  103543  call replan 0ms in=5796 out=1165 cost=9296µ$ channel=HAIKU images=1
+  103546  REPLAN #2: Open the browser app from the home screen (new route, not the failed address-bar tap), load the local site URL, then report the headline. (resume at subtask 1)
+  103666  screenshot #21 705x1567 scope=display:log-excluded sha256=a0dd15fc302b8821 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0021.jpg
+  103941  call verify-battery 0ms in=3255 out=38 cost=10335µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  105274  call battery 0ms in=1694 out=92 cost=1723µ$ channel=HAIKU images=1
+  105275  step 14: BATTERY ESCALATE - verification battery red flag(s): Is the screen showing a blank Android home screen or app drawer with no browser window?
+  105466  screenshot #22 705x1567 scope=display:log-excluded sha256=a0dd15fc302b8821 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0022.jpg
+  110362  call replan 0ms in=5691 out=896 cost=8136µ$ channel=HAIKU images=1
+  110366  REPLAN (battery #2): Open Chrome from the home screen, load the r2-site-a-home.html URL, then report the page headline. (resume at subtask 1)
+  110473  screenshot #23 705x1567 scope=display:log-excluded sha256=03775afabd31b12e -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0023.jpg
+  110500  battery held one step: the re-planned plan acts first
+  116022  call propose 5521ms in=2953 out=681 cost=5086µ$ channel=HAIKU images=1
+  116279  call ground 256ms in=6440 out=58 cost=20190µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  116280  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  118322  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  118324  step 15: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  118579  screenshot #24 705x1567 scope=display:log-excluded sha256=363c89f6a3d67703 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0024.jpg
+  118941  call verify-battery 0ms in=3251 out=38 cost=10323µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  120333  call battery 0ms in=1691 out=89 cost=1708µ$ channel=HAIKU images=1
+  120334  step 16: BATTERY ESCALATE - verification battery red flag(s): Is the screen still the Android home screen or app drawer with no browser window?
+  120482  screenshot #25 705x1567 scope=display:log-excluded sha256=41380988247d6838 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0025.jpg
+  126164  call replan 0ms in=5772 out=1131 cost=9141µ$ channel=HAIKU images=1
+  126168  REPLAN (battery #3): Open Chrome from the app drawer, load the r2-site-a-home page on 127.0.0.1:8099, and report its headline. (resume at subtask 1)
+  126278  screenshot #26 705x1567 scope=display:log-excluded sha256=b17eb811f77e7ece -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0026.jpg
+  126310  battery held one step: the re-planned plan acts first
+  128562  call propose 2250ms in=2955 out=278 cost=3476µ$ channel=HAIKU images=1
+  128794  call ground 231ms in=3429 out=33 cost=10782µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  130839  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  130840  step 17: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  131098  screenshot #27 705x1567 scope=display:log-excluded sha256=a29baf544f483719 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0027.jpg
+  131374  call verify-battery 0ms in=3256 out=38 cost=10338µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  133969  call battery 0ms in=1696 out=393 cost=2928µ$ channel=HAIKU images=1
+  133971  step 18: BATTERY ESCALATE - verification battery red flag(s): Is the screen still the Android home screen or app drawer with no browser window?
+  134157  screenshot #28 705x1567 scope=display:log-excluded sha256=ec4e836ef3ed63cc -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0028.jpg
+  141567  call replan 0ms in=5778 out=1118 cost=9094µ$ channel=HAIKU images=1
+  141571  REPLAN (battery #4): Open the r2-site-a-home page via the home-screen Google search widget, then report its headline. (resume at subtask 1)
+  141683  screenshot #29 705x1567 scope=display:log-excluded sha256=8f4a775f1e79fd8b -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0029.jpg
+  141724  battery held one step: the re-planned plan acts first
+  144842  call propose 3115ms in=2923 out=247 cost=3326µ$ channel=HAIKU images=1
+  145136  call ground 293ms in=6383 out=50 cost=19899µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  145136  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  145136  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.59
+  145137  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  147178  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  147178  step 19: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  147403  screenshot #30 705x1567 scope=display:log-excluded sha256=aace4204bb34e7f1 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0030.jpg
+  147909  call verify-battery 0ms in=3255 out=38 cost=10335µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  149997  call battery 0ms in=1692 out=279 cost=2469µ$ channel=HAIKU images=1
+  149998  step 20: BATTERY ESCALATE - verification battery red flag(s): Is the screen still the Android home screen with no browser page loaded?
+  150176  screenshot #31 705x1567 scope=display:log-excluded sha256=2bdedbeee133367c -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0031.jpg
+  156157  call replan 0ms in=5735 out=1065 cost=8848µ$ channel=HAIKU images=1
+  156160  REPLAN (battery #5): Open the browser app from the app drawer instead of the home-screen search widget, then load the r2-site-a-home page and report its headline. (resume at subtask 1)
+  156272  screenshot #32 705x1567 scope=display:log-excluded sha256=34b615f74633d3e2 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0032.jpg
+  156296  battery held one step: the re-planned plan acts first
+  159854  call propose 3557ms in=2929 out=348 cost=3735µ$ channel=HAIKU images=1
+  160104  call ground 248ms in=3428 out=33 cost=10779µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  162143  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  162144  step 21: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  162400  screenshot #33 705x1567 scope=display:log-excluded sha256=5f47d11a2d1bd3c8 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0033.jpg
+  162773  call verify-battery 0ms in=3254 out=38 cost=10332µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  164471  call battery 0ms in=1691 out=216 cost=2216µ$ channel=HAIKU images=1
+  167704  call propose 3229ms in=2929 out=485 cost=4283µ$ channel=HAIKU images=1
+  167958  call ground 253ms in=3421 out=33 cost=10758µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  167959  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  170007  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  170008  step 22: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  170121  screenshot #34 705x1567 scope=display:log-excluded sha256=2bdedbeee133367c -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0034.jpg
+  175182  call replan 0ms in=5805 out=919 cost=8320µ$ channel=HAIKU images=1
+  175185  REPLAN #3: Bypass the failed app-drawer route by entering the goal URL through the home-screen Google search widget, then read the headline. (resume at subtask 1)
+  175307  screenshot #35 705x1567 scope=display:log-excluded sha256=23e2a26113c1acdb -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0035.jpg
+  175570  call verify-battery 0ms in=3272 out=38 cost=10386µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  177979  call battery 0ms in=1702 out=295 cost=2541µ$ channel=HAIKU images=1
+  180308  call propose 2327ms in=2935 out=248 cost=3340µ$ channel=HAIKU images=1
+  180551  call ground 241ms in=6392 out=50 cost=19926µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  180551  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  180551  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.60
+  180552  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  182604  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  182605  step 23: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  182845  screenshot #36 705x1567 scope=display:log-excluded sha256=ddb7e95ff1b53ff3 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0036.jpg
+  185150  call propose 2242ms in=2935 out=258 cost=3380µ$ channel=HAIKU images=1
+  185402  call ground 251ms in=6398 out=50 cost=19944µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  185402  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  185403  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.55
+  185403  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  187455  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  187455  step 24: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  187572  screenshot #37 705x1567 scope=display:log-excluded sha256=30c97f60aa74a52b -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0037.jpg
+  193572  call replan 0ms in=5755 out=1003 cost=8616µ$ channel=HAIKU images=1
+  193574  REPLAN #4: Open the local site in a browser app via the address bar, then report its headline. (resume at subtask 1)
+  193686  screenshot #38 705x1567 scope=display:log-excluded sha256=f3961ca93a938a8a -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0038.jpg
+  193964  call verify-battery 0ms in=3273 out=38 cost=10389µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  196530  call battery 0ms in=1702 out=378 cost=2873µ$ channel=HAIKU images=1
+  200032  call propose 3500ms in=2952 out=447 cost=4149µ$ channel=HAIKU images=1
+  200350  call ground 317ms in=3436 out=33 cost=10803µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  202392  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  202393  step 25: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  202562  screenshot #39 705x1567 scope=display:log-excluded sha256=ae44be5efe37d42c -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0039.jpg
+  206703  call propose 4103ms in=2952 out=588 cost=4713µ$ channel=HAIKU images=1
+  206935  call ground 230ms in=6442 out=58 cost=20196µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  206936  jev box sub-floor (conf=0.05 < 0.60) — haiku-box fallback
+  206936  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  208978  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  208980  step 26: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  209100  screenshot #40 705x1567 scope=display:log-excluded sha256=ae44be5efe37d42c -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0040.jpg
+  214223  call replan 0ms in=5779 out=918 cost=8295µ$ channel=HAIKU images=1
+  214226  REPLAN #5: Open Chrome from the home screen, load the local site URL, then report the page headline. (resume at subtask 1)
+  214327  screenshot #41 705x1567 scope=display:log-excluded sha256=ae44be5efe37d42c -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0041.jpg
+  214584  call verify-battery 0ms in=3255 out=38 cost=10335µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  217879  call battery 0ms in=1689 out=369 cost=2827µ$ channel=HAIKU images=1
+  221649  call propose 3769ms in=2953 out=514 cost=4418µ$ channel=HAIKU images=1
+  221927  call ground 276ms in=6406 out=50 cost=19968µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  221927  jev box sub-floor (conf=0.24 < 0.60) — haiku-box fallback
+  221927  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  223969  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  223970  step 27: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  224141  screenshot #42 705x1567 scope=display:log-excluded sha256=33c106aafc4a1468 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0042.jpg
+  227439  call propose 3248ms in=2953 out=446 cost=4146µ$ channel=HAIKU images=1
+  227672  call ground 231ms in=3452 out=33 cost=10851µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  229722  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  229723  step 28: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  229857  screenshot #43 705x1567 scope=display:log-excluded sha256=33c106aafc4a1468 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0043.jpg
+  234802  call replan 0ms in=5700 out=799 cost=7756µ$ channel=HAIKU images=1
+  234804  REPLAN #6: Open the target page in Chrome from the home screen and report its headline. (resume at subtask 1)
+  234927  screenshot #44 705x1567 scope=display:log-excluded sha256=33c106aafc4a1468 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0044.jpg
+  235206  call verify-battery 0ms in=3255 out=38 cost=10335µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  237225  call battery 0ms in=1689 out=293 cost=2523µ$ channel=HAIKU images=1
+  242519  call propose 5292ms in=2945 out=596 cost=4740µ$ channel=HAIKU images=1
+  242773  call ground 253ms in=6434 out=58 cost=20172µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  242773  jev box sub-floor (conf=0.35 < 0.60) — haiku-box fallback
+  242773  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  244806  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  244807  step 29: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  244958  screenshot #45 705x1567 scope=display:log-excluded sha256=33c106aafc4a1468 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0045.jpg
+  249439  call propose 4441ms in=2945 out=635 cost=4896µ$ channel=HAIKU images=1
+  249709  call ground 266ms in=6395 out=50 cost=19935µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  249709  jev box sub-floor (conf=0.29 < 0.60) — haiku-box fallback
+  249709  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  251745  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  251745  step 30: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  251883  screenshot #46 705x1567 scope=display:log-excluded sha256=33c106aafc4a1468 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0046.jpg
+  256696  call replan 0ms in=5754 out=943 cost=8375µ$ channel=HAIKU images=1
+  256698  REPLAN #7: Open the r2-site-a-home page in Chrome and report its headline. (resume at subtask 1)
+  256812  screenshot #47 705x1567 scope=display:log-excluded sha256=03d49736bebb992a -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0047.jpg
+  257066  call verify-battery 0ms in=3290 out=55 cost=10695µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  259847  call battery 0ms in=1728 out=425 cost=3082µ$ channel=HAIKU images=1
+  265148  call propose 5297ms in=2945 out=853 cost=5768µ$ channel=HAIKU images=1
+  265414  call ground 262ms in=6432 out=58 cost=20166µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  265414  jev box sub-floor (conf=0.39 < 0.60) — haiku-box fallback
+  265414  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  267462  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  267463  step 31: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  267613  screenshot #48 705x1567 scope=display:log-excluded sha256=03d49736bebb992a -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0048.jpg
+  271722  call propose 4068ms in=2945 out=676 cost=5060µ$ channel=HAIKU images=1
+  271995  call ground 272ms in=6471 out=58 cost=20283µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  274049  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  274050  step 32: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  274186  screenshot #49 705x1567 scope=display:log-excluded sha256=1130b178d360d3c0 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0049.jpg
+  279112  call replan 0ms in=5741 out=931 cost=8316µ$ channel=HAIKU images=1
+  279115  REPLAN #8: Open Chrome from the home screen, load the r2-site-a-home page on 127.0.0.1:8099, and report its headline. (resume at subtask 1)
+  279250  screenshot #50 705x1567 scope=display:log-excluded sha256=1130b178d360d3c0 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0050.jpg
+  279539  call verify-battery 0ms in=3257 out=38 cost=10341µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  282751  call battery 0ms in=1699 out=277 cost=2467µ$ channel=HAIKU images=1
+  286741  call propose 3988ms in=2938 out=592 cost=4718µ$ channel=HAIKU images=1
+  286741  step 33: FAILED (no proposals for this page)
+  286915  screenshot #51 705x1567 scope=display:log-excluded sha256=1130b178d360d3c0 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0051.jpg
+  289581  call propose 2623ms in=2938 out=289 cost=3506µ$ channel=HAIKU images=1
+  289581  step 34: FAILED (no proposals for this page)
+  289584  MODELS_CONFIRM_DONE suppressed: subtask 1/3 is not final - the hatch never terminates a non-final subtask
+  289816  screenshot #52 705x1567 scope=display:log-excluded sha256=1130b178d360d3c0 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0052.jpg
+  296106  call replan 0ms in=5691 out=1208 cost=9384µ$ channel=HAIKU images=1
+  296110  REPLAN #9: Open Chrome from the home screen, load the r2-site-a-home page on 127.0.0.1:8099, and report its headline. (resume at subtask 1)
+  296223  screenshot #53 705x1567 scope=display:log-excluded sha256=0e378065e71bd814 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0053.jpg
+  296500  call verify-battery 0ms in=3252 out=38 cost=10326µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  298682  call battery 0ms in=1690 out=84 cost=1688µ$ channel=HAIKU images=1
+  302716  call propose 4032ms in=2952 out=538 cost=4513µ$ channel=HAIKU images=1
+  303038  call ground 321ms in=3436 out=33 cost=10803µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  303038  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  305070  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  305071  step 35: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  305206  screenshot #54 705x1567 scope=display:log-excluded sha256=f5b85716fc3f4992 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0054.jpg
+  308003  call propose 2760ms in=2952 out=381 cost=3885µ$ channel=HAIKU images=1
+  308233  call ground 227ms in=3449 out=33 cost=10842µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  308234  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  310265  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  310265  step 36: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  310389  screenshot #55 705x1567 scope=display:log-excluded sha256=f5b85716fc3f4992 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0055.jpg
+  315830  call replan 0ms in=5790 out=1101 cost=9036µ$ channel=HAIKU images=1
+  315832  REPLAN #10: Open Chrome from the home screen, load the r2-site-a-home page on 127.0.0.1:8099, and report its headline. (resume at subtask 1)
+  315939  screenshot #56 705x1567 scope=display:log-excluded sha256=5c8cd07da2367961 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0056.jpg
+  316226  call verify-battery 0ms in=3249 out=38 cost=10317µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  319047  call battery 0ms in=1690 out=318 cost=2624µ$ channel=HAIKU images=1
+  321515  call propose 2466ms in=2957 out=362 cost=3813µ$ channel=HAIKU images=1
+  321746  call ground 230ms in=3434 out=33 cost=10797µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  321746  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  323788  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  323788  step 37: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  324072  screenshot #57 705x1567 scope=display:log-excluded sha256=cfc4d199bed8cc6f -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0057.jpg
+  326346  call propose 2215ms in=2957 out=282 cost=3493µ$ channel=HAIKU images=1
+  326594  call ground 246ms in=3436 out=33 cost=10803µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  328638  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  328639  step 38: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  328797  screenshot #58 705x1567 scope=display:log-excluded sha256=6de96283e963117b -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0058.jpg
+  334661  call replan 0ms in=5701 out=1153 cost=9172µ$ channel=HAIKU images=1
+  334663  REPLAN #11: Open Chrome from the home screen, load the local r2-site-a-home page, and report its headline. (resume at subtask 1)
+  334778  screenshot #59 705x1567 scope=display:log-excluded sha256=6de96283e963117b -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0059.jpg
+  335177  call verify-battery 0ms in=3251 out=38 cost=10323µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  337398  call battery 0ms in=1690 out=316 cost=2616µ$ channel=HAIKU images=1
+  339972  call propose 2572ms in=2950 out=363 cost=3812µ$ channel=HAIKU images=1
+  340188  call ground 214ms in=3432 out=33 cost=10791µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  340188  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  342222  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  342223  step 39: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  342387  screenshot #60 705x1567 scope=display:log-excluded sha256=6de96283e963117b -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0060.jpg
+  344671  call propose 2252ms in=2950 out=281 cost=3484µ$ channel=HAIKU images=1
+  344952  call ground 280ms in=3432 out=33 cost=10791µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  346990  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  346991  step 40: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  347117  screenshot #61 705x1567 scope=display:log-excluded sha256=6de96283e963117b -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0061.jpg
+  354203  call replan 0ms in=5694 out=1416 cost=10219µ$ channel=HAIKU images=1
+  354205  REPLAN #12: Open Chrome from the home screen, load the r2-site-a-home page on 127.0.0.1:8099, and report its headline. (resume at subtask 1)
+  354323  screenshot #62 705x1567 scope=display:log-excluded sha256=81e9abe66a9bd315 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0062.jpg
+  354616  call verify-battery 0ms in=3250 out=38 cost=10320µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  357376  call battery 0ms in=1690 out=374 cost=2848µ$ channel=HAIKU images=1
+  361558  call propose 4178ms in=2966 out=688 cost=5124µ$ channel=HAIKU images=1
+  361801  call ground 240ms in=6432 out=58 cost=20166µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  361801  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  363841  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  363842  step 41: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  363973  screenshot #63 705x1567 scope=display:log-excluded sha256=81e9abe66a9bd315 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0063.jpg
+  367401  call propose 3388ms in=2966 out=458 cost=4204µ$ channel=HAIKU images=1
+  367641  call ground 239ms in=3432 out=33 cost=10791µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  369681  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  369681  step 42: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  369812  screenshot #64 705x1567 scope=display:log-excluded sha256=81e9abe66a9bd315 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0064.jpg
+  375255  call replan 0ms in=5710 out=1019 cost=8644µ$ channel=HAIKU images=1
+  375257  REPLAN #13: Open Chrome, load the given local page, and report its headline. (resume at subtask 1)
+  375401  screenshot #65 705x1567 scope=display:log-excluded sha256=132ce91b3b505513 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0065.jpg
+  375707  call verify-battery 0ms in=3244 out=38 cost=10302µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  377024  call battery 0ms in=1685 out=83 cost=1680µ$ channel=HAIKU images=1
+  380666  call propose 3639ms in=2942 out=562 cost=4601µ$ channel=HAIKU images=1
+  380919  call ground 249ms in=6395 out=50 cost=19935µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  380919  jev box sub-floor (conf=0.30 < 0.60) — haiku-box fallback
+  380919  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  382953  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  382954  step 43: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  383113  screenshot #66 705x1567 scope=display:log-excluded sha256=9389191b206feace -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0066.jpg
+  387575  call propose 4435ms in=2942 out=704 cost=5169µ$ channel=HAIKU images=1
+  387832  call ground 256ms in=6416 out=58 cost=20118µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  387832  jev box sub-floor (conf=0.40 < 0.60) — haiku-box fallback
+  387833  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  389873  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  389874  step 44: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  390012  screenshot #67 705x1567 scope=display:log-excluded sha256=9389191b206feace -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0067.jpg
+  396959  call replan 0ms in=5755 out=1102 cost=9012µ$ channel=HAIKU images=1
+  396961  REPLAN #14: Open Chrome from the home screen, load the local r2-site-a-home page, and report its headline. (resume at subtask 1)
+  397076  screenshot #68 705x1567 scope=display:log-excluded sha256=9389191b206feace -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0068.jpg
+  397378  call verify-battery 0ms in=3246 out=38 cost=10308µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  399701  call battery 0ms in=1685 out=352 cost=2756µ$ channel=HAIKU images=1
+  403340  call propose 3636ms in=2955 out=503 cost=4376µ$ channel=HAIKU images=1
+  403587  call ground 245ms in=6402 out=50 cost=19956µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  403587  jev box sub-floor (conf=0.54 < 0.60) — haiku-box fallback
+  403588  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  405637  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  405638  step 45: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  405785  screenshot #69 705x1567 scope=display:log-excluded sha256=ad1eddb1cf8b206c -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0069.jpg
+  409138  call propose 3323ms in=2955 out=491 cost=4328µ$ channel=HAIKU images=1
+  409394  call ground 255ms in=6400 out=50 cost=19950µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  409394  jev box sub-floor (conf=0.34 < 0.60) — haiku-box fallback
+  409395  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  411439  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  411440  step 46: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  411568  screenshot #70 705x1567 scope=display:log-excluded sha256=ad1eddb1cf8b206c -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0070.jpg
+  418230  call replan 0ms in=5768 out=1118 cost=9086µ$ channel=HAIKU images=1
+  418233  REPLAN #15: Open Chrome from the home screen, load the r2-site-a-home page on 127.0.0.1:8099, and report its headline. (resume at subtask 1)
+  418355  screenshot #71 705x1567 scope=display:log-excluded sha256=ad1eddb1cf8b206c -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0071.jpg
+  418658  call verify-battery 0ms in=3248 out=38 cost=10314µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  420118  call battery 0ms in=1685 out=83 cost=1680µ$ channel=HAIKU images=1
+  423902  call propose 3782ms in=2960 out=542 cost=4536µ$ channel=HAIKU images=1
+  424151  call ground 247ms in=6405 out=50 cost=19965µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  424151  jev box sub-floor (conf=0.40 < 0.60) — haiku-box fallback
+  424151  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  426194  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  426195  step 47: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  426346  screenshot #72 705x1567 scope=display:log-excluded sha256=ad1eddb1cf8b206c -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0072.jpg
+  429354  call propose 2981ms in=2960 out=427 cost=4076µ$ channel=HAIKU images=1
+  429630  call ground 275ms in=6403 out=50 cost=19959µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  429630  jev box sub-floor (conf=0.38 < 0.60) — haiku-box fallback
+  429631  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  431669  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  431670  step 48: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  431831  screenshot #73 705x1567 scope=display:log-excluded sha256=ad1eddb1cf8b206c -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0073.jpg
+  437083  call replan 0ms in=5774 out=990 cost=8579µ$ channel=HAIKU images=1
+  437084  REPLAN #16: Open Chrome from the home screen, load the r2-site-a-home.html page on 127.0.0.1:8099, and report its headline. (resume at subtask 1)
+  437212  screenshot #74 705x1567 scope=display:log-excluded sha256=d7c4c2693b99503a -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0074.jpg
+  437595  call verify-battery 0ms in=3259 out=38 cost=10347µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  438955  call battery 0ms in=1702 out=100 cost=1761µ$ channel=HAIKU images=1
+  442517  call propose 3560ms in=2949 out=499 cost=4355µ$ channel=HAIKU images=1
+  442777  call ground 259ms in=3432 out=33 cost=10791µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  444827  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  444828  step 49: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  444981  screenshot #75 705x1567 scope=display:log-excluded sha256=d7c4c2693b99503a -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0075.jpg
+  450750  call propose 5745ms in=2949 out=750 cost=5359µ$ channel=HAIKU images=1
+  451010  call ground 258ms in=6425 out=58 cost=20145µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  451011  jev box sub-floor (conf=0.24 < 0.60) — haiku-box fallback
+  451011  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  453056  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  453057  step 50: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  453208  screenshot #76 705x1567 scope=display:log-excluded sha256=d7c4c2693b99503a -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0076.jpg
+  458647  call replan 0ms in=5770 out=1090 cost=8976µ$ channel=HAIKU images=1
+  458651  REPLAN #17: Open Chrome, load the r2-site-a home page at 127.0.0.1:8099, then report its headline. (resume at subtask 1)
+  458765  screenshot #77 705x1567 scope=display:log-excluded sha256=f825d919c5f27ff3 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0077.jpg
+  459062  call verify-battery 0ms in=3252 out=38 cost=10326µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  460382  call battery 0ms in=1694 out=92 cost=1723µ$ channel=HAIKU images=1
+  460383  step 51: BATTERY ESCALATE - verification battery red flag(s): Is the home screen wallpaper and app grid still showing instead of a browser?
+  460511  screenshot #78 705x1567 scope=display:log-excluded sha256=f825d919c5f27ff3 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0078.jpg
+  465256  call replan 0ms in=5717 out=962 cost=8421µ$ channel=HAIKU images=1
+  465260  REPLAN (battery #2): Open Chrome from the home screen, load the r2-site-a-home page on 127.0.0.1:8099, and report its headline. (resume at subtask 1)
+  465373  screenshot #79 705x1567 scope=display:log-excluded sha256=f825d919c5f27ff3 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0079.jpg
+  465414  battery held one step: the re-planned plan acts first
+  468416  call propose 2999ms in=2948 out=376 cost=3862µ$ channel=HAIKU images=1
+  468680  call ground 263ms in=3435 out=33 cost=10800µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  468680  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  470714  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  470715  step 52: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  470864  screenshot #80 705x1567 scope=display:log-excluded sha256=f825d919c5f27ff3 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0080.jpg
+  471131  call verify-battery 0ms in=3252 out=38 cost=10326µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  472706  call battery 0ms in=1695 out=182 cost=2084µ$ channel=HAIKU images=1
+  472706  step 53: BATTERY ESCALATE - verification battery red flag(s): Is the home screen wallpaper and app grid still showing instead of a browser?
+  472823  screenshot #81 705x1567 scope=display:log-excluded sha256=f825d919c5f27ff3 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0081.jpg
+  478000  call replan 0ms in=5767 out=967 cost=8481µ$ channel=HAIKU images=1
+  478003  REPLAN (battery #3): Open the site by typing its URL into the home-screen Google search widget instead of launching Chrome from the app drawer, then report the headline. (resume at subtask 1)
+  478150  screenshot #82 705x1567 scope=display:log-excluded sha256=f825d919c5f27ff3 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0082.jpg
+  478196  battery held one step: the re-planned plan acts first
+  480076  call propose 1878ms in=2930 out=243 cost=3316µ$ channel=HAIKU images=1
+  480337  call ground 259ms in=6391 out=50 cost=19923µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  480338  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  480338  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.66
+  480338  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  482372  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  482373  step 54: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  482599  screenshot #83 705x1567 scope=display:log-excluded sha256=4d0c0663177d1d93 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0083.jpg
+  482884  call verify-battery 0ms in=3251 out=38 cost=10323µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  485135  call battery 0ms in=1692 out=295 cost=2533µ$ channel=HAIKU images=1
+  485136  step 55: BATTERY ESCALATE - verification battery red flag(s): Is the home screen wallpaper and app grid still showing instead of a browser page?
+  485339  screenshot #84 705x1567 scope=display:log-excluded sha256=5fba05d7cf1c21d0 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0084.jpg
+  492087  call replan 0ms in=5742 out=1013 cost=8645µ$ channel=HAIKU images=1
+  492089  REPLAN (battery #4): Abandon the home-screen Google widget; open a browser app directly, enter the site URL in its address bar, and report the headline. (resume at subtask 1)
+  492209  screenshot #85 705x1567 scope=display:log-excluded sha256=11f21ac5c283e3ac -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0085.jpg
+  492240  battery held one step: the re-planned plan acts first
+  497222  call propose 4979ms in=2949 out=616 cost=4823µ$ channel=HAIKU images=1
+  497489  call ground 264ms in=6378 out=49 cost=19869µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  497489  step 56: FAILED (jev picked none of the proposals)
+  497714  screenshot #86 705x1567 scope=display:log-excluded sha256=5e44864e74d26ade -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0086.jpg
+  497997  call verify-battery 0ms in=3262 out=38 cost=10356µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  500136  call battery 0ms in=1706 out=256 cost=2388µ$ channel=HAIKU images=1
+  504350  call propose 4212ms in=2949 out=705 cost=5179µ$ channel=HAIKU images=1
+  504621  call ground 269ms in=6438 out=58 cost=20184µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  506660  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  506661  step 57: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.launcher3' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  506839  screenshot #87 705x1567 scope=display:log-excluded sha256=3c37383a3ede1ae7 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0087.jpg
+  513088  call replan 0ms in=5775 out=1107 cost=9048µ$ channel=HAIKU images=1
+  513091  REPLAN #18: Open the target site in Chrome via the app drawer (a different route than the failed home-screen icon tap), then read the page headline. (resume at subtask 1)
+  513205  screenshot #88 705x1567 scope=display:log-excluded sha256=51ac85700659c455 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0088.jpg
+  513595  call verify-battery 0ms in=3255 out=38 cost=10335µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  515508  call battery 0ms in=1698 out=214 cost=2214µ$ channel=HAIKU images=1
+  518507  call propose 2997ms in=2925 out=360 cost=3780µ$ channel=HAIKU images=1
+  518767  call ground 259ms in=6353 out=50 cost=19809µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  518768  jev box sub-floor (conf=0.58 < 0.60) — haiku-box fallback
+  518768  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  520805  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.systemui' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  520806  step 58: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.systemui' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  521037  screenshot #89 705x1567 scope=display:log-excluded sha256=7d7bfe608dde73d1 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0089.jpg
+  524016  call propose 2742ms in=2925 out=361 cost=3784µ$ channel=HAIKU images=1
+  524275  call ground 258ms in=6381 out=50 cost=19893µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  524276  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  524276  cross-check: haiku box conf=0.85 iou-vs-jev-rect=0.48
+  524276  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  526318  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.systemui' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  526318  step 59: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.systemui' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  526482  screenshot #90 705x1567 scope=display:log-excluded sha256=e78493d3be19df16 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0090.jpg
+  531376  call replan 0ms in=5750 out=868 cost=8072µ$ channel=HAIKU images=1
+  531378  REPLAN #19: Close the open notification shade, open a browser, load the given site URL, then report its headline. (resume at subtask 1)
+  531486  screenshot #91 705x1567 scope=display:log-excluded sha256=51deb396c38f6cff -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0091.jpg
+  531887  call verify-battery 0ms in=3265 out=38 cost=10365µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  533184  call battery 0ms in=1707 out=105 cost=1785µ$ channel=HAIKU images=1
+  535904  call propose 2718ms in=2939 out=369 cost=3827µ$ channel=HAIKU images=1
+  536175  call ground 270ms in=9371 out=75 cost=29238µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  536175  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  536175  cross-check: haiku box conf=0.85 iou-vs-jev-rect=0.55
+  536176  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  538221  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.systemui' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  538221  step 60: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.systemui' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  538352  screenshot #92 705x1567 scope=display:log-excluded sha256=e239840214e9ac9a -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0092.jpg
+  541210  call propose 2751ms in=2939 out=365 cost=3811µ$ channel=HAIKU images=1
+  541475  call ground 262ms in=9357 out=75 cost=29196µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  541476  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  541476  cross-check: haiku box conf=0.85 iou-vs-jev-rect=0.50
+  541476  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  543524  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.systemui' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  543525  step 61: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.systemui' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  543630  screenshot #93 705x1567 scope=display:log-excluded sha256=e239840214e9ac9a -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0093.jpg
+  548970  call replan 0ms in=5753 out=1074 cost=8898µ$ channel=HAIKU images=1
+  548972  REPLAN #20: Dismiss the shade, load the site URL in a browser, and report the page headline. (resume at subtask 1)
+  549084  screenshot #94 705x1567 scope=display:log-excluded sha256=e239840214e9ac9a -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0094.jpg
+  549485  call verify-battery 0ms in=3243 out=38 cost=10299µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  550961  call battery 0ms in=1680 out=78 cost=1656µ$ channel=HAIKU images=1
+  550962  step 62: BATTERY ESCALATE - verification battery red flag(s): Does the screen still show the notification shade or the home wallpaper only?
+  551157  screenshot #95 705x1567 scope=display:log-excluded sha256=e239840214e9ac9a -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0095.jpg
+  558002  call replan 0ms in=5671 out=1171 cost=9220µ$ channel=HAIKU images=1
+  558004  REPLAN (battery #2): Dismiss the shade, open the browser, load the given URL, and report the page headline. (resume at subtask 1)
+  558118  screenshot #96 705x1567 scope=display:log-excluded sha256=7f8141a31405fd64 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0096.jpg
+  558347  battery held one step: the re-planned plan acts first
+  560678  call propose 2329ms in=2939 out=231 cost=3275µ$ channel=HAIKU images=1
+  560972  call ground 291ms in=6391 out=50 cost=19923µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  560976  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  560977  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.43
+  560977  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  563021  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.systemui' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  563022  step 63: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.systemui' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  563193  screenshot #97 705x1567 scope=display:log-excluded sha256=f22f247f678d0f2d -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0097.jpg
+  563664  call verify-battery 0ms in=3239 out=38 cost=10287µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  565186  call battery 0ms in=1675 out=132 cost=1868µ$ channel=HAIKU images=1
+  565186  step 64: BATTERY ESCALATE - verification battery red flag(s): Does the screen still show the notification shade or the bare home wallpaper?
+  565368  screenshot #98 705x1567 scope=display:log-excluded sha256=aee3be31b43035ae -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0098.jpg
+  572248  call replan 0ms in=5735 out=1231 cost=9512µ$ channel=HAIKU images=1
+  572251  REPLAN (battery #3): Dismiss the notification shade with the back control, then open the browser, enter the site URL, and report the headline. (resume at subtask 1)
+  572421  screenshot #99 705x1567 scope=display:log-excluded sha256=8f24f51de299eb08 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0099.jpg
+  572591  battery held one step: the re-planned plan acts first
+  575596  call propose 3002ms in=2939 out=275 cost=3451µ$ channel=HAIKU images=1
+  575867  call ground 269ms in=6381 out=50 cost=19893µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  575869  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  575869  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.43
+  575870  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  577925  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.systemui' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  577926  step 65: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.systemui' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  578363  screenshot #100 705x1567 scope=display:log-excluded sha256=2942358cf7532eaa -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0100.jpg
+  578946  call verify-battery 0ms in=3248 out=38 cost=10314µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  580699  call battery 0ms in=1688 out=142 cost=1918µ$ channel=HAIKU images=1
+  580701  step 66: BATTERY ESCALATE - verification battery red flag(s): Does the screen still show the notification shade?
+  581079  screenshot #101 705x1567 scope=display:log-excluded sha256=aee3be31b43035ae -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0101.jpg
+  587211  call replan 0ms in=5750 out=1204 cost=9416µ$ channel=HAIKU images=1
+  587215  REPLAN (battery #4): Dismiss the notification shade with an upward swipe instead of the back triangle, open the target URL in the browser, then report the headline. (resume at subtask 1)
+  587422  screenshot #102 705x1567 scope=display:log-excluded sha256=870492aa58fbddfb -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0102.jpg
+  587676  battery held one step: the re-planned plan acts first
+  590926  call propose 3245ms in=2965 out=301 cost=3576µ$ channel=HAIKU images=1
+  591243  call ground 314ms in=3450 out=33 cost=10845µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  593305  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.systemui' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  593306  step 67: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.systemui' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  593606  screenshot #103 705x1567 scope=display:log-excluded sha256=ce127db8e595936c -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0103.jpg
+  594207  call verify-battery 0ms in=3249 out=38 cost=10317µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  596072  call battery 0ms in=1688 out=86 cost=1694µ$ channel=HAIKU images=1
+  596073  step 68: BATTERY ESCALATE - verification battery red flag(s): Does the screen still show the notification shade?
+  596335  screenshot #104 705x1567 scope=display:log-excluded sha256=6c5d3af7932039bd -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0104.jpg
+  601936  call replan 0ms in=5776 out=1120 cost=9100µ$ channel=HAIKU images=1
+  601939  REPLAN (battery #5): Leave the notification shade via the system Home button, open the site in Chrome, and report its headline. (resume at subtask 1)
+  602098  screenshot #105 705x1567 scope=display:log-excluded sha256=30967337feb4141c -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0105.jpg
+  602346  battery held one step: the re-planned plan acts first
+  604847  call propose 2499ms in=2939 out=228 cost=3263µ$ channel=HAIKU images=1
+  605136  call ground 286ms in=6396 out=50 cost=19938µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  605137  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  605138  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.52
+  605138  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  607180  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.systemui' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  607181  step 69: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.systemui' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  607465  screenshot #106 705x1567 scope=display:log-excluded sha256=d14c6fc7aa569988 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0106.jpg
+  607982  call verify-battery 0ms in=3250 out=38 cost=10320µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  609411  call battery 0ms in=1688 out=86 cost=1694µ$ channel=HAIKU images=1
+  609412  step 70: BATTERY ESCALATE - verification battery red flag(s): Does the screen still show the notification shade?
+  609711  screenshot #107 705x1567 scope=display:log-excluded sha256=6c5d3af7932039bd -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0107.jpg
+  616535  call replan 0ms in=5750 out=1229 cost=9516µ$ channel=HAIKU images=1
+  616538  REPLAN (battery #6): Leave the open notification shade via the Recents button instead of Home, open the site in the browser, and report its headline. (resume at subtask 1)
+  616729  screenshot #108 705x1567 scope=display:log-excluded sha256=dae717da105df8da -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794400785471/screen-0108.jpg
+  616983  battery held one step: the re-planned plan acts first
+  619623  call propose 2638ms in=2958 out=240 cost=3326µ$ channel=HAIKU images=1
+  619895  call ground 271ms in=6395 out=50 cost=19935µ$ channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  619895  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  619895  cross-check: haiku box conf=0.85 iou-vs-jev-rect=0.44
+  619896  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  621935  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.systemui' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  621935  step 71: FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.android.systemui' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  621938  terminal=CANCELLED steps=72 replans=20 modality=VISION calls=223 jev=91 haiku=132 images=223 battery=78 escalations=0
