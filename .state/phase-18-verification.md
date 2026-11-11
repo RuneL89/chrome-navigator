@@ -29,3 +29,29 @@ Deviations and concerns:
 RED items: none.
 
 **STAGE 18.A VERDICT: GREEN**
+
+## Fix-loop verification: hybrid terminal line (2026-11-11)
+
+> Verifier: canon-verifier, cold. Its agent config forbids .md writes; the orchestrator
+> transcribed its returned record verbatim.
+
+Per-check results (own evidence, cold):
+1. Law read — PASS. Doc 05 §2 mandatory terminal line + record fields; doc 04 §8 modality/escalation.
+2. Diff confinement — PASS. 6 modified files + 1 untracked test, exactly the claimed set; no vision/README changes.
+3a. Single finish() funnel — PASS. Only RunResult construction is inside `finish` (NavigationLoop.kt:837/858); all 14 call sites route through it.
+3b. Line shape — PASS. `terminal=<T> steps=<n> replans=<n> modality=HYBRID calls= jev= haiku= images= battery= escalations= [answer=]`, mirroring VisionLoop.run() lines 534-548.
+3c. Masked capped answer — PASS. Whitespace-flattened, scrubbed via redactionKeys(), take(120) (TERMINAL_ANSWER_CHARS, NavigationLoop.kt:4605 = VisionLoop.kt:304), omitted when absent; test asserts absence.
+3d. Null seam — PASS. `val evidence = runEvidence ?: return`; VisionLoop.kt untouched; always-vision route passes no evidence arg.
+3e. runSubtask writes no terminal — PASS. `terminal=` only at VisionLoop.kt:535 (the run() wrapper).
+3f. Escalations counter — PASS. Class field (NavigationLoop.kt:365), reset at run start (560), incremented once at the tryVisionEscape flip (2015) behind the VISION guard.
+4. Method size — PASS. assembleDebug exit 0; javap reproduces run() = 58,301 bytes (offsets to 58301 athrow) of 65,535.
+5. Gates cold — PASS. --rerun-tasks BUILD SUCCESSFUL; HybridTerminalEvidenceTest 3/3 explicit; core 338/0, app 790/0 (787+3).
+6. Shared-record consistency — PASS. newHybridParts shares one instance; all other newVisionLoop callers default (own instance).
+
+Measured counts: HybridTerminalEvidenceTest 3/3; core 338, app 790, all green.
+RED items: none.
+**FIX VERDICT: GREEN**
+
+Note (not RED, Stage E scope): the host's own writer calls (VisionLadderSource, stuck
+event, boundary judge via the second client pair) still record into no evidence — the
+Phase 18 Stage E record-unification work.

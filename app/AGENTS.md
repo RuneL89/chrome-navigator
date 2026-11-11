@@ -1460,6 +1460,24 @@ three-way selector ships with that program.
   (`failuresSinceAdvance` + the core `PrefixAudit`), the evidence call counters
   (`decisionCalls`/`writerCalls`), and the two `run`-extracted blocks
   (`coldStartAndTriage`, `installLadderPath` — the method-size discipline).
+* **THE HYBRID'S MANDATORY TERMINAL LINE** (PHASE_18 fix-loop, 2026-11-11; ART-3 / doc 05
+  §2 — the live defect: a TREE_FIRST run ended STUCK_KILL with NO `terminal=` line in its
+  pulled `events.log`): the host writes the terminal line into the SHARED vision evidence
+  record at its ONE `finish()` exit funnel, through the `runEvidence` ctor seam —
+  `terminal=<TERMINAL> steps=<n> replans=<n> modality=HYBRID calls=<n> jev=… haiku=…
+  images=… battery=… escalations=<n> [answer=…]`, the always-vision line's fields
+  mirrored (the writer: class-scope non-suspend `writeTerminalEvidence`, the answer
+  capped at `TERMINAL_ANSWER_CHARS`=120 like `VisionLoop`'s own; the answer rides the
+  SAME masked text the report carries). `escalations` is the run's actual TREE→VISION
+  flip count (the `visionEscalations` class field, incremented at `tryVisionEscape`'s
+  flip, reset per run — the always-vision line's hardcoded 0 is that arm's own truth).
+  THE RECORD IS SHARED: `NavigatorVisionBridge.newHybridParts` creates ONE
+  `VisionEvidence` and passes it to BOTH the tool's `VisionLoop` (the `newVisionLoop`
+  evidence seam, default null byte-identical) and `HybridParts.evidence`, which the
+  service hands to the loop as `runEvidence` — a second instance would report a zero
+  ledger (the truthfulness law). Null seam (the default: TREE_ONLY, ALWAYS_VISION) =
+  no write, byte-identical — the a11y engine's record stays the a11y surfaces (doc 05
+  §4), and `VisionLoop.run()` keeps its own writer.
 * `VisionLoop`'s Stage 0/2 additions: `runSubtask`, the per-field read-back, the
   scroll-find hold/cap, the off-page recovery + the no-redo guard, the account-end
   accept, `SpendMeter.calls`/`WriterBudget.calls`, and `lastUsage` on both clients.
@@ -1916,6 +1934,14 @@ tracked as last-known (normalized) and serves on an empty card URL, and garbage
   law is GenClientTest's), and the `NavigatorVisionBridgeTest` add-only
   ALWAYS_VISION-missing-key refusal. The claim→code docs audit is
   `.state/phase-18-docs-audit.md`.
+* PHASE 18 FIX-LOOP (2026-11-11, the emulator-verification defect; still
+  zero-live-call): `HybridTerminalEvidenceTest` pins the hybrid host's mandatory
+  terminal line (the seams bullet above): a scripted thin-tree→vision-tool-failure run
+  reaches the escalation card's fail-safe STOP and the shared evidence `events.log`
+  carries EXACTLY ONE `terminal=STUCK_KILL steps=0 replans=2 modality=HYBRID …
+  escalations=3` line (no fabricated `answer=`; the SHARED record's call ledger rides
+  the line; a loop with NO record wired writes no events.log at all — the tree-only
+  evidence law unchanged).
 
 ## Child DOX Index
 

@@ -230,6 +230,22 @@ class NavigationLoop(
      * the failure cause). Null (the default) = no call, byte-identical.
      */
     private val boundaryJudge: BoundaryJudge? = null,
+    /**
+     * The HYBRID's SHARED run record (PHASE_18 fix-loop, ART-3 / doc 05 §2): the
+     * [VisionEvidence] instance the vision tool's loop already records into — the same
+     * instance [navigator.app.harness.vision.NavigatorVisionBridge.HybridParts] carries.
+     * The host writes the MANDATORY terminal line into it at the ONE [run] exit funnel
+     * (`terminal=<TERMINAL> steps=<n> replans=<n> modality=HYBRID …`, the always-vision
+     * line's fields mirrored): a hybrid run that ends after the corner log closed still
+     * names its terminal in the pullable events.log (the 2026-11-11 UAT defect — the
+     * STUCK_KILL escalation card fired, the record had no terminal line). The counters
+     * on the line are the SHARED record's (the tool's calls included), so wiring a
+     * DIFFERENT instance would understate them — the bridge passes the tool's own.
+     * Null (the default — the tree-only engine and the always-vision route) = no write,
+     * byte-identical: the a11y record law is unchanged and the vision loop keeps
+     * writing its own line.
+     */
+    private val runEvidence: navigator.app.harness.vision.VisionEvidence? = null,
 ) {
 
     /**
@@ -338,6 +354,44 @@ class NavigationLoop(
 
     /** PHASE_17 Stage 1 — the pending escalation's cause (set by the stuck L1 hint). */
     private var visionEscapeCause: String? = null
+
+    /**
+     * PHASE_18 fix-loop — the TREE→VISION flips THIS RUN made (the terminal record's
+     * `escalations=` count; the always-vision line hardcodes 0 because that arm never
+     * escalates, the hybrid's count is its own fact). CLASS field (the method-size
+     * discipline); reset at every run() start, incremented ONLY at the code-owned
+     * escalation site ([tryVisionEscape]'s flip).
+     */
+    private var visionEscalations = 0
+
+    /**
+     * THE MANDATORY TERMINAL LINE (doc 05 §2 — ART-3): the ONE write site is the run
+     * exit funnel ([finish]); the line mirrors the always-vision terminal's fields with
+     * this host's facts — `modality=HYBRID` (the record's run-level modality), the
+     * SHARED record's call ledger (the tool's calls included), the run's actual
+     * escalation count, and the answer when one exists (flattened, bounded to
+     * [TERMINAL_ANSWER_CHARS] — the vision loop's own cap). Non-suspend, class scope:
+     * finish() is a run() local and the writer must not grow it past the JVM method
+     * cap. Null [runEvidence] (the tree-only engine, the always-vision route) = no
+     * write, byte-identical.
+     */
+    private fun writeTerminalEvidence(terminal: TerminalState, steps: Int, replans: Int, answerText: String?) {
+        val evidence = runEvidence ?: return
+        val answer = answerText
+            ?.replace(Regex("\\s+"), " ")
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+            ?.take(TERMINAL_ANSWER_CHARS)
+        evidence.event(
+            "terminal=${terminal.name} steps=$steps replans=$replans" +
+                " modality=HYBRID calls=${evidence.totalCalls()}" +
+                " jev=${evidence.channelCalls(navigator.app.harness.vision.VisionEvidence.Channel.JEV)}" +
+                " haiku=${evidence.channelCalls(navigator.app.harness.vision.VisionEvidence.Channel.HAIKU)}" +
+                " images=${evidence.imagesSent()} battery=${evidence.batteryCalls()}" +
+                " escalations=$visionEscalations" +
+                (answer?.let { " answer=$it" } ?: ""),
+        )
+    }
 
     data class Config(
         /** Vision 03 §5: fewer meaningful nodes than this = unusable tree. */
@@ -503,6 +557,7 @@ class NavigationLoop(
         lastActionWasBack = false
         subtaskModality = SubtaskModality.TREE
         visionEscapeCause = null
+        visionEscalations = 0
         noGoodIntent = null
         noGoodIntentCount = 0
         failuresSinceAdvance = 0
@@ -795,6 +850,11 @@ class NavigationLoop(
             // the one place page text lands verbatim in a report.
             fun scrub(text: String): String =
                 redactionKeys().fold(text) { acc, key -> acc.replace(key, TextSource.REDACTED) }
+            // THE MANDATORY TERMINAL LINE (doc 05 §2, ART-3 — PHASE_18 fix-loop): the
+            // hybrid's shared evidence record names the terminal on EVERY exit (the
+            // answer rides the same masked text the report carries). ONE write site —
+            // every terminal funnels through here. Null runEvidence = no write.
+            writeTerminalEvidence(terminal, steps, rePlansUsed, extractedAnswer?.let { scrub(it.text) })
             return RunResult(
                 goalId = goalId,
                 goal = goal,
@@ -1952,6 +2012,7 @@ class NavigationLoop(
             val p = pointer ?: return null
             if (subtaskModality == SubtaskModality.VISION) return null
             subtaskModality = SubtaskModality.VISION
+            visionEscalations += 1 // the run record's escalations= count (the terminal line)
             val flip = "modality: VISION (escalated: $cause) - subtask ${p.activeOrdinal}/${p.total}"
             line(flip)
             history.add("step $stepIndex: modality VISION - $cause")
@@ -4535,6 +4596,13 @@ class NavigationLoop(
 
         /** The extraction final-state excerpt cap (lines of page prose sent to the writer). */
         const val EXTRACTION_STATE_MAX_LINES = 12
+
+        /**
+         * PHASE_18 fix-loop: the hybrid terminal line's answer cap — the same bound the
+         * vision loop's terminal writer applies, so both records flatten and cap the
+         * answer identically (doc 05 §2: the terminal line's answer field).
+         */
+        const val TERMINAL_ANSWER_CHARS = 120
 
         /**
          * The empty-slate grace (gate-105): consecutive observe-only steps granted when a

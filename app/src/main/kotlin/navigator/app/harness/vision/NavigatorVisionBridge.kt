@@ -238,7 +238,10 @@ object NavigatorVisionBridge {
      * vision-writer LADDER SOURCE (raw dual evidence at every plan/re-plan), the
      * dual-evidence STUCK EVENT (the a11y assist contract with the screenshot) and the
      * BOUNDARY JUDGE. The host (`NavigationLoop`) is built by the caller and receives these
-     * seams; the tool's own [VisionLoop] is returned for lifecycle/evidence.
+     * seams; the tool's own [VisionLoop] is returned for lifecycle/evidence. [evidence]
+     * is THE SHARED RUN RECORD — the same instance the tool's loop records into — and
+     * rides the host as its `runEvidence` seam so the host writes the mandatory
+     * terminal line (doc 05 §2) into the record the run's calls metered into.
      */
     class HybridParts(
         val loop: VisionLoop,
@@ -264,6 +267,13 @@ object NavigatorVisionBridge {
         exclusionBounds: (() -> VisionMath.RectPx?)? = null,
         coveredBounds: (() -> List<VisionMath.RectPx>)? = null,
     ): HybridParts {
+        // THE SHARED RUN RECORD (PHASE_18 fix-loop, ART-3 / doc 05 §2): ONE
+        // [VisionEvidence] instance for the tool's loop AND the host — the host writes
+        // the mandatory terminal line into the SAME record the tool's calls metered
+        // into, so the line's call ledger is the run's truth (a second instance would
+        // report zeros). The tool's loop receives it through [newVisionLoop]'s evidence
+        // seam below.
+        val evidence = VisionEvidence(evidenceDir, runId)
         val loop = newVisionLoop(
             observer = observer,
             executor = executor,
@@ -277,6 +287,7 @@ object NavigatorVisionBridge {
             gatePresenter = gatePresenter,
             exclusionBounds = exclusionBounds,
             coveredBounds = coveredBounds,
+            evidence = evidence,
         )
         // The writer's capture seam: the CURRENT screen, painted with the live-log
         // exclusion exactly as the tool's own captures are (one capture law).
@@ -294,7 +305,7 @@ object NavigatorVisionBridge {
             ladderSource = VisionLadderSource(haiku, shot, log),
             stuckSource = VisionStuckEvent(haiku, shot, log),
             boundaryJudge = VisionBoundaryJudge(haiku, shot, log),
-            evidence = VisionEvidence(evidenceDir, runId),
+            evidence = evidence,
         )
     }
 
@@ -330,9 +341,18 @@ object NavigatorVisionBridge {
          * before dispatch. Null (the adb path) = today's raw dispatch, byte-identical.
          */
         coveredBounds: (() -> List<VisionMath.RectPx>)? = null,
+        /**
+         * The SHARED run record seam (PHASE_18 fix-loop): when the caller already holds
+         * the run's [VisionEvidence] (the hybrid's tool loop — [newHybridParts] passes
+         * the instance that rides [HybridParts.evidence] and the host's `runEvidence`
+         * seam), the loop records into IT instead of constructing its own, so the
+         * record's call ledger covers every call the run made. Null (every other
+         * caller) = the loop constructs its own, byte-identical.
+         */
+        evidence: VisionEvidence? = null,
     ): VisionLoop {
         val budget = ExpBudget()
-        val evidence = VisionEvidence(evidenceDir, runId)
+        val ev = evidence ?: VisionEvidence(evidenceDir, runId)
         val (jev, haiku) = newClients(transport, openRouterKey, typesafeKey, budget, log)
         return VisionLoop(
             observer = observer,
@@ -341,7 +361,7 @@ object NavigatorVisionBridge {
             haiku = haiku,
             jev = jev,
             budget = budget,
-            evidence = evidence,
+            evidence = ev,
             log = log,
             gatePresenter = gatePresenter,
             exclusionBounds = exclusionBounds,

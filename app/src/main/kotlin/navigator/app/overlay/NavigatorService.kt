@@ -384,6 +384,11 @@ class NavigatorService : Service() {
                 // PHASE_17 Stage 1/2.3: the vision tool + the advisory boundary judge.
                 visionTool = hybridParts?.tool,
                 boundaryJudge = hybridParts?.boundaryJudge,
+                // PHASE_18 fix-loop (ART-3 / doc 05 §2): the hybrid's SHARED evidence
+                // record — the host writes the mandatory terminal line into the SAME
+                // record the tool's loop metered its calls into. Null elsewhere
+                // (TREE_ONLY, ALWAYS_VISION keep their own evidence laws unchanged).
+                runEvidence = hybridParts?.evidence,
                 experimentProbe = experimentProbe,
             )
             val result = loop.run(

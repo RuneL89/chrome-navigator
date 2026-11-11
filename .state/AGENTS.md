@@ -10,7 +10,11 @@ remembers."
 
 * `phase-N-status.json` — one per phase: goal, gate results
   (`gatesPassed`/`gatesFailed`/`gatesPending`), `deviations`, `llmCost`, `blocker`,
-  `nextAction`; written by Implementer/orchestrator, read by Verifier and Reporter
+  `nextAction`; written by Implementer/orchestrator, read by Verifier and Reporter. An
+  owner-directed fix-loop item (a defect found between gates, e.g. by emulator
+  verification) is recorded both as a `deviations` entry and in a `fixLoop` object
+  (defect, fix, test, gates, method-size) while the phase's own gate lists stay as they
+  were — Phase 18's terminal-line fix (2026-11-11) is the precedent
 * `compliance-log.md` — append-only log of compliance checks (format per
   `Implementation Plan/MASTER_IMPLEMENTATION_PROMPT.md` §3: timestamp, changed files, vision
   docs/sections checked, result, checker)
