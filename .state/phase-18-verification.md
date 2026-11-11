@@ -67,3 +67,25 @@ and its evidence record NOW carries the mandatory line:
 
 (task-1794378596096; grep-verified on-device: terminal_lines=1). The defect is fixed and
 verified end to end: implemented → verifier GREEN → on-device proof. Fix loop CLOSED.
+
+## Stage 18.B part 1 verification (2026-11-11)
+
+> Verifier: canon-verifier, cold. Its agent config forbids .md writes; the orchestrator
+> transcribed its returned record verbatim. VERDICT: GREEN.
+
+1. DIFF confinement — PASS. 15 files (4 modified main + 6 new main + 2 new test + 3 docs/state); no Project Vision/README touch.
+2. Byte-identical defaults — PASS. Two nullable seams; ~30 VisionLoop construction sites untouched (no caller passes either param); null path = the legacy observe+capture pair; the ACT guard section is skipped when null; the dispatch `when` unchanged.
+3. CN-02 law — PASS. observe->capture->re-read->contextsMatch (package + normalizeUrl-derived key; tree hash ignored) -> ONE 250ms retry -> Stale; run-start Stale -> GUARD_ABORT with honest cause; per-step Stale -> loud skip + failure accounting (zero executor calls); hybrid-tool Stale -> SubtaskOutcome.Failed. Tests map to the plan's 5 cases. Observation (not RED): the replan call site still mixes loop-obs with a fresh raw capture; no dispatch rides that pair; left to a later stage.
+4. CN-03 law — PASS. Insertion after gate/covered-point, immediately before dispatch; refusal = Attempted.Failed with zero executor calls; approval keys set on all three approval paths; drift voids (RISK_CONTEXT_CHANGED); secret-free details. Observations (not RED): the ACT refusal line lacked the NOT_DISPATCHED_ prefix (fixed post-verdict, see below); ExecutionResult.kt was dead (deleted post-verdict).
+5. Back law — PASS (reasonless back refused; subtask reason allowed).
+6. Semantic identity — PASS (no id; class+role+label/desc+0.5 overlap).
+7. Gates cold — PASS. --rerun-tasks BUILD SUCCESSFUL (3m8s); app 810 / core 338, 0 failures; VisionSnapshotterTest 5/5, PreDispatchGuardTest 15/15 explicit.
+8. Secrets — PASS (sweep clean over the new files).
+9. Integration — PASS (hybrid Failed consumed by handleSubtaskFailureOrKill; captureSafely the sole capture edge). Observation (not RED): snapshotSerial dead (harvested post-verdict).
+
+**STAGE 18.B PART 1 VERDICT: GREEN**
+
+Post-verdict cleanups applied (orchestrator): the ACT refusal line now carries the full
+`NOT_DISPATCHED_<REFUSAL>` prefix (the plan's vocabulary; the per-step/hybrid stale lines
+already did); the dead `ExecutionResult.kt` (0 refs) deleted; the dead `snapshotSerial`
+field harvested. Full gates re-greened after the cleanups.

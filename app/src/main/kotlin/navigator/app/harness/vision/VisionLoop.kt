@@ -551,9 +551,6 @@ class VisionLoop(
      */
     private var currentSnapshot: VisionSnapshot? = null
 
-    /** The snapshot serial (rides the snapshot id + the capture's evidence index). */
-    private var snapshotSerial = 0
-
     /** The verified observe+capture outcome (CN-02): got a consistent pair, or stale. */
     private sealed interface VerifiedObs {
         data class Got(val obs: StepObservation, val shot: VisionCapture.ScreenShot?) : VerifiedObs
@@ -2353,8 +2350,9 @@ class VisionLoop(
             when (val verdict = preDispatchGuard.check(request)) {
                 is PreDispatchGuard.Verdict.Allow -> {}
                 is PreDispatchGuard.Verdict.Refuse -> {
-                    val line = "${verdict.refusal.name}: ${verdict.detail} - zero executor calls " +
-                        "(the existing failed-step/re-plan gate owns the bounded retry" +
+                    val line = "NOT_DISPATCHED_${verdict.refusal.name}: ${verdict.detail} - zero " +
+                        "executor calls (the existing failed-step/re-plan gate owns the bounded " +
+                        "retry" +
                         (if (request.gated) "; the approval is void and the fresh action re-gates" else "") +
                         ")"
                     evidence.event("pre-dispatch refusal: $line")
