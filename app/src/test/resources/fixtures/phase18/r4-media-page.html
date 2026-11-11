@@ -1,0 +1,38 @@
+<!doctype html>
+<!--
+  SANITIZED FIXTURE — Phase 18 Stage 18.A, from UAT 17.1 R4 (the R4-tree final run:
+  an account switch followed by a media page, where the final frame carried no
+  account evidence). All real site, channel, account, show and person names removed:
+  a generic media page at tubular.test playing "the sample show"; the switched
+  profile in the scripted fixtures is the generic "ViewerTwo" and this page carries
+  NO profile marker anywhere.
+
+  What it pins: the class-specific end-state evidence gap — a final subtask whose
+  page shows the media outcome but not the switched account. The CURRENT ordinary
+  accept DOES refuse the account-switch goal (the Stage 0.5 guard,
+  Phase18R4FinalEvidenceFixtureTest pins it) and PASSES the unclassified goal
+  (generic rules, no fabricated class proof) — both halves pinned.
+
+  Changed by: Stage 18.C CN-07 (one FinalGoalVerifier on every success path;
+  account-switch completes on fresh OR recorded evidence).
+  Vision law: Project Vision/04 §9.6 (the single final verifier).
+
+  Static and deterministic: no script, no network, no images, no external CSS.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The sample show — tubular.test</title>
+  <style>
+    body { font-family: sans-serif; margin: 24px; }
+    .player { background: #202124; color: #ffffff; padding: 32px; font-size: 20px;
+              border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <h1>The sample show</h1>
+  <div class="player" id="player">Now playing: the newest episode of the sample show</div>
+  <p>This page deliberately names no viewer profile and no account marker.</p>
+</body>
+</html>

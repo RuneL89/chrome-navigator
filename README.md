@@ -56,9 +56,9 @@ The goal you type is rewritten by the writer model into a ladder: up to eight su
 Then the loop runs. Each step reads the page (the accessibility tree plus a screenshot of Chrome's window), checks whether the subtask is already done, and if not, decides and performs one action: a tap, a typed field, a scroll. Two kinds of card can interrupt:
 
 * **A gate card** comes before consequential actions. It names the action's class, the site, and the consequence, and counts down from 30 seconds. Deny, or let the countdown run out, and the step is refused and logged. The first approval of a class extends trust for the rest of the task. Credential fields (logins, card numbers, passwords) get a masked input on the card instead: what you type there goes straight into the field, lives in memory for a moment, and is never logged and never sent to any model.
-* **A failure card** comes when the agent is genuinely stuck: three failed attempts on one subtask, or a detector tripping on repeated no-progress. It offers Retry, Re-plan (a new ladder, informed by what failed), or Stop. Thirty seconds without an answer stops.
+* **A failure card** comes when the agent is genuinely stuck: three failed attempts on one subtask, or a detector tripping on repeated no-progress. It offers Retry, Re-plan (a new ladder, informed by what failed), or Stop. Thirty seconds without an answer stops. This card rides the retained text-only engine and the hybrid; the default vision engine re-plans automatically instead (two failed steps in a row earn an informed re-plan) and shows no card.
 
-Near the end, one more card can appear: the agent believes the goal is complete and asks you to confirm (Confirm done or Keep going; a timeout keeps going). The card is a last check, not the decision; completion is verified by code.
+Near the end, one more card can appear: the agent believes the goal is complete and asks you to confirm (Confirm done or Keep going; a timeout keeps going). The card is a last check, not the decision; completion is verified by code. The same split applies: the text-only engine and the hybrid ask; the default vision engine ends through its code-guarded models-confirm hatch without the ask.
 
 The endings are explicit: goal achieved, confirmed done, re-plans exhausted, steps or budget used up, cancelled by you, or refused, with the reason on the log. Every run also writes its evidence to the device: the event log, every model request and response, and the screenshots, keyed by run id.
 
@@ -75,7 +75,7 @@ Two cloud models do the thinking, and their jobs do not overlap:
 
 Code owns everything with a number in it: the done-condition checks, the risk gate, the budgets, the timeouts, the thresholds, and the final verdict. Page content, text and pixels alike, is labeled untrusted in every prompt; instructions found on a page are never obeyed.
 
-The verification battery runs before the first touch. For the active subtask, the writer authors a handful of checks; the judgment model answers them over text and image; the writer adds one independent image pass. Any confident red flag stops the step before the screen is touched. Only then are controls proposed, grounded (the model's box is matched to a real accessibility node, with a similarity floor of 0.20 and documented fallbacks), and dispatched through the code-owned gate.
+The verification battery runs before the first touch. For the active subtask, the writer authors a handful of checks; the judgment model answers them over text and image; the writer adds one independent image pass. Any confident red flag stops the step before the screen is touched — except where code holds the battery (a scroll-to-find, or the step right after a battery re-plan) or the subtask's battery re-plan budget is spent, in which case the loop acts and logs why. Only then are controls proposed, grounded (the model's box is matched to a real accessibility node at a similarity floor of 0.20; failing that, the fallbacks are the writer's own box, then a label match, then the raw box centre — the last of which can act with no node match and at any confidence, with the arm named on the log), and dispatched through the code-owned gate.
 
 Every run is auditable after the fact: prompts and state formats are versioned, and the run directory holds every request and response, so a step can be replayed and checked later.
 
@@ -89,9 +89,9 @@ The vision engine above is the default. Two more engine policies exist behind th
 
 ## Honest limitations
 
-* **Your keys, your spend.** Every step makes paid model calls at two providers. Budgets bound the damage: soft ceilings warn, hard ceilings stop the run. The shipped hard ceilings are deliberately generous (6,000 steps, about 16 hours, $25 per task, and a $10 sub-ceiling for the writer) so a runaway loop still has a wall; the checkout above used 55 steps.
+* **Your keys, your spend.** Every step makes paid model calls at two providers. Budgets bound the damage: soft ceilings warn, hard ceilings stop the run (the steps and writer ceilings warn today; the spend and time soft checks warn with the steps check). The shipped hard ceilings are deliberately generous (6,000 steps, about 16 hours, $25 per task, and a $10 sub-ceiling for the writer) so a runaway loop still has a wall; the checkout above used 55 steps.
 * **One phone, one user.** Personal software: no Play Store, no accounts, no multi-device support. Sideload or nothing.
-* **Chrome stable only.** The reader specializes on Chrome's stable channel; Beta, Canary, other browsers, and WebView are explicitly out.
+* **Chrome stable only.** The reader specializes on Chrome's stable channel; Beta, Canary, other browsers, and WebView are explicitly out (one debug webview shell stays allowlisted for emulator fixture capture).
 * **Android 14 and newer.** The minimum SDK is 34.
 * **The Samsung battery row is manual.** Stock Android gives an app no lawful way to whitelist itself, so the wizard guides your taps instead.
 * **The tree-first hybrid is not the default yet.** It works and it is selectable, but the product default moves only after its acceptance comparison says so.

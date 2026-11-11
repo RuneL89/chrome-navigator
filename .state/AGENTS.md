@@ -49,6 +49,15 @@ remembers."
   status, and the Verifier's per-stage evidence. The program's source specification is
   `handoff/RELIABILITY_IMPROVEMENT_PLAN.md` (input material, adapted by
   `Implementation Plan/PHASE_18_reliability_hardening.md` §3).
+  `phase-18-docs-audit.md` (Stage 18.A, Gate 18.A1) — every README behavioral claim
+  mapped to code with verdicts; the corrected overreaches are quoted there and fixed
+  in `README.md`; it doubles as the closeout documentation-review checklist. The
+  Stage 18.A sanitized UAT 17.1 regression fixtures live under
+  `app/src/test/resources/fixtures/phase18/` (HTML pages; a later stage installs
+  them into the harness pages server for the emulator leg) with the scripted
+  replays + the characterization suite in
+  `app/src/test/kotlin/navigator/app/harness/vision/Phase18*`
+  (details in `app/AGENTS.md` Verification).
 * `preUAT2-emulator/` — the `fix-record.md` from the owner-ordered pre-UAT automation
   pass (2026-10-08, the implementer's defect-fix record); the emulator prepass run
   reports were removed with the historical run data (owner request 2026-10-19)

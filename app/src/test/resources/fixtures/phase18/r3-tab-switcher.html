@@ -1,0 +1,42 @@
+<!doctype html>
+<!--
+  SANITIZED FIXTURE — Phase 18 Stage 18.A, from UAT 17.1 R3 (the R3-vision checkout
+  run whose payment tap landed on Chrome's TAB SWITCHER, losing the checkout). All
+  real store names removed: the lost tab is the generic "Checkout — Sample Store"
+  from r3-checkout-form.html.
+
+  What it pins: a browser-chrome tab-switcher state (no URL, chrome-UI title, chrome
+  node cards) as the CURRENT loop sees it: the off-page detector classifies it and —
+  without a code-owned browser launcher — logs "off-page detected, no recovery" and
+  keeps the ordinary failure path (pinned by Phase18R3ChromeStateAndFormFixtureTest;
+  the WITH-launcher recovery is CheckoutRecoveryTest, not duplicated here).
+
+  Changed by: Stage 18.D CN-12 (ChromeUiState recovery: restore the EXISTING checkout
+  tab, never a new tab, never a restart).
+  Vision law: Project Vision/04 §9.10 (Chrome-state and checkout recovery).
+
+  Static and deterministic: no script, no network, no images, no external CSS. It is
+  a PAGE that stands in for a chrome-UI state for the emulator leg; on a device the
+  real Chrome tab switcher is browser chrome, not web content.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tab switcher</title>
+  <style>
+    body { font-family: sans-serif; margin: 24px; background: #f1f3f4; }
+    .grid { display: flex; gap: 16px; flex-wrap: wrap; }
+    .card { background: #ffffff; border-radius: 8px; padding: 16px; width: 200px;
+            font-size: 16px; border: 1px solid #dadce0; }
+    .newtab { color: #5f6368; }
+  </style>
+</head>
+<body>
+  <div class="grid" role="list">
+    <div class="card" role="listitem" id="tab-checkout">Checkout — Sample Store</div>
+    <div class="card" role="listitem" id="tab-home">Home</div>
+    <div class="card newtab" role="listitem" id="new-tab">New tab</div>
+  </div>
+</body>
+</html>

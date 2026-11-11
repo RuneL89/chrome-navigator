@@ -1,0 +1,30 @@
+<!doctype html>
+<!--
+  SANITIZED FIXTURE — Phase 18 Stage 18.A, from UAT 17.1 R2 (the R2-vision / R2-tree
+  drift pair, .state/phase-17-uat/17.1/R2-*). All real store, site, brand, account and
+  address names removed: the original host is a generic "Site A" at sitea.test, and the
+  drift target (r2-site-b-listing.html) is a generic "Site B".
+
+  What it pins: the page the run's FIRST subtask completes on (done condition
+  urlHost sitea.test) — the host identity the CURRENT loop does not revalidate once
+  navigation drifts to Site B and steps keep acting (pinned by
+  Phase18R2SiteDriftFixtureTest).
+
+  Changed by: Stage 18.C CN-06 (runtime prefix states + evidence-scoped revalidation).
+  Vision law: Project Vision/04 §9.5 (runtime prefix states and revalidation).
+
+  Static and deterministic: no script, no network, no images, no external CSS.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Site A</title>
+  <style>body { font-family: sans-serif; margin: 24px; } a { font-size: 20px; }</style>
+</head>
+<body>
+  <h1>Site A</h1>
+  <p>A generic fixture home page. The archive holds the items the run is asked for.</p>
+  <p><a id="archive-link" href="/archive">Open the archive</a></p>
+</body>
+</html>

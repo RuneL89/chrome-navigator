@@ -1,6 +1,6 @@
 {
   "phase": "18",
-  "status": "canonized-awaiting-stage-a-start",
+  "status": "stage-18.A-complete-awaiting-verifier",
   "goal": "All Stage 18.A gates pass (docs audit with zero unmapped README claims; sanitized R2/R3/R4 fixtures + characterization suite green in gradlew :core:test :app:testDebugUnitTest; baseline metrics recorded), UAT 18.1 owner-accepted, compliance log clean, and zero code outside Stage 18.A's scope.",
   "branch": "phase-18-reliability-hardening",
   "canonization": {
@@ -13,14 +13,33 @@
       "Vision-doc amendments are drafted in separate GLM-5.3 sessions per amendment; implementation pauses at any unratified amendment"
     ]
   },
-  "lastAction": "Phase doc canonized; master index + prompt mapping + DOX chain updated; status seeded.",
-  "gatesPassed": [],
+  "lastAction": "Stage 18.A implemented and re-verified: docs audit written (.state/phase-18-docs-audit.md, 34 claims mapped: 24 ACCURATE, 6 OVERREACH corrected across 5 README sentence edits, 3 ACCURATE-WITH-NOTE, 1 HISTORICAL; every file:line reference spot-checked against the working tree this session); sanitized R2/R3/R4 fixture pages (app/src/test/resources/fixtures/phase18/*.html, all carrying the SANITIZED/UAT-17.1/stage/doc-04-§9.x headers) + scripted fixture tests; characterization suite (ExpBudget both-sides boundaries + the steps-branch soft-flags quirk, grounding route strings incl. the raw arm acting sub-floor with no node match, capture degradation -> text-only proceed, the eight-terminal vocabulary, the vision clients' transport-only retry law, NavigatorVisionBridgeTest add-only ALWAYS_VISION missing-key case); full gate gradlew.bat :core:test :app:testDebugUnitTest green (app: 787 tests / 0 failures / 0 errors / 0 skipped — 757 before Stage 18.A, +30 = 29 Phase18 tests + 1 bridge-test addition; core: 338 / 0); DOX pass done (.state/AGENTS.md, app/AGENTS.md).",
+  "gatesPassed": [
+    "18.A1",
+    "18.A2",
+    "18.A3"
+  ],
   "gatesFailed": [],
-  "gatesPending": ["18.A1", "18.A2", "18.A3", "18.A4"],
-  "stageOrder": ["18.A", "18.B", "18.C (vision-amendment-gated)", "18.D", "18.E (absorbs the Phase 17 Stage 4 acceptance program)"],
+  "gatesPending": [
+    "18.A4 (baseline device metrics, one attended run per arm — orchestrator baseline leg, deferred pending emulator/device availability; result file .state/phase-18-baseline.md, marked non-acceptance)"
+  ],
+  "stageOrder": [
+    "18.A",
+    "18.B",
+    "18.C (vision-amendment-gated)",
+    "18.D",
+    "18.E (absorbs the Phase 17 Stage 4 acceptance program)"
+  ],
   "llmCost": "$0.00",
-  "tokenBudgetRemaining": "$5.00 program cap (Stage A budget $0 — deterministic)",
+  "tokenBudgetRemaining": "$5.00 program cap (Stage A budget $0 — deterministic; no live calls made)",
   "blocker": null,
-  "deviations": [],
-  "nextAction": "Owner says 'Start Phase 18' (or 'Start Stage 18.A') to begin the loop: compliance pre-check for Stage 18.A, then canon-implementer."
+  "deviations": [
+    "CN-07/R4 defect-claim re-verification (the §3 adaptation duty): the source plan's R4 claim 'the ordinary accept path does not check the class-specific end-state evidence' is PARTIALLY FIXED on this frontier — since Phase 17 Stage 0.5 the vision ordinary accept re-checks the ACCOUNT_SWITCH end state at GOAL_ACHIEVED (VisionLoop.acceptAdvance -> core GoalFidelity.finalAcceptViolation; AccountEndAcceptTest pins the pure half; Phase18R4FinalEvidenceFixtureTest pins the end-to-end refusal). The R4 fixture therefore pins BOTH halves: the recognized-shape refusal AND the unclassified-shape pass (no class-specific check). The remaining gap (one verifier across ALL success paths; recorded switching evidence not wired — the loop passes recordedEvidenceText=null) stays Stage 18.C CN-07 work.",
+    "Fixture-page placement: the sanitized HTML pages live under app/src/test/resources/fixtures/phase18/ instead of app/src/main/assets/harness/pages/ (the repo's emulator-serving location) because Stage 18.A's hard constraint forbids any src/main edit. The pages are load-bearing in the JVM suite (Phase18FixturePagesTest reads them from the test classpath, enforces the sanitization law and the structural anchors); a later stage (or the orchestrator's baseline leg) installs them into HarnessPagesServer for the emulator replay.",
+    "No pre-existing test failures were found: the full post-change run has every pre-existing test green, so nothing needed the 'pre-existing failure' recording path.",
+    "Docs-audit scope note: the audit found and corrected 6 overreach rows across 5 README sentences (the failure-card and completion-card paragraphs describe TREE_ONLY/hybrid-only surfaces; the battery red-flag 'any stop' and the grounding-fallback wording hid the code-owned holds and the raw-centre arm; the soft-ceiling warning sentence; the Chrome-only webview-shell exception). The TREE_FIRST implemented-as-selectable statements, the budget numbers, and the structure/tone were left untouched per the stage constraints.",
+    "DOX pass (mandated by the root AGENTS.md Update-After-Editing contract, outside the stage's literal editable list but required by the repo contract): .state/AGENTS.md gained the phase-18-docs-audit.md + fixture-location bullet; app/AGENTS.md Verification gained the Stage 18.A fixtures/characterization block. Zero behavior-bearing files beyond README.md and the allowed test/.state paths were touched.",
+    "Stage 18.A re-verification pass (2026-11-11, the implementer's cold re-check before hand-off): two WIP defects found and fixed in the stage's own artifacts — (1) NavigatorVisionBridgeTest.kt had an EXISTING test's two lines accidentally merged by the Stage-18.A edit; restored to the upstream two-line form (git diff vs HEAD for that file is now purely the one added test); (2) this status JSON had a trailing comma making it unparseable — fixed. Neither defect touched behavior or assertions."
+  ],
+  "nextAction": "emulator leg (orchestrator): 18.A4 baseline + UI verification"
 }

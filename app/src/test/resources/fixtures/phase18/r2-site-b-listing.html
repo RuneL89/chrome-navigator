@@ -1,0 +1,35 @@
+<!doctype html>
+<!--
+  SANITIZED FIXTURE — Phase 18 Stage 18.A, from UAT 17.1 R2 (the drift pair). The
+  original run left the target site for an unrelated host and the screen change was
+  accepted as progress. All real names removed: this is the generic "Site B" directory
+  the navigation drifts to (the scripted drift target of
+  Phase18R2SiteDriftFixtureTest).
+
+  What it pins: a wrong-host page whose content keeps offering actionable controls,
+  so the CURRENT loop keeps acting (the screen "changes") without any prefix
+  revalidation of the completed sitea.test subtask.
+
+  Changed by: Stage 18.C CN-06 (a wrong-host navigation is WRONG_CONTEXT, never
+  progress; rollback to the earliest invalid subtask).
+  Vision law: Project Vision/04 §9.5 (and §9.3's wrong-context rule).
+
+  Static and deterministic: no script, no network, no images, no external CSS.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Site B</title>
+  <style>body { font-family: sans-serif; margin: 24px; } li { font-size: 18px; margin: 8px 0; }</style>
+</head>
+<body>
+  <h1>Site B</h1>
+  <p>A generic fixture directory. None of these entries are the run's target.</p>
+  <ul>
+    <li><a id="entry-1" href="/listing/1">Directory entry one</a></li>
+    <li><a id="entry-2" href="/listing/2">Directory entry two</a></li>
+    <li><a id="entry-3" href="/listing/3">Directory entry three</a></li>
+  </ul>
+</body>
+</html>

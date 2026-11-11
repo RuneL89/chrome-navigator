@@ -1892,6 +1892,30 @@ tracked as last-known (normalized) and serves on an empty card URL, and garbage
   PHASE_VEXP3.)
 * `./gradlew :core:test` — `RealA11yDumpFixturesTest` strictly re-validates every
   committed a11y-dump fixture (seed + Phase-1 real captures)
+* PHASE 18 Stage 18.A (branch `phase-18-reliability-hardening`; $0 scripted, the
+  zero-production-code-change stage): the SANITIZED UAT 17.1 regression fixtures —
+  `Phase18R2SiteDriftFixtureTest` (the drift pins: the loop keeps acting on the wrong
+  host with NO prefix revalidation while acting succeeds; the rollback-on-failures
+  half stays in `VisionLoopPrefixRollbackTest`),
+  `Phase18R3ChromeStateAndFormFixtureTest` (the tab-switcher no-launcher detection +
+  the required-empty form never reaching a success terminal; the WITH-launcher
+  recovery stays in `CheckoutRecoveryTest`), `Phase18R4FinalEvidenceFixtureTest` (the
+  account-switch accept refuses without evidence; the unclassified goal passes with
+  none), and the fixture PAGES under `src/test/resources/fixtures/phase18/*.html`
+  (sanitized at creation per doc 05 §8's fixture law; gated by
+  `Phase18FixturePagesTest`; a later stage installs them into the harness pages
+  server for the emulator leg) — plus the CHARACTERIZATION suite pinning the refactor
+  baseline, each test naming the Stage/CN + doc 04 §9.x item that will consciously
+  break it: `Phase18ExpBudgetCharacterizationTest` (both sides of every ceiling + the
+  steps-branch soft-flags quirk Stage 18.C CN-11 fixes),
+  `Phase18GroundingRouteCharacterizationTest` (the raw arm acting sub-floor with no
+  node match — Stage 18.B CN-09's target),
+  `Phase18CaptureDegradationCharacterizationTest` (text-only proceeds unbounded —
+  Stage 18.B CN-10's target), `Phase18TerminalAndRetryCharacterizationTest` (the
+  eight vision terminals; the vision clients' transport-only retry law — GenClient's
+  law is GenClientTest's), and the `NavigatorVisionBridgeTest` add-only
+  ALWAYS_VISION-missing-key refusal. The claim→code docs audit is
+  `.state/phase-18-docs-audit.md`.
 
 ## Child DOX Index
 

@@ -1,0 +1,47 @@
+<!doctype html>
+<!--
+  SANITIZED FIXTURE — Phase 18 Stage 18.A, from UAT 17.1 R3 (the R3-vision checkout
+  runs, .state/phase-17-uat/17.1/R3-vision[-2]). The original checkout's required
+  first-name field stayed empty while the engine re-tapped an autofill chip and later
+  misfilled an email field with a street address. All real store, site, language,
+  address and person names removed: a generic three-field checkout at shop.example.
+
+  What it pins: a 3-field form where ONE required field (the email address) stays
+  empty — the CURRENT loop keeps the form subtask open (the read-back and the battery
+  refuse the accept; no false success terminal) and the FORM: fact line names the
+  required-empty field (pinned by Phase18R3ChromeStateAndFormFixtureTest).
+
+  Changed by: Stage 18.D CN-13 (field-level proposals, required-empty keeps the
+  subtask open by law, autofill chips require focus + verification).
+  Vision law: Project Vision/04 §9.3 (field value landed as the postcondition) and
+  §9.10 (checkout milestones; no restart).
+
+  Static and deterministic: no script, no network, no images, no external CSS. The
+  form posts nowhere (action omitted).
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Checkout — Sample Store</title>
+  <style>
+    body { font-family: sans-serif; margin: 24px; }
+    label { display: block; margin: 16px 0 4px; font-size: 18px; }
+    input { font-size: 18px; padding: 8px; width: 280px; }
+    button { margin-top: 24px; font-size: 18px; padding: 10px 20px; }
+  </style>
+</head>
+<body>
+  <h1>Checkout — Sample Store</h1>
+  <form>
+    <label for="fullname">Full name</label>
+    <input id="fullname" name="fullname" type="text" value="Sample Buyer">
+    <label for="email">Email address *</label>
+    <input id="email" name="email" type="email" placeholder="Email address">
+    <label for="phone">Phone</label>
+    <input id="phone" name="phone" type="tel" placeholder="Phone">
+    <button type="submit" id="continue">Continue</button>
+  </form>
+  <p>This page deliberately carries no order-placed marker.</p>
+</body>
+</html>

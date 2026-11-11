@@ -172,6 +172,35 @@ class NavigatorVisionBridgeTest {
         assertEquals(ProductRunRoute.decide(true, "  ", "ts-key"), noOpenRouter)
     }
 
+    // -- PHASE 18 Stage 18.A (characterization add-only): the EXPLICIT policy route's
+    // missing-key refusals — the three-way `decide(policy, ...)` matrix above pins
+    // TREE_FIRST's refusals and the boolean toggle's; ALWAYS_VISION's own refusals were
+    // the one missing route case. Never a silent engine switch.
+
+    @Test
+    fun `ALWAYS_VISION with a missing key refuses loudly naming the channel - never a silent switch`() {
+        val noTypesafe = ProductRunRoute.decide(
+            navigator.app.setup.EnginePolicy.ALWAYS_VISION, "or-key", null,
+        )
+        assertTrue(noTypesafe is ProductRunRoute.Refused)
+        assertTrue(noTypesafe.detail.contains("TypeSafe"), "only the missing channel is blamed")
+        assertTrue(noTypesafe.detail.contains("OpenRouter").not())
+        assertTrue(noTypesafe.detail.contains("setup"), "the wizard is named")
+
+        val noOpenRouter = ProductRunRoute.decide(
+            navigator.app.setup.EnginePolicy.ALWAYS_VISION, null, "ts-key",
+        )
+        assertTrue(noOpenRouter is ProductRunRoute.Refused)
+        assertTrue(noOpenRouter.detail.contains("OpenRouter"))
+        assertTrue(noOpenRouter.detail.contains("TypeSafe").not())
+
+        val none = ProductRunRoute.decide(
+            navigator.app.setup.EnginePolicy.ALWAYS_VISION, null, null,
+        )
+        assertTrue(none is ProductRunRoute.Refused)
+        assertTrue(none.detail.contains("BOTH"))
+    }
+
     // -- PHASE_VEXP4, the default flip: the matrix pinned on the DEFAULT (the vision
     // loop IS the app's engine — the absent-key fallback every preference reader uses) --
 
