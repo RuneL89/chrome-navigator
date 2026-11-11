@@ -167,6 +167,42 @@ class VisionModelCallPolicyTest {
         }
     }
 
+    // -- owner cancellation: the in-flight call is cancelled and no later retry begins --
+    @Test
+    fun `owner cancellation cancels the in-flight call and no later retry begins`() {
+        val server = MockWebServer()
+        // A retry-provoking status whose BODY is delayed past the owner deadline: the
+        // request arrives (count 1), the caller's withTimeout cancels at 300 ms, and the
+        // cancelled socket must never be followed by a retry.
+        repeat(4) {
+            server.enqueue(
+                MockResponse().setResponseCode(503).setBody("slow").setBodyDelay(2, java.util.concurrent.TimeUnit.SECONDS),
+            )
+        }
+        server.start()
+        try {
+            try {
+                runBlocking {
+                    kotlinx.coroutines.withTimeout(300) {
+                        ask(jev(server, navigator.core.wire.ModelCallPolicy(maxAttempts = 3, initialBackoffMs = 1)))
+                    }
+                }
+                error("the owner deadline must cancel the call")
+            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                // the owner's cancellation — exactly the shape under test
+            }
+            // A would-be retry would need a moment to fire; none may.
+            Thread.sleep(500)
+            assertEquals(
+                1,
+                server.requestCount,
+                "the cancelled call must not be followed by any retry",
+            )
+        } finally {
+            server.shutdown()
+        }
+    }
+
     // -- Retry-After is honored only up to the policy (bounded by the delay function) ----
     @Test
     fun `a 429 with Retry-After retries within the bound then fails typed`() {

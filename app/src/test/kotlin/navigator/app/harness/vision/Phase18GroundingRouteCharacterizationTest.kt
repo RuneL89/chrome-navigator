@@ -217,4 +217,77 @@ class Phase18GroundingRouteCharacterizationTest {
         }
 
     private val confirmTrue = """{"complete":true,"reason":"the outcome is visible"}"""
+
+    @Test
+    fun `a Jev pick failure with three location-dependent proposals - GROUNDING_UNAVAILABLE and zero dispatch`() =
+        runBlocking {
+            // PHASE_18 CN-09 (doc 04 §9.8): the plan's case — a Jev ground failure with
+            // THREE Haiku proposals: zero tap/type/submit dispatch (the pick's choice
+            // matters; proposal index zero is never a location).
+            val homeNode = ObservedNode(
+                id = "n1", text = "Home", desc = "", clickable = true, editable = false,
+                scrollable = false, left = 800, top = 100, right = 900, bottom = 160,
+                className = "android.widget.Button", sourceOrder = 0,
+            )
+            val threeProposals = """
+                {"proposals":[
+                  {"description":"the mystery tap control","action":"tap","box":{"top":0.6,"bottom":0.65,"left":0.6,"right":0.7},"confidence":0.9},
+                  {"description":"the mystery field","action":"type","box":{"top":0.3,"bottom":0.35,"left":0.3,"right":0.7},"confidence":0.9,"text":"x"},
+                  {"description":"the mystery submit","action":"submit","confidence":0.9}]}
+            """.trimIndent()
+            val plan = """
+                {"summary":"act on the mystery controls on shoptest.test","taskClass":"action","subtasks":[
+                  {"instruction":"act on the mystery controls","done":{"urlHost":"done.test"}}]}
+            """.trimIndent()
+            val chat = ScriptedTransport(
+                chatResponses = listOf(chatContent(plan), chatContent(threeProposals)),
+                jevResponses = emptyList(),
+            )
+            val executor = RecordingExecutor()
+            val base = Files.createTempDirectory("p18-gu").toFile()
+            val evidence = VisionEvidence(base, "grounding-unavailable")
+            var iterations = 0
+            val loop = VisionLoop(
+                observer = RepeatingObserver(
+                    StepObservation(
+                        url = "https://shoptest.test/page", title = "Shop",
+                        lines = listOf("home page"), nodes = listOf(homeNode),
+                        windowPackage = "com.android.chrome",
+                    ),
+                ),
+                executor = executor,
+                capture = FakeCapture(shot()),
+                haiku = VisionHaiku(chat, "fixture-key", backoffBaseMs = 1, retryDelay = {}),
+                jev = VisionJev(
+                    FailingJevTransport(), "https://jev.test/v1/systemone", "jev-1.14.0", "fixture-key",
+                    backoffBaseMs = 1, retryDelay = {},
+                ),
+                budget = ExpBudget(),
+                evidence = evidence,
+                config = VisionLoop.Config(settleMs = 0, maxReplans = 0, stepFailuresBeforeReplan = 1),
+            )
+            val result = loop.run("act on the mystery controls on shoptest.test", "grounding-unavailable") {
+                ++iterations > 10
+            }
+
+            assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal, result.subtaskOutcomes.toString())
+            assertTrue(executor.taps.isEmpty(), "zero dispatch: ${executor.taps}")
+            assertTrue(executor.nodeClicks.isEmpty(), "zero node dispatch")
+            val stepLine = result.subtaskOutcomes.first { it.startsWith("step") }
+            assertTrue(
+                "GROUNDING_UNAVAILABLE" in stepLine,
+                "the typed refusal rides the step line: $stepLine",
+            )
+            val log = java.io.File(base, "grounding-unavailable/events.log").readText()
+            assertTrue("GROUNDING_UNAVAILABLE" in log, "the refusal rides the evidence")
+        }
+
+    /** The Jev side ALWAYS fails (the transport-flap analog that never recovers). */
+    private class FailingJevTransport : WireTransport {
+        var attempts = 0
+        override suspend fun execute(request: WireHttpRequest): WireHttpResponse {
+            attempts += 1
+            throw WireTransportException("fixture: the judgment channel is down")
+        }
+    }
 }

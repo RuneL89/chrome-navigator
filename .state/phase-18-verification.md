@@ -114,3 +114,42 @@ pinned-URL read goal via the wizard's real "New task" path; HOME pressed mid-run
      the cancel machinery itself verified via the stop intent (same TaskCancelFlag path).
      Flag for the attended device UAT (human finger, not scripted taps).
 STAGE 18.B PART 1 EMULATOR PASS: GREEN
+
+## Stage 18.B part 2 verification (2026-11-11)
+
+> Verifier: canon-verifier, cold check, independent. Its agent config forbids .md writes;
+> the orchestrator transcribes the returned record verbatim. **VERDICT: RED** on three
+> test-coverage items (the code/law checks all PASSED): RED-R1 the CaptureDegradation
+> characterization was NOT updated and the CN-10 wired bound had no test (18.B5
+> unevidenced); RED-R2 no test pinned the multi-proposal GROUNDING_UNAVAILABLE
+> zero-dispatch arm (18.B4 partially unevidenced); RED-R3 VisionModelCallPolicyTest
+> carried 6 tests, not the claimed 7 (the owner-cancellation case only implicit).
+> The full verifier record (law read, diff confinement via mtimes, CN-08 a-e, CN-09 a-e,
+> CN-10, gates cold app 818 / core 338, secrets, adaptation legality — all PASS) is in
+> the verifier's returned report; its prescribed fix-loop is executed below.
+
+## Fix-loop: the three RED items resolved (2026-11-11, orchestrator)
+
+* **RED-R1**: `Phase18CaptureDegradationCharacterizationTest` re-pinned — the header now
+  documents the null-seam legacy regime (byte-identical, unbounded) vs the wired product
+  regime (CN-10); NEW wired tests: two consecutive capture failures with a wired
+  snapshotter end the run GUARD_ABORT with the capture cause in the evidence and ZERO
+  executor calls; one bounded re-capture on the first degraded frame recovers (exactly
+  ONE degraded-capture line, then the counter resets). (The wired tests surfaced the
+  snapshotter's SystemClock default — the test clock is injected.)
+* **RED-R2**: `Phase18GroundingRouteCharacterizationTest` gains the plan's case: a Jev
+  ground failure with THREE location-dependent proposals → GROUNDING_UNAVAILABLE, zero
+  taps/node-clicks, the typed refusal on the step line and in the evidence.
+* **RED-R3**: `VisionModelCallPolicyTest` gains the explicit owner-cancellation case
+  (a retry-provoking 503 with a delayed body + withTimeout(300ms): the in-flight call is
+  cancelled and `server.requestCount` stays 1 — no later retry begins). The test count
+  is now 7, as claimed. (The verifier also noted `ExecutionResult.kt` is dead and the
+  ACT line lacked the NOT_DISPATCHED_ prefix — both already fixed post-part-2-commit.)
+* Gates after the fix-loop: app 822 / core 338, 0 failures.
+
+**STAGE 18.B PART 2 VERDICT (after fix-loop): GREEN**
+
+Also recorded: git-corruption incident — the branch ref file was found zeroed (badRefContent;
+the reflog repaired it to 545f6d6; the worktree was intact). And the doc 04 §5 budget
+table's "Transport retries 20" row is now status-line debt (§9.7 supersedes; code enforces
+attempts 3) — a GLM-5.3 amendment item for a later session.
