@@ -58,18 +58,18 @@ object GoalFidelity {
         "playing", "player", "plays", "playback", "soi", "toistaa",
     )
 
-    private val BUDGET = Regex("""(\d+(?:[.,]\d+)?)\s*(?:€|eur|euros?|usd|\$|dollars?)""")
-    private val BUDGET_EURO_FIRST = Regex("""€\s*(\d+(?:[.,]\d+)?)""")
-    private val ADDRESS = Regex(
+    internal val BUDGET = Regex("""(\d+(?:[.,]\d+)?)\s*(?:€|eur|euros?|usd|\$|dollars?)""")
+    internal val BUDGET_EURO_FIRST = Regex("""€\s*(\d+(?:[.,]\d+)?)""")
+    internal val ADDRESS = Regex(
         """\b(?:delivery|deliver|shipping|ship)\s+to\s+([^.,;\n]+)""",
         RegexOption.IGNORE_CASE,
     )
-    private val ADDRESS_LABEL = Regex("""\baddress\s*:?\s*([^.,;\n]+)""", RegexOption.IGNORE_CASE)
-    private val QUANTITY = Regex(
+    internal val ADDRESS_LABEL = Regex("""\baddress\s*:?\s*([^.,;\n]+)""", RegexOption.IGNORE_CASE)
+    internal val QUANTITY = Regex(
         """\b(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+(?:cases?|items?|units?|pieces?|packs?|bottles?|kpl|kappaletta)\b""",
         RegexOption.IGNORE_CASE,
     )
-    private val SWITCH_TARGET = Regex(
+    internal val SWITCH_TARGET = Regex(
         """\b(?:switch|change)\b[^.]*?\bto\s+(?:the\s+|my\s+|your\s+|our\s+)?([\p{L}\p{N}_@.\-]+)""",
     )
 
@@ -191,14 +191,14 @@ object GoalFidelity {
     // -- site-first (PHASE_17 Stage 0.2 — the R3 rule) ----------------------------------
 
     /** A goal carrying an explicit http(s) URL NAMES a site. */
-    private val URL_IN_TEXT = Regex("""https?://\S+""")
+    internal val URL_IN_TEXT = Regex("""https?://\S+""")
 
     /**
      * A bare domain in the goal. Runs on the RAW lowercase text (the normalized text has
      * no dots): the TargetEntity/ColdStart shape plus the common European ccTLDs the
      * corpus's stores use.
      */
-    private val DOMAIN_IN_TEXT = Regex(
+    internal val DOMAIN_IN_TEXT = Regex(
         """[a-z0-9][a-z0-9-]*(?:\.[a-z0-9][a-z0-9-]*)*\.(?:com|net|org|edu|gov|io|co|fi|se|de|uk)\b""",
     )
 
@@ -214,7 +214,7 @@ object GoalFidelity {
     }
 
     /** `open/on/at …x.y` — a dotted token the goal treats as its site (RFC 2606 hosts too). */
-    private val SITE_NAMED_DOMAIN = Regex(
+    internal val SITE_NAMED_DOMAIN = Regex(
         """(?:^| )(?:open|on|at|from|visit) [a-z0-9][a-z0-9-]*\.[a-z][a-z0-9-]*""",
     )
 
