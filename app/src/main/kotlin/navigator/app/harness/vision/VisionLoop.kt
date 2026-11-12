@@ -582,6 +582,14 @@ class VisionLoop(
     private var taskGate: TaskGate = TaskGate()
 
     /**
+     * PHASE_18 Stage 18.C CN-05 — the IMMUTABLE GOAL CONTRACT (doc 04 §9.4): built once
+     * per run from the goal text (deterministic code parse), reused by every re-plan
+     * install (a strategy change may not weaken a stated parameter). Null before the
+     * first plan of a run. CLASS field per the loop-state discipline.
+     */
+    private var goalContract: navigator.core.ladder.GoalContract? = null
+
+    /**
      * PHASE_18 CN-02 — the snapshot the CURRENT decision consumed (set by
      * [verifiedObserve] when the snapshotter is wired; null = snapshotter-less legacy
      * path). [attemptStep]'s pre-dispatch request carries its id, expected browser
@@ -721,6 +729,9 @@ class VisionLoop(
         )
 
         evidence.event("run start goal=<${goal.take(80)}> budget=100x writer=${budget.hasWriterHardRoom()}")
+        // PHASE_18 CN-05: the goal contract is rebuilt per run (from the goal text; the
+        // contract then carries unchanged across every re-plan within the run).
+        goalContract = null
         // PHASE_18 CN-02: the run-start read goes through the verified snapshot edge —
         // a persistent inconsistency before the plan is a loud GUARD_ABORT (the guard
         // refused twice+; the evidence line names the true cause), never a plan on
@@ -747,6 +758,23 @@ class VisionLoop(
         var ladder = planned.ladder
         var batteries = planned.battery
         var enterTexts = planned.enterText
+        // PHASE_18 Stage 18.C CN-05 — the IMMUTABLE GOAL CONTRACT (doc 04 §9.4): built
+        // deterministically from the goal text before the first navigation, reused by
+        // every re-plan (a strategy change may not weaken a stated parameter). A ladder
+        // that cannot bind a stated parameter is refused at install (the honest refusal
+        // — never a plan on evidence the goal does not own). The clarification terminals
+        // for absent/ambiguous values land with Stage 18.D (CN-15); this stage records
+        // the unmet requirements in the contract.
+        val contract = navigator.core.ladder.GoalContract.fromGoal(goal)
+        val contractViolations = contract.validateLadder(ladder)
+        if (contractViolations.isNotEmpty()) {
+            val line = "plan refused by the goal contract: " +
+                contractViolations.joinToString("; ") + " - the original goal stands"
+            evidence.event(line)
+            log("[vision] $line")
+            return terminal(Terminal.PLAN_REFUSED, null)
+        }
+        goalContract = contract
         evidence.event("plan: ${ladder.summary} (${ladder.subtasks.size} subtasks, ${ladder.taskClass})")
         outcomes.add("plan: ${ladder.summary}")
         var pointer = 0
@@ -1573,6 +1601,22 @@ class VisionLoop(
                     log("[vision] $line")
                     evidence.event(line)
                     return terminal(Terminal.REPLANS_EXHAUSTED, ladder)
+                }
+                // PHASE_18 Stage 18.C CN-05 — the CONTRACT'S re-plan reuse law (doc 04
+                // §9.4): the same immutable contract validates every new ladder — a
+                // re-plan may change strategy, never weaken a stated parameter. A
+                // violation refuses the install (counted as no re-plan capacity, the
+                // ReplanRule precedent; the evidence names the weakened parameter).
+                goalContract?.let { contract ->
+                    val violations = contract.validateReplan(rePlan.ladder)
+                    if (violations.isNotEmpty()) {
+                        val line = "re-plan refused by the goal contract: " +
+                            violations.joinToString("; ") + " - the original goal stands"
+                        outcomes.add(line)
+                        log("[vision] $line")
+                        evidence.event(line)
+                        return terminal(Terminal.REPLANS_EXHAUSTED, ladder)
+                    }
                 }
                 if (batteryReplanQueued) {
                     batteryReplans += 1

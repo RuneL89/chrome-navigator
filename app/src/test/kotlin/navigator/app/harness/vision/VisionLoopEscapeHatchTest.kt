@@ -162,8 +162,8 @@ class VisionLoopEscapeHatchTest {
 
     /** A final WEAK (code-unverifiable) condition that never holds in these scripts. */
     private val weakFinalPlan = """
-        {"summary":"add the product to the cart","taskClass":"action","subtasks":[
-          {"instruction":"add the product to the cart","done":{"markerText":"CART-CONFIRMED"}}]}
+        {"summary":"add two cases of the product to the cart","taskClass":"action","subtasks":[
+          {"instruction":"add two cases of the product to the cart","done":{"markerText":"CART-CONFIRMED"}}]}
     """.trimIndent()
 
     // -- the five cases -------------------------------------------------------------------

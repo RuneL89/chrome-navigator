@@ -54,6 +54,28 @@ sealed interface GoalParameter {
         override val bindingTokens: List<String> get() = GoalParameter.tokens(host)
     }
 
+    /**
+     * The parameter-specific binding check against a subtask instruction's normalized
+     * tokens (doc 04 §9.4: the binding is the same parsed value and unit — a reworded
+     * plan binds, a weakened one does not):
+     * - numeric parameters (quantity count, budget amount): the EXACT number token;
+     * - word parameters (unit, currency): a PREFIX match ("cases" binds "cases"/"case";
+     *   "eur" binds "euros") — the same value modulo inflection;
+     * - text parameters (address, account, media item): the consecutive-run match.
+     */
+    fun bindsIn(instructionTokens: List<String>): Boolean = when (this) {
+        // The count accepts the DIGIT form or the NUMBER-WORD form ("2" / "two") — the
+        // same parsed value; the unit is a prefix match ("cases" binds "cases"/"case").
+        is Quantity -> instructionTokens.any { it == count.toString() || NUMBER_WORDS[it] == count } &&
+            instructionTokens.any { it.startsWith(unit) || unit.startsWith(it) }
+        is Budget -> instructionTokens.any { it == amount } &&
+            instructionTokens.any { it.startsWith(currency) || currency.startsWith(it) }
+        is Address -> GoalParameter.containsRun(instructionTokens, tokens(text))
+        is Account -> GoalParameter.containsRun(instructionTokens, tokens(name))
+        is MediaItem -> GoalParameter.containsRun(instructionTokens, tokens(title))
+        is NamedSite -> instructionTokens.any { it == host || host.startsWith(it) || it.startsWith(host) }
+    }
+
     companion object {
         /** The number-word table (the GoalFidelity parse's numeric form). */
         val NUMBER_WORDS = mapOf(

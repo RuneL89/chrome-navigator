@@ -83,10 +83,14 @@ data class GoalContract(
             }
 
             // Delivery address: "delivery to X" / "address: X" — the verbatim owner text.
+            // The CONTRACT parse uses the stricter colon-required label shape: a bare
+            // "address on X" mention (the FieldForm fixture's form-filling task) is the
+            // TASK, not a stated delivery-address parameter.
             GoalFidelity.ADDRESS.find(rawGoal)?.let { m ->
                 val text = m.groupValues[1].trim()
                 if (text.isNotBlank()) parameters.add(GoalParameter.Address(text))
-            } ?: GoalFidelity.ADDRESS_LABEL.find(rawGoal)?.let { m ->
+            } ?: Regex("""address\s*:\s*([^.,;
+]+)""", RegexOption.IGNORE_CASE).find(rawGoal)?.let { m ->
                 val text = m.groupValues[1].trim()
                 if (text.isNotBlank()) parameters.add(GoalParameter.Address(text))
             }
@@ -131,9 +135,12 @@ data class GoalContract(
             GoalFidelity.DOMAIN_IN_TEXT.find(raw)?.let { m ->
                 return m.value
             }
+            // The SITE_NAMED_DOMAIN match starts at the SPACE before the action verb —
+            // trim first, then strip the verb, or the host carries a corrupted leading
+            // space (" on youtube.test") that no ladder instruction can ever bind.
             GoalFidelity.SITE_NAMED_DOMAIN.find(raw)?.let { m ->
-                return m.value.removePrefix("open ").removePrefix("on ")
-                    .removePrefix("at ").removePrefix("from ").removePrefix("visit ")
+                return m.value.trim()
+                    .replace(Regex("^(open|on|at|from|visit) "), "")
             }
             return null
         }
@@ -159,11 +166,13 @@ data class GoalContract(
             GoalParameter.tokens(subtask.instruction)
         }
         for (parameter in parameters) {
-            val bindingTokens = parameter.bindingTokens
-            if (bindingTokens.isEmpty()) continue
-            val bound = instructionTexts.any { instruction ->
-                GoalParameter.containsRun(instruction, bindingTokens) ||
-                    bindingTokens.all { instruction.contains(it) }
+            // The NamedSite parameter binds through the SITE-ENTRY mechanism (the code's
+            // own navigation: the GoalFidelity site-first law + SiteEntry's VIEW intent),
+            // never through a subtask instruction — a scroll/list ladder on the named
+            // host lawfully carries no site tokens.
+            if (parameter is GoalParameter.NamedSite) continue
+            val bound = instructionTexts.any { instructionTokens ->
+                parameter.bindsIn(instructionTokens)
             }
             if (!bound) {
                 violations.add(
