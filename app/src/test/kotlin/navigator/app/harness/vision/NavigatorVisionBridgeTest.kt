@@ -527,7 +527,7 @@ class NavigatorVisionBridgeTest {
             {"summary":"open example","taskClass":"read","subtasks":[
               {"instruction":"open the example page","done":{"urlHost":"next.test"}}]}
         """.trimIndent()
-        val propose = """{"proposals":[{"description":"the 'Go' button","action":"tap"}]}"""
+        val propose = """{"proposals":[{"description":"the 'Go' button","action":"tap","expectedEffect":{"expect":"TargetStateChanged"}}]}"""
         val confirm = """{"complete":true,"reason":"the example page is visible"}"""
         val executor = RecordingExecutor()
         val logLines = mutableListOf<String>()

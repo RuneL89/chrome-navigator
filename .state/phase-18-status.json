@@ -13,7 +13,7 @@
       "Vision-doc amendments are drafted in separate GLM-5.3 sessions per amendment; implementation pauses at any unratified amendment"
     ]
   },
-  "lastAction": "Stage 18.B part 2 implemented (orchestrator, same usage-limit deviation); gates green app 818 / core 338.",
+  "lastAction": "Stage 18.C part 1 implemented by the orchestrator (the implementer subagent hit a WEEKLY limit, reset 2026-11-12 23:14; the continue directive applied); gates green app 828 / core 338.",
   "gatesPassed": [
     "18.A1",
     "18.A2",
@@ -41,7 +41,8 @@
     "DOX pass (mandated by the root AGENTS.md Update-After-Editing contract, outside the stage's literal editable list but required by the repo contract): .state/AGENTS.md gained the phase-18-docs-audit.md + fixture-location bullet; app/AGENTS.md Verification gained the Stage 18.A fixtures/characterization block. Zero behavior-bearing files beyond README.md and the allowed test/.state paths were touched.",
     "Stage 18.A re-verification pass (2026-11-11, the implementer's cold re-check before hand-off): two WIP defects found and fixed in the stage's own artifacts — (1) NavigatorVisionBridgeTest.kt had an EXISTING test's two lines accidentally merged by the Stage-18.A edit; restored to the upstream two-line form (git diff vs HEAD for that file is now purely the one added test); (2) this status JSON had a trailing comma making it unparseable — fixed. Neither defect touched behavior or assertions.",
     "FIX-LOOP 2026-11-11 (owner fix-loop directive; the emulator verification found it, evidence task-1794374180813): hybrid STUCK_KILL ran with NO terminal= line in the shared evidence events.log — the host's finish() funnel never wrote it and HybridParts.evidence was dead wiring (never consumed). Fixed with the smallest lawful change: NavigationLoop runEvidence seam + writeTerminalEvidence() at the ONE finish() site (modality=HYBRID, mirrored fields, real escalations count via the new visionEscalations class field); the bridge shares ONE VisionEvidence between the tool loop and the host (a second instance would have reported zeros — the truthfulness law); TREE_ONLY/ALWAYS_VISION laws unchanged (null seam = no write; VisionLoop.run() keeps its own writer; the a11y record stays out of events.log per doc 05 §4). New JVM gate: HybridTerminalEvidenceTest (3 tests: STUCK_KILL writes exactly one terminal=... modality=HYBRID line with steps/replans/escalations and no fabricated answer; the shared ledger rides the line; no record wired = no events.log line). Vision-law unchanged: the terminal line FORMAT is exactly doc 05 §2's shape. Residual observation (recorded, not fixed — outside the defect's scope): the host's own writer calls (plan/re-plan via VisionLadderSource, the stuck event, the boundary judge) ride a SECOND client pair (newHybridParts' newClients) that records into no evidence, so the hybrid events.log does not carry the host's plan/flip lines yet — Phase 18 Stage E's record-unification work, not this fix.",
-    "Stage 18.B part 1: the canon-implementer subagent was interrupted by a usage limit after CN-02 files + three CN-03 files; the ORCHESTRATOR completed the remainder (GuardedActionExecutor collapsed into the ACT choke point and removed as dead code; VisionFreshReader added; VisionLoop seams verifiedObserve/preDispatchGuard; bridge wiring from capture.a11yService). Maker/checker separation is preserved for the CHECK: canon-verifier still cold-checks the stage."
+    "Stage 18.B part 1: the canon-implementer subagent was interrupted by a usage limit after CN-02 files + three CN-03 files; the ORCHESTRATOR completed the remainder (GuardedActionExecutor collapsed into the ACT choke point and removed as dead code; VisionFreshReader added; VisionLoop seams verifiedObserve/preDispatchGuard; bridge wiring from capture.a11yService). Maker/checker separation is preserved for the CHECK: canon-verifier still cold-checks the stage.",
+    "Stage 18.C part 1: the implementer subagent was interrupted by a WEEKLY quota (reset 2026-11-12 23:14); the orchestrator completed the remainder (the WIP was substantial: the four types + the v20 prompt/schema + ExpBudget + NoProgressBudget all present and compiling; the orchestrator fixed one incomplete test expression and adapted 21 rippling test classes to the v20 schema + the independent-warning law + the postcondition semantics). Maker/checker separation preserved for the check."
   ],
   "fixLoop": {
     "date": "2026-11-11",
@@ -51,7 +52,7 @@
     "gates": "core 338 / 0; app 790 / 0 (fresh --rerun-tasks full run)",
     "runMethodSize": "NavigationLoop.run() javap 58,285 -> 58,301 of 65,535 (+16 bytes; the write lives in class-scope writeTerminalEvidence + the run$finish synthetic)"
   },
-  "nextAction": "canon-verifier cold-check of Stage 18.B part 2, then the emulator regression pass",
+  "nextAction": "canon-verifier cold-check of Stage 18.C part 1",
   "stage18B": {
     "part1": {
       "scope": "CN-02 consistent snapshot + CN-03 fresh pre-dispatch guard (landed together)",
@@ -65,5 +66,13 @@
       "tests": "VisionModelCallPolicyTest 7/7 (MockWebServer end-to-end); Phase18TerminalAndRetry updated to the new law; grounding/capture characterization updated per §9.8",
       "correction": "the adaptation record was WRONG: the 20-retry ceiling IS real on the frontier (VisionHaiku/VisionJev default maxRetries=20 — the earlier check read SystemOneClient, capped at 2). CN-08 implemented in FULL. Correction recorded in the contradiction report."
     }
+  },
+  "stage18C": {
+    "part1": {
+      "scope": "CN-04 action postconditions + semantic progress; CN-11 ExpBudget fixes + NoProgressBudget",
+      "implemented": "loop/ActionPostcondition.kt + ActionPostconditionChecker.kt + ActionReceipt.kt + NoProgressBudget.kt; VISION_PROMPT_VERSION v20 (expectedEffect REQUIRED on tap/type/submit; parseProposals rejects missing/unknown; scroll/back tolerate absence); the golden retire-and-add (golden-vision-propose-v20.json); ExpBudget independent soft warnings; the pre-call writer-room enforcement; NoProgressBudget wired into VisionLoop Config thresholds feeding the failed-step/re-plan gate; progresses ONLY from verified effects; the same-action accounting consumes receipts",
+      "tests": "VisionProposeSchemaTest (the v20 goldens, violations, tolerance); Phase18ExpBudgetCharacterizationTest re-pinned to the independent law; 17 scripted suites carry v20 declarations; gates app 828 / core 338"
+    },
+    "part2": "CN-05 (goal contract) + CN-06 (prefix runtime states) + CN-07 (final verifier) pending — the law is ratified (doc 04 §9.4-9.6)"
   }
 }

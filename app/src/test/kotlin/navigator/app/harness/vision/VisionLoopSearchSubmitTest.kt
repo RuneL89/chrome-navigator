@@ -201,14 +201,14 @@ class VisionLoopSearchSubmitTest {
 
     /** A native TYPE at the address bar; the DIVERGENT proposal text drops the dates (run-4). */
     private fun nativeTypeAtAddressBar(text: String) = """
-        {"proposals":[{"description":"the address bar at the top of the screen","action":"type",
+        {"proposals":[{"description":"the address bar at the top of the screen","action":"type","expectedEffect":{"expect":"FieldContainsExpectedValue"},
           "text":"$text",
           "box":{"top":0.02,"bottom":0.05,"left":0.10,"right":0.90},"confidence":0.9}]}
     """.trimIndent()
 
     /** A native TYPE at an IN-PAGE search field (not browser chrome). */
     private fun nativeTypeAtPageField(text: String) = """
-        {"proposals":[{"description":"the page's search field","action":"type",
+        {"proposals":[{"description":"the page's search field","action":"type","expectedEffect":{"expect":"FieldContainsExpectedValue"},
           "text":"$text",
           "box":{"top":0.20,"bottom":0.23,"left":0.10,"right":0.90},"confidence":0.9}]}
     """.trimIndent()
@@ -435,7 +435,7 @@ class VisionLoopSearchSubmitTest {
             clickable = false, editable = true, text = "Password", isPassword = true,
         )
         val proposeType = """
-            {"proposals":[{"description":"the password field","action":"type",
+            {"proposals":[{"description":"the password field","action":"type","expectedEffect":{"expect":"FieldContainsExpectedValue"},
               "text":"proposal-plain-text",
               "box":{"top":0.10,"bottom":0.13,"left":0.10,"right":0.90},"confidence":0.9}]}
         """.trimIndent()

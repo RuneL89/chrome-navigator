@@ -145,7 +145,7 @@ class Phase18GroundingRouteCharacterizationTest {
                 className = "android.widget.Button", sourceOrder = 0,
             )
             val proposal = """
-                {"proposals":[{"description":"the mystery control with no label here","action":"tap",
+                {"proposals":[{"description":"the mystery control with no label here","action":"tap","expectedEffect":{"expect":"TargetStateChanged"},
                   "box":{"top":0.60,"bottom":0.65,"left":0.60,"right":0.70},"confidence":0.9}]}
             """.trimIndent()
             val plan = """
@@ -231,9 +231,9 @@ class Phase18GroundingRouteCharacterizationTest {
             )
             val threeProposals = """
                 {"proposals":[
-                  {"description":"the mystery tap control","action":"tap","box":{"top":0.6,"bottom":0.65,"left":0.6,"right":0.7},"confidence":0.9},
-                  {"description":"the mystery field","action":"type","box":{"top":0.3,"bottom":0.35,"left":0.3,"right":0.7},"confidence":0.9,"text":"x"},
-                  {"description":"the mystery submit","action":"submit","confidence":0.9}]}
+                  {"description":"the mystery tap control","action":"tap","expectedEffect":{"expect":"TargetStateChanged"},"box":{"top":0.6,"bottom":0.65,"left":0.6,"right":0.7},"confidence":0.9},
+                  {"description":"the mystery field","action":"type","expectedEffect":{"expect":"FieldContainsExpectedValue"},"box":{"top":0.3,"bottom":0.35,"left":0.3,"right":0.7},"confidence":0.9,"text":"x"},
+                  {"description":"the mystery submit","action":"submit","expectedEffect":{"expect":"NavigationOccurred"},"confidence":0.9}]}
             """.trimIndent()
             val plan = """
                 {"summary":"act on the mystery controls on shoptest.test","taskClass":"action","subtasks":[

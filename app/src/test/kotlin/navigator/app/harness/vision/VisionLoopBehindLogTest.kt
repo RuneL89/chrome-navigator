@@ -168,12 +168,12 @@ class VisionLoopBehindLogTest {
     }
 
     private val tapSearch = """
-        {"proposals":[{"description":"the 'Search' button","action":"tap",
+        {"proposals":[{"description":"the 'Search' button","action":"tap","expectedEffect":{"expect":"TargetStateChanged"},
           "box":{"top":0.20,"bottom":0.25,"left":0.10,"right":0.30},"confidence":0.9}]}
     """.trimIndent()
 
     private val tapAddressBar = """
-        {"proposals":[{"description":"the address bar at the top of the screen","action":"tap",
+        {"proposals":[{"description":"the address bar at the top of the screen","action":"tap","expectedEffect":{"expect":"TargetStateChanged"},
           "box":{"top":0.02,"bottom":0.05,"left":0.10,"right":0.90},"confidence":0.9}]}
     """.trimIndent()
 
@@ -182,7 +182,7 @@ class VisionLoopBehindLogTest {
     """.trimIndent()
 
     private val tapContinue = """
-        {"proposals":[{"description":"the Continue button","action":"tap","confidence":0.9}]}
+        {"proposals":[{"description":"the Continue button","action":"tap","expectedEffect":{"expect":"TargetStateChanged"},"confidence":0.9}]}
     """.trimIndent()
 
     /** The pick-only GROUND answer (a scroll proposal carries no box). */

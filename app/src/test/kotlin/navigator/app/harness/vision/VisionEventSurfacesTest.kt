@@ -77,7 +77,7 @@ class VisionEventSurfacesTest {
 
         assertFalse(verdict.planHolds)
         assertEquals("the page is a login wall", verdict.reason)
-        assertEquals("vision-exp-v19", verdict.promptVersion)
+        assertEquals("vision-exp-v20", verdict.promptVersion)
         assertTrue(verdict.costMicroUsd > 0, "the call's provider usage prices")
         val body = transport.bodies.single()
         assertTrue("image_url" in body, "the dual evidence rides the boundary: $body")
@@ -123,7 +123,7 @@ class VisionEventSurfacesTest {
 
         assertTrue(result.text.contains("checkout form"), result.text)
         assertTrue(result.usage.costMicroUsd > 0, "the stuck event meters its usage")
-        assertEquals("vision-exp-v19", result.promptVersion)
+        assertEquals("vision-exp-v20", result.promptVersion)
         val body = transport.bodies.single()
         assertTrue("image_url" in body, "the stuck event carries the screenshot: $body")
     }

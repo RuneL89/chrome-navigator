@@ -257,7 +257,7 @@ class Phase18R3ChromeStateAndFormFixtureTest {
             // The proposer types into an empty field; the fixture page is static, so the
             // per-field read-back sees the text never landed (the R3 fill gap).
             fun typeProposal(description: String, text: String, top: Double, bottom: Double) =
-                """{"proposals":[{"description":"$description","action":"type","text":"$text",
+                """{"proposals":[{"description":"$description","action":"type","expectedEffect":{"expect":"FieldContainsExpectedValue"},"text":"$text",
                     "box":{"top":$top,"bottom":$bottom,"left":0.0,"right":1.0},"confidence":0.9}]}"""
                     .replace("\n", "")
             val transport = ScriptedTransport(

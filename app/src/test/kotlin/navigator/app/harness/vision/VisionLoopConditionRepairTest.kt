@@ -527,7 +527,7 @@ class VisionLoopConditionRepairTest {
                     chatContent(outcomesPlan),
                     chatContent(haikuBattery(resultsQuestion to true)),
                     chatContent(repairContent("""{"markerText":"RESULTS-ONLY-ON-ANOTHER-PAGE"}""")),
-                    chatContent("""{"proposals":[{"description":"the Book now button","action":"tap"}]}"""),
+                    chatContent("""{"proposals":[{"description":"the Book now button","action":"tap","expectedEffect":{"expect":"TargetStateChanged"}}]}"""),
                     chatContent("""{"proposals":[]}"""),
                     chatContent("""{"complete":false,"reason":"no results list"}"""),
                 ),

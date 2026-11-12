@@ -144,7 +144,7 @@ class Phase18CaptureDegradationCharacterizationTest {
             className = "android.widget.Button", sourceOrder = 0,
         )
         val proposal = """
-            {"proposals":[{"description":"the 'Search' button","action":"tap","confidence":0.9}]}
+            {"proposals":[{"description":"the 'Search' button","action":"tap","expectedEffect":{"expect":"TargetStateChanged"},"confidence":0.9}]}
         """.trimIndent()
         val plan = """
             {"summary":"tap the search control on capture-fail.test","taskClass":"action","subtasks":[
@@ -205,7 +205,7 @@ class Phase18CaptureDegradationCharacterizationTest {
               {"instruction":"tap the search control","done":{"urlHost":"done.test"}}]}
         """.trimIndent()
         val proposal = """
-            {"proposals":[{"description":"the 'Search' button","action":"tap","confidence":0.9}]}
+            {"proposals":[{"description":"the 'Search' button","action":"tap","expectedEffect":{"expect":"TargetStateChanged"},"confidence":0.9}]}
         """.trimIndent()
         val transport = ScriptedTransport(
             chatResponses = listOf(chatContent(plan)) + chat.map { chatContent(it) },
@@ -290,5 +290,5 @@ class Phase18CaptureDegradationCharacterizationTest {
     }
 
     private fun proposal2(): String =
-        """{"proposals":[{"description":"the 'Search' button","action":"tap","confidence":0.9}]}"""
+        """{"proposals":[{"description":"the 'Search' button","action":"tap","expectedEffect":{"expect":"TargetStateChanged"},"confidence":0.9}]}"""
 }

@@ -195,7 +195,7 @@ class VisionLoopScrollChurnTest {
           {"instruction":"add the celsius product to the cart","done":{"urlHost":"done.test"}}]}
     """.trimIndent()
 
-    private val scrollDown = """{"proposals":[{"description":"scroll down the product page","action":"scroll_down"}]}"""
+    private val scrollDown = """{"proposals":[{"description":"scroll down the product page","action":"scroll_down","expectedEffect":{"expect":"ViewportMoved"}}]}"""
     private val proposeEmpty = """{"proposals":[]}"""
 
     private fun baseConfig(maxReplans: Int = 0) =
@@ -349,7 +349,7 @@ class VisionLoopScrollChurnTest {
         runBlocking {
             // WI2-3: scroll, scroll, SUBMIT (an acted non-scroll), scroll, scroll -> no
             // churn block and no evidence marker anywhere: the counter restarted.
-            val submit = """{"proposals":[{"description":"the keyboard search key","action":"submit"}]}"""
+            val submit = """{"proposals":[{"description":"the keyboard search key","action":"submit","expectedEffect":{"expect":"NavigationOccurred"}}]}"""
             val transport = ScriptedVisionTransport(
                 ArrayDeque(listOf(
                     chatContent(plan),

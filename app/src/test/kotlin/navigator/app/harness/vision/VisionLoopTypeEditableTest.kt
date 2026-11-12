@@ -173,14 +173,14 @@ class VisionLoopTypeEditableTest {
 
     /** The live defect's shape: both boxes land far from the bar, so the LABEL arm grounds. */
     private val typeAddressBarMiss = """
-        {"proposals":[{"description":"the address bar at the top of the screen","action":"type",
+        {"proposals":[{"description":"the address bar at the top of the screen","action":"type","expectedEffect":{"expect":"FieldContainsExpectedValue"},
           "text":"hotels in Riga",
           "box":{"top":0.60,"bottom":0.65,"left":0.60,"right":0.70},"confidence":0.9}]}
     """.trimIndent()
 
     /** The Jev box covers the bar exactly (100..900 x 40..100 of 1000x2000). */
     private val typeAddressBarHit = """
-        {"proposals":[{"description":"the address bar at the top of the screen","action":"type",
+        {"proposals":[{"description":"the address bar at the top of the screen","action":"type","expectedEffect":{"expect":"FieldContainsExpectedValue"},
           "text":"hotels in Riga",
           "box":{"top":0.02,"bottom":0.05,"left":0.10,"right":0.90},"confidence":0.9}]}
     """.trimIndent()
@@ -328,7 +328,7 @@ class VisionLoopTypeEditableTest {
     // -- the FIELD read-back (PHASE_17 Stage 0.4) -----------------------------------------
 
     private val typeEtunimi = """
-        {"proposals":[{"description":"the Etunimi field under the address form","action":"type",
+        {"proposals":[{"description":"the Etunimi field under the address form","action":"type","expectedEffect":{"expect":"FieldContainsExpectedValue"},
           "text":"Rune Lauritzen",
           "box":{"top":0.02,"bottom":0.05,"left":0.10,"right":0.90},"confidence":0.9}]}
     """.trimIndent()

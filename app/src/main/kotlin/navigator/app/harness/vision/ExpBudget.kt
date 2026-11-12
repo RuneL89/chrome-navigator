@@ -21,6 +21,7 @@ package navigator.app.harness.vision
 class ExpBudget(private val nowMs: () -> Long = System::currentTimeMillis) {
 
     private val startMs: Long = nowMs()
+    private var stepsSoftWarned = false
     private var spendSoftWarned = false
     private var writerSoftWarned = false
     private var timeSoftWarned = false
@@ -37,7 +38,15 @@ class ExpBudget(private val nowMs: () -> Long = System::currentTimeMillis) {
         if (writerSurface) writerSpendMicroUsd += microUsd
     }
 
-    /** The step-budget verdict at [stepsUsed]. */
+    /**
+     * The step-budget verdict at [stepsUsed]. PHASE_18 CN-11 (doc 04 §9.7): the step,
+     * spend, and elapsed-time SOFT thresholds are evaluated INDEPENDENTLY and each warns
+     * exactly ONCE (the pre-18.C quirk — the steps branch set the spend/time flags without
+     * testing them, so spend or time past their soft ceilings alone never warned — is
+     * fixed; the Stage 18.A characterization suite was consciously re-pinned). The HARD
+     * checks are unchanged: each fires at one past its documented ceiling (`>` the
+     * boundary), independently of the other dimensions.
+     */
     fun stepCheck(stepsUsed: Int): Check {
         if (stepsUsed > STEPS_HARD) return Check.Hard("steps $stepsUsed > hard $STEPS_HARD")
         if (spendMicroUsd > SPEND_HARD_MICRO_USD) {
@@ -45,10 +54,17 @@ class ExpBudget(private val nowMs: () -> Long = System::currentTimeMillis) {
         }
         val elapsed = nowMs() - startMs
         if (elapsed > TIME_HARD_MS) return Check.Hard("elapsed ${elapsed}ms > hard $TIME_HARD_MS")
-        if (stepsUsed > STEPS_SOFT && !spendSoftWarned && !timeSoftWarned) {
+        if (stepsUsed > STEPS_SOFT && !stepsSoftWarned) {
+            stepsSoftWarned = true
+            return Check.Soft("steps $stepsUsed > soft $STEPS_SOFT — continuing")
+        }
+        if (spendMicroUsd > SPEND_SOFT_MICRO_USD && !spendSoftWarned) {
             spendSoftWarned = true
+            return Check.Soft("spend ${spendMicroUsd}µ\$ > soft $SPEND_SOFT_MICRO_USD — continuing")
+        }
+        if (elapsed > TIME_SOFT_MS && !timeSoftWarned) {
             timeSoftWarned = true
-            return Check.Soft("steps $stepsUsed > soft $STEPS_SOFT (or time past soft) — continuing")
+            return Check.Soft("elapsed ${elapsed}ms > soft $TIME_SOFT_MS — continuing")
         }
         return Check.Ok
     }

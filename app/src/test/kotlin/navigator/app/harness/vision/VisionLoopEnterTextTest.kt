@@ -162,7 +162,7 @@ class VisionLoopEnterTextTest {
 
     /** The GROUND box covers the address-bar node exactly (100..900 x 40..100 of 1000x2000). */
     private val tapAddressBar = """
-        {"proposals":[{"description":"the address bar at the top of the screen","action":"tap",
+        {"proposals":[{"description":"the address bar at the top of the screen","action":"tap","expectedEffect":{"expect":"TargetStateChanged"},
           "box":{"top":0.02,"bottom":0.05,"left":0.10,"right":0.90},"confidence":0.9}]}
     """.trimIndent()
 

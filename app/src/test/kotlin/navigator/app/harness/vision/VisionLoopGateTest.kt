@@ -110,7 +110,7 @@ class VisionLoopGateTest {
     """.trimIndent()
 
     private val proposeUnsubscribeTap =
-        """{"proposals":[{"description":"Unsubscribe from Garden Week","action":"tap"}]}"""
+        """{"proposals":[{"description":"Unsubscribe from Garden Week","action":"tap","expectedEffect":{"expect":"TargetStateChanged"}}]}"""
     private val proposeEmpty = """{"proposals":[]}"""
     private val confirmTrue = """{"complete":true,"reason":"the outcome is visible"}"""
     private val confirmFalse = """{"complete":false,"reason":"nothing yet"}"""
@@ -234,7 +234,7 @@ class VisionLoopGateTest {
             node("n2", 100, 200, 300, 250, clickable = false, editable = true, text = "Password", isPassword = true),
         )
         val proposeType =
-            """{"proposals":[{"description":"Password","action":"type","text":"proposal-plain-text"}]}"""
+            """{"proposals":[{"description":"Password","action":"type","expectedEffect":{"expect":"FieldContainsExpectedValue"},"text":"proposal-plain-text"}]}"""
         val transport = ScriptedVisionTransport(
             // plan, propose(type), the accept's confirm
             chatResponses = ArrayDeque(listOf(chatContent(plan), chatContent(proposeType), chatContent(confirmTrue))),
@@ -271,7 +271,7 @@ class VisionLoopGateTest {
             node("n2", 100, 200, 300, 250, clickable = false, editable = true, text = "Password", isPassword = true),
         )
         val proposeType =
-            """{"proposals":[{"description":"Password","action":"type","text":"proposal-plain-text"}]}"""
+            """{"proposals":[{"description":"Password","action":"type","expectedEffect":{"expect":"FieldContainsExpectedValue"},"text":"proposal-plain-text"}]}"""
         val transport = ScriptedVisionTransport(
             chatResponses = ArrayDeque(listOf(chatContent(plan), chatContent(proposeType))),
             jevResponses = ArrayDeque(),

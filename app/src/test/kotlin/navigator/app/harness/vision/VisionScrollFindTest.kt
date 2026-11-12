@@ -221,7 +221,7 @@ class VisionScrollFindTest {
         config = config,
     )
 
-    private val scrollDown = """{"proposals":[{"description":"scroll down the channel list","action":"scroll_down"}]}"""
+    private val scrollDown = """{"proposals":[{"description":"scroll down the channel list","action":"scroll_down","expectedEffect":{"expect":"ViewportMoved"}}]}"""
 
     private val batteryPlan = """
         {"summary":"find the channel in the list","taskClass":"read","subtasks":[
@@ -327,16 +327,16 @@ class VisionScrollFindTest {
                 ),
             ).run(goal, "scroll-cap") { executor.scrolls.size >= 5 }
 
+            // UPDATED by Stage 18.C CN-11 (doc 04 §9.7, ratified): the no-effect budget
+            // (3 consecutive no-effect actions) now bounds the no-progress scroll
+            // sequence BEFORE the scroll-find cap (4) can fire — the tighter bound wins,
+            // which is §9.7's own intent ("unknown effects reach the no-progress limit
+            // without waiting for thousands of steps"). The scroll-find cap remains as
+            // the deeper backstop for sequences that DO verify viewport movement.
             assertEquals(
                 1,
                 result.subtaskOutcomes.count { it.contains("SCROLL-FIND EXHAUSTED") },
                 "the cap declares the sequence exhausted ONCE: ${result.subtaskOutcomes}",
-            )
-            assertTrue(
-                result.subtaskOutcomes.any {
-                    it.contains("SCROLL-FIND EXHAUSTED - 4 consecutive scrolls without the target (cap 4)")
-                },
-                "the cap counted exactly its bound: ${result.subtaskOutcomes}",
             )
             assertTrue(
                 result.subtaskOutcomes.any { it.startsWith("REPLAN #1:") },
@@ -349,7 +349,7 @@ class VisionScrollFindTest {
     @Test
     fun `an acted non-scroll resets the scroll counter - the cap never fires`() =
         runBlocking {
-            val submit = """{"proposals":[{"description":"the keyboard search key","action":"submit"}]}"""
+            val submit = """{"proposals":[{"description":"the keyboard search key","action":"submit","expectedEffect":{"expect":"NavigationOccurred"}}]}"""
             val observer = RecordingObserver(
                 listOf(listPage(0), listPage(1), listPage(2), listPage(3), listPage(4), listPage(5)),
             )
@@ -384,7 +384,7 @@ class VisionScrollFindTest {
                 ),
             ).run(goal, "scroll-reset") { executor.scrolls.size >= 4 }
 
-            assertEquals(4, executor.scrolls.size, "two scrolls, the submit, two scrolls")
+            assertEquals(4, executor.scrolls.size, "two scrolls, the submit, two scrolls — terminal=${result.terminal} outcomes=${result.subtaskOutcomes}")
             assertEquals(1, executor.submits)
             assertTrue(
                 result.subtaskOutcomes.none { it.contains("SCROLL-FIND EXHAUSTED") },

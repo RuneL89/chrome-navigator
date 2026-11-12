@@ -3,12 +3,16 @@ package navigator.app.harness.vision
 import kotlinx.coroutines.delay
 import navigator.app.gen.LadderSchema
 import navigator.app.loop.ActionExecutor
+import navigator.app.loop.ActionPostconditionChecker
+import navigator.app.loop.ActionReceipt
+import navigator.app.loop.ExpectedEffect
 import navigator.app.loop.ExecutionRequest
 import navigator.app.loop.FrameBounds
 import navigator.app.loop.GatePresenter
 import navigator.app.loop.GateResolution
 import navigator.app.loop.GuardActionKind
 import navigator.app.loop.LoopObserver
+import navigator.app.loop.NoProgressBudget
 import navigator.app.loop.PreDispatchGuard
 import navigator.app.loop.RectPxBox
 import navigator.app.loop.StepObservation
@@ -288,6 +292,24 @@ class VisionLoop(
          * host loop escalated to vision; the tool must report back, never wander).
          */
         val subtaskMaxSteps: Int = 40,
+        // -- PHASE_18 Stage 18.C CN-11 — the NoProgressBudget thresholds (doc 04 §9.7) ----
+        // Independent semantic no-progress ledgers, deliberately SMALL (the handoff
+        // calibration): an unproductive subtask must hit its bound long before the global
+        // ceilings (the 6,000-step wall). Only a VERIFIED effect resets the effect-run
+        // counters; the existing re-plan budgets stay the enforcement (this is the
+        // semantic layer over them).
+        /** Consecutive unknown/no-effect actions before the loop feeds its re-plan gate. */
+        val noProgressNoEffectActions: Int = 3,
+        /** Consecutive wrong-context (wrong-host navigation) actions before the gate. */
+        val noProgressWrongContextActions: Int = 2,
+        /** Consecutive grounding failures before the gate (the CN-09 refusals feed it). */
+        val noProgressGroundingFailures: Int = 3,
+        /** Consecutive model failures before the gate. */
+        val noProgressModelFailures: Int = 3,
+        /** Planning attempts per planning event (ledgered; the enforcement stays planAttempts). */
+        val noProgressPlanningAttemptsPerEvent: Int = 3,
+        /** The per-subtask ordinary-re-plan reminder bound (ledgered; enforcement stays maxReplans). */
+        val noProgressReplansPerSubtask: Int = 3,
     ) {
         init {
             require(scrollChurnReplanAfter >= scrollChurnHintAfter) {
@@ -567,6 +589,48 @@ class VisionLoop(
      */
     private var currentSnapshot: VisionSnapshot? = null
 
+    /**
+     * PHASE_18 Stage 18.C CN-11 — the SEMANTIC no-progress ledger (doc 04 §9.7): the
+     * independent counters whose verdicts feed the failure/re-plan gate (the re-plan
+     * BUDGET wiring stays [Config.maxReplans]/[Config.batteryReplansPerSubtask]; this is
+     * the additive semantic layer). Thresholds ride [Config]; reset laws in
+     * [NoProgressBudget].
+     */
+    private val noProgress = NoProgressBudget(
+        NoProgressBudget.Limits(
+            noEffectActions = config.noProgressNoEffectActions,
+            wrongContextActions = config.noProgressWrongContextActions,
+            groundingFailures = config.noProgressGroundingFailures,
+            modelFailures = config.noProgressModelFailures,
+            planningAttemptsPerEvent = config.noProgressPlanningAttemptsPerEvent,
+            replansPerSubtask = config.noProgressReplansPerSubtask,
+        ),
+    )
+
+    /**
+     * PHASE_18 Stage 18.C CN-04 — the PENDING action receipt: the decision-time facts of
+     * the action just dispatched. The FRESH post-action observation (the next iteration's
+     * verified observe — the existing post-step bookkeeping seam where the fresh obs is
+     * already in hand) completes the [ActionReceipt], verifies the declared postcondition,
+     * and ONLY THEN may `progresses` flip true. Class field per the loop-state discipline.
+     */
+    private var pendingActionReceipt: PendingActionReceipt? = null
+
+    /** The receipt's decision-time facts (see [pendingActionReceipt]). */
+    private class PendingActionReceipt(
+        val acted: Attempted.Acted,
+        val verb: String,
+        val targetClass: String?,
+        val targetLabel: String?,
+        val expectation: ExpectedEffect?,
+        val dispatchExecuted: Boolean,
+        val pageHashBefore: Int,
+        val previous: StepObservation,
+        val conditionHosts: Set<String>,
+        /** The value the action typed (in-memory for the field check ONLY — never a receipt/evidence field). */
+        val typedValue: String?,
+    )
+
     /** The verified observe+capture outcome (CN-02): got a consistent pair, or stale. */
     private sealed interface VerifiedObs {
         data class Got(val obs: StepObservation, val shot: VisionCapture.ScreenShot?) : VerifiedObs
@@ -708,6 +772,9 @@ class VisionLoop(
         pendingTypeReadBack = null // PHASE_17 Stage 0.4: no read-back crosses a run
         readBackLosses.clear()
         failuresSinceAdvance = 0 // PHASE_17: the prefix audit never crosses runs/tasks
+        // PHASE_18 CN-04/CN-11: no pending receipt and no ledger count crosses a run.
+        pendingActionReceipt = null
+        noProgress.resetRun()
         lastObservedUrl = obs.url
         stepPurchaseControlVisible = PurchaseControl.hasVisible(obs.nodes)
 
@@ -770,6 +837,7 @@ class VisionLoop(
             resetSameAction() // PHASE_16: a new subtask is a new action space
             pendingTypeReadBack = null // PHASE_17 Stage 0.4: no read-back crosses a subtask
             readBackLosses.clear()
+            noProgress.resetSubtaskScope() // PHASE_18 CN-11: the per-subtask ledgers restart
             step += 1
             return null
         }
@@ -809,6 +877,7 @@ class VisionLoop(
             consecutiveScrolls = 0
             churnHintLogged = false
             resetSameAction()
+            noProgress.resetSubtaskScope() // PHASE_18 CN-11: the re-entered subtask starts clean
             val line = "PREFIX ROLLBACK: subtask ${invalid + 1}/${ladder.subtasks.size} - " +
                 "\"$condition\" no longer holds on the current page - re-entering it"
             outcomes.add(line)
@@ -877,6 +946,42 @@ class VisionLoop(
                     failuresSinceAdvance += 1
                     step += 1
                     continue
+                }
+            }
+            // -- PHASE_18 Stage 18.C CN-04: THE ACTION RECEIPT (doc 04 §9.3) -------------
+            // The FRESH post-action observation completes the previous step's pending
+            // receipt: the pure checker verifies the declared postcondition, and ONLY a
+            // verified effect resets the failure counter. A wrong-host navigation is
+            // WRONG_CONTEXT (a failure feeding the recovery path, never progress); an
+            // unknown effect resets nothing. This runs in the existing post-step
+            // bookkeeping where the fresh obs is already in hand — zero extra reads.
+            completeReceiptFacts(obs)?.let { receipt ->
+                evidence.event(
+                    "DIAG receipt v=${receipt.verified} hashBefore=${receipt.pageHashBefore} hashAfter=${receipt.pageHashAfter} verb=${receipt.verb}",
+                )
+                consumeReceipt(receipt)
+                when (val v = receipt.verified) {
+                    is ActionReceipt.Verdict.Verified -> consecutiveFailures = 0
+                    is ActionReceipt.Verdict.WrongContext -> {
+                        consecutiveFailures += 1
+                        failuresSinceAdvance += 1
+                        outcomes.add("WRONG_CONTEXT: ${v.detail}")
+                    }
+                    ActionReceipt.Verdict.UnknownEffect -> {}
+                }
+                // The semantic no-progress verdict (CN-11) feeds the EXISTING failure
+                // gate: an exhausted ledger is a failed step chain, not a new budget.
+                when (val np = noProgress.check()) {
+                    is NoProgressBudget.Verdict.NoProgress -> {
+                        val line = "NO PROGRESS: ${np.kind} exhausted the subtask's " +
+                            "semantic budget (${np.count}/${np.limit}) - feeding the re-plan gate"
+                        outcomes.add(line)
+                        log("[vision] $line")
+                        evidence.event(line)
+                        consecutiveFailures = config.stepFailuresBeforeReplan
+                        failuresSinceAdvance += 1
+                    }
+                    NoProgressBudget.Verdict.Ok -> {}
                 }
             }
             // PHASE_17 Stage 0.4 — THE FIELD READ-BACK (the R3 "the first name never
@@ -1264,11 +1369,13 @@ class VisionLoop(
                     is Attempted.Acted -> {
                         actedNodeId = attempted.actedNodeId
                         stepLine += attempted.detail
-                        // Only REAL progress resets the failure counter: a scroll/back probe
-                        // is recovery machinery, not advancement — otherwise empty-proposal
-                        // failures alternate with "successful" scrolls forever and the
-                        // re-plan gate never fires (measured live 2026-10-17).
-                        if (attempted.progresses) consecutiveFailures = 0
+                        // PHASE_18 CN-04 (doc 04 §9.3): the failure counter NO LONGER resets
+                        // here from the dispatch Boolean. The fresh observation at the top of
+                        // the next iteration completes the action's receipt and ONLY a
+                        // verified postcondition resets it (the old live-measured risk —
+                        // empty-proposal failures alternating with "successful" scrolls — is
+                        // now bounded by the scroll-find cap and the semantic no-progress
+                        // ledger instead of the failure counter alone).
                         if (attempted.typed != null) typedSoFar = attempted.typed
                         // PHASE_17 Stage 0.4 — the FIELD read-back: a type's verdict is
                         // read from the SAME field on the next observation (the R3
@@ -1469,8 +1576,10 @@ class VisionLoop(
                 }
                 if (batteryReplanQueued) {
                     batteryReplans += 1
+                    noProgress.recordBatteryReplan() // PHASE_18 CN-11: the semantic ledger
                 } else {
                     replans += 1
+                    noProgress.recordOrdinaryReplan() // PHASE_18 CN-11: the semantic ledger
                     // A failure re-plan's new plan gets fresh battery budget for its own
                     // subtasks (a battery-driven re-plan does not reset its own counter —
                     // the forced-PROCEED arm must stay reachable).
@@ -1496,6 +1605,7 @@ class VisionLoop(
                 consecutiveScrolls = 0
                 churnHintLogged = false
                 resetSameAction() // PHASE_16: a new plan is a new action space
+                noProgress.resetSubtaskScope() // PHASE_18 CN-11: a new plan is a new subtask scope
                 // A battery-escalation re-plan must be given an action attempt before
                 // the battery re-fires (the live-run starvation defect): arm the guard.
                 if (stepEscalation != null) batteryEscalatedWithoutAction = true
@@ -1517,12 +1627,18 @@ class VisionLoop(
          * PHASE_VEXP8: [action] is the EFFECTIVE verb that acted (after the tap-to-type
          * conversion) — the scroll-churn counter increments only for scroll verbs and
          * resets on every non-scroll one.
+         *
+         * PHASE_18 CN-04 (doc 04 §9.3): [progresses] is set ONLY from a VERIFIED effect —
+         * never from the dispatch Boolean. At construction it is always false; the fresh
+         * post-action observation completes the action's receipt
+         * ([pendingActionReceipt]) and flips it exactly when the declared postcondition
+         * verified.
          */
         data class Acted(
             val detail: String,
             val actedNodeId: String?,
             val typed: String?,
-            val progresses: Boolean,
+            var progresses: Boolean,
             val action: VisionPrompts.ProposalAction,
         ) : Attempted
         data class Failed(val reason: String) : Attempted
@@ -1585,6 +1701,8 @@ class VisionLoop(
         lastObservedUrl = null
         taskGate = TaskGate()
         consecutiveCaptureFailures = 0 // PHASE_18 CN-10: never crosses subtasks
+        pendingActionReceipt = null // PHASE_18 CN-04: no receipt crosses subtasks
+        noProgress.resetSubtaskScope() // PHASE_18 CN-11: the tool's ledgers restart per subtask
 
         fun done() = navigator.app.harness.hybrid.SubtaskOutcome.Done(step)
         fun failed(cause: String) = navigator.app.harness.hybrid.SubtaskOutcome.Failed(cause, step)
@@ -1634,6 +1752,30 @@ class VisionLoop(
                 )
             }
             val shot = got.shot
+            // PHASE_18 Stage 18.C CN-04: the receipt verification seam (the same law the
+            // reference loop runs) — the fresh observation completes the previous step's
+            // receipt; only a verified effect resets the failure counter; a wrong-host
+            // navigation is WRONG_CONTEXT (a failure); an unknown effect resets nothing.
+            completeReceiptFacts(obs)?.let { receipt ->
+                evidence.event(
+                    "DIAG receipt v=${receipt.verified} hashBefore=${receipt.pageHashBefore} hashAfter=${receipt.pageHashAfter} verb=${receipt.verb}",
+                )
+                consumeReceipt(receipt)
+                when (val v = receipt.verified) {
+                    is ActionReceipt.Verdict.Verified -> consecutiveFailures = 0
+                    is ActionReceipt.Verdict.WrongContext -> consecutiveFailures += 1
+                    ActionReceipt.Verdict.UnknownEffect -> {}
+                }
+                when (val np = noProgress.check()) {
+                    is NoProgressBudget.Verdict.NoProgress -> {
+                        val line = "NO PROGRESS: ${np.kind} exhausted the vision subtask's " +
+                            "semantic budget (${np.count}/${np.limit})"
+                        evidence.event(line)
+                        consecutiveFailures = config.stepFailuresBeforeReplan
+                    }
+                    NoProgressBudget.Verdict.Ok -> {}
+                }
+            }
             if (readBackVerdict(obs)) consecutiveFailures += 1
             if (lastObservedUrl != null && obs.url != lastObservedUrl) {
                 consecutiveScrolls = 0
@@ -1735,7 +1877,9 @@ class VisionLoop(
             )) {
                 is Attempted.Acted -> {
                     if (attempted.typed != null) typedSoFar = attempted.typed
-                    if (attempted.progresses) consecutiveFailures = 0
+                    // PHASE_18 CN-04: no failure-counter reset from the dispatch Boolean —
+                    // the fresh observation at the top of the next iteration completes the
+                    // receipt; only a verified postcondition resets it.
                     if (attempted.action == VisionPrompts.ProposalAction.TYPE &&
                         attempted.actedNodeId != null && attempted.typed != null
                     ) {
@@ -1797,6 +1941,13 @@ class VisionLoop(
         planEnterText: String,
         scrollChurn: VisionPrompts.ScrollChurn?,
     ): Attempted {
+        // PHASE_18 CN-11 (doc 04 §9.7): the PRE-CALL writer-room gate — the writer cap
+        // blocks the next call BEFORE it is spent (the post-call check stays).
+        if (!writerRoom("propose")) {
+            return Attempted.Failed(
+                "WRITER_BUDGET_EXHAUSTED - the writer cap is spent; no propose call",
+            )
+        }
         val proposals = try {
             var rawReq = ""
             var rawRes = ""
@@ -1820,8 +1971,10 @@ class VisionLoop(
                     channel = VisionEvidence.Channel.HAIKU,
                     images = if (shot != null) 1 else 0,
                 )
+                noProgress.resetModelFailures() // PHASE_18 CN-11: a successful call resets the run
             }
         } catch (e: Exception) {
+            noProgress.recordModelFailure() // PHASE_18 CN-11: the ledger sees the failure
             return Attempted.Failed("propose refused (${e.javaClass.simpleName}: ${e.message?.take(120)})")
         }
         if (proposals.isEmpty()) return Attempted.Failed("no proposals for this page")
@@ -1914,6 +2067,7 @@ class VisionLoop(
                     // proposals is GROUNDING_UNAVAILABLE — the pick's choice matters and
                     // is unavailable (zero executor calls; the next step's fresh snapshot
                     // is the bounded retry).
+                    noProgress.recordGroundingFailure() // PHASE_18 CN-11: the semantic ledger
                     return Attempted.Failed(
                         "GROUNDING_UNAVAILABLE: the Jev ground call failed " +
                             "(${e.message?.take(120)}) with ${proposals.size} location-dependent " +
@@ -1971,6 +2125,7 @@ class VisionLoop(
                             it.action == VisionPrompts.ProposalAction.SUBMIT
                     }
                 ) {
+                    noProgress.recordGroundingFailure() // PHASE_18 CN-11: the semantic ledger
                     return Attempted.Failed(
                         "GROUNDING_UNAVAILABLE: the text-only Jev pick failed " +
                             "(${e.message?.take(120)}) and the proposals are location-dependent " +
@@ -2132,6 +2287,7 @@ class VisionLoop(
                 jevBox?.let {
                     evidence.grounding.record(proposal.description, it.confidence, 0.0, null)
                 }
+                noProgress.recordGroundingFailure() // PHASE_18 CN-11: the semantic ledger
                 return Attempted.Failed(
                     "LOW_CONFIDENCE_GROUND: no node match for " +
                         "'${proposal.description.take(60)}' (raw arm iou=0.00, jev box " +
@@ -2143,6 +2299,7 @@ class VisionLoop(
                 jevBox?.let {
                     evidence.grounding.record(proposal.description, it.confidence, 0.0, null)
                 }
+                noProgress.recordGroundingFailure() // PHASE_18 CN-11: the semantic ledger
                 return Attempted.Failed(
                     "LOW_CONFIDENCE_GROUND: no editable field at the raw point ($x,$y) " +
                         "(NO_FIELD_AT_POINT) - refusing the doomed enterText; zero executor calls",
@@ -2239,6 +2396,7 @@ class VisionLoop(
         // populate the step's grounding cache for the re-plan's evidence block.
         if (groundSource != null) {
             evidence.grounding.record(proposal.description, groundConfidence, groundIou, target?.node?.id)
+            noProgress.resetGroundingFailures() // PHASE_18 CN-11: a successful ground resets the run
             stepGrounding = StepGrounding(
                 source = groundSource,
                 description = proposal.description,
@@ -2423,6 +2581,10 @@ class VisionLoop(
         val executed: Boolean
         var detail: String
         var typed: String? = null
+        // PHASE_18 CN-04: the actual value the action typed (a card secret included) —
+        // the checker consumes it IN MEMORY for the field postcondition; it never lands
+        // in the receipt, the evidence, or any log.
+        var typedValueForReceipt: String? = null
         // -- PHASE_18 CN-03: the fresh pre-dispatch guard (doc 04 §9.2 + doc 06 §2c) ---
         // Built from the DECISION-time facts, checked against FRESH reads immediately
         // before dispatch (after the gate/owner approval): the browser foreground, the
@@ -2567,6 +2729,7 @@ class VisionLoop(
                     ""
                 }
                 typed = if (secretTyped) TextSource.REDACTED else text
+                typedValueForReceipt = text
                 detail = "type \"${if (secretTyped) TextSource.REDACTED else text}\" into " +
                     "[$where conf=${"%.2f".format(proposal.confidence)}]$editableMark" +
                     (if (executed) "" else " causes=$causes") + lowConfMark +
@@ -2610,16 +2773,6 @@ class VisionLoop(
         gateMarker?.let { detail += " $it" }
         // PHASE_VEXP5 WI3: the covered-point disposition rides the step line loudly.
         behindLogMarker?.let { detail += " $it" }
-        val progresses = when (effectiveAction) {
-            VisionPrompts.ProposalAction.TAP,
-            VisionPrompts.ProposalAction.TYPE,
-            VisionPrompts.ProposalAction.SUBMIT,
-            -> executed
-            VisionPrompts.ProposalAction.BACK,
-            VisionPrompts.ProposalAction.SCROLL_DOWN,
-            VisionPrompts.ProposalAction.SCROLL_UP,
-            -> false
-        }
         // The evidence cache's action route (the re-plan's ROUTE-REPEATED law: same verb
         // consecutively >= 3 renders the tag on the evidence block).
         val actionLabel = when (effectiveAction) {
@@ -2654,26 +2807,27 @@ class VisionLoop(
                 churnHintLogged = false
             }
         }
-        // PHASE_16 — the same-action counter (acted TAP/TYPE/SUBMIT only; scroll/back and
-        // a Failed proposal never touch it). A different action resets the run.
-        val bindingAction = effectiveAction == VisionPrompts.ProposalAction.TAP ||
-            effectiveAction == VisionPrompts.ProposalAction.TYPE ||
-            effectiveAction == VisionPrompts.ProposalAction.SUBMIT
-        val actedKey = if (executed && bindingAction) {
-            "${effectiveAction.name}:${target?.node?.id ?: "-"}"
-        } else {
-            null
-        }
-        if (actedKey != null && actedKey == sameActionKey) {
-            consecutiveSameActions += 1
-        } else if (actedKey != null) {
-            sameActionKey = actedKey
-            sameActionVerb = effectiveAction
-            consecutiveSameActions = 1
-        } else {
-            resetSameAction()
-        }
-        return Attempted.Acted(detail, target?.node?.id, typed, progresses, effectiveAction)
+        // PHASE_18 CN-04 (doc 04 §9.3) — THE PENDING ACTION RECEIPT. The dispatch
+        // Boolean is fact 1 only: the receipt's declared expectation is verified against
+        // the FRESH post-action observation at the top of the next iteration, and
+        // `progresses` flips ONLY from that verified effect. The same-action accounting
+        // consumes the COMPLETED receipt there too (semantic identity + page hash), so
+        // it no longer updates here from the pre-observation dispatch result.
+        val acted = Attempted.Acted(detail, target?.node?.id, typed, false, effectiveAction)
+        val receiptNode = actTarget?.node ?: target?.node
+        pendingActionReceipt = PendingActionReceipt(
+            acted = acted,
+            verb = effectiveAction.name.lowercase(),
+            targetClass = receiptNode?.className,
+            targetLabel = receiptNode?.text?.trim()?.takeIf { it.isNotEmpty() },
+            expectation = proposal.expectedEffect,
+            dispatchExecuted = executed,
+            pageHashBefore = obs.screenHash,
+            previous = obs,
+            conditionHosts = conditionHosts(active.done),
+            typedValue = typedValueForReceipt,
+        )
+        return acted
     }
 
     // -- helpers ---------------------------------------------------------------------------
@@ -2853,6 +3007,134 @@ class VisionLoop(
         consecutiveSameActions = 0
     }
 
+    // -- PHASE_18 Stage 18.C CN-04: the action receipt (doc 04 §9.3) -----------------------
+
+    /**
+     * Completes the PENDING action receipt against the FRESH post-action observation: the
+     * pure checker verifies the declared expectation, `progresses` flips ONLY on a
+     * verified effect, and the completed [ActionReceipt] is returned for the caller's
+     * counter work. Null when no action is pending (or already consumed). Class-scope on
+     * purpose (the loop-state discipline): the counters it needs live on the instance.
+     */
+    private fun completeReceiptFacts(fresh: StepObservation): ActionReceipt? {
+        val pending = pendingActionReceipt ?: return null
+        pendingActionReceipt = null
+        val verdict = when (val v = ActionPostconditionChecker.check(
+            previous = pending.previous,
+            fresh = fresh,
+            verb = pending.verb,
+            expectation = pending.expectation,
+            targetClass = pending.targetClass,
+            targetLabel = pending.targetLabel,
+            facts = ActionPostconditionChecker.CodeFacts(
+                expectedHosts = pending.conditionHosts,
+                typedValue = pending.typedValue,
+            ),
+        )) {
+            is ActionPostconditionChecker.Verdict.Verified -> ActionReceipt.Verdict.Verified(v.postcondition)
+            is ActionPostconditionChecker.Verdict.WrongContext -> ActionReceipt.Verdict.WrongContext(v.detail)
+            ActionPostconditionChecker.Verdict.UnknownEffect -> ActionReceipt.Verdict.UnknownEffect
+        }
+        // THE CN-04 LAW: `progresses` is set ONLY from a verified effect — the dispatch
+        // Boolean, a URL change and a screen-hash change alone are never progress.
+        pending.acted.progresses = verdict is ActionReceipt.Verdict.Verified
+        return ActionReceipt(
+            verb = pending.verb,
+            targetClass = pending.targetClass,
+            targetLabel = pending.targetLabel,
+            expectation = pending.expectation,
+            dispatch = if (pending.dispatchExecuted) {
+                ActionReceipt.DispatchResult.EXECUTED
+            } else {
+                ActionReceipt.DispatchResult.REJECTED
+            },
+            verified = verdict,
+            pageHashBefore = pending.pageHashBefore,
+            pageHashAfter = fresh.screenHash,
+        )
+    }
+
+    /**
+     * Consumes the COMPLETED receipt: the truthful evidence line, the semantic ledger's
+     * records/resets, and the same-action accounting (which now consumes the receipt —
+     * verb + the target's SEMANTIC identity + the page hash before/after — never the node
+     * id and never the pre-observation dispatch result). Mechanical repetition stays a
+     * separate signal from semantic progress: the same-action key ignores the verdict, and
+     * only the receipt's own page-hash change restarts the mechanical run (the a11y law:
+     * a screen change is progress).
+     */
+    private fun consumeReceipt(receipt: ActionReceipt) {
+        when (val v = receipt.verified) {
+            is ActionReceipt.Verdict.Verified -> {
+                noProgress.resetOnVerifiedEffect()
+                evidence.event(
+                    "postcondition verified: ${v.postcondition.wire} after " +
+                        "${receipt.verb} '${(receipt.targetLabel ?: "-").take(40)}'",
+                )
+            }
+            is ActionReceipt.Verdict.WrongContext -> {
+                noProgress.recordWrongContext()
+                evidence.event(
+                    "WRONG_CONTEXT: ${v.detail} - not progress; the failure/recovery path owns it",
+                )
+                log("[vision] WRONG_CONTEXT: ${v.detail}")
+            }
+            ActionReceipt.Verdict.UnknownEffect -> {
+                noProgress.recordNoEffect()
+                evidence.event(
+                    "postcondition unknown: ${receipt.verb} " +
+                        "'${(receipt.targetLabel ?: "-").take(40)}' changed nothing checkable - no progress",
+                )
+            }
+        }
+        // The receipt-based same-action accounting (CN-04). Binding actions are the acted
+        // TAP/TYPE/SUBMIT set, exactly as before; scroll/back and a rejected dispatch
+        // reset the run (today's law, now from the receipt).
+        val binds = receipt.verb == "tap" || receipt.verb == "type" || receipt.verb == "submit"
+        if (receipt.dispatch == ActionReceipt.DispatchResult.EXECUTED && binds) {
+            if (receipt.semanticKey == sameActionKey && receipt.pageHashAfter != receipt.pageHashBefore) {
+                // Same target, changed screen: mechanical progress — the run restarts.
+                consecutiveSameActions = 1
+            } else if (receipt.semanticKey == sameActionKey) {
+                consecutiveSameActions += 1
+            } else {
+                sameActionKey = receipt.semanticKey
+                sameActionVerb = VisionPrompts.ProposalAction.valueOf(receipt.verb.uppercase())
+                consecutiveSameActions = 1
+            }
+        } else {
+            resetSameAction()
+        }
+    }
+
+    /**
+     * The active subtask's lawful landing hosts (the checker's [ActionPostconditionChecker.CodeFacts]):
+     * the done-condition's URL-identity facts, code-derived — never page or writer text.
+     */
+    private fun conditionHosts(condition: DoneCondition): Set<String> = when (condition) {
+        is DoneCondition.UrlHost ->
+            setOf(condition.host.trim().lowercase().removePrefix("www."))
+        is DoneCondition.UrlContains ->
+            condition.segment.substringBefore('/').trim().lowercase().removePrefix("www.")
+                .takeIf { it.contains('.') }?.let { setOf(it) } ?: emptySet()
+        else -> emptySet()
+    }
+
+    // -- PHASE_18 Stage 18.C CN-11: the PRE-CALL writer-room gate (doc 04 §9.7) ------------
+
+    /**
+     * Checked BEFORE every Haiku writer call (plan, re-plan, propose, repair, confirm,
+     * battery image channel, extract): false = the writer cap is spent; the call is
+     * SKIPPED and the evidence line names WRITER_BUDGET_EXHAUSTED (a failed step or
+     * terminal per the site's semantics). The POST-call [ExpBudget.writerCheck] stays —
+     * the final in-budget call can still cross the cap, and its usage must be recorded.
+     */
+    private fun writerRoom(what: String): Boolean {
+        if (budget.hasWriterHardRoom()) return true
+        evidence.event("WRITER_BUDGET_EXHAUSTED: the writer cap is spent - the $what call is skipped")
+        return false
+    }
+
     /** The GROUND request's state: the subtask and the code-readable page, plus the screenshot reference when the image rides. */
     private fun groundState(active: Subtask, doneText: String, obs: StepObservation, imageRef: String?): String =
         buildString {
@@ -2936,6 +3218,12 @@ class VisionLoop(
         if (!repairAttempted.add(pointer)) {
             return ConditionRepair.NoAccept("the one repair for this subtask already ran - no second call")
         }
+        // PHASE_18 CN-11: the writer cap blocks the repair call before it is spent; the
+        // turn declines (the existing battery re-plan path runs — its own call is
+        // writer-room-gated too).
+        if (!writerRoom("repair")) {
+            return ConditionRepair.NoAccept("WRITER_BUDGET_EXHAUSTED - the writer cap is spent; no repair call")
+        }
         // The battery's own evidence, assembled from the per-step cache (ZERO extra calls);
         // the escalation kind is the trigger's even though the cache field is set later.
         val outcomeEvidence = VisionPrompts.jevEvidenceBlock(
@@ -2961,6 +3249,7 @@ class VisionLoop(
                 channel = VisionEvidence.Channel.HAIKU,
                 images = if (shot != null) 1 else 0,
             )
+            noProgress.resetModelFailures() // PHASE_18 CN-11: a successful writer call
             answer
         } catch (e: Exception) {
             evidence.event(
@@ -3096,32 +3385,42 @@ class VisionLoop(
                 channel = VisionEvidence.Channel.JEV,
                 images = if (shot != null) 1 else 0,
             )
+            noProgress.resetModelFailures() // PHASE_18 CN-11: a successful call
             checks.mapIndexed { i, _ -> (answers["v$i"] as? VisionJev.Answer.Noul)?.pTrue }
         } catch (e: Exception) {
+            noProgress.recordModelFailure() // PHASE_18 CN-11: the ledger sees it
             evidence.event("battery text channel refused: ${e.message?.take(140)}")
             checks.map { null }
         }
         val imageConfirms: List<Boolean?> = if (shot != null) {
-            try {
-                val questions = checks.map { it.question }
-                var rawReq = ""
-                var rawRes = ""
-                val content = haiku.chat(
-                    VisionPrompts.BATTERY_SYSTEM,
-                    VisionPrompts.batteryUser(questions),
-                    shot.base64,
-                    "battery",
-                ) { req, res -> rawReq = req; rawRes = res }
-                evidence.call(
-                    "battery", rawReq, rawRes, 0, haiku.lastUsage,
-                    channel = VisionEvidence.Channel.HAIKU,
-                    images = 1,
-                )
-                val answered = VisionPrompts.parseBatteryAnswers(content, questions, "battery")
-                checks.map { c -> answered.firstOrNull { it.question == c.question }?.answer }
-            } catch (e: Exception) {
-                evidence.event("battery image channel refused: ${e.message?.take(140)}")
+            if (!writerRoom("battery image")) {
+                // PHASE_18 CN-11: the writer cap blocks the battery's Haiku channel; the
+                // channel abstains (the gate works on whatever answered).
                 checks.map { null }
+            } else {
+                try {
+                    val questions = checks.map { it.question }
+                    var rawReq = ""
+                    var rawRes = ""
+                    val content = haiku.chat(
+                        VisionPrompts.BATTERY_SYSTEM,
+                        VisionPrompts.batteryUser(questions),
+                        shot.base64,
+                        "battery",
+                    ) { req, res -> rawReq = req; rawRes = res }
+                    evidence.call(
+                        "battery", rawReq, rawRes, 0, haiku.lastUsage,
+                        channel = VisionEvidence.Channel.HAIKU,
+                        images = 1,
+                    )
+                    noProgress.resetModelFailures() // PHASE_18 CN-11: a successful call
+                    val answered = VisionPrompts.parseBatteryAnswers(content, questions, "battery")
+                    checks.map { c -> answered.firstOrNull { it.question == c.question }?.answer }
+                } catch (e: Exception) {
+                    noProgress.recordModelFailure() // PHASE_18 CN-11: the ledger sees it
+                    evidence.event("battery image channel refused: ${e.message?.take(140)}")
+                    checks.map { null }
+                }
             }
         } else {
             checks.map { null }
@@ -3198,25 +3497,32 @@ class VisionLoop(
             evidence.event("verify noul refused: ${e.message?.take(120)}")
         }
         var confirm: Boolean? = null
-        try {
-            var rawReq = ""
-            var rawRes = ""
-            val started = System.currentTimeMillis()
-            confirm = VisionPrompts.parseConfirm(
-                haiku.chat(
-                    VisionPrompts.CONFIRM_SYSTEM,
-                    VisionPrompts.confirmUser(active.instruction, doneText, digest(obs)),
-                    shot?.base64,
-                    "confirm",
-                ) { req, res -> rawReq = req; rawRes = res },
-            )?.first
-            evidence.call(
-                "confirm", rawReq, rawRes, System.currentTimeMillis() - started, haiku.lastUsage,
-                channel = VisionEvidence.Channel.HAIKU,
-                images = if (shot != null) 1 else 0,
-            )
-        } catch (e: Exception) {
-            evidence.event("confirm refused: ${e.message?.take(120)}")
+        if (!writerRoom("confirm")) {
+            // PHASE_18 CN-11: the writer cap blocks the confirm call; the channel abstains
+            // (a null confirm can never pass the pair's agreement bar).
+        } else {
+            try {
+                var rawReq = ""
+                var rawRes = ""
+                val started = System.currentTimeMillis()
+                confirm = VisionPrompts.parseConfirm(
+                    haiku.chat(
+                        VisionPrompts.CONFIRM_SYSTEM,
+                        VisionPrompts.confirmUser(active.instruction, doneText, digest(obs)),
+                        shot?.base64,
+                        "confirm",
+                    ) { req, res -> rawReq = req; rawRes = res },
+                )?.first
+                evidence.call(
+                    "confirm", rawReq, rawRes, System.currentTimeMillis() - started, haiku.lastUsage,
+                    channel = VisionEvidence.Channel.HAIKU,
+                    images = if (shot != null) 1 else 0,
+                )
+                noProgress.resetModelFailures() // PHASE_18 CN-11: a successful call
+            } catch (e: Exception) {
+                noProgress.recordModelFailure() // PHASE_18 CN-11: the ledger sees it
+                evidence.event("confirm refused: ${e.message?.take(120)}")
+            }
         }
         val noulVerdict = noul?.let {
             if (it >= config.noulAgreeAbove) "AGREE(%.2f)".format(it) else "DISAGREE(%.2f)".format(it)
@@ -3236,8 +3542,13 @@ class VisionLoop(
     )
 
     private suspend fun planLadder(goal: String, obs: StepObservation, failure: String?, shot: VisionCapture.ScreenShot?): PlannedLadder? {
+        // PHASE_18 CN-11 (doc 04 §9.7): the writer cap is checked BEFORE the first plan
+        // call — planning never spends past it (the per-attempt retry loop inherits the
+        // same refusal; a re-plan with no room takes its site's terminal honestly).
+        if (!writerRoom(if (failure == null) "plan" else "re-plan")) return null
         var correction: String? = null
         repeat(config.planAttempts) { attempt ->
+            noProgress.recordPlanningAttempt() // PHASE_18 CN-11: the planning ledger
             try {
                 val base = if (failure == null) {
                     VisionPrompts.planUser(goal, digest(obs))
@@ -3275,34 +3586,44 @@ class VisionLoop(
                         "goal fidelity: " + fidelity.violations.joinToString("; "),
                     )
                 }
+                noProgress.planningEventDone() // PHASE_18 CN-11: the event completed
+                noProgress.resetModelFailures() // PHASE_18 CN-11: a successful writer call
                 return PlannedLadder(ladder, battery, enterText)
             } catch (e: Exception) {
                 correction = "Your previous JSON was refused: ${e.message?.take(300)} — fix exactly that and return the STRICT JSON again."
                 evidence.event("plan attempt ${attempt + 1} refused: ${e.message?.take(160)}")
             }
         }
+        noProgress.recordModelFailure() // PHASE_18 CN-11: the planning event failed whole
         return null
     }
 
-    private suspend fun extractAnswer(goal: String, obs: StepObservation, shot: VisionCapture.ScreenShot?): String? = try {
-        var rawReq = ""
-        var rawRes = ""
-        val started = System.currentTimeMillis()
-        val text = haiku.chat(
-            VisionPrompts.EXTRACT_SYSTEM,
-            VisionPrompts.extractUser(goal, digest(obs)),
-            shot?.base64,
-            "extract",
-        ) { req, res -> rawReq = req; rawRes = res }.trim().take(2_000)
-        evidence.call(
-            "extract", rawReq, rawRes, System.currentTimeMillis() - started, haiku.lastUsage,
-            channel = VisionEvidence.Channel.HAIKU,
-            images = if (shot != null) 1 else 0,
-        )
-        text
-    } catch (e: Exception) {
-        evidence.event("extract refused: ${e.message?.take(120)}")
-        null
+    private suspend fun extractAnswer(goal: String, obs: StepObservation, shot: VisionCapture.ScreenShot?): String? {
+        // PHASE_18 CN-11: the writer cap blocks the extraction before it is spent; the
+        // run proceeds with no answer (the site's honest null, never a silent $0).
+        if (!writerRoom("extract")) return null
+        return try {
+            var rawReq = ""
+            var rawRes = ""
+            val started = System.currentTimeMillis()
+            val text = haiku.chat(
+                VisionPrompts.EXTRACT_SYSTEM,
+                VisionPrompts.extractUser(goal, digest(obs)),
+                shot?.base64,
+                "extract",
+            ) { req, res -> rawReq = req; rawRes = res }.trim().take(2_000)
+            evidence.call(
+                "extract", rawReq, rawRes, System.currentTimeMillis() - started, haiku.lastUsage,
+                channel = VisionEvidence.Channel.HAIKU,
+                images = if (shot != null) 1 else 0,
+            )
+            noProgress.resetModelFailures() // PHASE_18 CN-11: a successful writer call
+            text
+        } catch (e: Exception) {
+            noProgress.recordModelFailure() // PHASE_18 CN-11: the ledger sees it
+            evidence.event("extract refused: ${e.message?.take(120)}")
+            null
+        }
     }
 
     /**
@@ -3325,6 +3646,7 @@ class VisionLoop(
         capture.capture(exclusion).also { shot ->
             // PHASE_18 CN-10: a successful capture resets the consecutive-failure count.
             consecutiveCaptureFailures = 0
+            noProgress.resetCaptureFailures() // PHASE_18 CN-11: the semantic ledger bridge
             if (!sourceNoteLogged) {
                 sourceNoteLogged = true
                 log("[vision] screen: ${shot.source}")
@@ -3334,8 +3656,12 @@ class VisionLoop(
     } catch (e: Exception) {
         // The bound is a PRODUCT-path mechanism (CN-10): it counts only when the
         // snapshotter is wired — the scripted/JVM seam (snapshotter null) keeps the
-        // legacy unbounded text-only law byte-identically.
-        if (snapshotter != null) consecutiveCaptureFailures += 1
+        // legacy unbounded text-only law byte-identically. The semantic ledger (CN-11)
+        // bridges the SAME events — no duplicate capture state is kept.
+        if (snapshotter != null) {
+            consecutiveCaptureFailures += 1
+            noProgress.recordCaptureFailure()
+        }
         evidence.event(
             "capture degraded (consecutive=$consecutiveCaptureFailures/" +
                 "${config.captureFailureLimit}): ${e.message?.take(120)} — TEXT-ONLY step",

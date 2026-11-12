@@ -9,6 +9,8 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import navigator.app.loop.ActionExecutor
+import navigator.app.loop.ActionPostcondition
+import navigator.app.loop.ExpectedEffect
 import navigator.app.loop.LoopObserver
 import navigator.app.loop.StepObservation
 import navigator.core.enumerate.ObservedNode
@@ -217,16 +219,23 @@ class VisionExperimentTest {
 
     @Test
     fun `proposals parse validate and refuse overflows`() {
+        // PHASE_18 CN-04 (doc 04 §9.3, prompt v20): every tap/type/submit proposal carries
+        // a REQUIRED expectedEffect (the closed loop/ActionPostcondition set); scroll/back
+        // tolerate its absence. A missing/unknown declaration is a schema violation.
         val content = """
             {"proposals":[
-              {"description":"the 'Search' field at the top","action":"type","text":"airfryer"},
-              {"description":"the magnifier icon right of the field","action":"tap"}]}
+              {"description":"the 'Search' field at the top","action":"type","text":"airfryer",
+               "expectedEffect":{"expect":"FieldContainsExpectedValue"}},
+              {"description":"the magnifier icon right of the field","action":"tap",
+               "expectedEffect":{"expect":"ExpectedElementAppeared","value":"the results list"}}]}
         """.trimIndent()
         val proposals = VisionPrompts.parseProposals(content, "test")
         assertEquals(2, proposals.size)
         assertEquals(VisionPrompts.ProposalAction.TYPE, proposals[0].action)
         assertEquals("airfryer", proposals[0].text)
+        assertEquals(ExpectedEffect(ActionPostcondition.FIELD_CONTAINS_EXPECTED_VALUE), proposals[0].expectedEffect)
         assertEquals(VisionPrompts.ProposalAction.TAP, proposals[1].action)
+        assertEquals("the results list", proposals[1].expectedEffect?.value)
         assertFailsWith<VisionHaiku.VisionHaikuException> {
             VisionPrompts.parseProposals(
                 """{"proposals":[{"description":"a"},{"description":"b"},{"description":"c"},{"description":"d"}]}""",
@@ -234,7 +243,10 @@ class VisionExperimentTest {
             )
         }
         assertFailsWith<VisionHaiku.VisionHaikuException> {
-            VisionPrompts.parseProposals("""{"proposals":[{"description":"a","action":"type"}]}""", "test")
+            VisionPrompts.parseProposals(
+                """{"proposals":[{"description":"a","action":"type","expectedEffect":{"expect":"FieldContainsExpectedValue"}}]}""",
+                "test",
+            )
         }
         assertFailsWith<VisionHaiku.VisionHaikuException> {
             VisionPrompts.parseProposals("""{"proposals":[{"description":"a","action":"explode"}]}""", "test")
@@ -245,6 +257,7 @@ class VisionExperimentTest {
     fun `proposals carry boxes and confidence when a screenshot rode along`() {
         val content = """
             {"proposals":[{"description":"the 'Search' field at the top","action":"type","text":"cat",
+              "expectedEffect":{"expect":"FieldContainsExpectedValue"},
               "box":{"top":0.1,"bottom":0.2,"left":0.3,"right":0.9},"confidence":0.8}]}
         """.trimIndent()
         val p = VisionPrompts.parseProposals(content, "t").single()
@@ -253,10 +266,53 @@ class VisionExperimentTest {
         assertEquals(0.9, p.box?.right)
         assertFailsWith<VisionHaiku.VisionHaikuException> {
             VisionPrompts.parseProposals(
-                """{"proposals":[{"description":"a","box":{"top":0.9,"bottom":0.2,"left":0.3,"right":0.9}}]}""",
+                """{"proposals":[{"description":"a","expectedEffect":{"expect":"TargetStateChanged"},"box":{"top":0.9,"bottom":0.2,"left":0.3,"right":0.9}}]}""",
                 "t",
             )
         }
+    }
+
+    @Test
+    fun `the expectedEffect schema rejects missing unknown and hostless declarations`() {
+        // PHASE_18 CN-04: the closed postcondition set is enforced at the schema boundary.
+        fun json(expect: String?, host: String? = null, action: String = "tap"): String {
+            val effect = when {
+                expect == null -> ""
+                host != null -> ""","expectedEffect":{"expect":"$expect","host":"$host"}"""
+                else -> ""","expectedEffect":{"expect":"$expect"}"""
+            }
+            return """{"proposals":[{"description":"a control","action":"action"$effect]}"""
+                .replace("action\":\"action", "action\":\"$action")
+        }
+        // Missing on a location-dependent proposal: a schema violation, never coerced.
+        assertFailsWith<VisionHaiku.VisionHaikuException> { VisionPrompts.parseProposals(json(null), "t") }
+        assertFailsWith<VisionHaiku.VisionHaikuException> {
+            VisionPrompts.parseProposals(json(null, action = "submit"), "t")
+        }
+        // Unknown postcondition type: rejected (never coerced).
+        assertFailsWith<VisionHaiku.VisionHaikuException> {
+            VisionPrompts.parseProposals(json("PageLooksRight"), "t")
+        }
+        // Host-flavored declaration without its host: a violation.
+        assertFailsWith<VisionHaiku.VisionHaikuException> {
+            VisionPrompts.parseProposals(json("ExpectedHostReached"), "t")
+        }
+        // Scroll/back tolerate an absent declaration (an undeclared effect is an unknown effect).
+        val back = VisionPrompts.parseProposals(
+            """{"proposals":[{"description":"a","action":"back"}]}""", "t",
+        ).single()
+        assertEquals(null, back.expectedEffect)
+        val scroll = VisionPrompts.parseProposals(
+            """{"proposals":[{"description":"a","action":"scroll_down","expectedEffect":{"expect":"ViewportMoved"}}]}""",
+            "t",
+        ).single()
+        assertEquals(ActionPostcondition.VIEWPORT_MOVED, scroll.expectedEffect?.expect)
+        // The value keys normalize (host/value/marker/element/text) into one evidence value.
+        val host = VisionPrompts.parseProposals(
+            """{"proposals":[{"description":"a","action":"tap","expectedEffect":{"expect":"ExpectedHostReached","host":"done.test"}}]}""",
+            "t",
+        ).single()
+        assertEquals("done.test", host.expectedEffect?.value)
     }
 
     @Test
@@ -610,8 +666,17 @@ class VisionExperimentTest {
     }
 
     @Test
-    fun `the prompt version is vision-exp-v19`() {
-        assertEquals("vision-exp-v19", VisionPrompts.VISION_PROMPT_VERSION)
+    fun `the prompt version is vision-exp-v20`() {
+        // PHASE_18 Stage 18.C CN-04 (doc 04 §9.3): v20 retires v19 (the Phase 17 boundary
+        // audit version) — the EXPECTED EFFECT law (every tap/type/submit proposal
+        // declares a machine-checkable postcondition; progress comes ONLY from a verified
+        // effect). Retire-and-add: the v20 propose contract is recorded byte-identically
+        // in `gen/golden-vision-propose-v20.json`; the v19 pins above survive unchanged
+        // (the boundary-audit surfaces themselves did not change).
+        assertEquals("vision-exp-v20", VisionPrompts.VISION_PROMPT_VERSION)
+        assertTrue(VisionPrompts.PROPOSE_SYSTEM.contains("EXPECTED EFFECT"))
+        assertTrue(VisionPrompts.PROPOSE_SYSTEM.contains("ExpectedHostReached"))
+        assertTrue(VisionPrompts.PROPOSE_SYSTEM.contains("FieldContainsExpectedValue"))
     }
 
     @Test
@@ -1251,7 +1316,7 @@ class VisionExperimentTest {
               {"instruction":"Search Google for riga hotels for next weekend","done":{"urlContains":"google.com/search?q=riga"},
                "verify":[{"question":"does the date field still show the old default dates?","badIsTrue":true}]}]}
         """.trimIndent()
-        val propose = """{"proposals":[{"description":"the Search button","action":"tap"}]}"""
+        val propose = """{"proposals":[{"description":"the Search button","action":"tap","expectedEffect":{"expect":"TargetStateChanged"}}]}"""
         val proposeEmpty = """{"proposals":[]}"""
         val confirmFalse = """{"complete":false,"reason":"no results list is visible"}"""
         val transport = ScriptedVisionTransport(
@@ -1346,7 +1411,7 @@ class VisionExperimentTest {
               {"instruction":"select the check-out date","done":{"markerText":"CHECKOUT-DONE-MARKER"},
                "verify":[{"question":"is the chosen check-out date visible?","badIsTrue":false}]}]}
         """.trimIndent()
-        val propose = """{"proposals":[{"description":"the Search button","action":"tap"}]}"""
+        val propose = """{"proposals":[{"description":"the Search button","action":"tap","expectedEffect":{"expect":"TargetStateChanged"}}]}"""
         val transport = ScriptedVisionTransport(
             // plan, battery re-plan #1, tap, battery re-plan #2, tap, tap (forced
             // PROCEED — NO re-plan chat here), the accept's recorded-opinion confirm
@@ -1454,7 +1519,7 @@ class VisionExperimentTest {
            "verify":[{"question":"is a results list with the selected dates visible?","badIsTrue":false}]}]}
     """.trimIndent()
 
-    private val proposeSearchTap = """{"proposals":[{"description":"the Search button","action":"tap"}]}"""
+    private val proposeSearchTap = """{"proposals":[{"description":"the Search button","action":"tap","expectedEffect":{"expect":"TargetStateChanged"}}]}"""
     private val proposeEmpty = """{"proposals":[]}"""
     private val confirmFalse = """{"complete":false,"reason":"no results list is visible"}"""
     private val confirmTrue = """{"complete":true,"reason":"the results list is visible"}"""

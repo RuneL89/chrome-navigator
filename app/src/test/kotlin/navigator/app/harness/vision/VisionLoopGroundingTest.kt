@@ -195,7 +195,7 @@ class VisionLoopGroundingTest {
         // on the NODE centre — not the Jev rectangle's centre.
         val searchNode = node("n1", left = 100, top = 400, right = 300, bottom = 500, text = "Search")
         val proposal = """
-            {"proposals":[{"description":"the 'Search' button","action":"tap",
+            {"proposals":[{"description":"the 'Search' button","action":"tap","expectedEffect":{"expect":"TargetStateChanged"},
               "box":{"top":0.20,"bottom":0.25,"left":0.10,"right":0.30},"confidence":0.9}]}
         """.trimIndent()
         val transport = ScriptedVisionTransport(
@@ -231,7 +231,7 @@ class VisionLoopGroundingTest {
         // ("Search" in the node text) can ground the control.
         val searchNode = node("n1", left = 100, top = 400, right = 300, bottom = 500, text = "Search")
         val proposal = """
-            {"proposals":[{"description":"the 'Search' button","action":"tap",
+            {"proposals":[{"description":"the 'Search' button","action":"tap","expectedEffect":{"expect":"TargetStateChanged"},
               "box":{"top":0.60,"bottom":0.65,"left":0.60,"right":0.70},"confidence":0.8}]}
         """.trimIndent()
         val transport = ScriptedVisionTransport(
@@ -266,7 +266,7 @@ class VisionLoopGroundingTest {
         // The step must FAIL with the loud cause and never call enterText.
         val inertNode = node("n1", left = 800, top = 100, right = 900, bottom = 160, text = "Home")
         val proposal = """
-            {"proposals":[{"description":"the address bar at the top of the screen","action":"type",
+            {"proposals":[{"description":"the address bar at the top of the screen","action":"type","expectedEffect":{"expect":"FieldContainsExpectedValue"},
               "text":"hotels in Riga next weekend",
               "box":{"top":0.60,"bottom":0.65,"left":0.60,"right":0.70},"confidence":0.8}]}
         """.trimIndent()

@@ -177,19 +177,19 @@ class VisionLoopTranslateFirstTest {
     """.trimIndent()
 
     private val translateOnly = """
-        {"proposals":[{"description":"tap \"Translate\" link-button in the 'Translate page? Finnish to English' bar at the top of the screen, right of the settings gear","action":"tap","box":{"top":0.12,"bottom":0.16,"left":0.77,"right":0.92},"confidence":0.9}]}
+        {"proposals":[{"description":"tap \"Translate\" link-button in the 'Translate page? Finnish to English' bar at the top of the screen, right of the settings gear","action":"tap","expectedEffect":{"expect":"TargetStateChanged"},"box":{"top":0.12,"bottom":0.16,"left":0.77,"right":0.92},"confidence":0.9}]}
     """.trimIndent()
 
     private val translateAndCookie = """
         {"proposals":[
-          {"description":"tap \"Translate\" link-style button in the Google Translate prompt bar at the top of the page (Finnish to English), right side of the bar","action":"tap","box":{"top":0.12,"bottom":0.16,"left":0.77,"right":0.92},"confidence":0.9},
-          {"description":"tap \"Hyväksy\" orange button in the cookie consent banner at the bottom of the screen, right side","action":"tap","box":{"top":0.87,"bottom":0.92,"left":0.73,"right":0.94},"confidence":0.9}]}
+          {"description":"tap \"Translate\" link-style button in the Google Translate prompt bar at the top of the page (Finnish to English), right side of the bar","action":"tap","expectedEffect":{"expect":"TargetStateChanged"},"box":{"top":0.12,"bottom":0.16,"left":0.77,"right":0.92},"confidence":0.9},
+          {"description":"tap \"Hyväksy\" orange button in the cookie consent banner at the bottom of the screen, right side","action":"tap","expectedEffect":{"expect":"TargetStateChanged"},"box":{"top":0.87,"bottom":0.92,"left":0.73,"right":0.94},"confidence":0.9}]}
     """.trimIndent()
 
     private val cartAndCookie = """
         {"proposals":[
-          {"description":"tap \"Add to cart\" button in the product page action row","action":"tap","box":{"top":0.12,"bottom":0.16,"left":0.77,"right":0.92},"confidence":0.9},
-          {"description":"tap \"Hyväksy\" orange button in the cookie consent banner at the bottom of the screen, right side","action":"tap","box":{"top":0.87,"bottom":0.92,"left":0.73,"right":0.94},"confidence":0.9}]}
+          {"description":"tap \"Add to cart\" button in the product page action row","action":"tap","expectedEffect":{"expect":"TargetStateChanged"},"box":{"top":0.12,"bottom":0.16,"left":0.77,"right":0.92},"confidence":0.9},
+          {"description":"tap \"Hyväksy\" orange button in the cookie consent banner at the bottom of the screen, right side","action":"tap","expectedEffect":{"expect":"TargetStateChanged"},"box":{"top":0.87,"bottom":0.92,"left":0.73,"right":0.94},"confidence":0.9}]}
     """.trimIndent()
 
     private val proposeEmpty = """{"proposals":[]}"""

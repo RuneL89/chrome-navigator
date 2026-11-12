@@ -38,10 +38,9 @@ class Phase18ExpBudgetCharacterizationTest {
         val first = budget.stepCheck(ExpBudget.STEPS_SOFT + 1)
         assertTrue(first is ExpBudget.Check.Soft, "one past the steps soft ceiling warns: $first")
         assertEquals(
-            "steps ${ExpBudget.STEPS_SOFT + 1} > soft ${ExpBudget.STEPS_SOFT} " +
-                "(or time past soft) — continuing",
+            "steps ${ExpBudget.STEPS_SOFT + 1} > soft ${ExpBudget.STEPS_SOFT} — continuing",
             (first as ExpBudget.Check.Soft).detail,
-            "the soft detail names the steps branch (the quirk)",
+            "the soft detail names the steps dimension (CN-11's independent law)",
         )
         assertEquals(ExpBudget.Check.Ok, budget.stepCheck(ExpBudget.STEPS_SOFT + 1), "warns ONCE per dimension")
     }
@@ -56,57 +55,63 @@ class Phase18ExpBudgetCharacterizationTest {
         assertTrue(past is ExpBudget.Check.Hard, "one past the steps hard ceiling stops: $past")
     }
 
-    // -- the soft-warning QUIRK: spend and time never warn on their own ---------------------
+    // -- UPDATED by Stage 18.C CN-11 (doc 04 §9.7): the soft warnings are INDEPENDENT — ---
+    // -- each dimension warns exactly once on its own; the old steps-branch quirk is gone -
 
     @Test
-    fun `spend past its soft ceiling alone never warns - the steps branch owns the flags`() {
+    fun `spend past its soft ceiling alone warns once and names the spend dimension`() {
         val budget = newBudget()
         budget.recordSpend(ExpBudget.SPEND_SOFT_MICRO_USD + 1, writerSurface = false)
-        assertEquals(
-            ExpBudget.Check.Ok,
-            budget.stepCheck(1),
-            "CURRENT behavior: spend past soft alone is Ok - no independent spend warning",
-        )
+        val first = budget.stepCheck(1)
+        assertTrue(first is ExpBudget.Check.Soft && "spend" in first.detail,
+            "spend past soft alone warns: $first")
+        assertEquals(ExpBudget.Check.Ok, budget.stepCheck(1), "warns ONCE per dimension")
     }
 
     @Test
-    fun `time past its soft ceiling alone never warns - the steps branch owns the flags`() {
+    fun `time past its soft ceiling alone warns once and names the time dimension`() {
         val budget = newBudget()
         clock = ExpBudget.TIME_SOFT_MS + 1
-        assertEquals(
-            ExpBudget.Check.Ok,
-            budget.stepCheck(1),
-            "CURRENT behavior: time past soft alone is Ok - no independent time warning",
-        )
+        val first = budget.stepCheck(1)
+        assertTrue(first is ExpBudget.Check.Soft && "elapsed" in first.detail,
+            "time past soft alone warns: $first")
+        assertEquals(ExpBudget.Check.Ok, budget.stepCheck(1), "warns ONCE per dimension")
     }
 
     @Test
-    fun `the steps soft warning sets BOTH the spend and the time flags`() {
+    fun `the steps soft warning warns ONCE and names the steps dimension (CN-11 independent law)`() {
         val budget = newBudget()
         budget.recordSpend(ExpBudget.SPEND_SOFT_MICRO_USD + 1, writerSurface = false)
-        // The steps warning fires and, in the same breath, marks spend and time warned.
-        assertTrue(budget.stepCheck(ExpBudget.STEPS_SOFT + 1) is ExpBudget.Check.Soft)
-        // The steps counter is what advances the flags; a later identical check is Ok.
-        assertEquals(ExpBudget.Check.Ok, budget.stepCheck(ExpBudget.STEPS_SOFT + 1))
+        // The steps warning fires first; the spend dimension (also past soft) keeps its
+        // own flag and warns on the NEXT check — each dimension exactly once.
+        val first = budget.stepCheck(ExpBudget.STEPS_SOFT + 1)
+        assertTrue(first is ExpBudget.Check.Soft && "steps" in first.detail, "the steps warning: $first")
+        val second = budget.stepCheck(ExpBudget.STEPS_SOFT + 1)
+        assertTrue(second is ExpBudget.Check.Soft && "spend" in second.detail, "the spend warning: $second")
+        assertEquals(ExpBudget.Check.Ok, budget.stepCheck(ExpBudget.STEPS_SOFT + 1), "then all warned")
     }
 
     // -- spend and time hard ceilings (independent, both sides) ------------------------------
 
     @Test
-    fun `spend - exactly hard is ok, one past hard stops regardless of steps`() {
+    fun `spend - exactly hard warns soft once (independent), one past hard stops`() {
         val budget = newBudget()
         budget.recordSpend(ExpBudget.SPEND_HARD_MICRO_USD, writerSurface = false)
-        assertEquals(ExpBudget.Check.Ok, budget.stepCheck(1))
+        // CN-11: at exactly the hard ceiling the INDEPENDENT spend soft warning fires
+        // first (spend > soft, once), then one past hard stops.
+        val soft = budget.stepCheck(1)
+        assertTrue(soft is ExpBudget.Check.Soft && "spend" in soft.detail, "the spend soft warning: $soft")
         budget.recordSpend(1, writerSurface = false)
         val past = budget.stepCheck(1)
         assertTrue(past is ExpBudget.Check.Hard && "spend" in past.detail, "spend hard stops: $past")
     }
 
     @Test
-    fun `time - exactly hard is ok, one past hard stops regardless of steps`() {
+    fun `time - exactly hard warns soft once (independent), one past hard stops`() {
         val budget = newBudget()
         clock = ExpBudget.TIME_HARD_MS
-        assertEquals(ExpBudget.Check.Ok, budget.stepCheck(1))
+        val soft = budget.stepCheck(1)
+        assertTrue(soft is ExpBudget.Check.Soft && "elapsed" in soft.detail, "the time soft warning: $soft")
         clock = ExpBudget.TIME_HARD_MS + 1
         val past = budget.stepCheck(1)
         assertTrue(past is ExpBudget.Check.Hard && "elapsed" in past.detail, "time hard stops: $past")

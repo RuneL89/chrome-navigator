@@ -71,7 +71,7 @@ class VisionLadderSourceTest {
             )
 
             assertEquals(2, result.ladder.subtasks.size)
-            assertEquals("vision-exp-v19/gen1", result.version)
+            assertEquals("vision-exp-v20/gen1", result.version)
             assertTrue(result.costMicroUsd > 0, "the call's provider usage prices: ${result.costMicroUsd}")
             val body = transport.bodies.single()
             assertTrue("image_url" in body, "the screenshot rides the plan event (raw dual evidence): $body")
@@ -110,7 +110,7 @@ class VisionLadderSourceTest {
             source.restructure("find a celsius drink on shop.test", generation = 2, failure = failure),
         )
 
-        assertEquals("vision-exp-v19/gen2", result.version)
+        assertEquals("vision-exp-v20/gen2", result.version)
         val body = transport.bodies.single()
         assertTrue("no unique candidate/ground" in body, "the cause rides the re-plan: $body")
         assertTrue("google.test" in body, "the page host rides it: $body")

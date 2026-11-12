@@ -154,7 +154,7 @@ class Phase18R2SiteDriftFixtureTest {
     """.trimIndent()
 
     private val tapProposal = """
-        {"proposals":[{"description":"the first directory entry","action":"tap",
+        {"proposals":[{"description":"the first directory entry","action":"tap","expectedEffect":{"expect":"TargetStateChanged"},
           "box":{"top":0.20,"bottom":0.25,"left":0.10,"right":0.30},"confidence":0.9}]}
     """.trimIndent()
 
@@ -202,9 +202,17 @@ class Phase18R2SiteDriftFixtureTest {
                 "r2-drift",
             ) { ++iterations > 10 }
 
-            // The drift never ends the run: acting "succeeds", so the loop keeps going
-            // until the owner's cancel — the 107-step shape in miniature.
-            assertEquals(VisionLoop.Terminal.CANCELLED, result.terminal, result.subtaskOutcomes.toString())
+            // UPDATED by Stage 18.C CN-04+CN-11 (doc 04 §9.3/§9.7, ratified): the drift
+            // taps produce NO observed effect (the scripted Site-B pages repeat), so the
+            // no-effect budget bounds the drift at 3 — the 107-step R2 shape can no
+            // longer happen (the budget feeds the re-plan gate; maxReplans 0 ->
+            // REPLANS_EXHAUSTED). The prefix-rollback pins below are unchanged: the
+            // rollback itself is Stage 18.C CN-06's mechanism (a later part).
+            assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal, result.subtaskOutcomes.toString())
+            assertTrue(
+                result.subtaskOutcomes.any { it.contains("NO_EFFECT_ACTIONS exhausted") },
+                "the no-effect budget bounded the drift: ${result.subtaskOutcomes}",
+            )
             // Subtask 1 completed exactly once, BEFORE the drift.
             assertTrue(
                 result.subtaskOutcomes.any { it.contains("subtask 1/3 DONE") },

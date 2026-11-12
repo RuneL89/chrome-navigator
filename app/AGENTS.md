@@ -1550,6 +1550,37 @@ three-way selector ships with that program.
     characterization updated to the §9.8 law (LOW_CONFIDENCE_GROUND pins; the
     repair-once scenario adapted lawfully — its ground answer scripted, no blind tap).
     Full app 818 / core 338 green.
+* **PHASE_18 Stage 18.C part 1 (CN-04+CN-11, 2026-11-12): progress semantics + the
+  no-progress budgets (doc 04 §9.3/§9.7 — implemented now).**
+  * `loop/ActionPostcondition.kt` (the CLOSED postcondition set + ExpectedEffect +
+    the wire parse), `loop/ActionPostconditionChecker.kt` (the PURE checker: previous vs
+    fresh observation, the declared expectation, the code facts — Verified /
+    UnknownEffect / WrongContext; a navigation landing off the task's hosts is
+    WRONG_CONTEXT, never progress; refused grounds still record their calibration
+    miss), `loop/ActionReceipt.kt` (verb, semantic target, expectation, dispatch
+    result, verified verdict, page hashes).
+  * THE PROMPT LAW: `VISION_PROMPT_VERSION = vision-exp-v20` (retire-and-add per the
+    fixture law) — every tap/type/submit proposal REQUIRES a declared
+    `expectedEffect` from the closed set; parseProposals rejects a missing declaration
+    and unknown postcondition types on the vision path (scroll/back tolerate absence =
+    UnknownEffect); `gen/golden-vision-propose-v20.json` records the v20 propose
+    contract; v19 goldens retired by this version.
+  * VisionLoop: the PENDING receipt (decision-time facts: verb, semantic target,
+    expectation, page hash before) completes at the next iteration's fresh observation
+    (the existing post-step bookkeeping — zero extra reads); `progresses` flips ONLY
+    from a verified effect; the same-action accounting consumes the COMPLETED receipt.
+  * CN-11: `ExpBudget.stepCheck` — the soft warnings are INDEPENDENT per dimension
+    (the old steps-branch quirk gone; each warns once); the pre-call writer-room
+    enforcement (WRITER_BUDGET_EXHAUSTED before a propose/plan call past the cap);
+    `loop/NoProgressBudget.kt` — the semantic ledger (no-effect actions, wrong-context
+    actions, grounding failures, model failures, planning attempts, replans per
+    subtask/run) wired into VisionLoop's Config thresholds, feeding the existing
+    failed-step/re-plan gate (its thresholds: 3 no-effect / 2 wrong-context / 3
+    grounding / 3 model / 3 planning / 3 replans per subtask).
+  * Gates: VisionProposeSchemaTest (the v20 goldens + the violation samples +
+    scroll/back tolerance + the data-not-directive law); the ExpBudget characterization
+    re-pinned to the independent law; 17 scripted suites' propose JSONs carry v20
+    declarations; full app 828 / core 338 green.
 
 ## Local Contracts
 
