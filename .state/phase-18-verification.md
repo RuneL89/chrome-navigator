@@ -179,3 +179,23 @@ pinned-URL read goal via the wizard's real path.
 
 STAGE 18.B PART 2 EMULATOR PASS: GREEN (the law verified live; the completion regression
 documented as environmental).
+
+## Stage 18.C part 1 verification (2026-11-12)
+
+> Verifier: canon-verifier, cold. Its agent config forbids .md writes; the orchestrator
+> transcribes the returned record verbatim. Full details in the returned report.
+
+1. Law read — PASS (04 §9.3 + §9.7 in full; 07 §4/§5; 02 §4; the phase doc; handoff CN-04/CN-11).
+2. Diff confinement — PASS (33 files; no Project Vision/README change).
+3. CN-04 law — PASS (a)-(g): the closed set matches §9.3 exactly; progresses ONLY from Verified (the pending receipt created at dispatch with `Attempted.Acted(..., false, ...)`, completed by `completeReceiptFacts(fresh)` at two seams); WrongContext on wrong-host feeds failure; UnknownEffect resets nothing; the same-action accounting consumes receipts via semanticKey (never node id); the schema REQUIRES the declaration on tap/type/submit and rejects unknown loudly; the declaration is data (the pure checker, the prompt's description instruction, the hostile-input test).
+4. CN-11 law — PASS (a)-(d): the independent soft warnings each once (the quirk gone); the hard checks unchanged; the pre-call writer-room guard at ALL SIX Haiku sites; NoProgressBudget counters with verified-only resets, the Config thresholds, the gate feed (the capture counter deliberately absent — CN-10 owns it).
+5. A11y tolerance — PASS (parseProposals is the vision proposer's only consumer; the retained cascade never parses vision JSON).
+6. Golden law — PASS (the v20 golden records the prompt + the closed set + violations; no v19 propose golden existed; v19 retired via the version-pin update; the remaining v19 strings are the boundary-audit pin, lawful).
+7. Gates cold — PASS (fresh --rerun-tasks; app 828 / core 338; per-suite Schema 5, ExpBudget 10, GroundingRoute 3, Capture 3, ScrollFind 3, R2Drift 1, SearchSubmit 10, Experiment 55).
+8. Secrets — PASS.
+9. Adaptation legality — PASS (every re-pin implements the ratified law, preserves surviving intent, cites the section).
+
+Observations (not RED, for 18.C closeout): dedicated ActionPostconditionCheckerTest / NoProgressBudgetTest isolation pins recommended before 18.C1/18.C2 sign-off (currently covered via schema + integration); the compliance-log §2 phrasing "a11y parses tolerantly" is imprecise — the code truth is the a11y path untouched-by-construction.
+
+RED items: none.
+**STAGE 18.C PART 1 VERDICT: GREEN**
