@@ -13,7 +13,7 @@
       "Vision-doc amendments are drafted in separate GLM-5.3 sessions per amendment; implementation pauses at any unratified amendment"
     ]
   },
-  "lastAction": "Stage 18.C part 1 implemented by the orchestrator (the implementer subagent hit a WEEKLY limit, reset 2026-11-12 23:14; the continue directive applied); gates green app 828 / core 338.",
+  "lastAction": "Stage 18.C part 1 verifier GREEN (record filed); the reinstall wiped the encrypted store (the self-heal law) — re-entering both keys through the wizard for the emulator pass.",
   "gatesPassed": [
     "18.A1",
     "18.A2",
@@ -52,7 +52,7 @@
     "gates": "core 338 / 0; app 790 / 0 (fresh --rerun-tasks full run)",
     "runMethodSize": "NavigationLoop.run() javap 58,285 -> 58,301 of 65,535 (+16 bytes; the write lives in class-scope writeTerminalEvidence + the run$finish synthetic)"
   },
-  "nextAction": "canon-verifier cold-check of Stage 18.C part 1",
+  "nextAction": "emulator pass for Stage 18.C part 1 (orchestrator): keys re-entered, then the v20-schema run",
   "stage18B": {
     "part1": {
       "scope": "CN-02 consistent snapshot + CN-03 fresh pre-dispatch guard (landed together)",
