@@ -199,3 +199,11 @@ Observations (not RED, for 18.C closeout): dedicated ActionPostconditionCheckerT
 
 RED items: none.
 **STAGE 18.C PART 1 VERDICT: GREEN**
+
+## 2026-11-13 — STAGE 18.C ITEMS 4-5 VERIFIED GREEN (CN-06 + CN-07; cold check)
+* Gates re-run cold (`:core:test :app:testDebugUnitTest --rerun-tasks`): BUILD SUCCESSFUL — core 346 + app 844 = 1190 tests, 0 failures, 0 errors, 0 skipped (XML-summed). Matches the implementer's claim exactly.
+* 18.C4 PASS — Phase18PrefixAuditorTest 7/7 maps to the plan's six CN-06 cases (R2 rollback with replans==0; lawful-transition marker historical; false-prefix rejected/resume-0; reorder by evidence; order milestone stops audit; append law). 18.C5 PASS — Phase18FinalVerifierTest 8/8 maps to the six CN-07 cases (recorded accept; no-evidence refusal; generic-confirmation refused; review refused; order-specific accepted; 6a/6b/6c each exactly one verifier invocation via the counting hook). 18.C6 PASS — R2 re-pin is LAWFUL (restoration-before-planning per §9.5 + invalid-host-to-rollback per §9.9; rollback precedes every REPLAN line, names proof+reason, terminal stays REPLANS_EXHAUSTED); R4 fixture unmodified and green through the new verifier.
+* §9.5/§9.6 clause check: COMPLIANT on every clause; only two success-terminal sites exist (VisionLoop.kt:938, :1703), both verifier-gated; generic-"confirmation" purchase acceptance removed from code paths; no Project Vision/ edits; scripted-transports-only, no secrets; DOX/status/compliance-log coherent.
+* Minor observations (non-blocking): irreversibleMilestone reads the original rather than kept repaired condition (unreachable corner); hatch account pre-filter is current-page-only (conservative); case-5 owner-policy half lives in gate/Stage 18.D; status.json "part2 pending" line stale; untracked UAT PNGs in .state/phase-18-uat are artifacts.
+* Post-verification touch-ups (orchestrator): irreversibleMilestone now reads the KEPT repaired condition (auditedCondition) — observation 1 applied; the stale "part2 pending" status line corrected. Affected suites re-run green.
+* Result: GREEN. Checked by: canon-verifier (cold).

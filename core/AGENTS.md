@@ -160,8 +160,25 @@ without a device.
   content conditions only when the caller's landing-host predicate allows it; the audit
   returns the EARLIEST invalid completed ordinal and never rolls back past a completed
   order-confirmation final — the R2 lost-site fix);
+  `GoalFidelity.kt` (PHASE_16 — the goal-fidelity check binding a ladder to the GOAL:
+  the goal classes (purchase/account-switch/playback/read-report), the class laws over
+  the final condition + the explicit parameters, the site-first rule, and the
+  end-state evidence helpers `evidencesOrderConfirmation`/`evidencesPlayback`/
+  `finalAcceptViolation`. PHASE_18 Stage 18.C (doc 04 §9.6, ratified): the bare generic
+  "confirmation" entry is REMOVED from the order-confirmation vocabulary — a purchase
+  completes only on order-specific evidence (an order number or explicit order-placed
+  language); and `finalAcceptViolation`'s escape clause is gone — recorded switching
+  evidence must ITSELF evidence the target account (the ladder naming the target was
+  never evidence));
+  `GoalContract.kt` + `GoalParameter.kt` (PHASE_18 Stage 18.C CN-05, doc 04 §9.4 —
+  the IMMUTABLE GOAL CONTRACT, built deterministically from the raw goal text before
+  first navigation: the goal verbatim, the detected classes, the named site, the stated
+  parameters (quantity/budget/address/account/media/site), the unmet requirements the
+  18.D clarification handler will consume; `validateLadder`/`validateReplan` are the
+  token-based binding checks every install and re-plan must pass — a reworded plan
+  binds, a weakened one is refused; secrets never enter a contract);
   law:
-  `Project Vision/04` §1/§3 v1.8.0 + v1.8.4 + §7 v2.5.0, `Project Vision/03` §4 v2.2.0
+  `Project Vision/04` §1/§3 v1.8.0 + v1.8.4 + §7 v2.5.0 + §9.4–9.6, `Project Vision/03` §4 v2.2.0
 * `src/main/kotlin/navigator/core/gate/` — the risk gate (ART-1: code owns the gate,
   no model judgment in the gate path): `RiskGate` (deterministic H1–H9 classifier over
   (action, context); ambiguous classification fails to the stricter class — never

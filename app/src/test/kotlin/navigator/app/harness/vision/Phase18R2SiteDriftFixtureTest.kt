@@ -3,7 +3,6 @@ package navigator.app.harness.vision
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonPrimitive
@@ -29,17 +28,21 @@ import navigator.core.wire.WireTransportException
  * `sitea.test`, the drift target is `siteb.test`; the fixture pages live in
  * `app/src/test/resources/fixtures/phase18/` for the emulator leg.
  *
- * What it pins (CURRENT behavior, $0 scripted replay): subtask 1
- * (`urlHost sitea.test`) completes on Site A; the observation drifts to Site B;
- * while the scripted steps keep ACTING successfully, the pointer stays past
- * subtask 1, the run keeps acting on the wrong host, and NO prefix revalidation
- * runs — the completed-prefix audit fires only on consecutive step FAILURES
- * (`Config.prefixAuditAfter`; the rollback-on-failures half is already pinned by
- * [VisionLoopPrefixRollbackTest] and is deliberately not duplicated here).
+ * What it pins (UPDATED by Stage 18.C CN-06, doc 04 §9.5 — the fixture's lawful
+ * terminal CHANGED and the pin names the new law): subtask 1 (`urlHost sitea.test`)
+ * completes on Site A with a KEPT PROOF (host context, snapshot ref); the observation
+ * drifts to Site B; the drift taps produce no verified effect, so the semantic
+ * no-effect budget bounds the drift at 3 — and at the re-plan gate the CN-06 PREFIX
+ * AUDIT runs BEFORE any re-plan capacity is spent: the VERIFIED urlHost proof no
+ * longer holds on siteb.test, so the run takes the PREFIX ROLLBACK path (the earliest
+ * invalid subtask) instead of a re-plan. The rollback evidence names BOTH the original
+ * proof and the appended invalidation reason (the §9.5 append law). The re-entered
+ * subtask cannot hold either (the script never returns to Site A), the re-plan attempt
+ * then exhausts its bounded attempts, and the run ends REPLANS_EXHAUSTED — the honest
+ * terminal, with zero false progress on the wrong host.
  *
- * Changed by: Stage 18.C CN-06 (runtime prefix states VERIFIED/INVALIDATED,
- * evidence-scoped revalidation, wrong-host = WRONG_CONTEXT).
- * Vision law: Project Vision/04 §9.5 (and §9.3's wrong-context rule).
+ * Vision law: Project Vision/04 §9.5 (runtime prefix states, evidence-scoped
+ * revalidation, restoration before planning) and §9.3's wrong-context rule.
  */
 class Phase18R2SiteDriftFixtureTest {
 
@@ -161,7 +164,7 @@ class Phase18R2SiteDriftFixtureTest {
     private val confirmTrue = """{"complete":true,"reason":"the outcome is visible"}"""
 
     @Test
-    fun `the R2 drift shape - the loop keeps acting on the wrong host without prefix revalidation`() =
+    fun `the R2 drift shape - the prefix audit rolls back to the lost host BEFORE any re-plan`() =
         runBlocking {
             val base = Files.createTempDirectory("p18-r2-drift").toFile()
             val evidence = VisionEvidence(base, "r2-drift")
@@ -172,7 +175,7 @@ class Phase18R2SiteDriftFixtureTest {
                     siteAHome(),         // ...and the step loop observes again: subtask 1 accepts
                     // The drift: every page is distinct (URL + hash), so acting keeps
                     // "succeeding" — no stuck probe, no same-action accumulation, no
-                    // failures, hence no prefix audit within the pinned window.
+                    // failures until the semantic no-effect budget bounds the drift.
                     *Array(12) { siteBListing(it + 1) },
                 ),
                 executor = RecordingExecutor(),
@@ -202,12 +205,14 @@ class Phase18R2SiteDriftFixtureTest {
                 "r2-drift",
             ) { ++iterations > 10 }
 
-            // UPDATED by Stage 18.C CN-04+CN-11 (doc 04 §9.3/§9.7, ratified): the drift
-            // taps produce NO observed effect (the scripted Site-B pages repeat), so the
-            // no-effect budget bounds the drift at 3 — the 107-step R2 shape can no
-            // longer happen (the budget feeds the re-plan gate; maxReplans 0 ->
-            // REPLANS_EXHAUSTED). The prefix-rollback pins below are unchanged: the
-            // rollback itself is Stage 18.C CN-06's mechanism (a later part).
+            // UPDATED by Stage 18.C CN-06 (doc 04 §9.5, ratified — the pin's lawful
+            // terminal semantics changed and this pin names the new law): the drift taps
+            // produce NO observed effect, so the no-effect budget bounds the drift at 3;
+            // at the re-plan gate the CN-06 prefix audit runs BEFORE any re-plan — the
+            // VERIFIED urlHost proof (sitea.test) is false on siteb.test — and the run
+            // takes the PREFIX ROLLBACK path instead of spending re-plan capacity. The
+            // re-entered subtask cannot hold (the script never returns to Site A), so
+            // the later re-plan attempt exhausts and the run ends REPLANS_EXHAUSTED.
             assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal, result.subtaskOutcomes.toString())
             assertTrue(
                 result.subtaskOutcomes.any { it.contains("NO_EFFECT_ACTIONS exhausted") },
@@ -229,17 +234,26 @@ class Phase18R2SiteDriftFixtureTest {
                 "the drift steps keep acting successfully: ${result.subtaskOutcomes}",
             )
             assertTrue(result.stepsUsed > 2, "several steps ran past the completed prefix: ${result.stepsUsed}")
-            // CURRENT behavior: NO prefix revalidation while acting succeeds — no
-            // rollback, no re-check of the completed sitea.test subtask on Site B.
-            assertFalse(
-                result.subtaskOutcomes.any { it.contains("PREFIX ROLLBACK") },
-                "no rollback may fire on a successful-acting drift: ${result.subtaskOutcomes}",
+            // THE CN-06 LAW: the prefix audit fires BEFORE any re-plan is requested —
+            // the rollback line precedes every REPLAN line (here: no re-plan ran before
+            // the rollback at all).
+            val rollbackIndex = result.subtaskOutcomes.indexOfFirst { it.contains("PREFIX ROLLBACK") }
+            assertTrue(rollbackIndex >= 0, "the drift must end in a prefix rollback: ${result.subtaskOutcomes}")
+            val firstReplanIndex = result.subtaskOutcomes.indexOfFirst { it.contains("REPLAN") }
+            assertTrue(
+                firstReplanIndex == -1 || firstReplanIndex > rollbackIndex,
+                "the rollback must precede any re-plan spend: ${result.subtaskOutcomes}",
+            )
+            // The rollback evidence names BOTH the original proof and the appended
+            // invalidation reason (the §9.5 append law — proofs are never deleted).
+            val rollback = result.subtaskOutcomes[rollbackIndex]
+            assertTrue(
+                rollback.contains("subtask 1/3") && rollback.contains("original proof:") &&
+                    rollback.contains("invalidated:") &&
+                    rollback.contains("sitea.test") && rollback.contains("siteb.test"),
+                "the rollback names the proof and the reason: $rollback",
             )
             val log = Files.readAllBytes(java.io.File(base, "r2-drift/events.log").toPath()).decodeToString()
-            assertFalse(log.contains("PREFIX ROLLBACK"), log.take(2000))
-            assertFalse(
-                result.subtaskOutcomes.any { it.contains("sitea.test") && it.contains("REVALIDAT") },
-                "the completed prefix was not revalidated: ${result.subtaskOutcomes}",
-            )
+            assertTrue(log.contains("PREFIX ROLLBACK"), log.take(2000))
         }
 }

@@ -7,15 +7,23 @@ import navigator.app.loop.ActionPostconditionChecker
 import navigator.app.loop.ActionReceipt
 import navigator.app.loop.ExpectedEffect
 import navigator.app.loop.ExecutionRequest
+import navigator.app.loop.FinalGoalVerifier
 import navigator.app.loop.FrameBounds
+import navigator.app.loop.GoalCompletionEvidence
 import navigator.app.loop.GatePresenter
 import navigator.app.loop.GateResolution
 import navigator.app.loop.GuardActionKind
+import navigator.app.loop.InvalidationRecord
 import navigator.app.loop.LoopObserver
 import navigator.app.loop.NoProgressBudget
 import navigator.app.loop.PreDispatchGuard
+import navigator.app.loop.PrefixAuditor
+import navigator.app.loop.ProofEvidenceType
+import navigator.app.loop.ProvingEvidence
 import navigator.app.loop.RectPxBox
 import navigator.app.loop.StepObservation
+import navigator.app.loop.SubtaskRuntimePhase
+import navigator.app.loop.SubtaskRuntimeState
 import navigator.app.loop.TargetExpectation
 import navigator.app.loop.TextEntryFailure
 import navigator.app.loop.TextSource
@@ -341,9 +349,16 @@ class VisionLoop(
      * repaired condition was also code-verified on the CURRENT observation (the caller
      * still requires the trigger battery's concurrence before accepting); [NoAccept]
      * means the existing battery re-plan path runs, with [detail] recorded loudly.
+     * PHASE_18 CN-06: [Accepted] carries the accepted CONDITION itself — the verified
+     * milestone's kept proof must record the condition that actually held (§9.5), not
+     * the mis-shaped original.
      */
     private sealed interface ConditionRepair {
-        data class Accepted(val oldRender: String, val newRender: String) : ConditionRepair
+        data class Accepted(
+            val oldRender: String,
+            val newRender: String,
+            val newCondition: DoneCondition,
+        ) : ConditionRepair
         data class NoAccept(val detail: String) : ConditionRepair
     }
 
@@ -590,6 +605,28 @@ class VisionLoop(
     private var goalContract: navigator.core.ladder.GoalContract? = null
 
     /**
+     * PHASE_18 Stage 18.C CN-06 — the RUNTIME PREFIX STATES (doc 04 §9.5): one
+     * [SubtaskRuntimeState] per subtask of the CURRENT ladder generation, rebuilt on
+     * every plan install — the initial plan builds them PENDING; a re-plan maps the
+     * previous generation's proofs onto the new ladder by contract/content
+     * ([PrefixAuditor.mapNewLadder]), never by the writer's ordinal claim. A verified
+     * advance appends its proving evidence; an audit-found invalidation APPENDS its
+     * reason (proof history is never deleted). Class field per the loop-state
+     * discipline.
+     */
+    private var runtimeStates: List<SubtaskRuntimeState> = emptyList()
+
+    /**
+     * PHASE_18 Stage 18.C CN-07 — the test counting hook: every SUCCESS path (the
+     * ordinary final accept, the repaired-condition accept, the §4.1 hatch) increments
+     * this EXACTLY ONCE at its single-verifier call, so the JVM gates can pin the
+     * one-verifier law ("all successful terminal paths invoke the same verifier exactly
+     * once"). Never read by the loop itself.
+     */
+    internal var finalVerifierInvocations: Int = 0
+        private set
+
+    /**
      * PHASE_18 CN-02 — the snapshot the CURRENT decision consumed (set by
      * [verifiedObserve] when the snapshotter is wired; null = snapshotter-less legacy
      * path). [attemptStep]'s pre-dispatch request carries its id, expected browser
@@ -703,6 +740,14 @@ class VisionLoop(
         val actedNodeIds = mutableSetOf<String>()
         var typedSoFar: String? = null
         var answer: String? = null
+        // PHASE_18 CN-07: the observation reference the answer was extracted FROM (the
+        // final verifier's "tied to a source observation" check); set at every extraction.
+        var answerSourceRef: String? = null
+        // PHASE_18 CN-07: the repaired-condition accept (the VEXP7 path) sets this to the
+        // ACCEPTED CONDITION right before acceptAdvance so the verifier's bundle carries
+        // the scoped weak-at-start bypass evidence and the milestone's kept proof records
+        // the condition that actually held (§9.5); acceptAdvance consumes and clears it.
+        var repairAcceptCondition: DoneCondition? = null
         var replans = 0
 
         /**
@@ -778,6 +823,11 @@ class VisionLoop(
         evidence.event("plan: ${ladder.summary} (${ladder.subtasks.size} subtasks, ${ladder.taskClass})")
         outcomes.add("plan: ${ladder.summary}")
         var pointer = 0
+        // PHASE_18 Stage 18.C CN-06: the runtime prefix states for the FIRST plan — all
+        // PENDING, subtask 1 ACTIVE. Rebuilt (with proof mapping) on every re-plan
+        // install; a verified advance appends its proof, an audit appends its reason.
+        runtimeStates = ladder.subtasks.mapIndexed { i, s -> SubtaskRuntimeState(i, s.instruction, s.done) }
+        runtimeStates[0].markActive()
         var subtaskStartHash = obs.screenHash
         var stepsOnSubtask = 0
         batteryEscalatedWithoutAction = false
@@ -807,45 +857,101 @@ class VisionLoop(
         stepPurchaseControlVisible = PurchaseControl.hasVisible(obs.nodes)
 
         /**
+         * PHASE_18 Stage 18.C CN-07 — THE CN-07 BUNDLE: everything the single final
+         * verifier judges, from state the loop already holds — zero extra reads, zero
+         * model calls. [goalContract] is present at every success path (it is built
+         * before the first navigation), so a missing contract is a loud incoherence,
+         * never a silent pass. Local fun (the loop-state discipline): it reads the
+         * run's own locals (ladder/obs/counters/answer). Declared before the accept
+         * paths that consume it (local declarations resolve in order).
+         */
+        fun completionEvidence(
+            modelsConfirmedFinal: Boolean,
+            repairedConditionObserved: Boolean,
+        ): GoalCompletionEvidence {
+            val contract = goalContract
+                ?: throw IllegalStateException("the goal contract is missing at a success path (CN-05)")
+            return GoalCompletionEvidence(
+                goalText = contract.goalText,
+                ladder = ladder,
+                contract = contract,
+                observationTitle = obs.title,
+                observationUrl = obs.url.takeUnless { it == "hidden" || it == "unavailable" },
+                observationLines = obs.lines,
+                currentHost = readableHost(obs),
+                currentSnapshotRef = "hash=${obs.screenHash}",
+                checkerEvidence = checkerEvidence(obs, counters, answer?.let { 1 } ?: 0),
+                runtimeStates = runtimeStates,
+                answer = answer,
+                answerSource = answerSourceRef,
+                modelsConfirmedFinal = modelsConfirmedFinal,
+                repairedConditionObserved = repairedConditionObserved,
+                unresolvedRedFlag = stepEscalation == VisionPrompts.EscalationKind.RED_FLAGS,
+                // The owner-denial terminal state is Stage 18.D's (CN-15); this loop has
+                // no persistent denial flag today (a denied action refuses and the step
+                // fails into the ordinary failure accounting).
+                unresolvedOwnerDenial = false,
+            )
+        }
+
+        /**
          * PHASE_VEXP7 — the SHARED ACCEPT-advance: the normal code-first accept and the
          * repaired-condition accept mirror each other EXACTLY through this one helper.
          * Returns the terminal result on the FINAL subtask (the answer extraction runs
          * first when the ladder carries an `answerExtracted`), or null after a mid-ladder
          * advance. The state resets are the pre-VEXP7 accept block verbatim plus the
          * repair-set clear (a new subtask gets its own one-repair allowance).
+         *
+         * PHASE_18 Stage 18.C CN-07 (doc 04 §9.6): the FINAL accept — the ordinary code
+         * accept AND the repaired-condition accept, which share this funnel — is gated by
+         * the ONE [FinalGoalVerifier] (the same verifier the §4.1 hatch runs). A
+         * deficiency refuses the accept loudly and the loop keeps working; a failed
+         * verification never yields GOAL_ACHIEVED. The former Stage 0.5 account
+         * end-state re-check is SUBSUMED (the verifier composes the same GoalFidelity
+         * check, now with the recorded switching-subtask evidence from the runtime
+         * states). CN-06: both branches mark the completed subtask VERIFIED with its
+         * kept proof (the runtime prefix the audits revalidate).
          */
         suspend fun acceptAdvance(): Result? {
+            val viaRepair = repairAcceptCondition
+            repairAcceptCondition = null
+            // The verified milestone's kept proof records the condition that ACTUALLY
+            // held (§9.5): the accepted repaired condition on the VEXP7 repair path,
+            // else the ladder's own done-condition.
+            val proofCondition = viaRepair ?: ladder.subtasks[pointer].done
             if (pointer == ladder.subtasks.size - 1) {
                 if (ladder.subtasks.any { it.done is DoneCondition.AnswerExtracted } && answer == null) {
                     answer = extractAnswer(goal, obs, shot)
+                    answerSourceRef = "hash=${obs.screenHash}"
                     outcomes.add("answer: ${answer?.take(120) ?: "(extraction refused)"}")
                 }
-                // PHASE_17 Stage 0.5 — the ACCOUNT_SWITCH end state at GOAL_ACHIEVED (the
-                // R4 gap): the hatch's sixth guard covers the model hatch only; the normal
-                // accept re-checks the account here. The recorded evidence is the ladder's
-                // own switching-subtask text (validated at build to carry the account).
-                val violation = navigator.core.ladder.GoalFidelity.finalAcceptViolation(
-                    goal = goal,
-                    ladderText = ladder.summary + " " + ladder.subtasks.joinToString(" ") {
-                        it.instruction + " " + DoneConditionChecker.render(it.done)
-                    },
-                    currentObservationText = obs.title + " " + obs.url + " " + obs.lines.joinToString(" "),
-                    recordedEvidenceText = null,
-                )
-                if (violation != null) {
-                    val line = "ACCEPT REFUSED: $violation"
-                    outcomes.add(line)
-                    log("[vision] $line")
-                    evidence.event(line)
-                    consecutiveFailures += 1
-                    failuresSinceAdvance += 1
-                    step += 1
-                    return null
+                finalVerifierInvocations += 1
+                when (val verdict = FinalGoalVerifier.verify(
+                    completionEvidence(
+                        modelsConfirmedFinal = false,
+                        repairedConditionObserved = viaRepair != null,
+                    ),
+                )) {
+                    is FinalGoalVerifier.Verdict.Accept -> {
+                        runtimeStates[pointer].markVerified(provingEvidence(proofCondition, obs))
+                        evidence.event("GOAL_ACHIEVED after $step steps")
+                        return terminal(Terminal.GOAL_ACHIEVED, ladder)
+                    }
+                    is FinalGoalVerifier.Verdict.Deficient -> {
+                        val line = "ACCEPT REFUSED: " + verdict.deficiencies.joinToString("; ")
+                        outcomes.add(line)
+                        log("[vision] $line")
+                        evidence.event(line)
+                        consecutiveFailures += 1
+                        failuresSinceAdvance += 1
+                        step += 1
+                        return null
+                    }
                 }
-                evidence.event("GOAL_ACHIEVED after $step steps")
-                return terminal(Terminal.GOAL_ACHIEVED, ladder)
             }
+            runtimeStates[pointer].markVerified(provingEvidence(proofCondition, obs))
             pointer += 1
+            runtimeStates.getOrNull(pointer)?.markActive()
             consecutiveFailures = 0
             failuresSinceAdvance = 0 // PHASE_17: a verified advance starts the audit clean
             recentHashes.clear()
@@ -871,26 +977,50 @@ class VisionLoop(
         }
 
         /**
-         * PHASE_17 Stage 0.1 — the completed-prefix audit (the R2 lost-site fix). After
-         * [Config.prefixAuditAfter] failures since the last advance, re-check the
-         * completed subtasks' conditions on the current observation and roll the pointer
-         * back to the earliest false. The ladder/batteries stay; the pointer and the
-         * per-subtask counters reset exactly like a re-plan install. No writer call and
-         * no re-plan budget is spent. Content conditions are page-local and the vision
-         * loop has no landing-host record, so only the URL-identity conditions are
-         * audited (the R2 case).
+         * PHASE_17 Stage 0.1 — the completed-prefix audit (the R2 lost-site fix), now
+         * running on the CN-06 RUNTIME STATES through the evidence-scoped
+         * [PrefixAuditor] (doc 04 §9.5): after [Config.prefixAuditAfter] failures since
+         * the last advance — AND always before a re-plan is requested — re-check the
+         * completed subtasks' proofs against the current observation and roll the
+         * pointer back to the earliest invalid. The ladder/batteries stay; the pointer
+         * and the per-subtask counters reset exactly like a re-plan install. No writer
+         * call and no re-plan budget is spent. Content conditions are audited only
+         * while their proof's page-local scope persists (the proof's own host is still
+         * the current host — no false rollback after a lawful transition).
+         *
+         * The evidence line names BOTH the original proof and the invalidation reason
+         * (the §9.5 append law — the proof history is never deleted, only extended).
          */
         fun prefixRollback(obs: StepObservation, counters: Map<String, Int>, answersProduced: Int): Boolean {
             if (pointer == 0) return false
             val codeEvidence = checkerEvidence(obs, counters, answersProduced)
-            val invalid = navigator.core.ladder.PrefixAudit.earliestInvalid(
-                ladder,
-                pointer,
-                codeEvidence,
-            ) { false } // content conditions: no landing-host record in the vision loop
-            if (invalid == null) return false
-            val condition = DoneConditionChecker.render(ladder.subtasks[invalid].done)
-            pointer = invalid
+            val currentHost = readableHost(obs)
+            val invalid = PrefixAuditor.earliestInvalid(
+                states = runtimeStates,
+                activePointer = pointer,
+                currentSatisfied = { condition -> DoneConditionChecker.satisfied(condition, codeEvidence) },
+                currentHost = currentHost,
+                currentSnapshotRef = "hash=${obs.screenHash}",
+                countersPresent = { i -> countKeyPresent(ladder.subtasks[i].done, counters) },
+                answersStillProduced = answersProduced >= 1,
+            ) ?: return false
+            val snapshotRef = "hash=${obs.screenHash}"
+            val now = System.currentTimeMillis()
+            runtimeStates[invalid.index].invalidate(
+                InvalidationRecord(
+                    reason = invalid.reason,
+                    snapshotRef = snapshotRef,
+                    hostContext = currentHost,
+                    timestampMs = now,
+                ),
+            )
+            // The subtasks the pointer leaves behind keep their proofs but rejoin the
+            // pending pool (a re-verification APPENDS a new proof — nothing is deleted).
+            for (i in invalid.index + 1 until runtimeStates.size) {
+                if (runtimeStates[i].state == SubtaskRuntimePhase.VERIFIED) runtimeStates[i].markPending()
+            }
+            pointer = invalid.index
+            runtimeStates[pointer].markActive()
             consecutiveFailures = 0
             failuresSinceAdvance = 0
             recentHashes.clear()
@@ -906,8 +1036,9 @@ class VisionLoop(
             churnHintLogged = false
             resetSameAction()
             noProgress.resetSubtaskScope() // PHASE_18 CN-11: the re-entered subtask starts clean
-            val line = "PREFIX ROLLBACK: subtask ${invalid + 1}/${ladder.subtasks.size} - " +
-                "\"$condition\" no longer holds on the current page - re-entering it"
+            val line = "PREFIX ROLLBACK: subtask ${invalid.index + 1}/${ladder.subtasks.size} - " +
+                "\"${invalid.conditionRender}\" no longer holds on the current page - re-entering it " +
+                "(original proof: ${invalid.proofRender}; invalidated: ${invalid.reason})"
             outcomes.add(line)
             log("[vision] $line")
             evidence.event(line)
@@ -1096,6 +1227,7 @@ class VisionLoop(
                 answer == null
             ) {
                 answer = extractAnswer(goal, obs, shot)
+                answerSourceRef = "hash=${obs.screenHash}" // PHASE_18 CN-07: the answer's source observation
                 evidence.event("report extraction ran (answer ${answer?.take(80) ?: "(refused)"})")
             }
 
@@ -1291,6 +1423,12 @@ class VisionLoop(
                         "subtask ${pointer + 1} done (condition repaired): ${active.instruction.take(60)}",
                     )
                     // The normal accept-advance, shared byte-for-byte (resets + terminal).
+                    // PHASE_18 CN-07: when this is the FINAL subtask the accept funnels
+                    // through the ONE final verifier; the bundle carries the repair
+                    // path's scoped evidence (the repaired condition held on the CURRENT
+                    // observation and the trigger battery concurred). CN-06: the accepted
+                    // CONDITION rides into the milestone's kept proof.
+                    repairAcceptCondition = repaired.newCondition
                     acceptAdvance()?.let { return it }
                     continue
                 }
@@ -1537,27 +1675,63 @@ class VisionLoop(
                             val goalNoul = goalOpinion(goal, active, obs)
                             if (goalNoul != null && goalNoul >= config.noulAgreeAbove) {
                                 val goalMark = "goal=AGREE(%.2f)".format(goalNoul)
-                                outcomes.add(
-                                    "MODELS_CONFIRM_DONE (code-unverifiable on this page) ${op.render} $goalMark",
-                                )
-                                evidence.event(
-                                    "MODELS_CONFIRM_DONE: noul=${op.noul} confirm=${op.confirm} " +
-                                        "goalNoul=$goalNoul",
-                                )
-                                log("[vision] MODELS_CONFIRM_DONE ${op.render} $goalMark")
-                                return terminal(Terminal.MODELS_CONFIRM_DONE, ladder)
+                                // PHASE_18 Stage 18.C CN-07 (doc 04 §9.6): the hatch's
+                                // guards above are the CHEAP PRE-FILTERS; the single
+                                // final verifier is the last gate on this success path
+                                // too. A deficiency suppresses the terminal and the run
+                                // continues into the re-plan path below — never a
+                                // MODELS_CONFIRM_DONE the code evidence contradicts.
+                                finalVerifierInvocations += 1
+                                when (val verdict = FinalGoalVerifier.verify(
+                                    completionEvidence(
+                                        modelsConfirmedFinal = true,
+                                        repairedConditionObserved = false,
+                                    ),
+                                )) {
+                                    is FinalGoalVerifier.Verdict.Accept -> {
+                                        runtimeStates[pointer].markVerified(
+                                            provingEvidence(active.done, obs),
+                                        )
+                                        outcomes.add(
+                                            "MODELS_CONFIRM_DONE (code-unverifiable on this page) ${op.render} $goalMark",
+                                        )
+                                        evidence.event(
+                                            "MODELS_CONFIRM_DONE: noul=${op.noul} confirm=${op.confirm} " +
+                                                "goalNoul=$goalNoul",
+                                        )
+                                        log("[vision] MODELS_CONFIRM_DONE ${op.render} $goalMark")
+                                        return terminal(Terminal.MODELS_CONFIRM_DONE, ladder)
+                                    }
+                                    is FinalGoalVerifier.Verdict.Deficient -> {
+                                        val line = "MODELS_CONFIRM_DONE suppressed: the final " +
+                                            "verifier refuses - " + verdict.deficiencies.joinToString("; ")
+                                        outcomes.add(line)
+                                        log("[vision] $line")
+                                        evidence.event(line)
+                                    }
+                                }
+                            } else {
+                                val line = "MODELS_CONFIRM_DONE suppressed: the goal-level noul did " +
+                                    "not agree (goalNoul=${goalNoul ?: "null"})"
+                                outcomes.add(line)
+                                log("[vision] $line")
+                                evidence.event(line)
                             }
-                            val line = "MODELS_CONFIRM_DONE suppressed: the goal-level noul did " +
-                                "not agree (goalNoul=${goalNoul ?: "null"})"
-                            outcomes.add(line)
-                            log("[vision] $line")
-                            evidence.event(line)
                         } else {
                             evidence.event(
                                 "models did NOT confirm (noul=${op.noul} confirm=${op.confirm}) — re-planning",
                             )
                         }
                     }
+                }
+                // PHASE_18 Stage 18.C CN-06 (doc 04 §9.5/§9.9): the PRE-RE-PLAN prefix
+                // audit — BEFORE any re-plan capacity is spent, an invalid prefix takes
+                // the PREFIX ROLLBACK path instead (restoration before planning; the
+                // rollback itself spends no re-plan budget, so it also runs past an
+                // exhausted re-plan count — a lost site is not a planning problem).
+                if (prefixRollback(obs, counters, answer?.let { 1 } ?: 0)) {
+                    step += 1
+                    continue
                 }
                 // The budget follows the ENTRY: a battery-escalation re-plan spends the
                 // per-subtask battery budget (checked when the escalation was queued);
@@ -1632,7 +1806,40 @@ class VisionLoop(
                 ladder = rePlan.ladder
                 batteries = rePlan.battery
                 enterTexts = rePlan.enterText
-                pointer = pointer.coerceAtMost(ladder.subtasks.size - 1)
+                // PHASE_18 Stage 18.C CN-06 (doc 04 §9.5): the new ladder's claimed
+                // prefix is MAPPED to the runtime evidence — each new subtask inherits a
+                // previous proof only when instruction AND done-condition match and the
+                // proof still revalidates under its policy. The writer's word is not
+                // proof: the loop resumes at the FIRST subtask without valid current or
+                // recorded evidence, never at the writer's ordinal claim.
+                val claimedPointer = pointer
+                val mapped = PrefixAuditor.mapNewLadder(
+                    newLadder = rePlan.ladder,
+                    previous = runtimeStates,
+                    currentSatisfied = { condition ->
+                        DoneConditionChecker.satisfied(
+                            condition,
+                            checkerEvidence(obs, counters, answer?.let { 1 } ?: 0),
+                        )
+                    },
+                    currentHost = readableHost(obs),
+                    currentSnapshotRef = "hash=${obs.screenHash}",
+                    timestampMs = System.currentTimeMillis(),
+                    snapshotRef = "hash=${obs.screenHash}",
+                    countersPresent = { i -> countKeyPresent(rePlan.ladder.subtasks[i].done, counters) },
+                    answersStillProduced = answer != null,
+                )
+                runtimeStates = mapped.states
+                pointer = mapped.resumeIndex.coerceAtMost(ladder.subtasks.size - 1)
+                runtimeStates.getOrNull(pointer)?.markActive()
+                if (pointer != claimedPointer.coerceAtMost(ladder.subtasks.size - 1)) {
+                    val mapLine = "PREFIX MAP: the re-plan claimed resume at subtask " +
+                        "${claimedPointer + 1}; the runtime evidence supports subtask ${pointer + 1} " +
+                        "(the first subtask without valid current or recorded evidence)"
+                    outcomes.add(mapLine)
+                    log("[vision] $mapLine")
+                    evidence.event(mapLine)
+                }
                 consecutiveFailures = 0
                 recentHashes.clear()
                 stepsOnSubtask = 0
@@ -3238,6 +3445,36 @@ class VisionLoop(
         answersProduced = answersProduced,
     )
 
+    // -- PHASE_18 Stage 18.C CN-06/CN-07: the runtime-state + verifier assembly ----------
+
+    /**
+     * The kept proof for ONE verified milestone (doc 04 §9.5: condition, proving
+     * snapshot, host context, timestamp, evidence type + the bounded page text the
+     * proof was read from — the recorded evidence later checks consult). Pure assembly
+     * over the given observation; page-derived data only (doc 06 §2a).
+     */
+    private fun provingEvidence(condition: DoneCondition, obs: StepObservation): ProvingEvidence =
+        ProvingEvidence(
+            condition = condition,
+            snapshotRef = "hash=${obs.screenHash}",
+            hostContext = readableHost(obs),
+            timestampMs = System.currentTimeMillis(),
+            evidenceType = when (condition) {
+                is DoneCondition.UrlHost, is DoneCondition.UrlContains -> ProofEvidenceType.URL_BAR
+                is DoneCondition.CountReached -> ProofEvidenceType.WORKING_MEMORY
+                is DoneCondition.AnswerExtracted -> ProofEvidenceType.EXTRACTION_RECORD
+                else -> ProofEvidenceType.SNAPSHOT_TEXT
+            },
+            evidenceText = (listOf(obs.title, obs.url) + obs.lines.take(12))
+                .joinToString(" ").take(400),
+        )
+
+    /** Whether the current working memory still carries the key a count condition reads. */
+    private fun countKeyPresent(condition: DoneCondition, counters: Map<String, Int>): Boolean =
+        condition !is DoneCondition.CountReached ||
+            counters.containsKey(condition.target) ||
+            counters.containsKey(DoneConditionChecker.WORKING_MEMORY_KEY)
+
     /**
      * PHASE_VEXP7 WI2 — ONE bounded condition-repair turn for the CURRENT (active subtask,
      * plan). The planner-FIRST source: one repair-only Haiku call (the current screenshot
@@ -3326,7 +3563,7 @@ class VisionLoop(
             }
             val render = DoneConditionChecker.render(planned)
             evidence.event("condition repair: planner source -> $render")
-            return ConditionRepair.Accepted(doneText, render)
+            return ConditionRepair.Accepted(doneText, render, planned)
         }
         // The code fallback: ONLY the planner call failed. The derived condition is still
         // checked on the current evidence; the battery's outcome stays the load-bearing
@@ -3340,7 +3577,7 @@ class VisionLoop(
         }
         val render = DoneConditionChecker.render(derived)
         evidence.event("condition repair: code-derived fallback -> $render")
-        return ConditionRepair.Accepted(doneText, render)
+        return ConditionRepair.Accepted(doneText, render, derived)
     }
 
     /**

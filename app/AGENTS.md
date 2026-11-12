@@ -1581,6 +1581,59 @@ three-way selector ships with that program.
     scroll/back tolerance + the data-not-directive law); the ExpBudget characterization
     re-pinned to the independent law; 17 scripted suites' propose JSONs carry v20
     declarations; full app 828 / core 338 green.
+* **PHASE_18 Stage 18.C parts 2–3 (CN-05 wiring + CN-06 + CN-07, 2026-11-13): goal and
+  prefix integrity + the single final verifier (doc 04 §9.4–9.6 — implemented now).**
+  * CN-05 wiring (the contract landed in `:core`): VisionLoop builds
+    `GoalContract.fromGoal(goal)` BEFORE the first navigation; the initial install and
+    EVERY re-plan run `validateLadder`/`validateReplan` — a violation refuses the
+    install loudly (PLAN_REFUSED at build; no re-plan capacity spent at re-plan), and
+    the contract object is reused unchanged across re-plans.
+  * CN-06: `loop/SubtaskRuntimeState.kt` — the runtime prefix states
+    (`PENDING/ACTIVE/VERIFIED/INVALIDATED/BLOCKED`): a VERIFIED milestone keeps its
+    proof (condition, snapshot ref, host context, timestamp, evidence type, bounded
+    evidence text) and the per-type revalidation policy (`ALWAYS_CURRENT` for
+    urlHost/urlContains; `PERSISTENT_SCOPE` for markerText/elementPresent — page-local,
+    valid only on the proof's OWN page, historical after any lawful transition;
+    `ACTION_HISTORY` for count; the answer record never proves other conditions);
+    invalidation APPENDS its reason — proof history is never deleted.
+    `loop/PrefixAuditor.kt` — the evidence-scoped audit (composes `:core`'s
+    DoneConditionChecker + the GoalFidelity order-confirmation vocabulary; never
+    crosses a VERIFIED order milestone) + `mapNewLadder` (a re-plan's subtasks inherit
+    proofs by instruction+condition CONTENT match, validity rechecked — the writer's
+    ordinal claim is never proof; resume = the first subtask without valid current or
+    recorded evidence, PREFIX MAP line when it overrides the claim). VisionLoop:
+    runtime states rebuilt per run and per plan install; every verified advance marks
+    VERIFIED (the VEXP7 repair's proof carries the ACCEPTED repaired condition); the
+    prefix audit runs at the failures trigger AND ALWAYS at the re-plan gate BEFORE
+    planLadder (an invalid prefix takes the PREFIX ROLLBACK path — the rollback line
+    names BOTH the original proof and the appended invalidation reason — instead of
+    spending re-plan capacity).
+  * CN-07: `loop/GoalCompletionEvidence.kt` + `loop/FinalGoalVerifier.kt` — ONE pure
+    verifier gates EVERY success path: the ordinary final accept, the repaired-condition
+    accept (both funnel through `acceptAdvance`), and the §4.1 MODELS_CONFIRM_DONE
+    hatch (whose guards stay as cheap pre-filters). Checks: contract parameters bound by
+    the current ladder; every prefix subtask VERIFIED or validly persistent (a verified
+    order milestone is validly persistent by law); the final condition on the CURRENT
+    snapshot (code; the hatch's recorded concurrence or the repair's recorded
+    observation only for a WEAK condition); class end-state evidence (a purchase ONLY
+    on order-specific evidence — an order number or explicit order-placed language,
+    generic "confirmation" never completes; an account switch on fresh OR recorded
+    evidence from the VERIFIED switching subtask, read from the runtime states); the
+    answer present, nonblank, tied to a source observation; no unresolved red flag or
+    owner denial. A failure returns the structured deficiency and the path REFUSES
+    (the accept keeps working; the hatch suppresses into the re-plan path) — never a
+    success terminal. The counting hook `finalVerifierInvocations` pins the
+    one-verifier law (Phase18FinalVerifierTest case 6).
+  * Gates: Phase18PrefixAuditorTest 7/7 (the plan's six cases: rollback-before-replan,
+    no false rollback for a lawfully-left page-local marker + the own-page real
+    invalidation, the false-prefix claim rejected, the reorder resumed by evidence, the
+    order milestone stopping the audit with no repeated order action, the append law) +
+    Phase18FinalVerifierTest 8/8 (recorded-account accept, no-evidence refusal, generic
+    "confirmation required" and checkout review NOT order completion, the explicit
+    order confirmation accepted, all three success paths = exactly one verifier call);
+    the R2 drift fixture RE-PINNED (its lawful terminal changed: PREFIX ROLLBACK now
+    fires at the re-plan gate before any re-plan; REPLANS_EXHAUSTED stays); full
+    app 844 / core 346 green (1190 total, 0 failures).
 
 ## Local Contracts
 

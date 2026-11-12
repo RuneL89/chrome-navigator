@@ -45,12 +45,17 @@ object GoalFidelity {
     private val MEDIA_WORD = Regex("""\b(video|stream|episode|song|clip|playlist)\b""")
     private val REPORT_VERB = Regex("""\b(tell me|report|summari[sz]e|what is|find out|answer)\b""")
 
-    /** The final condition must carry one of these for a purchase goal. */
+    /**
+     * The final condition must carry one of these for a purchase goal. PHASE_18 Stage
+     * 18.C CN-07 — the §9.6 amendment (extends §4.2, ratified): the bare generic
+     * "confirmation" entry is REMOVED — a purchase completes only on ORDER-SPECIFIC
+     * evidence (an order number or explicit order-placed language); a generic
+     * "confirmation required" page is a checkout step, never a completed purchase.
+     */
     private val CONFIRM_EVIDENCE = listOf(
         "order confirmation", "order confirmed", "order placed", "order number",
         "order received", "thank you for your order", "your order is confirmed",
         "tilausvahvistus", "tilaus vahvistettu", "kiitos tilauksestasi", "tilausnumero",
-        "confirmation",
     )
 
     /** The final condition must carry one of these for a playback goal. */
@@ -288,6 +293,12 @@ object GoalFidelity {
      * account switch, the target is unparseable (the build-time check owns that), the
      * CURRENT observation evidences the account, or the RECORDED evidence from the
      * switching subtask does. An account-switch goal with neither is a violation.
+     *
+     * PHASE_18 Stage 18.C CN-07 (doc 04 §9.6, ratified): the recorded evidence must
+     * ITSELF evidence the target account — the earlier escape clause (the ladder text
+     * naming the account + any non-null recorded evidence) is removed: a recorded
+     * snapshot that never shows the account is not account evidence, and the plan's
+     * naming a target was never proof (the writer's word is not evidence).
      */
     fun finalAcceptViolation(
         goal: String,
@@ -299,7 +310,6 @@ object GoalFidelity {
         val target = switchTarget(goal) ?: return null
         if (evidencesAccount(currentObservationText, target)) return null
         if (recordedEvidenceText != null && evidencesAccount(recordedEvidenceText, target)) return null
-        if (evidencesAccount(ladderText, target) && recordedEvidenceText != null) return null
         return "account end state: the switched account '$target' is evidenced neither on the " +
             "current page nor in the recorded switching-subtask evidence"
     }
