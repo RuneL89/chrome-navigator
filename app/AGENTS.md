@@ -1829,6 +1829,34 @@ three-way selector ships with that program.
     both hybrid accept paths; the R4 account-evidence refusal); full app 888 / core
     346 green (1234 total, 0 failures). `NavigationLoop.run()` 58,987 of 65,535
     bytes after the wiring.
+* **PHASE_18 Stage 18.E fix-loop (2026-11-13, the emulator corpus's live defects):
+  the hybrid's BATTERY CHANNEL + the refused-done vision round (doc 04 §8/§9.3).**
+  * `harness/hybrid/VisionToolStep.kt` + `loop/LadderSource.kt` — the tool contract
+    gains a BATTERY-CARRYING `runSubtask` overload (the battery-less form delegates,
+    every existing implementer unchanged); `RestructuredLadder.batteries` carries the
+    writer's per-subtask verify batteries to the host. THE LAW: the host hands
+    `batteries[activeIndex]` to the tool — without it the tool's battery block is
+    dormant and a thin-tree content condition whose outcome is only VISION-visible
+    can never complete (live defect task-1794584800835: battery=0, propose found
+    nothing, STUCK_KILL).
+  * `harness/vision/VisionLoop.runSubtask` — the runtime CONDITION REPAIR mirrored
+    from the pure loop (the VEXP7 law): on `BatteryGate.OutcomeAchieved` ONE bounded
+    repair turn; an accepted repair the triggering battery concurs with returns
+    `SubtaskOutcome.Done(repairedCondition=...)` (the host applies it to the pointer
+    BEFORE the verified advance — the kept proof, the runtime states and the final
+    verifier read the condition that actually held). LIVE PROOF: task-1794588040128
+    `vision subtask 1: CONDITION REPAIRED`.
+  * `loop/NavigationLoop.kt` — the REFUSED-DONE vision round: when the engine keeps
+    claiming done and the code cannot verify it, ONE bounded vision attempt per
+    (subtask, unchanged page hash — `visionEscapeClaim`) runs BEFORE the L3 kill
+    (the tree has nothing left to offer; the vision tool is the evidence seeker);
+    and the FINAL vision accept runs `runAnswerExtraction()` before the single final
+    verifier (the pure loop's acceptAdvance law) — a report goal accepted through
+    the tool satisfies the verifier's answer check.
+  * Gates: Phase18HybridBatteryRepairTest 3/3 (the battery+repair Done; the refusing
+    battery never accepts; the host's checks channel); full app 891 / core 346 =
+    1237 tests, 0 failures. The corpus metrics + the release-gate verdict:
+    `.state/phase-18-uat/corpus/CORPUS-RESULTS.md`.
 
 ## Local Contracts
 
