@@ -2,17 +2,30 @@
 
 * DOX is highly performant AGENTS.md hierarchy installed here
 * Agent must follow DOX instructions across any edits
+* **This branch (`v2-relaunch`) does NOT use the canon framework.** No vision docs, no
+  phase-gate loops, no compliance/verification rituals. They were removed by owner
+  decision 2026-11-13 and remain only in git history and on earlier branches.
 
 ## Project
 
-* This folder is the project root for **Chrome Navigator (working title; doc slug `NAVIGATOR`)** — a personal, sideloaded Android app that autonomously drives Chrome. Three engine policies exist behind one product route: the DEFAULT multimodal vision loop (`ALWAYS_VISION`; a11y + browser-window screenshot; Haiku writer + Jev 1.14 judgment engine), the retained a11y decision engine (`TREE_ONLY`), and the tree-first hybrid (`TREE_FIRST`: one loop, tree by default, three code-owned escalation signals, vision for the rest of the subtask, Haiku event-driven over raw dual evidence). `TREE_FIRST` is **implemented as a selectable policy (PHASE_17 Stages 1–3) but is NOT the product default** — the default moves only on the Stage 4 acceptance corpus; the wizard selector for the three policies ships with that program
-* Canonical vision documents live in `Project Vision/`; the phased implementation plan lives in `Implementation Plan/`
-* All implementation artifacts are created directly in this project root. Never create a separate project directory here or elsewhere
+* This folder is the project root for **Chrome Navigator V2** — a personal, sideloaded
+  Android app that does web errands: an embedded WebView runs tasks in the BACKGROUND
+  (phone stays usable), switches to real Chrome only with explicit owner consent, and
+  presents itself through two animated robot characters (Haiku the proposer, Jev the
+  judge) that hand tasks to each other as the real pipeline runs.
+* The product law on this branch is **`docs/V2_PLAN.md`** (product rules, UX spec,
+  architecture, roadmap). Child AGENTS.md files remain as engineering records of the
+  earlier (canon-era) codebase; where they reference removed docs, those references are
+  archives, not law.
+* All implementation artifacts are created directly in this project root. Never create a
+  separate project directory here or elsewhere.
 
 ## Core Contract
 
 * AGENTS.md files are binding work contracts for their subtrees
-* Work products, source materials, instructions, records, assets, and durable docs must stay understandable from the nearest applicable AGENTS.md plus every parent AGENTS.md above it
+* Work products, source materials, instructions, records, assets, and durable docs must
+  stay understandable from the nearest applicable AGENTS.md plus every parent AGENTS.md
+  above it
 
 ## Read Before Editing
 
@@ -20,9 +33,11 @@
 2. Identify every file or folder you expect to touch
 3. Walk from the repository root to each target path
 4. Read every AGENTS.md found along each route
-5. If a parent AGENTS.md lists a child AGENTS.md whose scope contains the path, read that child and continue from there
+5. If a parent AGENTS.md lists a child AGENTS.md whose scope contains the path, read that
+   child and continue from there
 6. Use the nearest AGENTS.md as the local contract and parent docs for repo-wide rules
-7. If docs conflict, the closer doc controls local work details, but no child doc may weaken DOX
+7. If docs conflict, the closer doc controls local work details, but no child doc may
+   weaken DOX
 
 Do not rely on memory. Re-read the applicable DOX chain in the current session before editing.
 
@@ -38,39 +53,25 @@ Update the closest owning AGENTS.md when a change affects:
 * user preferences about behavior, communication, process, organization, or quality
 * AGENTS.md creation, deletion, move, rename, or index contents
 
-Update parent docs when parent-level structure, ownership, workflow, or child index changes. Update child docs when parent changes alter local rules. Remove stale or contradictory text immediately. Small edits that do not change behavior or contracts may leave docs unchanged, but the DOX pass still must happen.
+Update parent docs when parent-level structure, ownership, workflow, or child index
+changes. Update child docs when parent changes alter local rules. Remove stale or
+contradictory text immediately. Small edits that do not change behavior or contracts may
+leave docs unchanged, but the DOX pass still must happen.
 
 ## Hierarchy
 
-* Root AGENTS.md is the DOX rail: project-wide instructions, global preferences, durable workflow rules, and the top-level Child DOX Index
+* Root AGENTS.md is the DOX rail: project-wide instructions, global preferences, durable
+  workflow rules, and the top-level Child DOX Index
 * Child AGENTS.md files own domain-specific instructions and their own Child DOX Index
 * Each parent explains what its direct children cover and what stays owned by the parent
 * The closer a doc is to the work, the more specific and practical it must be
-
-## Child Doc Shape
-
-* Create a child AGENTS.md when a folder becomes a durable boundary with its own purpose, rules, responsibilities, workflow, materials, or quality standards
-* Work Guidance must reflect the current standards of the project or user instructions; if there are no specific standards or instructions yet, leave it empty
-* Verification must reflect an existing check; if no verification framework exists yet, leave it empty and update it when one exists
-
-Default section order:
-
-* Purpose
-* Ownership
-* Local Contracts
-* Work Guidance
-* Verification
-* Child DOX Index
 
 ## Style
 
 * Keep docs concise, current, and operational
 * Document stable contracts, not diary entries
-* Put broad rules in parent docs and concrete details in child docs
 * Prefer direct bullets with explicit names
-* Do not duplicate rules across many files unless each scope needs a local version
 * Delete stale notes instead of explaining history
-* Trim obvious statements, repeated rules, misplaced detail, and warnings for risks that no longer exist
 
 ## Closeout
 
@@ -85,48 +86,44 @@ Default section order:
 
 When the user requests a durable behavior change, record it here or in the relevant child AGENTS.md
 
-* MANDATORY DESIGN INTERVIEW (owner, 2026-10-09): any UI/UX design, redesign, or UI-review
-  task ALWAYS starts with the `ai-ui-design-skills:design-interview` skill's full interview
-  (both rounds) BEFORE any design work — no exceptions, even when the vision seems already
-  established by the request, project docs, or prior UAT. Skipping it once triggered this
-  rule; do not rationalize a skip again. Capture the answers, then route to the selected
-  skills and carry the captured vision into every downstream decision.
-* VISION-ENGINE PROMOTION (owner, 2026-10-18): the multimodal vision loop is the
-  product's default engine; the a11y decision engine is retained behind the explicit
-  Setup toggle as a supported second engine for the future a11y+image hybrid. Neither
-  the default nor the retention is to be reversed without an owner amendment.
-* MODEL-GATE EXCEPTION (owner, 2026-10-18): DeepSeek Flash was explicitly authorized
-  for the vision-promotion amendment because the GLM-5.3 credits were exhausted; the
-  GLM-5.3 default for vision law remains. The one-time exception is recorded in
-  `.state/compliance-log.md` and `Project Vision/AGENTS.md`.
-* EXPERIMENT BRANCH RULE (owner, 2026-10-20): experiment programs (the `PHASE_VEXP*`
-  docs) run on their own branch and never land product code on `master`. A product
-  change suggested by an experiment is written as a separate phase on `master` only
-  after the owner accepts the experiment's recommendation. An experiment build is
-  disposable; its finding and recommendation are not.
-* TREE-FIRST TOOLBOX (owner, 2026-10-22; status updated 2026-10-23): one loop with tree
-  and vision as perception tools — tree default; three code-owned stuck signals (no unique
-  ground, thin/empty tree, no screen change); vision for the rest of the subtask; tree at
-  the next; Haiku event-driven with raw dual evidence; Jev reports, Haiku judges, code
-  gates. **PHASE_17 Stages 1–3 implemented it as the selectable `TREE_FIRST` policy, but it
-  is NOT the product default and is not "shipped"**: `ALWAYS_VISION` stays the default
-  until the Stage 4 acceptance corpus accepts the hybrid, and the Setup selector ships with
-  that program. Neither the default nor the retention of the other two policies may change
-  without an owner amendment.
-* GOAL LANGUAGE (owner, 2026-11-13): product goals are ALWAYS entered in English. The app
-  must still READ page content and UI labels in ANY language (Finnish included) —
-  interpretation stays the model's job under the translate-first law (doc 04 §1: accept
-  the page's own Translate control on a non-English page); no production per-language
-  code tables may be the primary mechanism. UAT goals stay English even when the target
-  page is not.
+* MANDATORY DESIGN INTERVIEW (owner, 2026-10-09; kept for V2): any UI/UX design, redesign,
+  or UI-review task ALWAYS starts with the `ai-ui-design-skills:design-interview` skill's
+  full interview (both rounds) BEFORE any design work — no exceptions. Capture the
+  answers, then route to the selected skills and carry the captured vision into every
+  downstream decision.
+* NO CANON (owner, 2026-11-13): the `v2-relaunch` branch does not use canon. Vision docs
+  and implementation-plan docs were removed; do not recreate phase-gate machinery,
+  compliance logs, or verifier rituals. The plan lives in `docs/V2_PLAN.md`.
+* V2 PRODUCT DIRECTION (owner, 2026-11-13): background WebView lane as the fast lane;
+  real Chrome as the consent-gated human lane; two animated bots (Haiku proposes, Jev
+  judges) that visualize the real pipeline; fun, inviting, bot-themed UI; dark-first;
+  English UI copy; goals always in English while pages may be any language.
+* V2 SAFETY RULES (owner, 2026-11-13): the full agreed rule set lives in
+  `docs/V2_PLAN.md` §3 — background by default / strictest rule wins; fast lane never
+  finishes a purchase; auto-place under €30 (editable) with a 15 s cancel window; every
+  send/submit needs a review card (forms: the agent fills, the owner submits); every
+  Chrome switch needs a fresh Yes (5 min no answer = No, task parked); phishing = hard
+  stop; captcha = hand off. These are binding product rules.
+* GOAL LANGUAGE (owner, 2026-11-13): goals are ALWAYS entered in English. The app must
+  still READ page content and UI labels in ANY language — interpretation stays the
+  model's job (accept the page's own Translate control where offered); no production
+  per-language code tables as the primary mechanism.
 
 ## Child DOX Index
 
-* `Project Vision/` — canonical vision and specification documents (01–07; the 2026-10-18 vision-engine promotion amendment is current law; the 2026-10-22 tree-first loop is recorded in 01 §1a / 04 §8 and **implemented 2026-10-23 as the selectable `TREE_FIRST` policy — not the product default**; every doc carries a current-vs-target status line); the source of truth for implementation compliance. See `Project Vision/AGENTS.md`
-* `Implementation Plan/` — phased implementation plan (Phases 0–10D + 14–18; Phases 11–13 removed by owner directive 2026-10-20), master index, and agent prompts. Phase 17's Stages 0–3 are implemented on `phase-17-tree-first` with its UAT open; its deferred Stage 4 acceptance program was absorbed into Phase 18 Stage E (owner decision 2026-11-10). Phase 18 (the reliability-hardening program, canonized 2026-11-10 from the owner-attached plan in `handoff/RELIABILITY_IMPROVEMENT_PLAN.md`, adapted to the frontier) runs on `phase-18-reliability-hardening`; its vision-doc amendments ride separate GLM-5.3 sessions per the owner's model-gate decision. See `Implementation Plan/AGENTS.md`
-* `.state/` — phase status files, compliance log, verification reports, eval reports, and the experiment-program docs (`.state/vision-iter/PHASE_VEXP*`, open programs carry their own status file); the project's durable memory. See `.state/AGENTS.md`
-* `handoff/` — source documents (handoff v1, handoff v2 Road L) and feasibility research; input material, not law. The Road L program is retired
-* `core/` — `:core`, the pure-JVM decision core: the `DecisionEngine` interface + `JevEngine` (the retained a11y engine's cascade — intents-v1, the stage-2 rubric, banding), the systemone wire client + engine configs, observation/enumeration types, the state-text builder + stage views, the task-ladder types + the code done-condition checker (`urlHost`/`urlContains`/`markerText`/`elementPresent`/`count`/`answerExtracted`), the informed-re-plan types (`ReplanRule`/`ReplanContext`), the completed-prefix audit (`PrefixAudit`), and the H1–H9 risk gate (the multilingual floor + the additive-only engine check). The training/eval surfaces (Laya shadow, RLCD, shadow rows, Tier-A replay) are RETIRED; the surviving tokenizer resource is the a11y state-budget law, not a model. See `core/AGENTS.md`
-* `app/` — `:app`, the Android application. THREE ENGINE POLICIES behind one product route (`setup/EnginePolicy`): `ALWAYS_VISION` (THE DEFAULT — `harness/vision/`: a11y + browser-window screenshot; Haiku plans/proposes/repairs/confirms/extracts; Jev 1.14 grounds every tap/type with a Box and runs the text+image verification battery; code owns the ladder, the battery accept, the finality law, the CTA/scroll-churn backstop, the checkout integrity guards, the risk gate + owner cards, and the evidence record), `TREE_ONLY` (the retained a11y engine `loop/`: the Jev cascade, the same gate/ladder, `NoOpLogSink`), and `TREE_FIRST` (the Phase 17 hybrid: `NavigationLoop` drives the tree, escalates the active subtask to the `VisionToolStep` on the three code-owned signals, plans/re-plans over raw dual evidence, audits the boundary at v19 — selectable, NOT the default until Stage 4). Shared Phase 17 laws: the prefix audit, site-first, the field-level `FORM:` facts + per-field read-back (vision-exp-v19), the spend/evidence call ledger, the back/scroll-find bounds, the cross-re-plan URL ban. The product surfaces are the overlay goal input + corner live log + gate/completion cards + the `NavigatorService`; Setup is the five-check wizard with two encrypted key slots and the dual live-key tester; the debug policy seam is `OverlayDebugReceiver.SET_ENGINE_POLICY`. The training program (Room/RLCD/shadow/laya/ONNX/Tier A) is deleted. The app id is `navigator.app` (no `.visionexp`). See `app/AGENTS.md`
-* `tools/` — RETIRED folder (owner directive 2026-10-19, PHASE_VEXP3): the Phase-8/8C model-acquisition + reference-vector scripts are deleted; no live scripts, no build step. See `tools/AGENTS.md`
-* `docs/` — repo-facing documents: the device UAT session guide, and the README's diagrams (`docs/diagrams/*.mmd` sources, each carrying its render command in a `%%` comment; `docs/images/*.png` renders embedded by `README.md`). No child AGENTS.md yet; the root doc owns it
+* `docs/` — repo-facing documents. **`docs/V2_PLAN.md` is the product law on this branch**
+  (lanes, rules, UX spec, architecture, roadmap). Also the device UAT session guide and
+  the README diagrams (`docs/diagrams/*.mmd`, `docs/images/*.png`). The root doc owns it.
+* `app/` — `:app`, the Android application. Carries the canon-era engine code (vision
+  loop, a11y loop, hybrid, reliability laws) as the **human lane and fallback**; the V2
+  work adds the background WebView lane, the two-bot UI, and the trust settings. See
+  `app/AGENTS.md` (engineering record; its old references to `Project Vision/` are
+  archives).
+* `core/` — `:core`, the pure-JVM decision core (types, ladder/contract helpers, risk
+  gate, wire clients). V2 keeps and adapts its safety pieces for the DOM lane. See
+  `core/AGENTS.md`.
+* `.state/` — history of the canon era: phase status files, verification reports, UAT
+  evidence and corpus records (incl. the phone UAT run). Not law; kept as evidence.
+  See `.state/AGENTS.md`.
+* `handoff/` — source documents and feasibility research; input material, not law.
+* `tools/` — RETIRED folder; no live scripts.
