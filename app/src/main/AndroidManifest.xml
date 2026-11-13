@@ -162,6 +162,25 @@
             android:exported="false"
             android:label="Overlay Probe" />
 
+        <!-- V2 FEASIBILITY PROBE HARNESS (docs/V2_FEASIBILITY.md §9). DEBUG TOOLING:
+             adb-launched probes for isTrusted/touch dispatch, per-site WebView behaviour,
+             and off-screen WebView rendering under a specialUse foreground service.
+             Exported so `adb shell am start` can drive it; the class logs under
+             NavigatorProbe and writes filesDir/probe-*.txt. Removed with the V2 lane
+             implementation. -->
+        <activity
+            android:name=".probe.ProbeActivity"
+            android:exported="true"
+            android:label="V2 Probe" />
+        <service
+            android:name=".probe.ProbeOverlayService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="v2 feasibility probe (off-screen WebView rendering test)" />
+        </service>
+
     </application>
 
 </manifest>

@@ -1,0 +1,72 @@
+<!doctype html>
+<!-- V2 feasibility probe page (docs/V2_FEASIBILITY.md §9). Local asset; no network.
+     Trust probe: records isTrusted per event type on the button.
+     Ticker probe: counts setInterval ticks (timer throttling visibility).
+     rAF probe: counts requestAnimationFrame frames.
+     Lazy probe: IntersectionObserver appends items (lazy-load behaviour). -->
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Probe page</title>
+  <style>
+    body { font-family: sans-serif; margin: 16px; }
+    #t { width: 220px; height: 110px; font-size: 22px; margin: 24px 0; }
+    #log { font-family: monospace; font-size: 13px; white-space: pre-wrap; }
+    .lazy { height: 60px; margin: 8px 0; background: #ddd; }
+  </style>
+</head>
+<body>
+  <h1>Probe</h1>
+  <button id="t">TAP ME</button>
+  <div id="log"></div>
+  <div id="lazyList"></div>
+  <script>
+    window.__results = [];
+    window.__ticks = 0;
+    window.__raf = 0;
+    window.__lazy = 0;
+    function render() {
+      document.getElementById('log').textContent = JSON.stringify(window.__results);
+    }
+    ['click', 'pointerdown', 'mousedown', 'pointerup', 'mouseup', 'touchstart', 'touchend']
+      .forEach(function (t) {
+        document.getElementById('t').addEventListener(t, function (e) {
+          window.__results.push({ t: t, trusted: e.isTrusted });
+          render();
+        }, true);
+      });
+    setInterval(function () { window.__ticks++; }, 500);
+    (function loop() { window.__raf++; requestAnimationFrame(loop); })();
+    (function lazyLoop() {
+      var n = 0;
+      var obs = new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) {
+          if (en.isIntersecting) { window.__lazy++; }
+        });
+      });
+      window.__addLazy = function (count) {
+        for (var i = 0; i < count; i++) {
+          var d = document.createElement('div');
+          d.className = 'lazy';
+          d.textContent = 'item ' + (++n);
+          document.getElementById('lazyList').appendChild(d);
+          obs.observe(d);
+        }
+      };
+      window.__addLazy(5);
+    })();
+    window.__snapshot = function () {
+      return JSON.stringify({
+        title: document.title,
+        url: location.href,
+        ticks: window.__ticks,
+        raf: window.__raf,
+        lazy: window.__lazy,
+        results: window.__results,
+        text: document.body ? document.body.innerText.slice(0, 400) : ''
+      });
+    };
+  </script>
+</body>
+</html>
