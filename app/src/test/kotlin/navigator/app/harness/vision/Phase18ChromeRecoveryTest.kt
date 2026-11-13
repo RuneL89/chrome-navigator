@@ -72,10 +72,17 @@ class Phase18ChromeRecoveryTest {
         private val left: Double, private val right: Double,
         private val top: Double, private val bottom: Double,
     ) : WireTransport {
+        /** The part-1 verifier carry: the JEV-CALL COUNTER — a refused touch must cost
+         *  ZERO grounding (Jev) calls, not just zero taps (the refusal fires BEFORE
+         *  grounding; case 6 pins the ledger). */
+        var calls = 0
+            private set
+
         override suspend fun execute(request: WireHttpRequest): WireHttpResponse {
             if (request.url.contains("chat/completions")) {
                 throw IllegalStateException("no Haiku script in the Jev transport")
             }
+            calls += 1
             return WireHttpResponse(200, jevGround(left, right, top, bottom))
         }
     }
@@ -353,7 +360,10 @@ class Phase18ChromeRecoveryTest {
                 result.subtaskOutcomes.none { it.contains("New tab") },
                 "the New tab is never the recovery: ${result.subtaskOutcomes}",
             )
-            assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal)
+            // LAWFUL RE-PIN (Stage 18.D CN-15, doc 04 §9.9 + §9.10 + doc 06 §4): the
+            // unrecoverable checkout identity IS the owner handoff — the run ends at
+            // NEEDS_USER (no re-plan spend, no new tab); the OFF-PAGE HANDOFF line stays.
+            assertEquals(VisionLoop.Terminal.NEEDS_USER, result.terminal)
         }
 
     // -- case 3: a BATTERY re-plan after checkout cannot bypass the no-restart rule --------
@@ -505,6 +515,7 @@ class Phase18ChromeRecoveryTest {
                     "expectedEffect":{"expect":"TargetStateChanged"},
                     "box":{"top":0.10,"bottom":0.14,"left":0.10,"right":0.90},"confidence":0.9}]}
             """.trimIndent()
+            val jevGround = JevGroundTransport(0.10, 0.90, 0.10, 0.14)
             val plainPlan = """
                 {"summary":"browse the store","taskClass":"read","subtasks":[
                   {"instruction":"open the store menu","done":{"markerText":"menu open"}}]}
@@ -513,7 +524,7 @@ class Phase18ChromeRecoveryTest {
                 "p18-chrome-6",
                 ScriptedObserver(shopPage, menuSurface, menuSurface, menuSurface),
                 chatResponses = listOf(chatContent(plainPlan), chatContent(tapProposal)),
-                jev = JevGroundTransport(0.10, 0.90, 0.10, 0.14),
+                jev = jevGround,
                 executor = executor,
                 launcher = null,
                 config = VisionLoop.Config(settleMs = 0, maxReplans = 0, stepFailuresBeforeReplan = 2),
@@ -540,6 +551,14 @@ class Phase18ChromeRecoveryTest {
             assertTrue(
                 executor.backs.isEmpty(),
                 "no escape back fired without a checkout milestone (the guard owns the refusal)",
+            )
+            // The part-1 verifier carry: the refusal fires BEFORE grounding — the Jev
+            // call counter must read ZERO grounding calls for the refused touches (not
+            // just zero taps).
+            assertEquals(
+                0,
+                jevGround.calls,
+                "a refused off-page touch costs ZERO grounding (Jev) calls",
             )
             noSuccess(result)
         }

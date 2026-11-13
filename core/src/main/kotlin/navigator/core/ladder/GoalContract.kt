@@ -186,6 +186,28 @@ data class GoalContract(
     }
 
     /**
+     * PHASE_18 Stage 18.D CN-14 — the INSTALL law: the parameter binding above PLUS the
+     * site-resolution policy (a site-named goal keeps its site — no search detour
+     * injected before entry; a site-agnostic store-task starts with search — a
+     * store-first ladder is refused, and a store is never inferred from the page open
+     * at entry). This is the ENTRY law: the policy owns the decision
+     * ([GoalSitePolicy.checkLadder]); this is its contract integration point — never a
+     * second validation.
+     *
+     * Deliberately NOT part of [validateReplan]: after entries have failed, the
+     * Phase-16 strategy law ("change the APPROACH — a different site, route or control
+     * class") may lawfully route a re-plan THROUGH a search, and the GoalFidelity
+     * site-first rule keeps enforcing search-first for site-agnostic goals at every
+     * planning event. The FINAL verifier also judges re-planned ladders, so it consumes
+     * [validateLadder] (the binding half), never the entry law.
+     */
+    fun validateInstall(ladder: Ladder): List<String> {
+        val violations = validateLadder(ladder).toMutableList()
+        violations.addAll(GoalSitePolicy.checkLadder(this, ladder))
+        return violations
+    }
+
+    /**
      * The re-plan reuse law: the SAME contract validates every new ladder — a re-plan
      * may change strategy but may not weaken a stated parameter. Same check, new ladder;
      * the contract itself is never rebuilt from a re-worded goal.

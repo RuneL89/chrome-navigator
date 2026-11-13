@@ -437,5 +437,21 @@ class Phase18FormFieldTest {
         )
         assertEquals(FieldRequiredness.REQUIRED, marked.single().required)
         assertIs<FormCompletionChecker.Completion.Incomplete>(FormCompletionChecker.completion(marked))
+        // The part-1 verifier carry — the BOTH-NULL chip corner pinned: no needed field
+        // AND no recorded focus -> ALLOW (the chip cannot substitute for any intended
+        // field — none exists); the CN-04 postcondition law still applies (the dispatch
+        // is verified post-write on ALL field values, never trusted). Substitution-risk
+        // corners stay Refuse.
+        assertEquals(
+            FormCompletionChecker.ChipVerdict.Allow,
+            FormCompletionChecker.chipDispatchAllowed(intendedFieldKey = null, focusedFieldKey = null),
+            "both null: nothing to protect — allow, the postcondition owns the result",
+        )
+        assertIs<FormCompletionChecker.ChipVerdict.Refuse>(
+            FormCompletionChecker.chipDispatchAllowed(intendedFieldKey = "n1", focusedFieldKey = null),
+        )
+        assertIs<FormCompletionChecker.ChipVerdict.Refuse>(
+            FormCompletionChecker.chipDispatchAllowed(intendedFieldKey = "n1", focusedFieldKey = "n2"),
+        )
     }
 }

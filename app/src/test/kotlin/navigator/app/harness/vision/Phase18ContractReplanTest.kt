@@ -22,8 +22,12 @@ import navigator.core.wire.WireTransportException
  * PHASE 18 STAGE 18.C CN-05 — the CONTRACT'S re-plan reuse law, end to end at the loop
  * level (doc 04 §9.4): a failure re-plan that WEAKENS a stated parameter (two cases ->
  * one item) is refused by the goal contract — zero install, the original goal stands,
- * and the run takes the honest REPLANS_EXHAUSTED terminal (maxReplans 0). The scripted
- * fixture is $0 and deterministic; the weakened ladder is the plan's own case 1.
+ * and the run takes the honest terminal. Stage 18.D CN-15 (doc 04 §9.9) re-pinned the
+ * terminal LAWFULLY: a contract-violating re-plan is UNACTIONABLE (the contract is
+ * immutable — no capacity spend can ever make it installable), so the terminal is
+ * GOAL_BLOCKED, not REPLANS_EXHAUSTED (which stays the genuine re-plan-capacity
+ * exhaustion; the violation never consumed capacity). The scripted fixture is $0 and
+ * deterministic; the weakened ladder is the plan's own case 1.
  *
  * PHASE_18 NOTE: this pins the CN-05 loop wiring just landed (Stage 18.C); the doc 04
  * §9.4 item it maps to is 9.4 (the immutable goal contract) itself.
@@ -141,9 +145,10 @@ class Phase18ContractReplanTest {
         }
 
         // CN-05: the weakened re-plan is refused by the contract — the original goal
-        // stands, and the run ends with the honest exhausted terminal.
-        println("DIAG terminal=${result.terminal} steps=${result.stepsUsed} replans=${result.replans}")
-        assertEquals(VisionLoop.Terminal.REPLANS_EXHAUSTED, result.terminal)
+        // stands. Stage 18.D CN-15 (doc 04 §9.9): the honest terminal for an
+        // unactionable contract violation is GOAL_BLOCKED (lawful re-pin; the refusal
+        // never consumed re-plan capacity, so REPLANS_EXHAUSTED would misstate the cause).
+        assertEquals(VisionLoop.Terminal.GOAL_BLOCKED, result.terminal)
         assertTrue(
             result.subtaskOutcomes.any { it.contains("refused by the goal contract") },
             result.subtaskOutcomes.toString(),

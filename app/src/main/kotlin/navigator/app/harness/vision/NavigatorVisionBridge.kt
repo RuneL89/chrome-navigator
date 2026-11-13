@@ -393,15 +393,42 @@ object NavigatorVisionBridge {
      * the product funnel renders (`LoopUiListener.taskStateLine`: "task <TERMINAL> —
      * <detail>"; the owner cancel renders "by owner"). [VisionLoop.Result.answer] rides
      * the report subtask's extraction, so the line carries it too.
+     *
+     * PHASE_18 Stage 18.D CN-15 (doc 04 §9.9): the additive §9.9 terminals render a
+     * truthful short line from [VisionLoop.Result.terminalDetail] (the field/owner/
+     * channel cause — never page text, never chain-of-thought), then the same steps/
+     * replans tail. The overlay's card/line mechanisms are REUSED — no UI redesign (the
+     * color law keeps these amber, the "else" arm).
      */
     fun taskStateLine(result: VisionLoop.Result): String = when (result.terminal) {
         VisionLoop.Terminal.CANCELLED -> "task CANCELLED — by owner"
+        VisionLoop.Terminal.CLARIFICATION_REQUIRED ->
+            ownerLine(result, "needs your answer — a new run carries it")
+        VisionLoop.Terminal.NEEDS_USER ->
+            ownerLine(result, "needs you to take over")
+        VisionLoop.Terminal.MODEL_UNAVAILABLE ->
+            ownerLine(result, "the model channel is unavailable")
+        VisionLoop.Terminal.CAPTURE_UNAVAILABLE ->
+            ownerLine(result, "the screen capture is unavailable")
+        VisionLoop.Terminal.STALE_CONTEXT_UNRESOLVED ->
+            ownerLine(result, "the page context never stabilized")
+        VisionLoop.Terminal.GOAL_BLOCKED ->
+            ownerLine(result, "the goal is blocked by the goal's own contract")
         else -> buildString {
             append("task ").append(result.terminal.name)
             append(" — steps ").append(result.stepsUsed)
             append(", replans ").append(result.replans)
             result.answer?.takeIf { it.isNotBlank() }?.let { append(" — ").append(it.take(ANSWER_TAIL_CHARS)) }
         }
+    }
+
+    /** The §9.9 terminal's short line: the terminal, the honest cause, the run tail. */
+    private fun ownerLine(result: VisionLoop.Result, cause: String): String = buildString {
+        append("task ").append(result.terminal.name)
+        append(" — ").append(cause)
+        result.terminalDetail?.takeIf { it.isNotBlank() }?.let { append(" (").append(it).append(')') }
+        append(" — steps ").append(result.stepsUsed)
+        append(", replans ").append(result.replans)
     }
 
     /** Image requests are slower than text; the vision engine pays patience (the adb activity's timeout). */

@@ -332,7 +332,31 @@ class VisionLoop(
         }
     }
 
-    enum class Terminal { GOAL_ACHIEVED, MODELS_CONFIRM_DONE, STEPS_EXHAUSTED, BUDGET_EXHAUSTED, REPLANS_EXHAUSTED, CANCELLED, PLAN_REFUSED, GUARD_ABORT }
+    /**
+     * The run's terminal vocabulary. PHASE_18 Stage 18.D CN-15 (doc 04 §9.9, ratified
+     * law) extended it ADDITIVELY — every pre-existing terminal keeps its exact meaning
+     * and every §4 terminal path is untouched:
+     *
+     * - [CLARIFICATION_REQUIRED] — the goal contract has a missing/ambiguous required
+     *   value (§9.4); the run stops and names the field; the owner answers via a new
+     *   run (an owner-answer record updating the contract mid-run is not wired yet).
+     * - [NEEDS_USER] — the owner must act: an unrecoverable checkout-identity handoff
+     *   (§9.10/doc 06 §4) or repeated grounding failure past its bound (§9.8's "hand
+     *   off or stop honestly").
+     * - [MODEL_UNAVAILABLE] — the typed [navigator.core.wire.ModelCallException] is
+     *   exhausted (the model channels are dead); never used for content refusals.
+     * - [CAPTURE_UNAVAILABLE] — the CN-10 capture bound is past its limit (§9.8).
+     * - [STALE_CONTEXT_UNRESOLVED] — the CN-02 snapshot context never stabilized.
+     * - [GOAL_BLOCKED] — no lawful path remains (e.g. every re-plan on offer would
+     *   weaken the immutable goal contract).
+     */
+    enum class Terminal {
+        GOAL_ACHIEVED, MODELS_CONFIRM_DONE, STEPS_EXHAUSTED, BUDGET_EXHAUSTED, REPLANS_EXHAUSTED,
+        CANCELLED, PLAN_REFUSED, GUARD_ABORT,
+        // PHASE_18 Stage 18.D CN-15 (doc 04 §9.9) — additive, existing meanings unchanged:
+        CLARIFICATION_REQUIRED, NEEDS_USER, MODEL_UNAVAILABLE, CAPTURE_UNAVAILABLE,
+        STALE_CONTEXT_UNRESOLVED, GOAL_BLOCKED,
+    }
 
     /** One answered battery check: the two channels' raw evidence (null = channel refused). */
     data class CheckResult(
@@ -451,6 +475,12 @@ class VisionLoop(
         val answer: String?,
         val replans: Int,
         val screenshots: Int,
+        /**
+         * PHASE_18 Stage 18.D CN-15 — the terminal's short honest cause (the new §9.9
+         * terminals carry the field/owner/channel truth; the §4 terminals keep null).
+         * Rendered by the bridge's task-state line; never page text, never reasoning.
+         */
+        val terminalDetail: String? = null,
     )
 
     private class NodeMatch(val node: ObservedNode, val iou: Double)
@@ -662,6 +692,42 @@ class VisionLoop(
     private var goalContract: navigator.core.ladder.GoalContract? = null
 
     /**
+     * PHASE_18 Stage 18.D CN-14 — the RUN-SCOPED landing / failed-entry history (doc 04
+     * §9.9): same-URL and failed-landing records that persist ACROSS re-plans (a plan
+     * install never resets it — only [run]'s start does). The off-page recovery's
+     * re-open consults it (a repeatedly failed URL is not re-opened; a bounded
+     * fresh-evidence recheck — URL path + page content, never the title alone — clears
+     * an old failure and the clearing is recorded). CLASS field per the loop-state
+     * discipline.
+     */
+    private var landingHistory = navigator.core.ladder.GoalSitePolicy.LandingHistory()
+
+    /**
+     * PHASE_18 Stage 18.D CN-14 — the FRESH-EVIDENCE gate for the landing recheck: the
+     * recheck consults only when the observation CHANGED since the last consult (a
+     * changed screen is fresh evidence; the same page is not re-judged every step).
+     * Reset per run.
+     */
+    private var lastLandingRecheckHash: Int? = null
+
+    /**
+     * PHASE_18 Stage 18.D CN-14 (c) — the SELECTED DESTINATION HOST recorded in runtime
+     * state once entered (the goal contract resolves it; the site-entry observation
+     * confirms it). Null until a destination host is actually observed/entered. CLASS
+     * field per the loop-state discipline; reset per run (a new run resolves anew).
+     */
+    private var siteDestinationHost: String? = null
+
+    /**
+     * PHASE_18 Stage 18.D CN-15 — whether the LAST planning event failed because the
+     * MODEL CHANNEL is dead (a typed [navigator.core.wire.ModelCallException]) rather
+     * than the writer returning refusable content. Set by [planLadder]; consumed at the
+     * plan/refusal sites to choose MODEL_UNAVAILABLE (§9.9) over the plan terminals.
+     * Reset at every planLadder entry and at every run start.
+     */
+    private var lastPlanFailureWasModelCall: Boolean = false
+
+    /**
      * PHASE_18 Stage 18.C CN-06 — the RUNTIME PREFIX STATES (doc 04 §9.5): one
      * [SubtaskRuntimeState] per subtask of the CURRENT ladder generation, rebuilt on
      * every plan install — the initial plan builds them PENDING; a re-plan maps the
@@ -820,7 +886,7 @@ class VisionLoop(
         var consecutiveFailures = 0
         val recentHashes = ArrayDeque<Int>()
 
-        fun terminal(terminal: Terminal, ladder: Ladder?): Result = Result(
+        fun terminal(terminal: Terminal, ladder: Ladder?, detail: String? = null): Result = Result(
             terminal = terminal,
             stepsUsed = step,
             ladderSummary = ladder?.summary,
@@ -828,16 +894,48 @@ class VisionLoop(
             answer = answer,
             replans = replans,
             screenshots = screenshots,
+            terminalDetail = detail,
         )
 
         evidence.event("run start goal=<${goal.take(80)}> budget=100x writer=${budget.hasWriterHardRoom()}")
         // PHASE_18 CN-05: the goal contract is rebuilt per run (from the goal text; the
         // contract then carries unchanged across every re-plan within the run).
         goalContract = null
+        // PHASE_18 Stage 18.D CN-14/CN-15: the run-scoped facts never cross runs (the
+        // landing history survives RE-PLANS, never runs; offPageRecoveries is documented
+        // as this run's spend and now actually resets with it).
+        landingHistory = navigator.core.ladder.GoalSitePolicy.LandingHistory()
+        lastLandingRecheckHash = null
+        siteDestinationHost = null
+        lastPlanFailureWasModelCall = false
+        offPageRecoveries = 0
+        // PHASE_18 Stage 18.C CN-05 — the IMMUTABLE GOAL CONTRACT (doc 04 §9.4): built
+        // deterministically from the goal text BEFORE the first navigation, reused by
+        // every re-plan (a strategy change may not weaken a stated parameter).
+        val contract = navigator.core.ladder.GoalContract.fromGoal(goal)
+        // PHASE_18 Stage 18.D CN-15 (doc 04 §9.4 + §9.9): a stated-but-ambiguous/absent
+        // required value NEVER navigates — the run stops at CLARIFICATION_REQUIRED and
+        // names the field (bounded choices when code can construct them; no page text,
+        // no chain-of-thought). The owner answers via a NEW run; the ask costs zero
+        // model calls (the contract is the deterministic parse).
+        val clarification = navigator.app.loop.ClarificationRequest.fromContract(contract)
+        if (clarification != null) {
+            val line = "CLARIFICATION REQUIRED: the ${clarification.field} value is missing or " +
+                "ambiguous — ${clarification.question} (the run stops; the owner answers via a new run)"
+            outcomes.add(line)
+            log("[vision] $line")
+            evidence.event(line)
+            return terminal(
+                Terminal.CLARIFICATION_REQUIRED,
+                null,
+                detail = "the ${clarification.field} value is missing or ambiguous",
+            )
+        }
         // PHASE_18 CN-02: the run-start read goes through the verified snapshot edge —
-        // a persistent inconsistency before the plan is a loud GUARD_ABORT (the guard
-        // refused twice+; the evidence line names the true cause), never a plan on
-        // evidence the loop cannot trust to be one context.
+        // a persistent inconsistency before the plan ends the run honestly at
+        // STALE_CONTEXT_UNRESOLVED (CN-15, doc 04 §9.9: the CN-02 stale path exhausted).
+        // GUARD_ABORT stays the RISK-GATE abort (the single-run guard cases); a context
+        // that never stabilized is not a gate refusal, it is an unresolved context.
         var obs: StepObservation
         var shot: VisionCapture.ScreenShot?
         when (val start = verifiedObserve(screenshots++)) {
@@ -850,25 +948,35 @@ class VisionLoop(
                     "(active package + navigation key compared around the capture twice)"
                 evidence.event(line)
                 log("[vision] $line")
-                return terminal(Terminal.GUARD_ABORT, null)
+                return terminal(
+                    Terminal.STALE_CONTEXT_UNRESOLVED,
+                    null,
+                    detail = "the snapshot context never stabilized before the plan",
+                )
             }
         }
-        var planned = planLadder(goal, obs, failure = null, shot) ?: run {
+        var planned = planLadder(goal, obs, failure = null, shot, contract) ?: run {
+            if (lastPlanFailureWasModelCall) {
+                // CN-15 (§9.9): the model channels are dead (typed ModelCallException
+                // exhausted across the plan attempts) — MODEL_UNAVAILABLE, not a plan
+                // refusal: nothing was refused on content; the channel is unavailable.
+                val line = "MODEL_UNAVAILABLE: the model channel failed (typed model-call " +
+                    "exception) across the ${config.planAttempts} plan attempts"
+                evidence.event(line)
+                log("[vision] $line")
+                return terminal(
+                    Terminal.MODEL_UNAVAILABLE,
+                    null,
+                    detail = "the model channel is unavailable (model-call exception exhausted)",
+                )
+            }
             evidence.event("PLAN_REFUSED: no valid ladder in ${config.planAttempts} attempts")
             return terminal(Terminal.PLAN_REFUSED, null)
         }
         var ladder = planned.ladder
         var batteries = planned.battery
         var enterTexts = planned.enterText
-        // PHASE_18 Stage 18.C CN-05 — the IMMUTABLE GOAL CONTRACT (doc 04 §9.4): built
-        // deterministically from the goal text before the first navigation, reused by
-        // every re-plan (a strategy change may not weaken a stated parameter). A ladder
-        // that cannot bind a stated parameter is refused at install (the honest refusal
-        // — never a plan on evidence the goal does not own). The clarification terminals
-        // for absent/ambiguous values land with Stage 18.D (CN-15); this stage records
-        // the unmet requirements in the contract.
-        val contract = navigator.core.ladder.GoalContract.fromGoal(goal)
-        val contractViolations = contract.validateLadder(ladder)
+        val contractViolations = contract.validateInstall(ladder)
         if (contractViolations.isNotEmpty()) {
             val line = "plan refused by the goal contract: " +
                 contractViolations.joinToString("; ") + " - the original goal stands"
@@ -1161,7 +1269,17 @@ class VisionLoop(
                         outcomes.add(line)
                         log("[vision] $line")
                         evidence.event(line)
-                        return terminal(Terminal.GUARD_ABORT, null)
+                        // PHASE_18 Stage 18.D CN-15 (doc 04 §9.9): the capture bound's
+                        // honest terminal is CAPTURE_UNAVAILABLE — GUARD_ABORT stays the
+                        // RISK-GATE abort (the single-run guard cases: the double-refusal
+                        // abort, the persistent-stale guards it used to share). The cause
+                        // here is perception degradation past §9.8's calibrated limit.
+                        return terminal(
+                            Terminal.CAPTURE_UNAVAILABLE,
+                            null,
+                            detail = "the capture degraded $consecutiveCaptureFailures " +
+                                "times consecutively (limit ${config.captureFailureLimit})",
+                        )
                     }
                     shot = gotShot
                 }
@@ -1278,6 +1396,17 @@ class VisionLoop(
                     evidence.event("checkout milestone: ${reached.name} (evidence on the current observation)")
                 }
             }
+            // PHASE_18 Stage 18.D CN-14 (c): the SELECTED DESTINATION HOST is recorded in
+            // runtime state once entered (the goal contract resolves it; the observation
+            // confirms the entry). Recorded once per run.
+            run {
+                val activeSubtask = ladder.subtasks[pointer]
+                recordSiteEntry(obs, activeSubtask.instruction, activeSubtask.done)
+            }
+            // PHASE_18 Stage 18.D CN-14: the bounded fresh-evidence recheck — on a REAL
+            // page surface (never a chrome-management/off-page one) whose evidence
+            // changed, a banned landing may clear (recorded).
+            recheckBannedLanding(obs)?.let { outcomes.add(it) }
             // PHASE_17 Stage 0.3: record the checkout state (the recovery's re-open target
             // and the no-redo guard's trigger). PHASE_18 CN-12: the milestone's TITLE is
             // recorded beside the URL (the tab-identification identity).
@@ -1324,8 +1453,13 @@ class VisionLoop(
                         awaitingCheckoutRevalidation = false
                     }
                     is BrowserRecoveryController.BrowserRecovery.RestoreCheckout -> {
+                        // PHASE_18 Stage 18.D CN-14: the landing history survives re-plans
+                        // and refuses the re-open of a URL that repeatedly failed (the
+                        // bounded fresh-evidence recheck runs at the step head, on a real
+                        // page surface — see [recheckBannedLanding]).
                         if (browserLauncher != null &&
-                            offPageRecoveries < config.maxOffPageRecoveries
+                            offPageRecoveries < config.maxOffPageRecoveries &&
+                            !landingHistory.isBanned(decision.url)
                         ) {
                             offPageRecoveries += 1
                             awaitingCheckoutRevalidation = true
@@ -1344,22 +1478,47 @@ class VisionLoop(
                             step += 1
                             continue
                         } else {
-                            evidence.event("off-page detected, no recovery: ${decision.reason}")
+                            val line = if (landingHistory.isBanned(decision.url)) {
+                                // CN-14: the ban persists ACROSS re-plans — a re-plan is a
+                                // strategy change, not a new run; the same unproductive URL
+                                // is not re-opened again this run.
+                                "landing ban: ${decision.url.take(60)} failed " +
+                                    "${landingHistory.failures(decision.url)} landings this run - " +
+                                    "not re-opened (the history survives re-plans; a fresh-evidence " +
+                                    "recheck may clear it)"
+                            } else {
+                                "off-page detected, no recovery: ${decision.reason}"
+                            }
+                            outcomes.add(line)
+                            log("[vision] $line")
+                            evidence.event(line)
                         }
                     }
                     is BrowserRecoveryController.BrowserRecovery.OwnerHandoff -> {
-                        // The CN-15 terminal mapping lands with Stage 18.D part 2; until
-                        // then the handoff is the sealed outcome the loop refuses to act
-                        // past: zero navigation. The step is consumed by the ORDINARY
-                        // flow (the raw-action guard refuses the off-page touch; the
-                        // failure/re-plan gate owns the run) — never a silent continue.
+                        // PHASE_18 Stage 18.D CN-15 (doc 04 §9.9 + §9.10 + doc 06 §4): an
+                        // unrecoverable checkout identity IS the owner handoff — the run
+                        // ends at NEEDS_USER (the OFF-PAGE HANDOFF log line stays). Zero
+                        // navigation follows; no new tab, no restart, no re-plan spend.
                         val line = "OFF-PAGE HANDOFF: ${decision.reason}"
                         outcomes.add(line)
                         log("[vision] $line")
                         evidence.event(line)
+                        return terminal(
+                            Terminal.NEEDS_USER,
+                            ladder,
+                            detail = "the checkout tab identity is ambiguous - the owner must recover it",
+                        )
                     }
                     is BrowserRecoveryController.BrowserRecovery.StopAndReverify -> {
                         awaitingCheckoutRevalidation = false
+                        // PHASE_18 Stage 18.D CN-14: a failed revalidation is a FAILED
+                        // LANDING of the re-opened URL — the landing history records it
+                        // (same-URL failures accumulate across re-plans and ban the URL).
+                        landingHistory.recordFailure(checkoutUrl!!, decision.reason)
+                        evidence.event(
+                            "landing recorded: ${landingHistory.failures(checkoutUrl!!)} failed " +
+                                "landing(s) at ${checkoutUrl!!.take(50)}",
+                        )
                         // The stale-surface refusal rides the same ordinary flow: the
                         // reverify line is the decision of record; the step's failure
                         // accounting comes from the raw-action guard / the proposal path.
@@ -1909,6 +2068,29 @@ class VisionLoop(
                 // per-subtask battery budget (checked when the escalation was queued);
                 // stuck/step-failure entries spend the task-level maxReplans (round 3).
                 if (!batteryReplanQueued && replans >= config.maxReplans) {
+                    // PHASE_18 Stage 18.D CN-15 (doc 04 §9.9) — the cause audit: the
+                    // re-plan CAPACITY is exhausted (REPLANS_EXHAUSTED), EXCEPT when the
+                    // grounding ledger sits exhausted — the action channel is dead (the
+                    // CN-09 refusals never recovered), so re-planning cannot restore it.
+                    // §9.8: past the calibrated limit the run "hands off or stops
+                    // honestly"; §9.9's handoff list makes that NEEDS_USER. It is not
+                    // MODEL_UNAVAILABLE (that terminal is the typed ModelCallException —
+                    // the model channels answered; the GROUNDING of their answers failed)
+                    // and not CLARIFICATION_REQUIRED (nothing is missing from the goal
+                    // contract). REPLANS_EXHAUSTED stays when the ledger is clean.
+                    if (noProgress.groundingFailureCount >= config.noProgressGroundingFailures) {
+                        val line = "NEEDS_USER: grounding failed ${noProgress.groundingFailureCount} " +
+                            "times consecutively (bound ${config.noProgressGroundingFailures}) and " +
+                            "the re-plan capacity is spent - owner handoff (doc 04 §9.8/§9.9)"
+                        outcomes.add(line)
+                        log("[vision] $line")
+                        evidence.event(line)
+                        return terminal(
+                            Terminal.NEEDS_USER,
+                            ladder,
+                            detail = "repeated grounding failure exhausted the action channel",
+                        )
+                    }
                     evidence.event("REPLANS_EXHAUSTED after $replans re-plans")
                     return terminal(Terminal.REPLANS_EXHAUSTED, ladder)
                 }
@@ -1918,8 +2100,27 @@ class VisionLoop(
                 // typed escalation, the best grounding, the action route).
                 val failureCtx = failureContext(pointer, active, doneText, batteryReplans)
                 val fresh = captureSafely(screenshots++)
-                val rePlan = planLadder(goal, obs, failure = failureCtx, shot = fresh)
+                val rePlan = planLadder(goal, obs, failure = failureCtx, shot = fresh, goalContract)
                 if (rePlan == null) {
+                    // PHASE_18 Stage 18.D CN-15 (doc 04 §9.9) — the cause audit: a
+                    // model-dead planning event (the typed ModelCallException exhausted
+                    // the attempts) is MODEL_UNAVAILABLE — the channel is unavailable,
+                    // nothing was refused on content. A content/budget refusal stays
+                    // REPLANS_EXHAUSTED (the genuine re-plan-capacity exhaustion; the
+                    // writer answered and its ladders were refused — the ReplanRule
+                    // precedent counts the refusal as no re-plan capacity).
+                    if (lastPlanFailureWasModelCall) {
+                        val line = "MODEL_UNAVAILABLE: the model channel failed (typed model-call " +
+                            "exception) across the ${config.planAttempts} re-plan attempts"
+                        outcomes.add(line)
+                        log("[vision] $line")
+                        evidence.event(line)
+                        return terminal(
+                            Terminal.MODEL_UNAVAILABLE,
+                            ladder,
+                            detail = "the model channel is unavailable (model-call exception exhausted)",
+                        )
+                    }
                     evidence.event("re-plan refused: no valid ladder — stopping")
                     return terminal(Terminal.REPLANS_EXHAUSTED, ladder)
                 }
@@ -1934,6 +2135,11 @@ class VisionLoop(
                     outcomes.add(line)
                     log("[vision] $line")
                     evidence.event(line)
+                    // CN-15 cause audit: REPLANS_EXHAUSTED stays — the refusal counts as
+                    // no re-plan capacity (the ReplanRule precedent); the run kept its
+                    // checkout milestone and the failure/re-plan gate owns the rest (a
+                    // §9.9 terminal would be wrong: the checkout integrity law refused a
+                    // PLAN, it did not block the goal's lawful path).
                     return terminal(Terminal.REPLANS_EXHAUSTED, ladder)
                 }
                 // PHASE_16 — the strategy guard: after TWO prior battery re-plans on this
@@ -1946,13 +2152,19 @@ class VisionLoop(
                     outcomes.add(line)
                     log("[vision] $line")
                     evidence.event(line)
+                    // CN-15 cause audit: REPLANS_EXHAUSTED stays — the same precedent (a
+                    // refused re-plan counts as no capacity; the wording-vs-strategy law
+                    // refused one plan, it did not make the goal unlawful to continue).
                     return terminal(Terminal.REPLANS_EXHAUSTED, ladder)
                 }
                 // PHASE_18 Stage 18.C CN-05 — the CONTRACT'S re-plan reuse law (doc 04
                 // §9.4): the same immutable contract validates every new ladder — a
-                // re-plan may change strategy, never weaken a stated parameter. A
-                // violation refuses the install (counted as no re-plan capacity, the
-                // ReplanRule precedent; the evidence names the weakened parameter).
+                // re-plan may change strategy, never weaken a stated parameter. PHASE_18
+                // Stage 18.D CN-15 (doc 04 §9.9) — the cause audit: a contract-violating
+                // re-plan is UNACTIONABLE (the contract is immutable, so no capacity
+                // spend can ever make it installable) — the honest terminal is
+                // GOAL_BLOCKED, not REPLANS_EXHAUSTED (which stays the genuine
+                // re-plan-capacity exhaustion; the violation never consumed capacity).
                 goalContract?.let { contract ->
                     val violations = contract.validateReplan(rePlan.ladder)
                     if (violations.isNotEmpty()) {
@@ -1961,7 +2173,11 @@ class VisionLoop(
                         outcomes.add(line)
                         log("[vision] $line")
                         evidence.event(line)
-                        return terminal(Terminal.REPLANS_EXHAUSTED, ladder)
+                        return terminal(
+                            Terminal.GOAL_BLOCKED,
+                            ladder,
+                            detail = "every re-plan on offer weakens the goal contract",
+                        )
                     }
                 }
                 if (batteryReplanQueued) {
@@ -3431,6 +3647,62 @@ class VisionLoop(
             "in this task - task aborted"
 
     /** The informed re-plan's failure context: the failing subtask + the evidence block. */
+    /**
+     * PHASE_18 Stage 18.D CN-14 (c) — the destination-host RECORD: when the observation
+     * sits on the ACTIVE subtask's destination host (same-site family), the selected
+     * destination host is recorded in runtime state, once per run (the policy is pure;
+     * this is the loop's thin seam over [GoalSitePolicy.destinationHostOf]).
+     */
+    private fun recordSiteEntry(obs: StepObservation, instruction: String, done: DoneCondition) {
+        if (obs.url.isBlank() || obs.url == "hidden" || obs.url == "unavailable") return
+        if (siteDestinationHost != null) return
+        val target = navigator.core.ladder.GoalSitePolicy.destinationHostOf(instruction, done)
+            ?: return
+        val host = DoneConditionChecker.normalizeUrl(obs.url)?.substringBefore('/') ?: return
+        if (DoneConditionChecker.sameSiteFamily(host, target)) {
+            siteDestinationHost = target
+            evidence.event("site entry: destination host recorded ($target)")
+        }
+    }
+
+    /**
+     * PHASE_18 Stage 18.D CN-14 — the bounded fresh-evidence RECHECK of a banned
+     * landing: on a REAL page surface (never a chrome-management/off-page one) whose
+     * evidence changed since the last consult, the recorded checkout destination is
+     * re-evaluated by URL PATH + page CONTENT (never the title alone); a page whose
+     * path/content now establishes the destination clears its old failure (recorded).
+     * Returns the clearing line for the caller's outcome log (null = no clear). The
+     * recheck attempts are bounded per URL in [GoalSitePolicy.LandingHistory].
+     */
+    private fun recheckBannedLanding(obs: StepObservation): String? {
+        val destination = checkoutUrl ?: return null
+        if (!landingHistory.isBanned(destination)) return null
+        // A real page surface only: WEB_CONTENT, or UNKNOWN (which may be one — the
+        // conservative state never decides, but this is evidence evaluation, not a
+        // recovery decision). The chrome-management and non-chrome surfaces never recheck.
+        when (stepUiState) {
+            ChromeUiState.WEB_CONTENT, ChromeUiState.UNKNOWN -> {}
+            else -> return null
+        }
+        if (lastLandingRecheckHash == obs.screenHash) return null
+        lastLandingRecheckHash = obs.screenHash
+        val cleared = landingHistory.recheck(
+            destination,
+            navigator.core.ladder.GoalSitePolicy.RecheckEvidence(
+                pathEstablishes = navigator.core.ladder.GoalSitePolicy
+                    .pathEstablishes(obs.url, destination),
+                contentEstablishes = navigator.core.ladder.GoalSitePolicy
+                    .contentEstablishes(obs.lines, checkoutTitle),
+                detail = "the current page's path/content was checked",
+            ),
+        )
+        cleared?.let { line ->
+            log("[vision] $line")
+            evidence.event(line)
+        }
+        return cleared
+    }
+
     private fun failureContext(
         index: Int,
         active: Subtask,
@@ -3445,6 +3717,14 @@ class VisionLoop(
             append("\n\nCHANGE STRATEGY: this subtask has already been re-planned after the " +
                 "SAME failure (battery re-plan #${batteryReplans + 1}). Change the APPROACH — " +
                 "a different site, route or control class — not the wording of the failing subtask.")
+        }
+        // PHASE_18 Stage 18.D CN-14 — the landing history SURVIVES re-plans and the
+        // re-plan sees it: a URL with failed landings is named so the new plan changes
+        // the route instead of re-entering the same unproductive page.
+        val banned = landingHistory.bannedUrls()
+        if (banned.isNotEmpty()) {
+            append("\n\nLANDING HISTORY: these URLs failed landing this run and are not to " +
+                "be re-entered: " + banned.joinToString("; "))
         }
         append("\n\n")
         append(VisionPrompts.jevEvidenceBlock(currentEvidence(doneText)))
@@ -4098,11 +4378,20 @@ class VisionLoop(
         val enterText: Map<Int, String>,
     )
 
-    private suspend fun planLadder(goal: String, obs: StepObservation, failure: String?, shot: VisionCapture.ScreenShot?): PlannedLadder? {
+    private suspend fun planLadder(
+        goal: String,
+        obs: StepObservation,
+        failure: String?,
+        shot: VisionCapture.ScreenShot?,
+        contract: navigator.core.ladder.GoalContract?,
+    ): PlannedLadder? {
         // PHASE_18 CN-11 (doc 04 §9.7): the writer cap is checked BEFORE the first plan
         // call — planning never spends past it (the per-attempt retry loop inherits the
         // same refusal; a re-plan with no room takes its site's terminal honestly).
         if (!writerRoom(if (failure == null) "plan" else "re-plan")) return null
+        // PHASE_18 Stage 18.D CN-15: the planning failure cause resets per event — only
+        // a typed ModelCallException marks the channel dead (MODEL_UNAVAILABLE).
+        lastPlanFailureWasModelCall = false
         var correction: String? = null
         repeat(config.planAttempts) { attempt ->
             noProgress.recordPlanningAttempt() // PHASE_18 CN-11: the planning ledger
@@ -4143,10 +4432,33 @@ class VisionLoop(
                         "goal fidelity: " + fidelity.violations.joinToString("; "),
                     )
                 }
+                // PHASE_18 Stage 18.D CN-14 — the SITE-RESOLUTION POLICY (doc 04 §9.4),
+                // on the ENTRY plan only: the same violations ride the ERROR-FED retry
+                // (the writer sees why the store-first/detour ladder was refused), through
+                // the ONE policy the contract's [GoalContract.validateInstall] composes.
+                // After entries have failed, the Phase-16 strategy law may lawfully route
+                // a re-plan through a search; the GoalFidelity site-first rule above keeps
+                // enforcing search-first for site-agnostic goals at EVERY planning event.
+                if (failure == null) {
+                    contract?.let {
+                        val siteViolations = navigator.core.ladder.GoalSitePolicy.checkLadder(it, ladder)
+                        if (siteViolations.isNotEmpty()) {
+                            throw navigator.core.ladder.LadderValidationException(
+                                siteViolations.joinToString("; "),
+                            )
+                        }
+                    }
+                }
                 noProgress.planningEventDone() // PHASE_18 CN-11: the event completed
                 noProgress.resetModelFailures() // PHASE_18 CN-11: a successful writer call
                 return PlannedLadder(ladder, battery, enterText)
             } catch (e: Exception) {
+                // PHASE_18 Stage 18.D CN-15: a typed ModelCallException means the MODEL
+                // CHANNEL failed (transport/status/deadline — never content); everything
+                // else is a content/refusal cause. Consumed at the plan sites.
+                if (e is navigator.core.wire.ModelCallException) {
+                    lastPlanFailureWasModelCall = true
+                }
                 correction = "Your previous JSON was refused: ${e.message?.take(300)} — fix exactly that and return the STRICT JSON again."
                 evidence.event("plan attempt ${attempt + 1} refused: ${e.message?.take(160)}")
             }

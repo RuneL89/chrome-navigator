@@ -177,6 +177,15 @@ without a device.
   18.D clarification handler will consume; `validateLadder`/`validateReplan` are the
   token-based binding checks every install and re-plan must pass — a reworded plan
   binds, a weakened one is refused; secrets never enter a contract);
+  `GoalSitePolicy.kt` (PHASE_18 Stage 18.D CN-14, doc 04 §9.4/§9.9 — the site-resolution
+  law, composed INTO `GoalContract.validateInstall` (no forked validator): a site-named
+  goal keeps its site (a search detour is refused); a site-agnostic source/store goal
+  must START WITH SEARCH (a store-first ladder is refused); `validateReplan` deliberately
+  excludes the ENTRY law (a re-plan may change strategy — GoalFidelity's site-first still
+  runs at every planning event); `LandingHistory` = the run-scoped landing/failed-entry
+  record (ban at 2 failures, a bounded 2-attempt fresh-evidence recheck clears an old
+  failure with the clear RECORDED; landing is established by URL path + selected tab +
+  page CONTENT, never the title alone));
   law:
   `Project Vision/04` §1/§3 v1.8.0 + v1.8.4 + §7 v2.5.0 + §9.4–9.6, `Project Vision/03` §4 v2.2.0
 * `src/main/kotlin/navigator/core/gate/` — the risk gate (ART-1: code owns the gate,

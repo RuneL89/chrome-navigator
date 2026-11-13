@@ -19,11 +19,12 @@ import navigator.core.wire.WireTransportException
  * Two pieces of the baseline that later stages consciously change, pinned so the
  * change is deliberate:
  *
- * 1. THE TERMINAL VOCABULARY — the exact eight vision terminals, in declaration
+ * 1. THE TERMINAL VOCABULARY — the eight original vision terminals, in declaration
  *    order (the corner log's task-state line renders these names). Stage 18.D CN-15
- *    ADDS terminals additively (doc 04 §9.9: CLARIFICATION_REQUIRED, NEEDS_USER,
+ *    ADDED six terminals additively (doc 04 §9.9: CLARIFICATION_REQUIRED, NEEDS_USER,
  *    MODEL_UNAVAILABLE, CAPTURE_UNAVAILABLE, STALE_CONTEXT_UNRESOLVED, GOAL_BLOCKED);
- *    the Phase 18 change gate (doc 07 §4) treats the vocabulary as load-bearing.
+ *    the vocabulary pin below now carries all fourteen, originals first, unchanged.
+ *    The Phase 18 change gate (doc 07 §4) treats the vocabulary as load-bearing.
  *    The END-TO-END terminal behavior is already pinned by the existing suites and is
  *    referenced, not duplicated here: GOAL_ACHIEVED / MODELS_CONFIRM_DONE /
  *    REPLANS_EXHAUSTED / CANCELLED (VisionTerminalEvidenceTest,
@@ -49,7 +50,11 @@ class Phase18TerminalAndRetryCharacterizationTest {
     // -- the terminal vocabulary -------------------------------------------------------------
 
     @Test
-    fun `the vision terminal vocabulary is exactly the eight current terminals`() {
+    fun `the vision terminal vocabulary is the eight originals plus the six additive 18D terminals`() {
+        // LAWFUL RE-PIN (Stage 18.D CN-15, doc 04 §9.9 — the deliberate change this
+        // suite anticipated): the §9.9 terminals join ADDITIVELY — the eight original
+        // entries keep their declaration order and meanings; the six new entries ride
+        // after them in §9.9's list order.
         assertEquals(
             listOf(
                 "GOAL_ACHIEVED",
@@ -60,6 +65,12 @@ class Phase18TerminalAndRetryCharacterizationTest {
                 "CANCELLED",
                 "PLAN_REFUSED",
                 "GUARD_ABORT",
+                "CLARIFICATION_REQUIRED",
+                "NEEDS_USER",
+                "MODEL_UNAVAILABLE",
+                "CAPTURE_UNAVAILABLE",
+                "STALE_CONTEXT_UNRESOLVED",
+                "GOAL_BLOCKED",
             ),
             VisionLoop.Terminal.entries.map { it.name },
             "the vocabulary is load-bearing (doc 07 §4's change gate); a change is deliberate",

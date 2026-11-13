@@ -101,20 +101,34 @@ object FormCompletionChecker {
     /**
      * Whether a chip-fill dispatch may proceed: the INTENDED field (the checker's
      * next-needed field, by key) must be the FOCUSED one (the loop's code-owned focus —
-     * the last editable field the loop's own action focused on this page). No focus yet,
-     * or a different field focused → refuse with ZERO dispatch.
+     * the last editable field the loop's own action focused on this page). A possible
+     * SUBSTITUTION (an intended field exists and is not the focused one; or an intended
+     * field exists with no recorded focus) → refuse with ZERO dispatch.
+     *
+     * The BOTH-NULL corner (the part-1 verifier observation, pinned): no empty/needed
+     * field AND no recorded focus → the chip cannot substitute for any intended field
+     * (none exists) → ALLOW — the dispatch is never trusted: the CN-04 postcondition
+     * law still applies (the post-write verification reads ALL field values on the
+     * fresh observation, and a non-advancing chip is a failed step). The refusal law
+     * protects a FIELD from a substitute chip; with no field to protect there is
+     * nothing to refuse.
      */
     fun chipDispatchAllowed(intendedFieldKey: String?, focusedFieldKey: String?): ChipVerdict {
         if (focusedFieldKey != null && focusedFieldKey == intendedFieldKey) {
             return ChipVerdict.Allow
         }
-        return ChipVerdict.Refuse(
-            "AUTOFILL CHIP law: a chip fills only the FOCUSED field, and the intended field " +
-                (intendedFieldKey?.let { "'$it'" } ?: "(none — no empty required field)") +
-                " is not the focused one (focused: " +
-                (focusedFieldKey?.let { "'$it'" } ?: "none recorded this page") +
-                ") - ZERO chip dispatch; focus the intended field first",
-        )
+        if (intendedFieldKey != null && focusedFieldKey != intendedFieldKey) {
+            return ChipVerdict.Refuse(
+                "AUTOFILL CHIP law: a chip fills only the FOCUSED field, and the intended field " +
+                    (intendedFieldKey?.let { "'$it'" } ?: "(none — no empty required field)") +
+                    " is not the focused one (focused: " +
+                    (focusedFieldKey?.let { "'$it'" } ?: "none recorded this page") +
+                    ") - ZERO chip dispatch; focus the intended field first",
+            )
+        }
+        // Both null (no needed field, no recorded focus): nothing to protect — allow,
+        // the postcondition verification owns the result.
+        return ChipVerdict.Allow
     }
 
     /**

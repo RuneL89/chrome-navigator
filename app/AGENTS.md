@@ -1698,6 +1698,43 @@ three-way selector ships with that program.
   * Gates: Phase18ChromeRecoveryTest 6/6 + Phase18FormFieldTest 7/7 (the plan's six +
     seven cases); every existing test green UNMODIFIED, zero golden re-pins; full
     app 857 / core 346 green (1203 total, 0 failures).
+* **PHASE_18 Stage 18.D part 2 (CN-14 + CN-15, 2026-11-13): site resolution/search-first
+  + the clarification and owner-handoff outcomes (doc 04 §9.4/§9.9 — implemented now).**
+  * `core/ladder/GoalSitePolicy.kt` (see `core/AGENTS.md`) — the site-resolution law:
+    site-named goals keep their site (a search detour is refused); site-agnostic
+    source/store goals START WITH SEARCH (a store-first ladder refused through the SAME
+    contract validation — `validateInstall` composes `checkLadder`; no forked validator);
+    `validateReplan` deliberately excludes the ENTRY law (a re-plan may change strategy;
+    GoalFidelity's site-first still runs at every planning event).
+  * `loop/ClarificationRequest.kt` — the ask names the missing CONTRACT FIELD with
+    bounded choices when code can construct them; NO chain-of-thought, NO untrusted
+    page text (the question is sanitized, field name only); `OwnerAnswerRecord` is the
+    EXPLICIT seam that updates the immutable contract (blank answers refused at
+    construction — a record never carries a blank; field mismatch refused at
+    `acceptInto` — null); ONE ask per run; `TimeoutVerdict`: consequential FAIL_CLOSED
+    (the gate-timeout deny law referenced, never weakened), non-consequential
+    HONEST_STOP (`stopTerminal()` = CLARIFICATION_REQUIRED — never a guess).
+  * The Terminal vocabulary grew ADDITIVELY (doc 04 §9.9): `CLARIFICATION_REQUIRED` /
+    `NEEDS_USER` / `MODEL_UNAVAILABLE` / `CAPTURE_UNAVAILABLE` / `STALE_CONTEXT_UNRESOLVED`
+    / `GOAL_BLOCKED` alongside the original eight (the full 14-entry enum is pinned by
+    the TerminalAndRetry characterization). Trigger wiring (each REPLANS_EXHAUSTED site
+    audited with a cause comment; genuine re-plan-capacity exhaustion keeps
+    REPLANS_EXHAUSTED): unmet contract requirements → CLARIFICATION_REQUIRED BEFORE
+    navigation (zero model calls); the CN-10 capture bound → CAPTURE_UNAVAILABLE
+    (GUARD_ABORT stays the risk-gate abort); the part-1 `OwnerHandoff` → NEEDS_USER
+    (the OFF-PAGE HANDOFF line stays, zero launches); model-dead planning →
+    MODEL_UNAVAILABLE (typed ModelCallException only); grounding-ledger exhaustion →
+    NEEDS_USER (§9.9's handoff list — deliberately not MODEL_UNAVAILABLE);
+    run-start persistent stale → STALE_CONTEXT_UNRESOLVED; contract-violating re-plan
+    → GOAL_BLOCKED. The bridge's task-state lines render truthfully ("needs your
+    answer" / "needs you to take over") through the same funnel — no UI redesign.
+  * Landing history (GoalSitePolicy's `LandingHistory`, loop seam `recheckBannedLanding`):
+    same-URL + failed-landing history persists ACROSS re-plans for the run; landing is
+    re-evaluated by URL path + selected tab + page CONTENT (the title is never an
+    input); a 2-failure ban is cleared only by a BOUNDED fresh-evidence recheck
+    (2 attempts per URL), and the clear is recorded (the old failure count stays).
+  * Gates: Phase18SitePolicyTest 5/5 (18.D3) + Phase18ControllerOutcomesTest 6/6
+    (18.D4); full app 868 / core 346 green (1214 total, 0 failures).
 
 ## Local Contracts
 

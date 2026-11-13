@@ -34,7 +34,8 @@ import navigator.core.wire.WireTransportException
  * 2. THE WIRED PRODUCT PATH (snapshotter present — CN-10, doc 04 §9.8): consecutive
  *    capture failures are counted, ONE bounded re-capture runs on the first degraded
  *    frame, and past [VisionLoop.Config.captureFailureLimit] (2) the run ends honestly
- *    (GUARD_ABORT with the capture cause) — no unbounded text-only degrade, no
+ *    (CAPTURE_UNAVAILABLE with the capture cause since Stage 18.D CN-15, doc 04 §9.9 —
+ *    GUARD_ABORT stays the risk-gate abort) — no unbounded text-only degrade, no
  *    fabricated frame. The wired tests pin that.
  *
  * Vision law: Project Vision/04 §9.8 (perception degradation — implemented) and doc
@@ -243,7 +244,7 @@ class Phase18CaptureDegradationCharacterizationTest {
     }
 
     @Test
-    fun `wired - two consecutive capture failures end the run honestly (GUARD_ABORT)`() = runBlocking {
+    fun `wired - two consecutive capture failures end the run honestly (CAPTURE_UNAVAILABLE)`() = runBlocking {
         val executor = RecordingExecutor()
         val base = Files.createTempDirectory("p18-cap-bound").toFile()
         val evidence = VisionEvidence(base, "capture-bound")
@@ -255,8 +256,12 @@ class Phase18CaptureDegradationCharacterizationTest {
 
         // CN-10: the run-start capture (failure #1), the per-step capture + its ONE
         // bounded re-capture (failures #2 and #3) — past the limit of 2 the run ends
-        // GUARD_ABORT with the capture cause in the evidence, ZERO executor calls.
-        assertEquals(VisionLoop.Terminal.GUARD_ABORT, result.terminal, result.subtaskOutcomes.toString())
+        // honestly with the capture cause in the evidence, ZERO executor calls.
+        // LAWFUL RE-PIN (Stage 18.D CN-15, doc 04 §9.9): the honest terminal for the
+        // capture bound is CAPTURE_UNAVAILABLE — the §9.8 perception-degradation cause
+        // — not GUARD_ABORT, which stays the RISK-GATE abort (the single-run guard
+        // cases: the double-refusal abort keeps its terminal in VisionLoopGateTest).
+        assertEquals(VisionLoop.Terminal.CAPTURE_UNAVAILABLE, result.terminal, result.subtaskOutcomes.toString())
         assertTrue(executor.taps.isEmpty(), "no dispatch may ride a degraded capture: ${executor.taps}")
         val log = File(base, "capture-bound/events.log").readText()
         assertTrue(
