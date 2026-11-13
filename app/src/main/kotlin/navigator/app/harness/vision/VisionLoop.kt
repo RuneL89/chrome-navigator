@@ -211,6 +211,14 @@ class VisionLoop(
      * existing caller/test) = today's dispatch, byte-identical.
      */
     private val preDispatchGuard: PreDispatchGuard? = null,
+    /**
+     * PHASE_18 Stage 18.D CN-16 (doc 05 §8) — the ENGINE + PERCEPTION MODE the run's
+     * evidence carries on the run-start line: the engine-policy name this loop serves
+     * under (`ALWAYS_VISION` — the default and the product route; `TREE_FIRST` when the
+     * hybrid's [VisionLoopTool] drives the same engine as the escalation tool). A fact
+     * of record only; it never routes (the policy decision is the bridge's).
+     */
+    private val enginePolicy: String = "ALWAYS_VISION",
 ) {
 
     data class Config(
@@ -481,6 +489,14 @@ class VisionLoop(
          * Rendered by the bridge's task-state line; never page text, never reasoning.
          */
         val terminalDetail: String? = null,
+        /**
+         * PHASE_18 Stage 18.D CN-16 — the runtime prefix's end-of-run record: how many
+         * subtasks finished VERIFIED and how many invalidation records the audits
+         * APPENDED (proof history is never deleted — doc 04 §9.5). The run summary
+         * reconciles against the `subtask … done` and `rollback` evidence rows.
+         */
+        val verifiedSubtasks: Int = 0,
+        val invalidatedSubtasks: Int = 0,
     )
 
     private class NodeMatch(val node: ObservedNode, val iou: Double)
@@ -758,6 +774,16 @@ class VisionLoop(
     private var currentSnapshot: VisionSnapshot? = null
 
     /**
+     * PHASE_18 Stage 18.D CN-16 — the PREVIOUS snapshot's id (the parent linkage the
+     * evidence snapshot rows carry) and the previous navigation key + the
+     * restoration flag the context-transition records consume. Class fields per the
+     * loop-state discipline; reset per run.
+     */
+    private var lastSnapshotIdForEvidence: String? = null
+    private var lastContextNavKey: String? = null
+    private var contextRestorationPending = false
+
+    /**
      * PHASE_18 Stage 18.C CN-11 — the SEMANTIC no-progress ledger (doc 04 §9.7): the
      * independent counters whose verdicts feed the failure/re-plan gate (the re-plan
      * BUDGET wiring stays [Config.maxReplans]/[Config.batteryReplansPerSubtask]; this is
@@ -816,10 +842,24 @@ class VisionLoop(
         return when (val o = snap.snapshot(index) { i -> captureSafely(i) }) {
             is VisionSnapshotter.Outcome.Consistent -> {
                 currentSnapshot = o.snapshot
+                // PHASE_18 CN-16: the snapshot identity rides the evidence additively —
+                // id + parent linkage + the observation timestamps the snapshotter
+                // already computed.
+                evidence.snapshotRecorded(
+                    id = o.snapshot.id,
+                    parentSnapshotId = lastSnapshotIdForEvidence,
+                    observedAtMs = o.snapshot.observedAtMs,
+                    capturedAtMs = o.snapshot.capturedAtMs,
+                    verdict = o.snapshot.verdict.name,
+                    navKey = o.snapshot.navigationKey,
+                    activePackage = o.snapshot.activePackage,
+                )
+                lastSnapshotIdForEvidence = o.snapshot.id
                 VerifiedObs.Got(o.snapshot.observation, o.snapshot.frame.orNull())
             }
             is VisionSnapshotter.Outcome.Stale -> {
                 evidence.event("NOT_DISPATCHED_STALE_SNAPSHOT: ${o.reason}")
+                evidence.dispatchRefused("NOT_DISPATCHED_STALE_SNAPSHOT: ${o.reason}")
                 log("[vision] stale snapshot: ${o.reason}")
                 VerifiedObs.Stale
             }
@@ -841,6 +881,14 @@ class VisionLoop(
             ?.trim()
             ?.takeIf { it.isNotEmpty() }
             ?.take(TERMINAL_ANSWER_CHARS)
+        // PHASE_18 Stage 18.D CN-16 (doc 05 §8): the RUN SUMMARY row precedes the
+        // mandatory terminal line; its totals reconcile to the underlying call and
+        // action records (the call rows, the receipt rows, the refusal/recovery/
+        // rollback/replan rows and the runtime prefix's end state).
+        evidence.runSummary(
+            verifiedSubtasks = result.verifiedSubtasks,
+            invalidatedSubtasks = result.invalidatedSubtasks,
+        )
         evidence.event(
             "terminal=${result.terminal.name} steps=${result.stepsUsed} replans=${result.replans}" +
                 // PHASE_17 Stage 0.6 — THE RUN RECORD: the modality, the call ledger
@@ -852,6 +900,12 @@ class VisionLoop(
                 " jev=${evidence.channelCalls(VisionEvidence.Channel.JEV)}" +
                 " haiku=${evidence.channelCalls(VisionEvidence.Channel.HAIKU)}" +
                 " images=${evidence.imagesSent()} battery=${evidence.batteryCalls()} escalations=0" +
+                // PHASE_18 Stage 18.D CN-16: the additive versioned fields — the schema
+                // marker, the run's cause counters and the final-verifier verdict ride
+                // beside the existing fields (the line's existing shape is untouched).
+                " schema=${VisionEvidence.SCHEMA_VERSION}" +
+                " rollbacks=${result.invalidatedSubtasks}" +
+                " captureDegradations=${evidence.captureDegradations()}" +
                 (answer?.let { " answer=$it" } ?: ""),
         )
         return result
@@ -886,6 +940,12 @@ class VisionLoop(
         var consecutiveFailures = 0
         val recentHashes = ArrayDeque<Int>()
 
+        // PHASE_18 Stage 18.D CN-16 — the runtime prefix's end-of-run record for the run
+        // summary: subtasks that finished VERIFIED (each accept advances one) and the
+        // invalidation records the audits APPENDED (proof history is never deleted).
+        var verifiedAdvances = 0
+        var invalidationRecords = 0
+
         fun terminal(terminal: Terminal, ladder: Ladder?, detail: String? = null): Result = Result(
             terminal = terminal,
             stepsUsed = step,
@@ -895,12 +955,29 @@ class VisionLoop(
             replans = replans,
             screenshots = screenshots,
             terminalDetail = detail,
+            verifiedSubtasks = verifiedAdvances,
+            invalidatedSubtasks = invalidationRecords,
         )
 
-        evidence.event("run start goal=<${goal.take(80)}> budget=100x writer=${budget.hasWriterHardRoom()}")
+        evidence.event(
+            "run start goal=<${goal.take(80)}> budget=100x writer=${budget.hasWriterHardRoom()}" +
+                // PHASE_18 Stage 18.D CN-16 (doc 05 §8): the additive versioned run
+                // header — the schema marker, the engine/perception mode of record and
+                // the goal-contract version. Existing fields untouched.
+                " schema=${VisionEvidence.SCHEMA_VERSION}" +
+                " engine=$enginePolicy perception=" +
+                (snapshotter?.let { "snapshot-verified" } ?: "observe+capture") +
+                " goalContract=${navigator.core.ladder.GoalContract.CONTRACT_VERSION}",
+        )
         // PHASE_18 CN-05: the goal contract is rebuilt per run (from the goal text; the
         // contract then carries unchanged across every re-plan within the run).
         goalContract = null
+        // PHASE_18 Stage 18.D CN-16: the run-scoped evidence-linkage state never crosses
+        // runs (the snapshot parent chain restarts; no transition rides from a previous
+        // run).
+        lastSnapshotIdForEvidence = null
+        lastContextNavKey = null
+        contextRestorationPending = false
         // PHASE_18 Stage 18.D CN-14/CN-15: the run-scoped facts never cross runs (the
         // landing history survives RE-PLANS, never runs; offPageRecoveries is documented
         // as this run's spend and now actually resets with it).
@@ -1107,11 +1184,17 @@ class VisionLoop(
                     ),
                 )) {
                     is FinalGoalVerifier.Verdict.Accept -> {
+                        // PHASE_18 CN-16: the verifier's ACCEPT is a first-class evidence
+                        // field (the terminal row carries the verdict).
+                        evidence.finalVerifierRecord(accepted = true, deficiencies = emptyList())
+                        verifiedAdvances += 1
                         runtimeStates[pointer].markVerified(provingEvidence(proofCondition, obs))
                         evidence.event("GOAL_ACHIEVED after $step steps")
                         return terminal(Terminal.GOAL_ACHIEVED, ladder)
                     }
                     is FinalGoalVerifier.Verdict.Deficient -> {
+                        // PHASE_18 CN-16: the refusal reason rides the record.
+                        evidence.finalVerifierRecord(accepted = false, deficiencies = verdict.deficiencies)
                         val line = "ACCEPT REFUSED: " + verdict.deficiencies.joinToString("; ")
                         outcomes.add(line)
                         log("[vision] $line")
@@ -1123,6 +1206,7 @@ class VisionLoop(
                     }
                 }
             }
+            verifiedAdvances += 1
             runtimeStates[pointer].markVerified(provingEvidence(proofCondition, obs))
             pointer += 1
             runtimeStates.getOrNull(pointer)?.markActive()
@@ -1221,6 +1305,12 @@ class VisionLoop(
             outcomes.add(line)
             log("[vision] $line")
             evidence.event(line)
+            // PHASE_18 Stage 18.D CN-16: the rollback's CAUSE is a first-class field —
+            // the additive record feeds the run summary's reconciliation.
+            invalidationRecords += 1
+            evidence.rollback(
+                "subtask ${invalid.index + 1} invalidated: $invalid.reason (proof was: $invalid.proofRender)",
+            )
             return true
         }
 
@@ -1308,6 +1398,7 @@ class VisionLoop(
                     "DIAG receipt v=${receipt.verified} hashBefore=${receipt.pageHashBefore} hashAfter=${receipt.pageHashAfter} verb=${receipt.verb}",
                 )
                 consumeReceipt(receipt)
+                recordReceiptContext(receipt, obs.url) // PHASE_18 CN-16: the additive record
                 when (val v = receipt.verified) {
                     is ActionReceipt.Verdict.Verified -> consecutiveFailures = 0
                     is ActionReceipt.Verdict.WrongContext -> {
@@ -1431,6 +1522,22 @@ class VisionLoop(
                 // a New tab, never a restart. Bounded by the same budget; never when the
                 // code condition already holds here.
                 val activeNow = ladder.subtasks[pointer]
+                // PHASE_18 Stage 18.D CN-17 (doc 04 §9.9): the wrong-window cause goes
+                // STRAIGHT to foreground recovery — the controller decides that stage;
+                // the CN-12 controller below owns the restoration decision (composition:
+                // the ladder names the stage, the seam controller executes it).
+                evidence.recoveryStage(
+                    "WRONG_WINDOW",
+                    navigator.app.loop.RecoveryController.nextStage(
+                        navigator.app.loop.RecoveryController.Cause.WRONG_WINDOW,
+                        recoveryEpisode(
+                            stabilityWaitTaken = true,
+                            freshGroundingTaken = true,
+                            mechanismRetryTaken = true,
+                            replansRemaining = (config.maxReplans - replans).coerceAtLeast(0),
+                        ),
+                    ).name,
+                )
                 val decision: BrowserRecoveryController.BrowserRecovery =
                     if (stepUiState.offPage) {
                         BrowserRecoveryController.onOffPage(
@@ -1468,8 +1575,12 @@ class VisionLoop(
                             outcomes.add(line)
                             log("[vision] $line")
                             evidence.event(line)
+                            evidence.recovery(decision.reason) // PHASE_18 CN-16: the cause field
                             try {
                                 browserLauncher.launch(decision.url)
+                                // CN-16: the step that follows a restoration records the
+                                // TAB_RESTORATION transition, not a plain navigation.
+                                contextRestorationPending = true
                             } catch (e: Exception) {
                                 evidence.event(
                                     "off-page recovery launch failed: ${e.message?.take(120)}",
@@ -1538,6 +1649,7 @@ class VisionLoop(
                             outcomes.add(line)
                             log("[vision] $line")
                             evidence.event(line)
+                            evidence.recovery(decision.reason) // PHASE_18 CN-16: the cause field
                             executor.back()
                         } else {
                             evidence.event("off-page detected, no recovery: ${decision.reason}")
@@ -1623,6 +1735,24 @@ class VisionLoop(
             recentHashes.addLast(obs.screenHash)
             while (recentHashes.size > config.stuckRepeats) recentHashes.removeFirst()
             if (recentHashes.size == config.stuckRepeats && recentHashes.distinct().size == 1) {
+                // PHASE_18 Stage 18.D CN-17 (doc 04 §9.9): the controller DECIDES the
+                // static-screen recovery; the probe below EXECUTES the decided stage —
+                // the bounded stability wait (settle + fresh re-read) is the ladder's
+                // second stage and this loop's lawful seam for it. A still-static
+                // screen after the probe feeds the re-plan gate, where the controller
+                // rules again with the wait taken (§9.9's failure-appropriate ladder).
+                evidence.recoveryStage(
+                    "STATIC_SCREEN",
+                    navigator.app.loop.RecoveryController.nextStage(
+                        navigator.app.loop.RecoveryController.Cause.STATIC_SCREEN,
+                        recoveryEpisode(
+                            stabilityWaitTaken = false,
+                            freshGroundingTaken = false,
+                            mechanismRetryTaken = sameActionGuidance() != null,
+                            replansRemaining = (config.maxReplans - replans).coerceAtLeast(0),
+                        ),
+                    ).name,
+                )
                 evidence.event("stuck: screen unchanged x${config.stuckRepeats} - scroll probe")
                 val probeX = obs.nodes.lastOrNull()?.centerX ?: 540
                 val probeY = 1200
@@ -2020,6 +2150,9 @@ class VisionLoop(
                                     ),
                                 )) {
                                     is FinalGoalVerifier.Verdict.Accept -> {
+                                        // PHASE_18 CN-16: the verdict rides the record.
+                                        evidence.finalVerifierRecord(accepted = true, deficiencies = emptyList())
+                                        verifiedAdvances += 1
                                         runtimeStates[pointer].markVerified(
                                             provingEvidence(active.done, obs),
                                         )
@@ -2034,6 +2167,10 @@ class VisionLoop(
                                         return terminal(Terminal.MODELS_CONFIRM_DONE, ladder)
                                     }
                                     is FinalGoalVerifier.Verdict.Deficient -> {
+                                        evidence.finalVerifierRecord(
+                                            accepted = false,
+                                            deficiencies = verdict.deficiencies,
+                                        )
                                         val line = "MODELS_CONFIRM_DONE suppressed: the final " +
                                             "verifier refuses - " + verdict.deficiencies.joinToString("; ")
                                         outcomes.add(line)
@@ -2099,6 +2236,32 @@ class VisionLoop(
                 // sees Jev's actual findings (battery verdicts, the code verdict, the
                 // typed escalation, the best grounding, the action route).
                 val failureCtx = failureContext(pointer, active, doneText, batteryReplans)
+                // PHASE_18 Stage 18.D CN-17 (doc 04 §9.9): the controller rules on the
+                // failing episode BEFORE the re-plan capacity is spent — the local
+                // stages it names ride their existing seams (the prefix audit's
+                // rollback ran above; scroll-to-find and the mechanism rotation are the
+                // act path's); INFORMED_REPLAN is the stage the gate executes here.
+                // The ladder's end (a spent budget) stays the gate's honest terminals.
+                evidence.recoveryStage(
+                    when {
+                        noProgress.check() is NoProgressBudget.Verdict.NoProgress -> "REPEATED_NO_EFFECT"
+                        stepUiState.offPage -> "WRONG_WINDOW"
+                        else -> "STATIC_SCREEN"
+                    },
+                    navigator.app.loop.RecoveryController.nextStage(
+                        if (noProgress.check() is NoProgressBudget.Verdict.NoProgress) {
+                            navigator.app.loop.RecoveryController.Cause.REPEATED_NO_EFFECT
+                        } else {
+                            navigator.app.loop.RecoveryController.Cause.STATIC_SCREEN
+                        },
+                        recoveryEpisode(
+                            stabilityWaitTaken = true,
+                            freshGroundingTaken = stepGrounding != null,
+                            mechanismRetryTaken = sameActionGuidance() != null,
+                            replansRemaining = (config.maxReplans - replans).coerceAtLeast(0),
+                        ),
+                    ).name,
+                )
                 val fresh = captureSafely(screenshots++)
                 val rePlan = planLadder(goal, obs, failure = failureCtx, shot = fresh, goalContract)
                 if (rePlan == null) {
@@ -2145,7 +2308,19 @@ class VisionLoop(
                 // PHASE_16 — the strategy guard: after TWO prior battery re-plans on this
                 // subtask, a re-plan that returns the SAME failing subtask is refused —
                 // no install, no further capacity (a wording change is not a strategy).
-                if (batteryReplans >= 2 && unchangedFailingSubtask(rePlan.ladder, ladder, pointer)) {
+                // PHASE_18 Stage 18.D CN-17 (doc 04 §9.9): the guard EXTENDS to the
+                // controller's wording-only law — a re-worded VERB over the same target
+                // tokens and the same rendered condition is the SAME strategy, never a
+                // new one; a genuinely changed target/mechanism/approach passes.
+                if (batteryReplans >= 2 &&
+                    (
+                        unchangedFailingSubtask(rePlan.ladder, ladder, pointer) ||
+                            navigator.app.loop.RecoveryController.isWordingOnlyChange(
+                                ladder.subtasks[pointer],
+                                rePlan.ladder.subtasks.getOrNull(pointer) ?: rePlan.ladder.subtasks.first(),
+                            )
+                        )
+                ) {
                     val line = "re-plan refused: the failing subtask is UNCHANGED after " +
                         "${batteryReplans + 1} battery re-plans on the same failure - the plan " +
                         "must change the APPROACH, not the wording"
@@ -2255,6 +2430,11 @@ class VisionLoop(
                 }
                 outcomes.add(line)
                 evidence.event(line)
+                // PHASE_18 Stage 18.D CN-16: the re-plan's CAUSE is a first-class field
+                // (the failure context's head is the cause the writer saw).
+                evidence.replan(
+                    if (batteryReplanQueued) "battery escalation: $escalateCause" else failureCtx.take(140),
+                )
             }
         }
     }
@@ -2400,6 +2580,7 @@ class VisionLoop(
                     "DIAG receipt v=${receipt.verified} hashBefore=${receipt.pageHashBefore} hashAfter=${receipt.pageHashAfter} verb=${receipt.verb}",
                 )
                 consumeReceipt(receipt)
+                recordReceiptContext(receipt, obs.url) // PHASE_18 CN-16: the additive record
                 when (val v = receipt.verified) {
                     is ActionReceipt.Verdict.Verified -> consecutiveFailures = 0
                     is ActionReceipt.Verdict.WrongContext -> consecutiveFailures += 1
@@ -2658,6 +2839,7 @@ class VisionLoop(
                 // other model call — its spend AND its image count ride the evidence.
                 evidence.call(
                     "propose", rawReq, rawRes, System.currentTimeMillis() - started, haiku.lastUsage,
+                    attempts = haiku.lastAttempts, // PHASE_18 CN-16: the real attempt count
                     channel = VisionEvidence.Channel.HAIKU,
                     images = if (shot != null) 1 else 0,
                 )
@@ -2679,6 +2861,7 @@ class VisionLoop(
         // lawful — they are the escape surface, never a page touch.
         val touchesPageCoordinates = proposalCoordinateAction(proposals)
         BrowserRecoveryController.rawActionRefusal(stepUiState, touchesPageCoordinates)?.let { reason ->
+            evidence.dispatchRefused("NOT_DISPATCHED_OFF_PAGE: $reason") // PHASE_18 CN-16
             return Attempted.Failed(
                 "NOT_DISPATCHED_OFF_PAGE: $reason - zero executor calls (the recovery " +
                     "decision owns the off-page state)",
@@ -2729,6 +2912,7 @@ class VisionLoop(
                 evidence.call(
                     "ground", rawReq, rawRes, System.currentTimeMillis() - started, jev.lastUsage,
                     note = jev.describe,
+                    attempts = jev.lastAttempts, // PHASE_18 CN-16: the real attempt count
                     channel = VisionEvidence.Channel.JEV,
                     images = 1,
                 )
@@ -2761,6 +2945,8 @@ class VisionLoop(
                         jev.lastUsage,
                         channel = VisionEvidence.Channel.JEV,
                         images = 1,
+                        attempts = (e as? navigator.core.wire.ModelCallException)?.attempts
+                            ?: jev.lastAttempts,
                     )
                 }
                 val locationDependent = proposals.any {
@@ -2811,6 +2997,7 @@ class VisionLoop(
                 )
                 evidence.call(
                     "ground-choice", rawReq, rawRes, System.currentTimeMillis() - started, jev.lastUsage,
+                    attempts = jev.lastAttempts, // PHASE_18 CN-16: the real attempt count
                     channel = VisionEvidence.Channel.JEV,
                 )
                 (answers["pick"] as? VisionJev.Answer.Choice)?.let { pick ->
@@ -3182,6 +3369,7 @@ class VisionLoop(
                 fun refusal(resolution: GateResolution, card: GateCard): Attempted = when (resolution) {
                     GateResolution.DENIED -> when (val d = taskGate.decide(GateEvent.DENY)) {
                         GateDecision.SKIP -> {
+                            evidence.ownerIntervention("gate-card-denied") // PHASE_18 CN-16
                             evidence.event(
                                 "gate: $hclass on $site - owner DENIED \"${card.classLabel}\" - action skipped",
                             )
@@ -3196,6 +3384,7 @@ class VisionLoop(
                     }
                     GateResolution.TIMEOUT -> when (val d = taskGate.decide(GateEvent.TIMEOUT)) {
                         GateDecision.SKIP -> {
+                            evidence.ownerIntervention("gate-card-timeout") // PHASE_18 CN-16
                             evidence.event(
                                 "gate: $hclass on $site - card TIMED OUT (= deny, fail-safe) - action skipped",
                             )
@@ -3237,6 +3426,7 @@ class VisionLoop(
                             gateMarker = mark("approved")
                             approvedGateClass = hclass.name
                             approvedGateSite = site
+                            evidence.ownerIntervention("credential-card-approved") // CN-16
                             evidence.event(
                                 "gate: $hclass on $site - owner APPROVED \"${card.classLabel}\" - secret typed " +
                                     "on the card (${TextSource.REDACTED}, never logged)",
@@ -3267,6 +3457,7 @@ class VisionLoop(
                                 gateMarker = mark(if (trusted) "approved (trusted)" else "approved")
                                 approvedGateClass = hclass.name
                                 approvedGateSite = site
+                                evidence.ownerIntervention("gate-card-approved") // CN-16
                                 evidence.event("gate: $hclass on $site - owner APPROVED \"${card.classLabel}\"")
                             }
                             is GateResolution.ApproveWithSecret -> throw IllegalStateException(
@@ -3325,6 +3516,10 @@ class VisionLoop(
         // approved one. A refusal is a typed NOT_DISPATCHED_* failed step with ZERO
         // executor calls; the existing failed-step/re-plan gate owns the bounded retry,
         // and a voided approval re-gates through the ordinary next-step machinery.
+        // PHASE_18 Stage 18.D CN-16: the guard's verdict is a first-class field on the
+        // dispatch record ("not-wired" is the truthful verdict when the product seam is
+        // absent — the JVM-test/adb path).
+        var guardVerdict = "not-wired"
         if (preDispatchGuard != null) {
             val snap = currentSnapshot
             val request = ExecutionRequest(
@@ -3361,7 +3556,7 @@ class VisionLoop(
                 occluders = occluders.map { RectPxBox(it.left, it.top, it.right, it.bottom) },
             )
             when (val verdict = preDispatchGuard.check(request)) {
-                is PreDispatchGuard.Verdict.Allow -> {}
+                is PreDispatchGuard.Verdict.Allow -> guardVerdict = "ALLOW"
                 is PreDispatchGuard.Verdict.Refuse -> {
                     val line = "NOT_DISPATCHED_${verdict.refusal.name}: ${verdict.detail} - zero " +
                         "executor calls (the existing failed-step/re-plan gate owns the bounded " +
@@ -3369,6 +3564,7 @@ class VisionLoop(
                         (if (request.gated) "; the approval is void and the fresh action re-gates" else "") +
                         ")"
                     evidence.event("pre-dispatch refusal: $line")
+                    evidence.dispatchRefused("NOT_DISPATCHED_${verdict.refusal.name}: ${verdict.detail}")
                     log("[vision] pre-dispatch refusal: ${verdict.refusal.name}")
                     return Attempted.Failed(line)
                 }
@@ -3558,6 +3754,22 @@ class VisionLoop(
         // it no longer updates here from the pre-observation dispatch result.
         val acted = Attempted.Acted(detail, target?.node?.id, typed, false, effectiveAction)
         val receiptNode = actTarget?.node ?: target?.node
+        // PHASE_18 Stage 18.D CN-16: the dispatch's first-class record — the verb, the
+        // target FINGERPRINT (a sha identity; the raw label — a page echo a sanctioned
+        // secret included — never rides the row), the §9.8 grounding route, the gate's
+        // risk decision and the CN-03 guard verdict.
+        evidence.dispatch(
+            verb = effectiveAction.name.lowercase(),
+            targetFingerprint = VisionEvidence.targetFingerprint(
+                receiptNode?.className,
+                receiptNode?.text?.trim()?.takeIf { it.isNotEmpty() },
+            ),
+            route = groundSource,
+            gate = gateMarker,
+            guard = guardVerdict,
+            confidence = proposal.confidence,
+            iou = target?.iou,
+        )
         pendingActionReceipt = PendingActionReceipt(
             acted = acted,
             verb = effectiveAction.name.lowercase(),
@@ -3702,6 +3914,35 @@ class VisionLoop(
         }
         return cleared
     }
+
+    /**
+     * PHASE_18 Stage 18.D CN-17 — the failure episode's truthful capabilities for the
+     * [navigator.app.loop.RecoveryController]: what THIS engine has already taken and
+     * what seams exist. The §8 perception switch is ARMED by the type but not wired in
+     * this engine until Stage 18.E, so `perceptionSwitchAvailable` stays false; the
+     * prefix-rollback stage rides the audit's own fast path (it runs before this gate),
+     * so the episode does not advertise it twice.
+     */
+    private fun recoveryEpisode(
+        stabilityWaitTaken: Boolean,
+        freshGroundingTaken: Boolean,
+        mechanismRetryTaken: Boolean,
+        replansRemaining: Int,
+    ): navigator.app.loop.RecoveryController.Episode = navigator.app.loop.RecoveryController.Episode(
+        freshObservationTaken = true, // every step re-observes through the snapshot edge
+        stabilityWaitTaken = stabilityWaitTaken,
+        freshGroundingTaken = freshGroundingTaken,
+        mechanismRetryTaken = mechanismRetryTaken,
+        scrollsUsed = consecutiveScrolls,
+        scrollCap = config.scrollFindMax,
+        listExhausted = false,
+        browserRestoreAvailable = browserLauncher != null &&
+            offPageRecoveries < config.maxOffPageRecoveries,
+        restoreTaken = false,
+        perceptionSwitchAvailable = false, // the §8 wiring is Stage 18.E's (CN-17 arms it)
+        rollbackAvailable = false,
+        replansRemaining = replansRemaining,
+    )
 
     private fun failureContext(
         index: Int,
@@ -3859,6 +4100,40 @@ class VisionLoop(
             pageHashBefore = pending.pageHashBefore,
             pageHashAfter = fresh.screenHash,
         )
+    }
+
+    /**
+     * PHASE_18 Stage 18.D CN-16 — the receipt's FIRST-CLASS evidence record + the
+     * current host / context-transition row (the category from the CN-17
+     * [navigator.app.loop.RecoveryController] classifier; the restoration flag marks
+     * the step after a browser-context restoration). The DIAG line keeps its shape;
+     * these additive rows are what the run summary reconciles against. Shared by the
+     * reference loop and the hybrid tool's loop — one schema, one place.
+     */
+    private fun recordReceiptContext(receipt: ActionReceipt, freshUrl: String) {
+        evidence.receipt(
+            verb = receipt.verb,
+            dispatch = receipt.dispatch.name,
+            verdict = when (receipt.verified) {
+                is ActionReceipt.Verdict.Verified -> "VERIFIED"
+                is ActionReceipt.Verdict.WrongContext -> "WRONG_CONTEXT"
+                ActionReceipt.Verdict.UnknownEffect -> "UNKNOWN_EFFECT"
+            },
+            postcondition = (receipt.verified as? ActionReceipt.Verdict.Verified)?.postcondition?.wire,
+            pageHashBefore = receipt.pageHashBefore,
+            pageHashAfter = receipt.pageHashAfter,
+        )
+        val key = navigationKey(freshUrl)
+        evidence.context(
+            host = key.takeIf { it.isNotBlank() },
+            transition = navigator.app.loop.RecoveryController.contextTransition(
+                previousNavKey = lastContextNavKey ?: "",
+                currentNavKey = key,
+                afterRestoration = contextRestorationPending,
+            ).name,
+        )
+        lastContextNavKey = key
+        contextRestorationPending = false
     }
 
     /**
@@ -4083,6 +4358,7 @@ class VisionLoop(
             ) { req, res -> rawReq = req; rawRes = res }
             evidence.call(
                 "repair", rawReq, rawRes, System.currentTimeMillis() - started, haiku.lastUsage,
+                attempts = haiku.lastAttempts, // PHASE_18 CN-16: the real attempt count
                 channel = VisionEvidence.Channel.HAIKU,
                 images = if (shot != null) 1 else 0,
             )
@@ -4208,6 +4484,9 @@ class VisionLoop(
             val questions = checks.mapIndexed { i, c -> VisionJev.Question.Noul("v$i", c.question) }
             var rawReq = ""
             var rawRes = ""
+            // PHASE_18 CN-16 (doc 05 §8): the ACTUAL elapsed wall clock around the
+            // transport — a placeholder zero duration is a defect in the record.
+            val started = System.currentTimeMillis()
             val answers = jev.ask(
                 stateWithImage(digest(obs), if (shot != null) imageRef else null),
                 questions,
@@ -4217,10 +4496,11 @@ class VisionLoop(
                 onRaw = { req, res -> rawReq = req; rawRes = res },
             )
             evidence.call(
-                "verify-battery", rawReq, rawRes, 0, jev.lastUsage,
+                "verify-battery", rawReq, rawRes, System.currentTimeMillis() - started, jev.lastUsage,
                 note = if (shot != null) jev.describe else null,
                 channel = VisionEvidence.Channel.JEV,
                 images = if (shot != null) 1 else 0,
+                attempts = jev.lastAttempts,
             )
             noProgress.resetModelFailures() // PHASE_18 CN-11: a successful call
             checks.mapIndexed { i, _ -> (answers["v$i"] as? VisionJev.Answer.Noul)?.pTrue }
@@ -4239,6 +4519,8 @@ class VisionLoop(
                     val questions = checks.map { it.question }
                     var rawReq = ""
                     var rawRes = ""
+                    // PHASE_18 CN-16: the ACTUAL elapsed wall clock (never a 0ms placeholder).
+                    val started = System.currentTimeMillis()
                     val content = haiku.chat(
                         VisionPrompts.BATTERY_SYSTEM,
                         VisionPrompts.batteryUser(questions),
@@ -4246,9 +4528,10 @@ class VisionLoop(
                         "battery",
                     ) { req, res -> rawReq = req; rawRes = res }
                     evidence.call(
-                        "battery", rawReq, rawRes, 0, haiku.lastUsage,
+                        "battery", rawReq, rawRes, System.currentTimeMillis() - started, haiku.lastUsage,
                         channel = VisionEvidence.Channel.HAIKU,
                         images = 1,
+                        attempts = haiku.lastAttempts,
                     )
                     noProgress.resetModelFailures() // PHASE_18 CN-11: a successful call
                     val answered = VisionPrompts.parseBatteryAnswers(content, questions, "battery")
@@ -4295,6 +4578,7 @@ class VisionLoop(
             )["goal"] as? VisionJev.Answer.Noul)?.pTrue
             evidence.call(
                 "verify-goal", rawReq, rawRes, System.currentTimeMillis() - started, jev.lastUsage,
+                attempts = jev.lastAttempts, // PHASE_18 CN-16: the real attempt count
                 channel = VisionEvidence.Channel.JEV,
             )
             noul
@@ -4328,6 +4612,7 @@ class VisionLoop(
             )["done"] as? VisionJev.Answer.Noul)?.pTrue
             evidence.call(
                 "verify-noul", rawReq, rawRes, System.currentTimeMillis() - started, jev.lastUsage,
+                attempts = jev.lastAttempts, // PHASE_18 CN-16: the real attempt count
                 channel = VisionEvidence.Channel.JEV,
             )
         } catch (e: Exception) {
@@ -4352,6 +4637,7 @@ class VisionLoop(
                 )?.first
                 evidence.call(
                     "confirm", rawReq, rawRes, System.currentTimeMillis() - started, haiku.lastUsage,
+                    attempts = haiku.lastAttempts, // PHASE_18 CN-16: the real attempt count
                     channel = VisionEvidence.Channel.HAIKU,
                     images = if (shot != null) 1 else 0,
                 )
@@ -4409,14 +4695,17 @@ class VisionLoop(
                 val system = VisionPrompts.planSystem(replan = failure != null)
                 var rawReq = ""
                 var rawRes = ""
+                // PHASE_18 CN-16: the ACTUAL elapsed wall clock (never a 0ms placeholder).
+                val started = System.currentTimeMillis()
                 val content = haiku.chat(system, user, shot?.base64, "plan") { req, res ->
                     rawReq = req; rawRes = res
                 }
                 evidence.call(
                     if (failure == null) "plan" else "replan",
-                    rawReq, rawRes, 0, haiku.lastUsage,
+                    rawReq, rawRes, System.currentTimeMillis() - started, haiku.lastUsage,
                     channel = VisionEvidence.Channel.HAIKU,
                     images = if (shot != null) 1 else 0,
+                    attempts = haiku.lastAttempts,
                 )
                 // The battery parses FIRST (it is not part of the product Ladder type):
                 // a malformed battery is a refused attempt and feeds the error-fed retry.
@@ -4483,6 +4772,7 @@ class VisionLoop(
             ) { req, res -> rawReq = req; rawRes = res }.trim().take(2_000)
             evidence.call(
                 "extract", rawReq, rawRes, System.currentTimeMillis() - started, haiku.lastUsage,
+                attempts = haiku.lastAttempts, // PHASE_18 CN-16: the real attempt count
                 channel = VisionEvidence.Channel.HAIKU,
                 images = if (shot != null) 1 else 0,
             )

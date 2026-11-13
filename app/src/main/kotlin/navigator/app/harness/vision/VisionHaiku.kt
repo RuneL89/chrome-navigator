@@ -63,6 +63,14 @@ class VisionHaiku(
     var lastUsage: VisionJev.VisionUsage? = null
         private set
 
+    /**
+     * PHASE_18 CN-16: the LAST call's real attempt count (the ModelCallPolicy retry
+     * law's transport/status retries + the first try) — the evidence's per-call
+     * `attempts=` field rides this, never a placeholder.
+     */
+    var lastAttempts: Int = 0
+        private set
+
     class VisionHaikuException(message: String) : IllegalStateException(message)
 
     /**
@@ -153,12 +161,21 @@ class VisionHaiku(
             } catch (e: Exception) {
                 throw VisionHaikuException("$what: malformed JSON response: ${e.message}")
             }
+            // PHASE_18 CN-16 (doc 05 §8): the usage parse distinguishes the provider
+            // OMITTING the usage object — recorded UNKNOWN downstream (lastUsage null),
+            // never a silent zero — from a present-but-partial object, whose declared
+            // fields parse leniently. An unknown spend is never metered as $0.
             val usage = root["usage"] as? kotlinx.serialization.json.JsonObject
-            val input = longOf(usage, "prompt_tokens")
-            val output = longOf(usage, "completion_tokens")
-            val used = VisionJev.VisionUsage(input, output, GenClient.writerCostMicroUsd(input, output))
-            lastUsage = used
-            onUsage(used)
+            if (usage == null) {
+                lastUsage = null
+            } else {
+                val input = longOf(usage, "prompt_tokens")
+                val output = longOf(usage, "completion_tokens")
+                val used = VisionJev.VisionUsage(input, output, GenClient.writerCostMicroUsd(input, output))
+                lastUsage = used
+                onUsage(used)
+            }
+            lastAttempts = attempt + 1
             val content = parseContent(response.body, what)
             onRaw?.invoke(body, response.body)
             return content

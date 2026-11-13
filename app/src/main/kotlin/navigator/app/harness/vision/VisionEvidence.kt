@@ -24,6 +24,16 @@ import java.security.MessageDigest
  *   still a miss — the images API never says "not found", so this measures how often it
  *   confidently points at nothing;
  * - the confidence histogram, from which the grounding accept-floor is calibrated.
+ *
+ * PHASE_18 Stage 18.D CN-16 (doc 05 §8, ratified law): the evidence schema gains
+ * ADDITIVE, VERSIONED fields — snapshot identity, engine/perception mode, dispatch +
+ * postcondition results, host + context transitions, per-call attempts with REAL
+ * elapsed durations (a zero/placeholder duration is a defect), provider-omitted usage
+ * recorded `UNKNOWN` (never a silent zero — a spend ledger that understates is a false
+ * record), capture degradation, rollback/recovery/re-plan causes, final-verifier
+ * evidence — and ONE run-summary row at the terminal whose totals RECONCILE to the
+ * underlying call and action records. Every change is additive: existing line formats
+ * are never rewritten (doc 05 §2's insert-only law).
  */
 class VisionEvidence(baseDir: File?, val runId: String) {
 
@@ -147,6 +157,13 @@ class VisionEvidence(baseDir: File?, val runId: String) {
      * optional [note] rides the event line — image-carrying Jev calls record
      * endpoint+model here (PHASE_VEXP1 WI3), so the run report names the route each
      * image actually took.
+     *
+     * PHASE_18 CN-16 (doc 05 §8): [attempts] is the logical call's real attempt count
+     * (the ModelCallPolicy retry law); [latencyMs] is the ACTUAL elapsed wall clock
+     * around the transport (a placeholder zero is a defect). When the provider OMITS
+     * the usage the row records `UNKNOWN` — never a silent zero (a spend ledger that
+     * understates is a false record); the run summary separates the unknown calls so
+     * the known-spend total stays honest.
      */
     @Synchronized
     fun call(
@@ -158,6 +175,7 @@ class VisionEvidence(baseDir: File?, val runId: String) {
         note: String? = null,
         channel: Channel? = null,
         images: Int = 0,
+        attempts: Int = 1,
     ) {
         if (dir != null) {
             val n = nextCallIndex++
@@ -167,9 +185,19 @@ class VisionEvidence(baseDir: File?, val runId: String) {
         callCounts[kind] = (callCounts[kind] ?: 0) + 1
         channel?.let { channelCounts[it] = (channelCounts[it] ?: 0) + 1 }
         this.images += images
+        if (usage == null) {
+            unknownUsageCalls += 1
+        } else {
+            knownCostMicroUsd += usage.costMicroUsd
+        }
+        val usageField = if (usage == null) {
+            "in=UNKNOWN out=UNKNOWN cost=UNKNOWNµ\$"
+        } else {
+            "in=${usage.inputTokens} out=${usage.outputTokens} cost=${usage.costMicroUsd}µ\$"
+        }
         event(
-            "call $kind ${latencyMs}ms in=${usage?.inputTokens ?: 0} out=${usage?.outputTokens ?: 0} " +
-                "cost=${usage?.costMicroUsd ?: 0}µ\$" +
+            "call $kind ${latencyMs}ms $usageField" +
+                " attempts=$attempts" +
                 (channel?.let { " channel=${it.name}" } ?: "") +
                 (if (images > 0) " images=$images" else "") +
                 (note?.let { " $it" } ?: ""),
@@ -182,6 +210,214 @@ class VisionEvidence(baseDir: File?, val runId: String) {
         val stamped = "%8d  %s".format(System.currentTimeMillis() - startedAt, line)
         events.add(stamped)
         dir?.let { File(it, "events.log").appendText(stamped + "\n") }
+    }
+
+    // -- PHASE_18 CN-16: the additive, versioned record fields ----------------------------
+    // Each record method writes ONE additive row (an existing line format is never
+    // rewritten) and feeds the run-summary counters the terminal reconciles against.
+
+    /** The elapsed wall clock this record has been running (the run summary's duration). */
+    @Synchronized
+    fun elapsedMs(): Long = System.currentTimeMillis() - startedAt
+
+    // -- the run-summary ledger (every total derivable from the underlying records) -------
+
+    private var verifiedSubtasksRecorded = 0
+    private var invalidatedSubtasksRecorded = 0
+    private var noEffectActionsRecorded = 0
+    private var wrongContextActionsRecorded = 0
+    private var staleDispatchRefusalsRecorded = 0
+    private var ownerInterventionsRecorded = 0
+    private var rollbacksRecorded = 0
+    private var recoveriesRecorded = 0
+    private var replansRecorded = 0
+    private var captureDegradationsRecorded = 0
+    private var knownCostMicroUsd = 0L
+    private var unknownUsageCalls = 0
+    private var lastReplanCause: String? = null
+    private var lastFinalVerifier: String? = null
+
+    /**
+     * Snapshot identity (CN-16): the CN-02 consistent snapshot's id + parent linkage +
+     * observation timestamps, recorded when the snapshotter issued one. No snapshotter
+     * = no row (a fabricated id for the legacy path would be a false record).
+     */
+    @Synchronized
+    fun snapshotRecorded(
+        id: String,
+        parentSnapshotId: String?,
+        observedAtMs: Long,
+        capturedAtMs: Long,
+        verdict: String,
+        navKey: String,
+        activePackage: String,
+    ) {
+        event(
+            "snapshot id=$id" +
+                (parentSnapshotId?.let { " parent=$it" } ?: " parent=none") +
+                " observedAtMs=$observedAtMs capturedAtMs=$capturedAtMs" +
+                " verdict=$verdict navKey=$navKey pkg=$activePackage",
+        )
+    }
+
+    /**
+     * One dispatch record (CN-16): the verb, the TARGET FINGERPRINT (a sha-based
+     * identity — never the raw label, so a secret can never ride the row), the
+     * §9.8 grounding route, the gate's risk decision and the CN-03 guard verdict.
+     */
+    @Synchronized
+    fun dispatch(
+        verb: String,
+        targetFingerprint: String,
+        route: String?,
+        gate: String?,
+        guard: String,
+        confidence: Double?,
+        iou: Double?,
+    ) {
+        event(
+            "dispatch verb=$verb target=$targetFingerprint" +
+                " route=${route ?: "none"}" +
+                " gate=${gate ?: "ungated"} guard=$guard" +
+                (confidence?.let { " conf=%.2f".format(it) } ?: "") +
+                (iou?.let { " iou=%.2f".format(it) } ?: ""),
+        )
+    }
+
+    /** A typed NOT_DISPATCHED_* refusal (CN-16's stale-dispatch-refusal counter). */
+    @Synchronized
+    fun dispatchRefused(reason: String) {
+        staleDispatchRefusalsRecorded += 1
+        event("dispatch-refused #${staleDispatchRefusalsRecorded} reason=${reason.take(160)}")
+    }
+
+    /**
+     * The CN-04 action receipt's first-class record (CN-16): dispatch result +
+     * postcondition verdict. The DIAG line keeps its shape; this row is the additive
+     * field record the run summary reconciles against.
+     */
+    @Synchronized
+    fun receipt(
+        verb: String,
+        dispatch: String,
+        verdict: String,
+        postcondition: String?,
+        pageHashBefore: Int,
+        pageHashAfter: Int,
+    ) {
+        // Actions, not subtasks: a verified effect needs no counter here (the caller's
+        // verified-subtask count rides the run-summary); a wrong-context action and an
+        // EXECUTED action with no verifiable effect are the CN-11 ledger's records.
+        if (verdict == "WRONG_CONTEXT") {
+            wrongContextActionsRecorded += 1
+        } else if (verdict != "VERIFIED" && dispatch == "EXECUTED") {
+            noEffectActionsRecorded += 1
+        }
+        event(
+            "receipt verb=$verb dispatch=$dispatch verdict=$verdict" +
+                " postcondition=${postcondition ?: "none"}" +
+                " hashBefore=$pageHashBefore hashAfter=$pageHashAfter",
+        )
+    }
+
+    /** Current host + context-transition category (CN-16 / the CN-17 classifier). */
+    @Synchronized
+    fun context(host: String?, transition: String) {
+        event("context host=${host ?: "unknown"} transition=$transition")
+    }
+
+    /** A browser-context recovery executed (the OFF-PAGE restore/escape family). */
+    @Synchronized
+    fun recovery(cause: String) {
+        recoveriesRecorded += 1
+        event("recovery #${recoveriesRecorded} cause=${cause.take(160)}")
+    }
+
+    /** A prefix rollback executed (the CN-06 audit's restoration before planning). */
+    @Synchronized
+    fun rollback(cause: String) {
+        rollbacksRecorded += 1
+        event("rollback #${rollbacksRecorded} cause=${cause.take(160)}")
+    }
+
+    /** An informed re-plan installed; its CAUSE is the field the terminal carries. */
+    @Synchronized
+    fun replan(cause: String) {
+        replansRecorded += 1
+        lastReplanCause = cause.take(160)
+        event("replan #${replansRecorded} cause=${cause.take(160)}")
+    }
+
+    /** An owner intervention (a gate card presented: approved / denied / timed out). */
+    @Synchronized
+    fun ownerIntervention(kind: String) {
+        ownerInterventionsRecorded += 1
+        event("owner-intervention #${ownerInterventionsRecorded} kind=$kind")
+    }
+
+    /** The ONE final verifier's verdict on a success path (CN-16's final evidence). */
+    @Synchronized
+    fun finalVerifierRecord(accepted: Boolean, deficiencies: List<String>) {
+        lastFinalVerifier = if (accepted) {
+            "ACCEPT"
+        } else {
+            "DEFICIENT(" + deficiencies.joinToString("; ").take(160) + ")"
+        }
+        event(
+            "final-verifier verdict=${if (accepted) "ACCEPT" else "DEFICIENT"}" +
+                (deficiencies.takeIf { it.isNotEmpty() }
+                    ?.let { " deficiencies=" + it.joinToString("; ").take(200) } ?: ""),
+        )
+    }
+
+    /** One degraded capture (the CN-10 counter's evidence-side record). */
+    @Synchronized
+    fun captureDegraded() {
+        captureDegradationsRecorded += 1
+    }
+
+    /** The run's degraded-capture total (the terminal line's additive CN-16 field). */
+    @Synchronized
+    fun captureDegradations(): Int = captureDegradationsRecorded
+
+    /** A recovery-ladder decision (the CN-17 controller's verdict, recorded at the gate). */
+    @Synchronized
+    fun recoveryStage(cause: String, stage: String) {
+        event("recovery-stage cause=$cause stage=$stage")
+    }
+
+    /**
+     * The RUN SUMMARY row (CN-16): written once at the terminal; every total is
+     * derivable from the underlying call and action records — the call rows (count +
+     * per-call cost), the receipt rows (no-effect / wrong-context), the
+     * dispatch-refused rows, the owner-intervention rows, the rollback/recovery/replan
+     * rows, and the caller's verified/invalidated subtask counts (the runtime states'
+     * record). `spendKnownMicroUsd` sums the call rows' recorded costs;
+     * `spendUnknownCalls` counts the rows whose usage the provider omitted (UNKNOWN) —
+     * the known/unknown pair never lets the ledger understate silently.
+     */
+    @Synchronized
+    fun runSummary(
+        verifiedSubtasks: Int,
+        invalidatedSubtasks: Int,
+    ) {
+        verifiedSubtasksRecorded = verifiedSubtasks
+        invalidatedSubtasksRecorded = invalidatedSubtasks
+        event(
+            "run-summary schema=$SCHEMA_VERSION" +
+                " verified=$verifiedSubtasks invalidated=$invalidatedSubtasks" +
+                " noEffect=$noEffectActionsRecorded wrongContext=$wrongContextActionsRecorded" +
+                " staleRefusals=$staleDispatchRefusalsRecorded" +
+                " ownerInterventions=$ownerInterventionsRecorded" +
+                " rollbacks=$rollbacksRecorded recoveries=$recoveriesRecorded" +
+                " replans=$replansRecorded calls=${totalCalls()}" +
+                " elapsedMs=${elapsedMs()}" +
+                " spendKnownMicroUsd=$knownCostMicroUsd" +
+                " spendUnknownCalls=$unknownUsageCalls" +
+                " captureDegradations=$captureDegradationsRecorded" +
+                (lastReplanCause?.let { " replanCause=$it" } ?: "") +
+                (lastFinalVerifier?.let { " finalVerifier=$it" } ?: ""),
+        )
     }
 
     /**
@@ -206,8 +442,24 @@ class VisionEvidence(baseDir: File?, val runId: String) {
     @Synchronized
     fun summaryJson(): kotlinx.serialization.json.JsonObject = buildJsonObject {
         put("runId", runId)
+        put("schemaVersion", SCHEMA_VERSION)
         put("grounding", grounding.summarize())
         put("calls", callSummaryJson())
+        put(
+            "reconcile",
+            buildJsonObject {
+                put("noEffectActions", noEffectActionsRecorded)
+                put("wrongContextActions", wrongContextActionsRecorded)
+                put("staleDispatchRefusals", staleDispatchRefusalsRecorded)
+                put("ownerInterventions", ownerInterventionsRecorded)
+                put("rollbacks", rollbacksRecorded)
+                put("recoveries", recoveriesRecorded)
+                put("replans", replansRecorded)
+                put("captureDegradations", captureDegradationsRecorded)
+                put("spendKnownMicroUsd", knownCostMicroUsd)
+                put("spendUnknownCalls", unknownUsageCalls)
+            },
+        )
         put("events", buildJsonArray { events.takeLast(200).forEach { add(JsonPrimitive(it)) } })
     }
 
@@ -217,5 +469,22 @@ class VisionEvidence(baseDir: File?, val runId: String) {
         /** sha256 hex of [bytes] — the capture's identity in evidence records. */
         fun sha256Hex(bytes: ByteArray): String =
             MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
+
+        /**
+         * PHASE_18 CN-16: the evidence schema version. The CN-16 fields are ADDITIVE —
+         * rows or fields added beside the existing formats, which are never rewritten
+         * (doc 05 §2's insert-only law) — so the version rides the run-summary and the
+         * callers' run-start/terminal lines as a marker, never as a format break.
+         */
+        const val SCHEMA_VERSION = "ev-2"
+
+        /**
+         * The TARGET FINGERPRINT (CN-16): a deterministic sha-based identity of the
+         * acted target's semantic identity (class + label). Deliberately NOT the raw
+         * label — a page echo (a sanctioned secret included) can never ride the row.
+         */
+        fun targetFingerprint(targetClass: String?, targetLabel: String?): String =
+            sha256Hex("${targetClass.orEmpty()}|${targetLabel.orEmpty()}".toByteArray())
+                .take(12)
     }
 }

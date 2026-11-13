@@ -289,6 +289,10 @@ object NavigatorVisionBridge {
             exclusionBounds = exclusionBounds,
             coveredBounds = coveredBounds,
             evidence = evidence,
+            // PHASE_18 Stage 18.D CN-16: THIS loop instance is the TREE_FIRST tool's
+            // engine (the escalation arm) — the engine/perception mode of record on the
+            // evidence's run header.
+            enginePolicy = "TREE_FIRST",
         )
         // The writer's capture seam: the CURRENT screen, painted with the live-log
         // exclusion exactly as the tool's own captures are (one capture law).
@@ -351,6 +355,13 @@ object NavigatorVisionBridge {
          * caller) = the loop constructs its own, byte-identical.
          */
         evidence: VisionEvidence? = null,
+        /**
+         * PHASE_18 Stage 18.D CN-16 — the engine/perception mode of record on the
+         * evidence's run header: `ALWAYS_VISION` (the default, the product route) or
+         * `TREE_FIRST` ([newHybridParts]' tool engine). A fact of record; it never
+         * routes.
+         */
+        enginePolicy: String = "ALWAYS_VISION",
     ): VisionLoop {
         val budget = ExpBudget()
         val ev = evidence ?: VisionEvidence(evidenceDir, runId)
@@ -385,6 +396,7 @@ object NavigatorVisionBridge {
             coveredBounds = coveredBounds,
             snapshotter = snapshotter,
             preDispatchGuard = guard,
+            enginePolicy = enginePolicy,
         )
     }
 

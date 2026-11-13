@@ -1735,6 +1735,66 @@ three-way selector ships with that program.
     (2 attempts per URL), and the clear is recorded (the old failure count stays).
   * Gates: Phase18SitePolicyTest 5/5 (18.D3) + Phase18ControllerOutcomesTest 6/6
     (18.D4); full app 868 / core 346 green (1214 total, 0 failures).
+* **PHASE_18 Stage 18.D part 3 (CN-16 + CN-17, 2026-11-13): the evidence schema v-next
+  + the recovery ladder (doc 05 §2 insert-only + §8, doc 04 §9.9 — implemented now).**
+  * `harness/vision/VisionEvidence.kt` — the ADDITIVE, VERSIONED evidence schema
+    (`SCHEMA_VERSION = "ev-2"`; doc 05 §2's insert-only law: existing line formats are
+    NEVER rewritten — additive rows, or additive fields on the run-start/terminal
+    lines): snapshot rows (id + PARENT LINKAGE + observation timestamps, recorded only
+    when the snapshotter issued a snapshot — the legacy path fabricates nothing);
+    dispatch rows (verb + sha TARGET FINGERPRINT — never the raw label, so a page echo
+    can never ride the row — + the §9.8 grounding route + the gate's risk decision +
+    the CN-03 guard verdict); dispatch-refused rows (the typed NOT_DISPATCHED_*
+    counter); receipt rows (dispatch result + postcondition verdict, beside the
+    untouched DIAG line) + context rows (current host + the CN-17 transition
+    category); recovery/rollback/replan CAUSE rows; owner-intervention rows (the four
+    gate-card outcomes); final-verifier ACCEPT/DEFICIENT rows with the refusal reason;
+    the capture-degradation counter. `call()` rows carry the REAL attempt count
+    (`attempts=` from the clients' `lastAttempts` / the typed ModelCallException) and
+    REAL elapsed (the three 0ms placeholders — verify-battery, battery, plan/replan —
+    now measure around the transport; doc 05 §8: a placeholder zero is a defect);
+    provider-OMITTED usage records `in=UNKNOWN out=UNKNOWN cost=UNKNOWNµ$` — never a
+    silent zero (VisionHaiku's omitted-usage path sets `lastUsage = null`; an unknown
+    spend is never metered as $0). `runSummary(...)` writes ONE run-summary row at the
+    terminal whose totals RECONCILE to the underlying rows (calls=, spendKnownMicroUsd
+    = the summed call-row cost, spendUnknownCalls=, verified=/invalidated= from the
+    runtime prefix's end state, noEffect=/wrongContext=/staleRefusals=/ownerIntervent
+    ions=/rollbacks=/recoveries=/replans=, elapsedMs=, captureDegradations=,
+    replanCause=, finalVerifier=). The run-start line gains additive
+    schema/engine/perception/goalContract fields (`enginePolicy` ctor param:
+    ALWAYS_VISION default, TREE_FIRST via `newHybridParts`); the terminal line gains
+    additive schema/rollbacks/captureDegradations fields.
+  * `loop/RecoveryController.kt` — the FAILURE-APPROPRIATE RECOVERY LADDER as a PURE
+    decision type (no Android types, no model calls, ART-2/ART-4): the typed causes
+    (STALE_TARGET / STATIC_SCREEN / WRONG_WINDOW / INVALID_PREFIX / GROUNDING_MISS /
+    CAPTURE_UNAVAILABLE / REPEATED_NO_EFFECT) x the §9.9 stage ladder (fresh
+    observation → bounded stability wait → fresh target grounding → one mechanism
+    retry → bounded scroll-to-find → browser-context restore → perception-tool switch
+    → prefix rollback → informed re-plan → clarify/handoff/stop), walked over a
+    truthful caller-supplied `Episode` (taken stages + capabilities) with the §9.9
+    short-circuits — a wrong window goes STRAIGHT to restore, an invalid prefix
+    STRAIGHT to rollback, a capture outage arms the switch, everything-taken = the
+    handoff/stop stage (never an infinite loop). COMPOSITION, not duplication: every
+    stage names machinery that exists (the stuck probe's wait, the grounding ladder's
+    re-ground, the scroll-find block's cap, the CN-12 controller's restore, the §8
+    boundary ARMED here — `perceptionSwitchAvailable` stays false until Stage 18.E
+    wires it — the prefix audit, the re-plan gate, the CN-15 terminals); the loop
+    consults it at the stuck probe, the OFF-PAGE block, and the re-plan gate
+    (`recovery-stage` decision rows; the controller DECIDES, the loop EXECUTES through
+    its existing seams — no new dispatch/observe/plan path). `isWordingOnlyChange`
+    extends the strategy guard (behind the SAME batteryReplans>=2 trigger): the
+    rendered condition equal AND the instruction token run equal after dropping each
+    side's leading VERB TOKEN — a verb swap is the SAME strategy; a changed target
+    token, condition, or token run is a genuine change. `contextTransition`
+    (SAME_PAGE/NAVIGATION/TAB_RESTORATION/UNKNOWN) is the CN-16 context rows'
+    classifier.
+  * Bans persistence VERIFIED (not changed): the landing history survives re-plans
+    (CN-14's law, pinned by rows), and no re-plan install clears any action/landing
+    ban.
+  * Gates: Phase18EvidenceSchemaTest 5/5 (18.D5) + Phase18RecoveryLadderTest 6/6
+    (18.D6); full app 879 / core 346 green (1225 total, 0 failures; the 1214
+    pre-existing tests green UNMODIFIED — zero re-pins: no test pinned the 0ms
+    placeholders or the silent-zero usage row).
 
 ## Local Contracts
 
@@ -2208,6 +2268,32 @@ tracked as last-known (normalized) and serves on an empty card URL, and garbage
   descriptor carries redacted state only; unknown requiredness stays UNKNOWN and never
   blocks by heuristic). Full suite: app 857 / core 346, 0 failures, every pre-existing
   test unmodified.
+* PHASE 18 Stage 18.D parts 2–3 (CN-14/CN-15 + CN-16/CN-17, $0 scripted; gates
+  18.D3–18.D6): `Phase18SitePolicyTest` (5/5 — search-first install, named-site clean
+  install, landing history across re-plans, path+content landing on a blank title,
+  the bounded clear recorded), `Phase18ControllerOutcomesTest` (6/6 — clarify before
+  navigation, capture → CAPTURE_UNAVAILABLE, ambiguous tab → NEEDS_USER with zero
+  launches, the OwnerAnswerRecord seam, consequential timeout fail-closed at the real
+  gate, non-consequential honest stop),
+  `Phase18EvidenceSchemaTest` (5/5 — a successful scripted call records NONZERO
+  duration and the actual supplied usage priced by the pinned table; a provider-OMITTED
+  usage records `in=UNKNOWN out=UNKNOWN cost=UNKNOWNµ$` and the run summary splits
+  spendKnownMicroUsd/spendUnknownCalls — never a silent zero; the WRONG_WINDOW refusal
+  carries snapshot id/parent/timestamps/navKey + typed refusal rows with ZERO secret
+  text and a sha target fingerprint; the rollback + final-verifier DEFICIENT sequence
+  reconstructable from the rows; the run-summary totals reconcile to the parsed call
+  rows), and `Phase18RecoveryLadderTest` (6/6 — a loading page stabilizes within the
+  bounded wait with ZERO re-plan spend (the maxReplans=0 canary) and the
+  BOUNDED_STABILITY_WAIT decision row; a stale target succeeds after exactly ONE fresh
+  re-ground with NO rollback; the long-list target found within the scroll cap with
+  the battery-held retention rows; the absent target = exactly ONE SCROLL-FIND
+  EXHAUSTED + ONE REPLAN with scrolls bounded by the cap; a verb-only re-plan REFUSED
+  as the same strategy after two battery re-plans (+ the pure isWordingOnlyChange
+  matrix: verb swap = same strategy, target/condition/token-run change = genuine);
+  the exhausted ladder ends at honest terminals (+ the pure nextStage matrix incl.
+  perceptionSwitchAvailable=false until Stage 18.E). Full suite: app 879 / core 346,
+  0 failures, every pre-existing test unmodified (zero re-pins — no test pinned the
+  0ms placeholders or the silent-zero usage row).
 
 ## Child DOX Index
 

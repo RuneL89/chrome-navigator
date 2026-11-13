@@ -84,6 +84,15 @@ class VisionJev(
     var lastUsage: VisionUsage? = null
         private set
 
+    /**
+     * PHASE_18 CN-16: the LAST call's real attempt count (the ModelCallPolicy retry
+     * law) — the evidence's per-call `attempts=` field rides this, never a placeholder.
+     * Set on the answered paths (success and the billed content failure); transport
+     * failures carry their attempts on the typed [ModelCallException] itself.
+     */
+    var lastAttempts: Int = 0
+        private set
+
     /** Provider-reported usage of one call (the cost float is preferred when present). */
     data class VisionUsage(val inputTokens: Long, val outputTokens: Long, val costMicroUsd: Long)
 
@@ -216,10 +225,12 @@ class VisionJev(
                 // PHASE_17 Stage 0.6: a 2xx answer that fails validation was still
                 // billed — meter the envelope's usage when it carries one, then rethrow
                 // (the caller's degrade path keeps the call's cost visible).
+                lastAttempts = attempt + 1
                 lenientUsage(response.body)?.let { lastUsage = it; onUsage(it) }
                 throw e
             }
             lastUsage = parsed.second
+            lastAttempts = attempt + 1
             onUsage(parsed.second)
             onRaw?.invoke(body, response.body)
             return parsed.first
