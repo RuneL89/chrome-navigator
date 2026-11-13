@@ -51,11 +51,16 @@ The core promise, unchanged from Phase 18 but now enforced on a different engine
 - Bills and donations follow purchase rules. Trading/betting/crypto allowed **with a card**.
 
 ### Messaging and social
-- Email: webmail in the background WebView; **full draft card, you tap Send, always**.
-  Replies identical. New recipients: extra gate + Setup trusted list. Groups/cc/bcc:
-  always ask. Body: composed from the goal, shown exactly. Attachments: files you pick.
-  After send: 30 s hold with Cancel (platform undo used when offered).
-- WhatsApp: WhatsApp Web in the background; draft card. SMS: refused (app-only).
+- Email: **Gmail API `users.messages.send`** (OAuth via Android `AuthorizationClient`,
+  `gmail.send` scope — sensitive-only, no CASA, personal-use exemption) — the webmail-in-
+  WebView lane is BLOCKED by Google's embedded-user-agent policy and only remains an
+  option for providers that allow it (Fastmail has direct evidence). **Full draft card,
+  you tap Send, always.** Replies identical. New recipients: extra gate + Setup trusted
+  list. Groups/cc/bcc: always ask. Body: composed from the goal, shown exactly.
+  Attachments: files you pick. After send: 30 s hold with Cancel (platform undo when
+  offered).
+- WhatsApp: **prefill + your tap** (`wa.me` / `ACTION_SEND`); WhatsApp Web automation is
+  ToS-blocked for autonomous sending and carries ban risk. SMS: refused (app-only).
 - Social: read allowed; every write (post/like/follow/comment/DM) carded; bulk refused.
 - No daily send cap (every send is carded).
 
@@ -117,9 +122,14 @@ The core promise, unchanged from Phase 18 but now enforced on a different engine
 
 ## 5. Architecture (new work)
 
-1. **WebView lane controller** (`app/.../harness/webview/`): a WebView the app owns;
-   DOM extraction to a clean element list; element-targeted actions (CSS/text queries);
-   navigation; cookie/session isolation; the same trust settings.
+1. **WebView lane controller** (`app/.../harness/webview/`): a WebView the app owns,
+   hosted phone-sized and off-screen (`SYSTEM_ALERT_WINDOW` + `TYPE_APPLICATION_OVERLAY`)
+   under a `specialUse` foreground service started from visible UI (`dataSync` is capped
+   at 6 h/24 h); DOM extraction via `evaluateJavascript` (+ `addWebMessageListener` for
+   volume, `addDocumentStartJavaScript` for SPA hooks); element actions via
+   `element.click()` + native-setter text entry with mandatory per-field read-back;
+   navigation; cookie/session isolation; the same trust settings. Anti-bot walls and
+   cross-origin iframes are the known ceiling — transactions go to the Chrome lane.
 2. **Haiku/Jev contract for DOM**: Haiku receives page text + element list and returns a
    chosen element id (no boxes); Jev answers verification nouls and completion judgments
    (grounding/box primitives are retired in this lane). Prompt + schema versioned.
@@ -137,8 +147,11 @@ The core promise, unchanged from Phase 18 but now enforced on a different engine
 
 ## 6. Roadmap
 
-- **P0 — Foundations**: fix the search-oscillation defect in the Chrome lane; add the
-  pipeline event stream; skeleton of the WebView lane behind a flag.
+- **P0 — Foundations**: fix the search-oscillation defect in the Chrome lane; fix the
+  Jev request model id (`typesafe/jev-1.13-20260917` is a response build id — use
+  `typesafe/jev-1.14` / `~typesafe/jev-latest`); add the pipeline event stream; skeleton
+  of the WebView lane behind a flag; run the five prototype tests in
+  `docs/V2_FEASIBILITY.md` §9.
 - **P1 — Fast lane core**: DOM reading, element actions, navigation, cookie walls,
   Haiku/Jev DOM contract, verified-effect loop; read/report/compare tasks work end-to-end
   in the background.
@@ -155,8 +168,10 @@ The core promise, unchanged from Phase 18 but now enforced on a different engine
 ## 7. Open risks
 
 - WebView fidelity: some sites break or block embedded browsers; the Chrome switch is the
-  answer, but each site class needs a decision rule.
-- Bot-wall detection on stores; the human lane is the mitigation.
+  answer, but each site class needs a decision rule. The `wv` UA token is permanent by
+  design — anti-bot detection is guaranteed; per-target-site measurement is part of P1.
+- Gmail web cannot be used at all (embedded-user-agent ban); email goes through the Gmail
+  API. WhatsApp Web automation is a ToS/ban risk; WhatsApp is prefill + owner tap.
 - WhatsApp Web linking is a manual Setup step (QR).
 - Cart continuity is guaranteed only by the switch discipline (product page by default).
 - The old Chrome-lane code carries large historical AGENTS.md files referencing the
