@@ -113,6 +113,12 @@ When the user requests a durable behavior change, record it here or in the relev
   until the Stage 4 acceptance corpus accepts the hybrid, and the Setup selector ships with
   that program. Neither the default nor the retention of the other two policies may change
   without an owner amendment.
+* GOAL LANGUAGE (owner, 2026-11-13): product goals are ALWAYS entered in English. The app
+  must still READ page content and UI labels in ANY language (Finnish included) —
+  interpretation stays the model's job under the translate-first law (doc 04 §1: accept
+  the page's own Translate control on a non-English page); no production per-language
+  code tables may be the primary mechanism. UAT goals stay English even when the target
+  page is not.
 
 ## Child DOX Index
 
