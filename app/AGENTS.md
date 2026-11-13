@@ -1634,6 +1634,70 @@ three-way selector ships with that program.
     the R2 drift fixture RE-PINNED (its lawful terminal changed: PREFIX ROLLBACK now
     fires at the re-plan gate before any re-plan; REPLANS_EXHAUSTED stays); full
     app 844 / core 346 green (1190 total, 0 failures).
+* **PHASE_18 Stage 18.D part 1 (CN-12 + CN-13, 2026-11-13): Chrome/tab-switcher/checkout
+  recovery + field-level forms (doc 04 §9.10 + doc 06 §4 — implemented now).**
+  * `observe/ChromeUiState.kt` + `observe/ChromeUiStateDetector.kt` — the GENERIC
+    browser-UI vocabulary and its pure deterministic detector (package, the
+    `browserChrome` ID-derived flag as the resource-ID shape, node roles, URL
+    availability, page-root structure; NO site text, NO language labels, NO
+    Chrome-specific resource ID ever REQUIRED for WEB_CONTENT — the emulator webview
+    shell classifies by content). Sub-state honesty: menu vs download/other refines only
+    by the structural titled-node count (a finer split needs reader IDs the pure model
+    does not carry); a thin page with a readable URL stays UNKNOWN (the second-signal
+    conservative law).
+  * `loop/BrowserRecoveryController.kt` — the PURE recovery decisions: the monotonic
+    checkout-milestone progression (CART → CHECKOUT → PAYMENT_REVIEW → ORDER_CONFIRMATION,
+    derived from title/URL/lines + `GoalFidelity.evidencesOrderConfirmation` — "continue
+    to payment" is NEVER the order milestone; `PurchaseControl`'s vocabulary referenced,
+    not duplicated); the checkout-integrity law (doc 06 §4): off-page states identify and
+    restore the EXISTING checkout tab from fresh title/host tab evidence (`RestoreCheckout`),
+    hand off when the identity is ambiguous or lost (`OwnerHandoff` — the sealed outcome;
+    the CN-15 terminal lands in part 2), revalidate the restored contents (`StopAndReverify`
+    on an identity mismatch — never continue stale), and escape chrome UI with a global
+    back (`EscapeBrowserUi`); plus `rawActionRefusal(state, touchesPageCoordinates)` —
+    page-coordinate actions are refused in the off-page states, global actions (back,
+    IME submit) stay lawful escapes.
+  * VisionLoop wiring (thin): per-observation `stepUiState` + the milestone progression;
+    the off-page bookkeeping block now consults the controller (restore keeps the
+    `OFF-PAGE RECOVERY #n … re-opening the checkout` line; handoff logs `OFF-PAGE
+    HANDOFF`, reverify logs `CHECKOUT REVERIFY`, escape fires one global back — all
+    bounded by `maxOffPageRecoveries`; the restored checkout is REVALIDATED on the next
+    web-content observation); attemptStep refuses off-page raw touches BEFORE grounding
+    (`NOT_DISPATCHED_OFF_PAGE`, zero executor AND zero grounding calls); the
+    battery-replan no-restart guard was VERIFIED already shared (the `redoAfterCheckout`
+    check precedes the battery/ordinary budget split — the battery path cannot bypass;
+    case 3 pins it with maxReplans=0).
+  * `observe/FormFieldState.kt` + `observe/FormStateExtractor.kt` — the REDACTED
+    per-field descriptors over `FormFacts`' extraction (the v18/v20 label machinery
+    REUSED, `nearestLabelAbove` made internal, not duplicated): stable snapshot-local
+    key, label/hint/nearby label/role, populated as a BOOLEAN only (a password field's
+    state stays truthful without its value), browser-chrome split, required = the page's
+    own exposed marker else `UNKNOWN` (never guessed required or optional — there is no
+    OPTIONAL value), bounds + visibility; `enabled`/`validationError` are honest
+    tri-states (`null` = the a11y reader does not capture the platform flag/property yet
+    — the descriptor and checker are armed for them).
+  * `loop/FormCompletionChecker.kt` — the field-level law: a form subtask stays
+    INCOMPLETE while a known required field is empty or a field carries an exposed
+    validation error (UNKNOWN never blocks); `nextNeededField` (the required-empty
+    first, deterministic tree order); the AUTOFILL-CHIP law — the code-visible
+    chip-as-filler dispatch shape (a TAP declaring `FIELD_CONTAINS_EXPECTED_VALUE` on a
+    non-editable target, the v20 closed postcondition set) requires the INTENDED field
+    focused first, where focus is CODE-OWNED (the last editable field the loop's own
+    action focused, tracked per run/subtask/URL change, cleared on any tap off an
+    editable) — else ZERO chip dispatch; the post-write verification of ALL field values
+    after an allowed chip (`chipVerificationLoss` on the fresh observation, a
+    non-advancing chip = a failed step, no field progress); `recoveryPlan` — retain the
+    populated fields, retry ONLY the failed one (never restarts the page, never switches
+    fields; the retry rides the existing TypeMechanism/read-back law).
+  * VisionLoop form wiring: the read-back loss now carries the `FIELD RECOVERY` plan;
+    the chip gate + post-write verification sit in `attemptStep` (shared by the hybrid
+    tool path, whose loop also classifies `stepUiState` and clears focus on URL
+    changes). The prompt schema is UNTOUCHED (v20 goldens stay pinned; the label
+    interpretation stays Haiku's — the Finnish glossary remains writer guidance, never
+    code matching).
+  * Gates: Phase18ChromeRecoveryTest 6/6 + Phase18FormFieldTest 7/7 (the plan's six +
+    seven cases); every existing test green UNMODIFIED, zero golden re-pins; full
+    app 857 / core 346 green (1203 total, 0 failures).
 
 ## Local Contracts
 
@@ -2091,6 +2155,22 @@ tracked as last-known (normalized) and serves on an empty card URL, and garbage
   escalations=3` line (no fabricated `answer=`; the SHARED record's call ledger rides
   the line; a loop with NO record wired writes no events.log at all — the tree-only
   evidence law unchanged).
+* PHASE 18 Stage 18.D part 1 (CN-12+CN-13, $0 scripted; gates 18.D1+18.D2):
+  `Phase18ChromeRecoveryTest` — the plan's six cases (checkout→tab-switcher recovers the
+  EXISTING checkout tab, never a New tab; ambiguous tab identity → `OFF-PAGE HANDOFF`
+  with zero navigation; a BATTERY re-plan after checkout refused by the no-restart guard
+  (maxReplans=0 proves the battery path cannot bypass); a recovered checkout with
+  different contents → `CHECKOUT REVERIFY`, one restore exactly; "continue to payment"
+  never the ORDER_CONFIRMATION milestone (the GoalFidelity/PurchaseControl vocabularies
+  pinned); a chrome menu surface refuses raw touches with `NOT_DISPATCHED_OFF_PAGE` and
+  zero page-coordinate dispatches) + `Phase18FormFieldTest` — the plan's seven cases
+  (identical-geometry fields still yield distinct keys and the intended required field;
+  a required-empty field blocks completion; an unfocused autofill chip dispatches
+  nothing; an accepted-but-absent write is no field progress and names the recovery;
+  the recovery retains the populated fields and retries only the failed one; a password
+  descriptor carries redacted state only; unknown requiredness stays UNKNOWN and never
+  blocks by heuristic). Full suite: app 857 / core 346, 0 failures, every pre-existing
+  test unmodified.
 
 ## Child DOX Index
 

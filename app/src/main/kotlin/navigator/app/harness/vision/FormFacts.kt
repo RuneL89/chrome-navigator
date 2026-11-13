@@ -95,7 +95,7 @@ object FormFacts {
     }
 
     /** The nearest non-editable, non-blank label sitting just above [node] (the form's row label). */
-    private fun nearestLabelAbove(nodes: List<ObservedNode>, node: ObservedNode): String {
+    internal fun nearestLabelAbove(nodes: List<ObservedNode>, node: ObservedNode): String {
         val candidates = nodes.filter {
             it.id != node.id && !it.editable && !it.browserChrome &&
                 it.text.isNotBlank() && it.top < node.top && it.bottom >= node.top - LABEL_GAP_PX

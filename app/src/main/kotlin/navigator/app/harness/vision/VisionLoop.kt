@@ -5,9 +5,11 @@ import navigator.app.gen.LadderSchema
 import navigator.app.loop.ActionExecutor
 import navigator.app.loop.ActionPostconditionChecker
 import navigator.app.loop.ActionReceipt
+import navigator.app.loop.BrowserRecoveryController
 import navigator.app.loop.ExpectedEffect
 import navigator.app.loop.ExecutionRequest
 import navigator.app.loop.FinalGoalVerifier
+import navigator.app.loop.FormCompletionChecker
 import navigator.app.loop.FrameBounds
 import navigator.app.loop.GoalCompletionEvidence
 import navigator.app.loop.GatePresenter
@@ -27,6 +29,9 @@ import navigator.app.loop.SubtaskRuntimeState
 import navigator.app.loop.TargetExpectation
 import navigator.app.loop.TextEntryFailure
 import navigator.app.loop.TextSource
+import navigator.app.observe.ChromeUiState
+import navigator.app.observe.ChromeUiStateDetector
+import navigator.app.observe.FormStateExtractor
 import navigator.core.gate.ActionKind
 import navigator.core.gate.CREDENTIAL_TYPING_CLASSES
 import navigator.core.gate.FieldDescriptor
@@ -571,6 +576,58 @@ class VisionLoop(
      */
     private var checkoutUrl: String? = null
 
+    /**
+     * PHASE_18 Stage 18.D CN-12 — the checkout milestone's TITLE of record (recorded
+     * beside [checkoutUrl]): the tab-identification identity the recovery controller
+     * matches the tab switcher's cards against (fresh title evidence, never a store
+     * name, never a language list).
+     */
+    private var checkoutTitle: String = ""
+
+    /**
+     * PHASE_18 Stage 18.D CN-12 — the highest checkout milestone this run has EVIDENCE
+     * for (cart → checkout → payment review → order confirmation; the controller derives
+     * it from each observation's title/URL/lines — no model calls). Monotonic: a
+     * milestone, once reached, is the state of record for the recovery laws.
+     */
+    private var checkoutMilestone: BrowserRecoveryController.CheckoutMilestone =
+        BrowserRecoveryController.CheckoutMilestone.NONE
+
+    /**
+     * PHASE_18 Stage 18.D CN-12 — this step's observation's Chrome UI state (the
+     * detector's classification, computed once per fresh observation — cheap,
+     * deterministic). The raw-action guard reads it at dispatch; the recovery block reads
+     * it at the bookkeeping site.
+     */
+    private var stepUiState: ChromeUiState = ChromeUiState.UNKNOWN
+
+    /**
+     * PHASE_18 Stage 18.D CN-12 — set when an off-page recovery re-opened the checkout:
+     * the NEXT web-content observation must REVALIDATE the checkout identity before the
+     * run continues (doc 06 §4 — never continue on stale evidence).
+     */
+    private var awaitingCheckoutRevalidation = false
+
+    /**
+     * PHASE_18 Stage 18.D CN-13 — the last editable field the loop's OWN action focused
+     * (a focus tap or a type that landed), code-owned because the a11y tree does not
+     * carry the platform focus flag. The autofill-chip law keys on it: a chip fills only
+     * the FOCUSED field. Cleared on any run start, subtask advance, URL change, and any
+     * tap that lands off an editable field.
+     */
+    private var lastFocusedFieldKey: String? = null
+
+    /**
+     * PHASE_18 Stage 18.D CN-13 — the pending POST-CHIP verification: set when a
+     * chip-fill dispatch passed the gate (the intended field WAS focused); the next
+     * fresh observation verifies the field actually took a value (ALL field values — the
+     * chip's result is never assumed).
+     */
+    private var pendingChipFieldKey: String? = null
+
+    /** The field states BEFORE the pending chip write (the post-write comparison's base). */
+    private var fieldsBeforeChipWrite: List<navigator.app.observe.FormFieldState> = emptyList()
+
     /** The off-page recoveries spent this run (bounded, one per five steps of budget). */
     private var offPageRecoveries = 0
 
@@ -849,6 +906,15 @@ class VisionLoop(
         resetSameAction() // PHASE_16: the same-action memory never crosses runs/tasks
         pendingTypeReadBack = null // PHASE_17 Stage 0.4: no read-back crosses a run
         readBackLosses.clear()
+        // PHASE_18 Stage 18.D CN-12/CN-13: the Chrome-state, milestone, and field-focus
+        // facts never cross runs.
+        stepUiState = ChromeUiState.UNKNOWN
+        checkoutMilestone = BrowserRecoveryController.CheckoutMilestone.NONE
+        checkoutTitle = ""
+        awaitingCheckoutRevalidation = false
+        lastFocusedFieldKey = null
+        pendingChipFieldKey = null
+        fieldsBeforeChipWrite = emptyList()
         failuresSinceAdvance = 0 // PHASE_17: the prefix audit never crosses runs/tasks
         // PHASE_18 CN-04/CN-11: no pending receipt and no ledger count crosses a run.
         pendingActionReceipt = null
@@ -971,6 +1037,11 @@ class VisionLoop(
             resetSameAction() // PHASE_16: a new subtask is a new action space
             pendingTypeReadBack = null // PHASE_17 Stage 0.4: no read-back crosses a subtask
             readBackLosses.clear()
+            // PHASE_18 Stage 18.D CN-13: the chip verification and the field focus never
+            // cross a subtask (the next subtask's form is a new field space).
+            pendingChipFieldKey = null
+            fieldsBeforeChipWrite = emptyList()
+            lastFocusedFieldKey = null
             noProgress.resetSubtaskScope() // PHASE_18 CN-11: the per-subtask ledgers restart
             step += 1
             return null
@@ -1143,10 +1214,24 @@ class VisionLoop(
                     NoProgressBudget.Verdict.Ok -> {}
                 }
             }
+            // PHASE_18 Stage 18.D CN-13 — the AUTOFILL-CHIP post-write verification: a
+            // chip dispatch that passed the gate (the intended field WAS focused) must
+            // show the field actually taking a value on this fresh observation — the
+            // chip's result is never assumed, and no advancement is NO field progress
+            // (the CN-04 law: an empty intended field after a write = not verified).
+            chipVerificationLoss(obs)?.let { line ->
+                log("[vision] $line")
+                evidence.event(line)
+                consecutiveFailures += 1
+                failuresSinceAdvance += 1
+            }
             // PHASE_17 Stage 0.4 — THE FIELD READ-BACK (the R3 "the first name never
             // landed" gap): a type's verdict is read from the SAME field, and a field
             // that is still empty feeds the failure path instead of being re-typed
-            // blindly on a later page state.
+            // blindly on a later page state. PHASE_18 Stage 18.D CN-13: the loss carries
+            // the FIELD RECOVERY law — the populated fields are retained and ONLY the
+            // failed field is retried (through the bounded mechanism policy; never a
+            // page restart, never a field switch).
             pendingTypeReadBack?.let { (nodeId, typedText) ->
                 pendingTypeReadBack = null
                 val field = FormFacts.fieldById(obs.nodes, nodeId)
@@ -1158,8 +1243,13 @@ class VisionLoop(
                         "field read-back: '${field.label}' carries the typed text",
                     )
                     readBackLosses.add(nodeId) -> {
+                        val plan = FormCompletionChecker.recoveryPlan(
+                            FormStateExtractor.extract(obs.nodes),
+                            setOf(nodeId),
+                        )
                         val line = "field read-back: '${field.label}' is STILL EMPTY after typing " +
-                            "(${typedText.length} chars) - the text did not land; the next proposal must fill THIS field"
+                            "(${typedText.length} chars) - the text did not land; the next proposal must fill THIS field; " +
+                            "FIELD RECOVERY: ${plan.render}"
                         log("[vision] $line")
                         evidence.event(line)
                         consecutiveFailures += 1
@@ -1172,12 +1262,25 @@ class VisionLoop(
                 consecutiveScrolls = 0
                 churnHintLogged = false
                 resetSameAction() // PHASE_16: a URL change is progress
+                // PHASE_18 CN-13: the code-owned focus never crosses a page change.
+                lastFocusedFieldKey = null
             }
             lastObservedUrl = obs.url
             // The purchase-CTA boolean is computed ONCE per observation (pure, no click).
             stepPurchaseControlVisible = PurchaseControl.hasVisible(obs.nodes)
+            // PHASE_18 Stage 18.D CN-12: the GENERIC Chrome-state classification (cheap,
+            // deterministic; doc 04 §9.10) and the monotonic checkout-milestone
+            // progression — both derived from this observation, zero model calls.
+            stepUiState = ChromeUiStateDetector.detect(obs)
+            BrowserRecoveryController.milestoneOf(obs).let { reached ->
+                if (reached.ordinal > checkoutMilestone.ordinal) {
+                    checkoutMilestone = reached
+                    evidence.event("checkout milestone: ${reached.name} (evidence on the current observation)")
+                }
+            }
             // PHASE_17 Stage 0.3: record the checkout state (the recovery's re-open target
-            // and the no-redo guard's trigger).
+            // and the no-redo guard's trigger). PHASE_18 CN-12: the milestone's TITLE is
+            // recorded beside the URL (the tab-identification identity).
             if (looksLikeCheckout(obs) && obs.url.isNotBlank() &&
                 obs.url != "hidden" && obs.url != "unavailable"
             ) {
@@ -1187,31 +1290,100 @@ class VisionLoop(
                     evidence.event(line)
                 }
                 checkoutUrl = obs.url
+                if (obs.title.isNotBlank()) checkoutTitle = obs.title
+                awaitingCheckoutRevalidation = false
             } else if (checkoutUrl != null) {
-                // PHASE_17 Stage 0.3: the run left the checkout for another page — recover
-                // to the checkout tab when the new surface is browser chrome (the R3 tab
-                // switcher), bounded, never when the code condition already holds here.
-                val offPage = ChromeUi.offPage(obs)
+                // PHASE_17 Stage 0.3 -> PHASE_18 Stage 18.D CN-12: the run left the
+                // checkout for another surface — the decision is the RECOVERY
+                // CONTROLLER's now (doc 04 §9.10 + doc 06 §4): identify/restore the
+                // EXISTING checkout tab from fresh tab evidence, hand off to the owner
+                // when it cannot be identified safely, escape the chrome UI with a global
+                // action, and REVALIDATE the restored contents before continuing — never
+                // a New tab, never a restart. Bounded by the same budget; never when the
+                // code condition already holds here.
                 val activeNow = ladder.subtasks[pointer]
-                if (offPage != null && browserLauncher != null &&
-                    offPageRecoveries < config.maxOffPageRecoveries &&
-                    !doneNowQuick(activeNow, obs)
-                ) {
-                    offPageRecoveries += 1
-                    val line = "OFF-PAGE RECOVERY #$offPageRecoveries: ${offPage.reason} - " +
-                        "re-opening the checkout ${checkoutUrl!!.take(60)}"
-                    outcomes.add(line)
-                    log("[vision] $line")
-                    evidence.event(line)
-                    try {
-                        browserLauncher.launch(checkoutUrl!!)
-                    } catch (e: Exception) {
-                        evidence.event("off-page recovery launch failed: ${e.message?.take(120)}")
+                val decision: BrowserRecoveryController.BrowserRecovery =
+                    if (stepUiState.offPage) {
+                        BrowserRecoveryController.onOffPage(
+                            stepUiState, obs,
+                            checkoutUrl = checkoutUrl,
+                            checkoutTitle = checkoutTitle.takeIf { it.isNotBlank() },
+                            activeConditionHolds = doneNowQuick(activeNow, obs),
+                        )
+                    } else if (awaitingCheckoutRevalidation) {
+                        // The post-restore revalidation (doc 06 §4): the surface the
+                        // recovery landed on must STILL carry the checkout identity.
+                        BrowserRecoveryController.validateRestoredCheckout(
+                            obs, checkoutUrl!!, checkoutTitle,
+                        )
+                    } else {
+                        BrowserRecoveryController.BrowserRecovery.None
                     }
-                    step += 1
-                    continue
-                } else if (offPage != null) {
-                    evidence.event("off-page detected, no recovery: ${offPage.reason}")
+                when (decision) {
+                    is BrowserRecoveryController.BrowserRecovery.None -> {
+                        awaitingCheckoutRevalidation = false
+                    }
+                    is BrowserRecoveryController.BrowserRecovery.RestoreCheckout -> {
+                        if (browserLauncher != null &&
+                            offPageRecoveries < config.maxOffPageRecoveries
+                        ) {
+                            offPageRecoveries += 1
+                            awaitingCheckoutRevalidation = true
+                            val line = "OFF-PAGE RECOVERY #$offPageRecoveries: ${decision.reason} - " +
+                                "re-opening the checkout ${decision.url.take(60)}"
+                            outcomes.add(line)
+                            log("[vision] $line")
+                            evidence.event(line)
+                            try {
+                                browserLauncher.launch(decision.url)
+                            } catch (e: Exception) {
+                                evidence.event(
+                                    "off-page recovery launch failed: ${e.message?.take(120)}",
+                                )
+                            }
+                            step += 1
+                            continue
+                        } else {
+                            evidence.event("off-page detected, no recovery: ${decision.reason}")
+                        }
+                    }
+                    is BrowserRecoveryController.BrowserRecovery.OwnerHandoff -> {
+                        // The CN-15 terminal mapping lands with Stage 18.D part 2; until
+                        // then the handoff is the sealed outcome the loop refuses to act
+                        // past: zero navigation. The step is consumed by the ORDINARY
+                        // flow (the raw-action guard refuses the off-page touch; the
+                        // failure/re-plan gate owns the run) — never a silent continue.
+                        val line = "OFF-PAGE HANDOFF: ${decision.reason}"
+                        outcomes.add(line)
+                        log("[vision] $line")
+                        evidence.event(line)
+                    }
+                    is BrowserRecoveryController.BrowserRecovery.StopAndReverify -> {
+                        awaitingCheckoutRevalidation = false
+                        // The stale-surface refusal rides the same ordinary flow: the
+                        // reverify line is the decision of record; the step's failure
+                        // accounting comes from the raw-action guard / the proposal path.
+                        val line = "CHECKOUT REVERIFY: ${decision.reason}"
+                        outcomes.add(line)
+                        log("[vision] $line")
+                        evidence.event(line)
+                    }
+                    is BrowserRecoveryController.BrowserRecovery.EscapeBrowserUi -> {
+                        // A chrome menu/omnibox surface: escape with the GLOBAL back (a
+                        // global action, never a page-coordinate touch), bounded by the
+                        // same recovery budget. The step then flows through the ordinary
+                        // guards — the raw-action guard refuses any stale-surface touch.
+                        if (offPageRecoveries < config.maxOffPageRecoveries) {
+                            offPageRecoveries += 1
+                            val line = "OFF-PAGE ESCAPE #$offPageRecoveries: ${decision.reason}"
+                            outcomes.add(line)
+                            log("[vision] $line")
+                            evidence.event(line)
+                            executor.back()
+                        } else {
+                            evidence.event("off-page detected, no recovery: ${decision.reason}")
+                        }
+                    }
                 }
             }
 
@@ -2032,9 +2204,14 @@ class VisionLoop(
                 consecutiveScrolls = 0
                 churnHintLogged = false
                 resetSameAction()
+                // PHASE_18 CN-13: the code-owned focus never crosses a page change.
+                lastFocusedFieldKey = null
             }
             lastObservedUrl = obs.url
             stepPurchaseControlVisible = PurchaseControl.hasVisible(obs.nodes)
+            // PHASE_18 Stage 18.D CN-12: the same generic Chrome-state classification the
+            // main loop reads — the hybrid tool's raw-action guard consumes it too.
+            stepUiState = ChromeUiStateDetector.detect(obs)
 
             val weakAtStart = when (DoneConditionChecker.guardStrength(active.done)) {
                 DoneConditionChecker.GuardStrength.WEAK ->
@@ -2155,30 +2332,76 @@ class VisionLoop(
     /**
      * PHASE_17 Stage 0.4 — the field read-back verdict (shared by the reference loop and
      * the hybrid tool). Returns true when a loss was recorded (the caller counts it).
+     * PHASE_18 Stage 18.D CN-13: the loss carries the FIELD RECOVERY law (retain the
+     * populated fields, retry only the failed one), and the pending AUTOFILL-CHIP
+     * verification runs beside it (a chip dispatch that passed the gate must show its
+     * field taking a value — never assumed).
      */
     private fun readBackVerdict(obs: StepObservation): Boolean {
-        val pending = pendingTypeReadBack ?: return false
+        val chipLoss = chipVerificationLoss(obs)?.let { line ->
+            log("[vision] $line")
+            evidence.event(line)
+            true
+        } ?: false
+        val pending = pendingTypeReadBack
+        if (pending == null) return chipLoss
         pendingTypeReadBack = null
         val (nodeId, typedText) = pending
         val field = FormFacts.fieldById(obs.nodes, nodeId)
         return when {
             field == null -> {
                 evidence.event("field read-back: the typed field $nodeId is no longer on the page")
-                false
+                chipLoss
             }
             FormFacts.landed(obs.nodes, nodeId, typedText) -> {
                 evidence.event("field read-back: '${field.label}' carries the typed text")
-                false
+                chipLoss
             }
             readBackLosses.add(nodeId) -> {
+                val plan = FormCompletionChecker.recoveryPlan(
+                    FormStateExtractor.extract(obs.nodes),
+                    setOf(nodeId),
+                )
                 val line = "field read-back: '${field.label}' is STILL EMPTY after typing " +
-                    "(${typedText.length} chars) - the text did not land; the next proposal must fill THIS field"
+                    "(${typedText.length} chars) - the text did not land; the next proposal must fill THIS field; " +
+                    "FIELD RECOVERY: ${plan.render}"
                 log("[vision] $line")
                 evidence.event(line)
                 true
             }
-            else -> false
+            else -> chipLoss
         }
+    }
+
+    /** PHASE_18 Stage 18.D CN-12 — whether ANY scripted proposal would touch page coordinates. */
+    private fun proposalCoordinateAction(proposals: List<VisionPrompts.Proposal>): Boolean =
+        proposals.any {
+            it.action == VisionPrompts.ProposalAction.TAP ||
+                it.action == VisionPrompts.ProposalAction.TYPE ||
+                it.action == VisionPrompts.ProposalAction.SCROLL_DOWN ||
+                it.action == VisionPrompts.ProposalAction.SCROLL_UP
+        }
+
+    /**
+     * PHASE_18 Stage 18.D CN-13 — the pending AUTOFILL-CHIP post-write verification:
+     * consumed against the FRESH observation, it verifies the intended field actually
+     * took a value from the chip (comparing the before-states captured at dispatch). A
+     * non-advancing chip dispatch returns the failure line — the caller counts it as a
+     * failed step (NO field progress: doc 04 §9.3). Null = verified advanced, or no
+     * pending verification.
+     */
+    private fun chipVerificationLoss(obs: StepObservation): String? {
+        val pending = pendingChipFieldKey ?: return null
+        pendingChipFieldKey = null
+        val before = fieldsBeforeChipWrite
+        fieldsBeforeChipWrite = emptyList()
+        val advanced = FormCompletionChecker.postWriteProgress(before, FormStateExtractor.extract(obs.nodes))
+        if (pending in advanced) {
+            evidence.event("chip verification: the intended field '$pending' took a value from the chip")
+            return null
+        }
+        return "chip verification: the intended field '$pending' did NOT take a value from the chip " +
+            "- no field progress (a chip is never a generic filler; the next proposal must fill THIS field)"
     }
 
     private suspend fun attemptStep(
@@ -2229,6 +2452,22 @@ class VisionLoop(
             return Attempted.Failed("propose refused (${e.javaClass.simpleName}: ${e.message?.take(120)})")
         }
         if (proposals.isEmpty()) return Attempted.Failed("no proposals for this page")
+        // -- PHASE_18 Stage 18.D CN-12: the OFF-PAGE RAW-ACTION GUARD ---------------------
+        // The surface was classified at this step's observation ([stepUiState]); a page
+        // -coordinate touch on a chrome-management surface (tab switcher, menu/dialog,
+        // another chrome surface) or a non-browser window NEVER dispatches and never even
+        // grounds — the R3 defect's second half (acting on chrome UI as if it were the
+        // page). Zero executor calls AND zero grounding calls; the recovery block at the
+        // bookkeeping site owns the state decision (restore/handoff/escape), the
+        // failure/re-plan gate owns this step. Global actions (back, the IME submit) stay
+        // lawful — they are the escape surface, never a page touch.
+        val touchesPageCoordinates = proposalCoordinateAction(proposals)
+        BrowserRecoveryController.rawActionRefusal(stepUiState, touchesPageCoordinates)?.let { reason ->
+            return Attempted.Failed(
+                "NOT_DISPATCHED_OFF_PAGE: $reason - zero executor calls (the recovery " +
+                    "decision owns the off-page state)",
+            )
+        }
         // v15 (PHASE_15 UAT repair round 2): the proposer's Translate acceptance is
         // CODE-PREFERRED over Jev's pick/none on the image path. Run 13's proposer
         // offered it at ground calls 032/035/038; the pick chose the cookie consent / none.
@@ -2658,6 +2897,32 @@ class VisionLoop(
             )
         }
 
+        // -- PHASE_18 Stage 18.D CN-13: the AUTOFILL-CHIP GATE ----------------------------
+        // The code-visible chip-as-filler dispatch shape (a TAP declaring a FIELD-VALUE
+        // effect on a non-editable target — the v20 closed postcondition set makes the
+        // shape checkable): the intended field must be the FOCUSED one, else ZERO chip
+        // dispatch (a chip is never a generic filler for an unrelated field — the R3
+        // defect). When allowed, the chip's result is verified post-write on ALL field
+        // values ([chipVerificationLoss]).
+        if (FormCompletionChecker.isChipFillDispatch(
+                proposal.action.name,
+                actTarget?.node?.editable,
+                proposal.expectedEffect?.expect,
+            )
+        ) {
+            val formFields = FormStateExtractor.extract(obs.nodes)
+            val intended = FormCompletionChecker.nextNeededField(formFields)
+            when (val verdict = FormCompletionChecker.chipDispatchAllowed(intended?.key, lastFocusedFieldKey)) {
+                is FormCompletionChecker.ChipVerdict.Allow -> {
+                    pendingChipFieldKey = intended?.key
+                    fieldsBeforeChipWrite = formFields
+                }
+                is FormCompletionChecker.ChipVerdict.Refuse -> return Attempted.Failed(
+                    "${verdict.reason} (zero executor calls)",
+                )
+            }
+        }
+
         // -- GATE (PHASE_VEXP3 WI1): classify BEFORE every TAP/TYPE/SUBMIT dispatch —
         // scroll/back NEVER gate (the law; RiskGate also refuses those kinds by shape).
         // Ported from NavigationLoop's GATE block, simplified to the vision step's
@@ -2918,6 +3183,10 @@ class VisionLoop(
                 } else {
                     executed = executor.tap(x, y)
                 }
+                // PHASE_18 Stage 18.D CN-13: the code-owned FOCUS tracking. A tap INTO an
+                // editable field focuses it (the autofill-chip law's precondition); a tap
+                // anywhere else moves focus off the recorded field — cleared honestly.
+                lastFocusedFieldKey = if (actTarget?.node?.editable == true) actTarget.node.id else null
                 detail = "tap '${proposal.description.take(60)}' [$where conf=${"%.2f".format(proposal.confidence)}]$lowConfMark" +
                     if (translateIndex != null) " (translate-first)" else ""
             }
@@ -2941,6 +3210,13 @@ class VisionLoop(
                 // container's inert point.
                 if (tapConverted && !focusCovered) executor.tap(x, y)
                 executed = executor.enterText(actX, actY, text) { causes.add(it) }
+                // PHASE_18 Stage 18.D CN-13: the executed write IS the focus evidence —
+                // the typed field is the focused one (enterText focuses the field node).
+                if (executed) {
+                    (resolvedField ?: actTarget?.node)?.takeIf { it.editable }?.let {
+                        lastFocusedFieldKey = it.id
+                    }
+                }
                 // -- PHASE_VEXP6 WI1: the deterministic post-type submit ------------------
                 // The run-4 live defect (task-1792411667614): after typing the query into
                 // the omnibox the loop left the next action to the proposer, which tapped
