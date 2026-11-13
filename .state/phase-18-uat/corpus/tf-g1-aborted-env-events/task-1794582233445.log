@@ -1,0 +1,66 @@
+    6626  call plan 4387ms in=4253 out=574 cost=5698µ$ attempts=1 channel=HAIKU images=1
+   51298  screenshot #0 705x1567 scope=display:log-excluded sha256=c9d70083f654444a -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794582233445/screen-0000.jpg
+   55972  snapshot id=snap-task-1794582233445-1 parent=none observedAtMs=111413089 capturedAtMs=111413158 verdict=CONSISTENT navKey= pkg=com.atavi.satu
+   58293  call propose 2317ms in=3279 out=162 cost=3271µ$ attempts=1 channel=HAIKU images=1
+   58295  vision subtask 1: step 0 FAILED (no proposals for this page)
+   58910  screenshot #1 705x1567 scope=display:log-excluded sha256=bd3603db65de3a77 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794582233445/screen-0001.jpg
+   60049  snapshot id=snap-task-1794582233445-2 parent=snap-task-1794582233445-1 observedAtMs=111420946 capturedAtMs=111421154 verdict=CONSISTENT navKey= pkg=com.atavi.satu
+   62259  call propose 2197ms in=3279 out=151 cost=3227µ$ attempts=1 channel=HAIKU images=1
+   62260  vision subtask 1: step 1 FAILED (no proposals for this page)
+   68093  call plan 5122ms in=5474 out=806 cost=7603µ$ attempts=1 channel=HAIKU images=1
+  104337  screenshot #0 705x1567 scope=display:log-excluded sha256=4bbf6df2b68b6196 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794582233445/screen-0000.jpg
+  107082  snapshot id=snap-task-1794582233445-3 parent=snap-task-1794582233445-2 observedAtMs=111466534 capturedAtMs=111466647 verdict=CONSISTENT navKey= pkg=com.atavi.satu
+  110703  call propose 3559ms in=3291 out=407 cost=4260µ$ attempts=1 channel=HAIKU images=1
+  112053  call ground 1330ms in=3425 out=33 cost=10770µ$ attempts=1 channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  114527  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.atavi.satu' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  114530  dispatch-refused #1 reason=NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.atavi.satu' is not an allowlisted browser
+  114531  vision subtask 1: step 0 FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.atavi.satu' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  115745  screenshot #1 705x1567 scope=display:log-excluded sha256=dc51f81ffbd38a3f -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794582233445/screen-0001.jpg
+  118134  snapshot id=snap-task-1794582233445-4 parent=snap-task-1794582233445-3 observedAtMs=111477179 capturedAtMs=111477780 verdict=CONSISTENT navKey= pkg=com.atavi.satu
+  121690  call propose 3550ms in=3291 out=416 cost=4296µ$ attempts=1 channel=HAIKU images=1
+  122278  call ground 585ms in=3419 out=33 cost=10752µ$ attempts=1 channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  122278  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  124336  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.atavi.satu' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  124337  dispatch-refused #2 reason=NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.atavi.satu' is not an allowlisted browser
+  124341  vision subtask 1: step 1 FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.atavi.satu' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  129666  call plan 4537ms in=5545 out=714 cost=7292µ$ attempts=1 channel=HAIKU images=1
+  171524  screenshot #0 705x1567 scope=display:log-excluded sha256=00d6b5695fd67838 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794582233445/screen-0000.jpg
+  173309  snapshot id=snap-task-1794582233445-5 parent=snap-task-1794582233445-4 observedAtMs=111533309 capturedAtMs=111533676 verdict=CONSISTENT navKey= pkg=com.atavi.satu
+  177025  call propose 3683ms in=3275 out=374 cost=4116µ$ attempts=1 channel=HAIKU images=1
+  177547  call ground 516ms in=3411 out=32 cost=10713µ$ attempts=1 channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  177551  vision subtask 1: step 0 FAILED (jev picked none of the proposals)
+  177864  screenshot #1 705x1567 scope=display:log-excluded sha256=c926d8b483a3b51a -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794582233445/screen-0001.jpg
+  181050  snapshot id=snap-task-1794582233445-6 parent=snap-task-1794582233445-5 observedAtMs=111540198 capturedAtMs=111540259 verdict=CONSISTENT navKey= pkg=com.atavi.satu
+  184787  call propose 3720ms in=3275 out=426 cost=4324µ$ attempts=1 channel=HAIKU images=1
+  185573  call ground 767ms in=3417 out=33 cost=10746µ$ attempts=1 channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  185583  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  187982  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.atavi.satu' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  187982  dispatch-refused #3 reason=NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.atavi.satu' is not an allowlisted browser
+  187982  vision subtask 1: step 1 FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.atavi.satu' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  225053  screenshot #0 705x1567 scope=display:log-excluded sha256=9b85a39a34e26f07 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794582233445/screen-0000.jpg
+  227321  snapshot id=snap-task-1794582233445-7 parent=snap-task-1794582233445-6 observedAtMs=111586939 capturedAtMs=111586985 verdict=CONSISTENT navKey= pkg=com.atavi.satu
+  230571  call propose 3245ms in=3275 out=345 cost=4000µ$ attempts=1 channel=HAIKU images=1
+  231051  call ground 473ms in=3408 out=32 cost=10704µ$ attempts=1 channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  231052  vision subtask 1: step 0 FAILED (jev picked none of the proposals)
+  232078  screenshot #1 705x1567 scope=display:log-excluded sha256=3a7b63386e83a3eb -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794582233445/screen-0001.jpg
+  236237  snapshot id=snap-task-1794582233445-8 parent=snap-task-1794582233445-7 observedAtMs=111593698 capturedAtMs=111594394 verdict=CONSISTENT navKey= pkg=com.atavi.satu
+  239601  call propose 3355ms in=3275 out=335 cost=3960µ$ attempts=1 channel=HAIKU images=1
+  240681  call ground 1057ms in=3410 out=33 cost=10725µ$ attempts=1 channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  240681  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  242922  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.atavi.satu' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  242924  dispatch-refused #4 reason=NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.atavi.satu' is not an allowlisted browser
+  242980  vision subtask 1: step 1 FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.atavi.satu' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  300786  screenshot #0 705x1567 scope=display:log-excluded sha256=1e50125f6cd56499 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794582233445/screen-0000.jpg
+  302853  screenshot #0 705x1567 scope=display:log-excluded sha256=821429dc94887375 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794582233445/screen-0000.jpg
+  305550  snapshot id=snap-task-1794582233445-9 parent=snap-task-1794582233445-8 observedAtMs=111663756 capturedAtMs=111664411 verdict=CONSISTENT_AFTER_RETRY navKey= pkg=com.atavi.satu
+  310735  call propose 5174ms in=3275 out=316 cost=3884µ$ attempts=1 channel=HAIKU images=1
+  311733  call ground 991ms in=3413 out=33 cost=10734µ$ attempts=1 channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  311734  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  314081  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.atavi.satu.test' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  314082  dispatch-refused #5 reason=NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.atavi.satu.test' is not an allowlisted browser
+  314082  vision subtask 1: step 0 FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.atavi.satu.test' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  319593  screenshot #1 705x1567 scope=display:log-excluded sha256=43b3db38dd29d713 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794582233445/screen-0001.jpg
+  325290  screenshot #1 705x1567 scope=display:log-excluded sha256=a5ebf8b439b5a10f -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794582233445/screen-0001.jpg
+  330591  NOT_DISPATCHED_STALE_SNAPSHOT: the navigation context changed around the capture twice (active package + URL compared; tree hash deliberately ignored)
+  330592  dispatch-refused #6 reason=NOT_DISPATCHED_STALE_SNAPSHOT: the navigation context changed around the capture twice (active package + URL compared; tree hash deliberately ignored)
+  362695  terminal=STUCK_KILL steps=2 replans=2 modality=HYBRID calls=19 jev=7 haiku=12 images=19 battery=0 escalations=5

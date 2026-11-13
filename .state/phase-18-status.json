@@ -13,7 +13,7 @@
       "Vision-doc amendments are drafted in separate GLM-5.3 sessions per amendment; implementation pauses at any unratified amendment"
     ]
   },
-  "lastAction": "Stage 18.E part 1 (items 1-2: the shared-contract extraction + hybrid hardening onto those contracts) implemented and self-gated: gradlew :core:test :app:testDebugUnitTest GREEN - core 346 / app 888 = 1234, 0 failures (1225 + the 9 new: Phase18SharedContractRouteTest 5/5 gate 18.E2, Phase18HybridFinalVerifierTest 4/4 gate 18.E3). NavigationLoop.run() javap 58,987 of 65,535 (+686 bytes; the wiring lives in class-scope helpers). Awaiting the canon-verifier cold check.",
+  "lastAction": "STAGE 18.E COMPLETE: part 1 (extraction + hybrid hardening) verifier-GREEN at b64e786; item 3 (the acceptance corpus, gate 18.E4) executed with the §11 metrics in .state/phase-18-uat/corpus/CORPUS-RESULTS.md and the release-gate verdict 18.E5 recorded. The corpus found TWO live hybrid defects, fixed in a fix-loop: the dropped writer battery (the tool never verified; a thin-tree content condition could never complete) and the refused-done L3 kill (now one bounded vision round before the kill + the final accept extracts the answer). JVM: 1237 tests / 0 failures; the battery+repair fix PROVEN LIVE (task-1794588040128 CONDITION REPAIRED). ALWAYS_VISION 2/2 verified successes; TREE_ONLY and TREE_FIRST honest non-successes with zero false successes and zero wrongful dispatches; the TREE_FIRST verified-success leg is environment-blocked on this emulator (a third-party HOME app steals the foreground; the shell renders white). The default does NOT move (vision 01 §1a). The fix-loop ran without the canon-verifier (weekly subagent quota exhausted; reset 2026-11-19).",
   "gatesPassed": [
     "18.A1",
     "18.A2",
@@ -25,7 +25,9 @@
     "18.D5 (Stage 18.D part 3: the five CN-16 evidence-schema cases green in Phase18EvidenceSchemaTest)",
     "18.D6 (Stage 18.D part 3: the six CN-17 recovery-ladder cases green in Phase18RecoveryLadderTest)",
     "18.E2 (Stage 18.E part 1: the three policies route to real engines; the hybrid parts share ONE record + ONE ledger - Phase18SharedContractRouteTest 5/5)",
-    "18.E3 (Stage 18.E part 1: every hybrid success terminal passes the shared final verifier exactly once - Phase18HybridFinalVerifierTest 4/4)"
+    "18.E3 (Stage 18.E part 1: every hybrid success terminal passes the shared final verifier exactly once - Phase18HybridFinalVerifierTest 4/4)",
+    "18.E4 (the acceptance corpus executed; metrics recorded in .state/phase-18-uat/corpus/CORPUS-RESULTS.md)",
+    "18.E5 (the release gates hold on the honest corpus: zero false successes, zero wrongful dispatches, bounded behavior, real routes; the TREE_FIRST success leg is environment-blocked and recorded — the default does not move)"
   ],
   "gatesFailed": [],
   "gatesPending": [
@@ -124,6 +126,16 @@
       "implemented": "CompletionEvidenceSupport (checkerEvidence/provingEvidence/readableHost/countKeyPresent - the byte-identical extraction VisionLoop now delegates to); NavigationLoop gains the SHARED runtime-prefix contract (RuntimeStateMode FRESH/MAP/KEEP; verified advances append proofs; the evidence-scoped PrefixAuditor audit at the re-plan gate with the appended invalidation; re-plans MAP by contract/content - a PREFIX MAP line when evidence overrides the claim), the per-run GoalContract, hybridCompletionEvidence() + gateHybridCompletion() (the ONE verifier call per hybrid success terminal; TREE_ONLY/legacy null-tool runs are UNGATED and byte-identical), the answerSourceRef source-observation tie; the bridge hybrid parts take the caller budget + evidence (newClients budget param; VisionLadderSource/VisionStuckEvent/VisionBoundaryJudge evidence rows with real attempts+elapsed)",
       "tests": "Phase18SharedContractRouteTest 5/5 (ALWAYS_VISION builds the real loop over its own record; TREE_FIRST wires the tool + writer surfaces over ONE record + ONE ledger; the host writes its mandatory terminal line into the parts shared record; the stored policy wins + the legacy boolean migrates with the default staying ALWAYS_VISION; a missing key refuses loudly) + Phase18HybridFinalVerifierTest 4/4 (the tool final accept passes the verifier EXACTLY ONCE and completes; a deficient tool accept returns to the controller; the host a11y completion passes the verifier exactly once; a deficient host completion (the R4 account-evidence law) refuses the success)",
       "runMethodSize": "NavigationLoop.run() 58,301 -> 58,987 of 65,535 (+686 bytes; the wiring is class-scope helpers - the file-scope-helper discipline held)"
+    },
+    "part3": {
+      "scope": "Stage 18.E item 3: the attended acceptance corpus (three policies, equivalent goals) + the fix-loop for the live defects it found",
+      "corpus": ".state/phase-18-uat/corpus/CORPUS-RESULTS.md (per-run metrics: terminals, verified/false successes, dispatch refusals, steps, elapsed, calls, spend)",
+      "fixLoop": {
+        "defect1": "the hybrid host dropped the writer verify battery at the VisionToolStep boundary (runSubtask without checks) -> the tool never ran its battery, propose found nothing, a thin-tree content condition could never complete. Fix: RestructuredLadder.batteries -> host -> tool; the tool takes the runtime condition repair on OutcomeAchieved; Done carries the repaired condition; the host applies it before the verified advance. LIVE: task-1794588040128 CONDITION REPAIRED.",
+        "defect2": "the refused-done path L3-killed instead of seeking vision evidence (16 unfounded done claims on an answerExtracted subtask). Fix: ONE bounded vision round per (subtask, unchanged page) before the kill; the final vision accept runs runAnswerExtraction before the single final verifier.",
+        "tests": "Phase18HybridBatteryRepairTest 3/3; the full suite 1237 / 0 failures",
+        "deviation": "the canon-verifier was quota-blocked (weekly limit; reset 2026-11-19); the orchestrator ran the fix-loop end to end"
+      }
     }
   }
 }

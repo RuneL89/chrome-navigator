@@ -77,8 +77,10 @@ class VisionLadderSource(
             return null
         }
         recordCall("plan", started, rawReq, rawRes, shot != null)
-        val ladder: Ladder = try {
-            val battery = VisionPrompts.parseVerifyBlocks(content, "plan-vision")
+        val ladder: Ladder
+        val battery: Map<Int, List<VisionPrompts.VerifyCheck>>
+        try {
+            battery = VisionPrompts.parseVerifyBlocks(content, "plan-vision")
             val enterText = VisionPrompts.parseEnterTexts(content, "plan-vision")
             val parsed = LadderSchema.parse(content, maxSubtasks = 8)
             val fidelity = GoalFidelity.check(goal, parsed)
@@ -89,16 +91,18 @@ class VisionLadderSource(
                 )
                 return null
             }
-            // The vision plan's per-subtask verify battery is retained for the tool; the
-            // host's a11y ladder carries no battery field, so the battery rides the
-            // evidence only (the tool re-reads it when it runs a subtask).
+            // PHASE_18 Stage 18.E fix-loop: the per-subtask verify battery now RIDES the
+            // RestructuredLadder to the host, which hands it to the vision tool — the
+            // tool's battery block is the hybrid's only completion evidence for a
+            // thin-tree content condition (doc 04 §8: the tool verifies with the same
+            // battery the pure loop runs).
             if (battery.isNotEmpty() || enterText.isNotEmpty()) {
                 log(
                     "[vision-writer] ladder carries ${battery.size} verify battery(ies) and " +
                         "${enterText.size} enterText field(s)",
                 )
             }
-            parsed
+            ladder = parsed
         } catch (e: Exception) {
             log("[vision-writer] the plan output was refused (${e.message?.take(160)})")
             return null
@@ -107,6 +111,7 @@ class VisionLadderSource(
             ladder = ladder,
             version = "${VisionPrompts.VISION_PROMPT_VERSION}/gen$generation",
             costMicroUsd = haiku.lastUsage?.costMicroUsd ?: 0L,
+            batteries = battery,
         )
     }
 

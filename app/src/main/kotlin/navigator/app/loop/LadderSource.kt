@@ -86,6 +86,14 @@ data class RestructuredLadder(
     val version: String,
     /** The writer call's integer micro-dollar cost (the SEPARATE writer budget, ART-5). */
     val costMicroUsd: Long,
+    /**
+     * PHASE_18 Stage 18.E fix-loop — the writer-authored per-subtask VERIFY BATTERIES
+     * (`subtask index -> checks`). The host carries this map so the hybrid's vision tool
+     * receives the SAME verification the pure vision loop runs; empty for sources that
+     * author no battery (the a11y-only writer) and every existing construction.
+     */
+    val batteries: Map<Int, List<navigator.app.harness.vision.VisionPrompts.VerifyCheck>> =
+        emptyMap(),
 )
 
 /**

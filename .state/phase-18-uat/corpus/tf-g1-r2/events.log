@@ -1,0 +1,20 @@
+   13989  call plan 9728ms in=4253 out=789 cost=6558µ$ attempts=2 channel=HAIKU images=1
+   16376  screenshot #0 705x1567 scope=window:org.chromium.webview_shell:id=421:bounds=0,0,1080,2400 sha256=cd2ba6464ee7803c -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794585142981/screen-0000.jpg
+   16464  snapshot id=snap-task-1794585142981-1 parent=none observedAtMs=1860843 capturedAtMs=1860990 verdict=CONSISTENT navKey=10.0.2.2 pkg=org.chromium.webview_shell
+   18526  call propose 2057ms in=3584 out=280 cost=3987µ$ attempts=1 channel=HAIKU images=1
+   18526  vision subtask 1: step 0 FAILED (no proposals for this page)
+   18933  screenshot #1 705x1567 scope=window:org.chromium.webview_shell:id=421:bounds=0,0,1080,2400 sha256=cd2ba6464ee7803c -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794585142981/screen-0001.jpg
+   18961  snapshot id=snap-task-1794585142981-2 parent=snap-task-1794585142981-1 observedAtMs=1863844 capturedAtMs=1863928 verdict=CONSISTENT navKey=10.0.2.2 pkg=org.chromium.webview_shell
+   20929  call propose 1962ms in=3584 out=236 cost=3811µ$ attempts=1 channel=HAIKU images=1
+   20929  vision subtask 1: step 1 FAILED (no proposals for this page)
+   25326  call plan 4040ms in=5474 out=733 cost=7311µ$ attempts=1 channel=HAIKU images=1
+   29322  call plan 3616ms in=5468 out=700 cost=7174µ$ attempts=1 channel=HAIKU images=1
+  100109  screenshot #0 705x1567 scope=window:org.chromium.webview_shell:id=421:bounds=0,0,1080,2400 sha256=758d9800894e40c9 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794585142981/screen-0000.jpg
+  100146  snapshot id=snap-task-1794585142981-3 parent=snap-task-1794585142981-2 observedAtMs=1944069 capturedAtMs=1944706 verdict=CONSISTENT navKey=10.0.2.2 pkg=org.chromium.webview_shell
+  102375  call propose 2223ms in=3567 out=151 cost=3457µ$ attempts=1 channel=HAIKU images=1
+  102376  vision subtask 1: step 0 FAILED (no proposals for this page)
+  102745  screenshot #1 705x1567 scope=window:org.chromium.webview_shell:id=421:bounds=0,0,1080,2400 sha256=758d9800894e40c9 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794585142981/screen-0001.jpg
+  102898  snapshot id=snap-task-1794585142981-4 parent=snap-task-1794585142981-3 observedAtMs=1947693 capturedAtMs=1947798 verdict=CONSISTENT navKey=10.0.2.2 pkg=org.chromium.webview_shell
+  105172  call propose 2269ms in=3567 out=93 cost=3225µ$ attempts=1 channel=HAIKU images=1
+  105173  vision subtask 1: step 1 FAILED (no proposals for this page)
+  169281  terminal=STUCK_KILL steps=15 replans=2 modality=HYBRID calls=7 jev=0 haiku=7 images=7 battery=0 escalations=2

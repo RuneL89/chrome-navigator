@@ -279,7 +279,14 @@ class Phase18SharedContractRouteTest {
                 ): RepairedCondition? = null
             }
             // A scripted tool whose every subtask fails (the failure path, fast + $0).
-            val failingTool = VisionToolStep { _, _, _, _ -> SubtaskOutcome.Failed("transport dead", 1) }
+            val failingTool = object : VisionToolStep {
+                override suspend fun runSubtask(
+                    goal: String,
+                    ladder: Ladder,
+                    index: Int,
+                    isCancelled: () -> Boolean,
+                ): SubtaskOutcome = SubtaskOutcome.Failed("transport dead", 1)
+            }
             val loop = NavigationLoop(
                 engine = StubEngine(StubScript(emptyList())),
                 observer = FakeObserver(listOf(obs("chrome://newtab"))),

@@ -2674,8 +2674,42 @@ class VisionLoop(
                         stepEscalation = VisionPrompts.EscalationKind.RED_FLAGS
                     }
                     BatteryGate.OutcomeAchieved -> {
-                        // The repair turn belongs to the host loop (a plan change); the
-                        // tool reports the mis-shaped condition as its cause.
+                        // PHASE_18 Stage 18.E fix-loop — THE RUNTIME CONDITION REPAIR on
+                        // the HYBRID path (the pure loop's VEXP7 law, mirrored): the
+                        // battery says the subtask's OUTCOME is visibly achieved while
+                        // the code done-condition is unmet (the thin-tree content case:
+                        // the shell's a11y text lacks what the image shows). ONE bounded
+                        // repair turn; an accepted repair that the triggering battery
+                        // concurs with completes the subtask — the host applies the
+                        // repaired condition to its pointer (the Done carries it). A
+                        // failed/invalid turn keeps the escalation the host re-plans on
+                        // (live defect 2026-11-13: without this, propose found nothing to
+                        // do and the subtask could never complete).
+                        val turn = conditionRepairTurn(
+                            pointer = index,
+                            active = active,
+                            doneText = doneText,
+                            obs = obs,
+                            shot = shot,
+                            counters = counters,
+                            answersProduced = 0,
+                        )
+                        if (turn is ConditionRepair.Accepted &&
+                            batteryConcurs(results, config.redFlagAbove, config.noulAgreeAbove)
+                        ) {
+                            val line = "vision subtask ${index + 1}: CONDITION REPAIRED - " +
+                                "'${turn.oldRender}' -> '${turn.newRender}' (the outcome was visible)"
+                            log("[vision] $line")
+                            evidence.event(line)
+                            return navigator.app.harness.hybrid.SubtaskOutcome.Done(
+                                steps = step,
+                                noul = 0.0,
+                                repairedCondition = turn.newCondition,
+                            )
+                        }
+                        if (turn is ConditionRepair.NoAccept) {
+                            evidence.event("condition repair: ${turn.detail} - the host's failure path runs")
+                        }
                         escalateCause = "verification battery: the subtask outcome is ALREADY visible " +
                             "on this page while the done-condition is not satisfied"
                         stepEscalation = VisionPrompts.EscalationKind.OUTCOME_ACHIEVED_WHILE_CONDITION_UNMET

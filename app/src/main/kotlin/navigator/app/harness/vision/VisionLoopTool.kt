@@ -21,4 +21,13 @@ class VisionLoopTool(private val loop: VisionLoop) : VisionToolStep {
         index: Int,
         isCancelled: () -> Boolean,
     ): SubtaskOutcome = loop.runSubtask(goal, ladder, index, isCancelled = isCancelled)
+
+    override suspend fun runSubtask(
+        goal: String,
+        ladder: Ladder,
+        index: Int,
+        checks: List<VisionPrompts.VerifyCheck>,
+        isCancelled: () -> Boolean,
+    ): SubtaskOutcome =
+        loop.runSubtask(goal, ladder, index, checks = checks, isCancelled = isCancelled)
 }

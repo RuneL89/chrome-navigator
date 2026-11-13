@@ -399,6 +399,25 @@ class NavigationLoop(
     private var goalContract: GoalContract? = null
 
     /**
+     * PHASE_18 Stage 18.E fix-loop — the ACTIVE ladder's writer-authored per-subtask
+     * verify batteries, carried from the ladder source's [RestructuredLadder.batteries]
+     * and handed to the vision tool for its active subtask. Without this channel the
+     * tool's battery block is dormant (live defect 2026-11-13: a thin-tree content
+     * condition whose outcome is only vision-visible could never complete — the tool
+     * proposed nothing because there was nothing to do).
+     */
+    private var ladderBatteries: Map<Int, List<navigator.app.harness.vision.VisionPrompts.VerifyCheck>> =
+        emptyMap()
+
+    /**
+     * PHASE_18 Stage 18.E fix-loop — the bounded refused-done vision escalation: one
+     * vision round per (subtask index, unchanged page hash). A changed page re-arms it
+     * (fresh evidence is a fresh question); a second identical stall cannot loop the
+     * tool. Reset per run.
+     */
+    private val visionEscapeClaim = mutableSetOf<Pair<Int, Int>>()
+
+    /**
      * PHASE_18 Stage 18.E (18.E3) — the test counting hook (the VisionLoop precedent):
      * every SUCCESSFUL hybrid terminal increments this EXACTLY ONCE at its single
      * [FinalGoalVerifier] call, so the JVM gates pin the one-verifier law. TREE_ONLY /
@@ -612,6 +631,7 @@ class NavigationLoop(
         goalContract = GoalContract.fromGoal(goal)
         runtimeStates.clear()
         finalVerifierInvocations = 0
+        visionEscapeClaim.clear() // Stage 18.E fix-loop: the refused-done escape is per run
         // The observation reference the produced answer was extracted FROM (the final
         // verifier's check 5 — "tied to a source observation").
         var answerSourceRef: String? = null
@@ -1201,8 +1221,18 @@ class NavigationLoop(
             version: String,
             reKeyTo: Int = 0,
             runtimeStateMode: RuntimeStateMode = RuntimeStateMode.KEEP,
+            /**
+             * PHASE_18 Stage 18.E fix-loop — the writer's per-subtask verify batteries
+             * for [newLadder]. The vision tool receives `batteries[activeIndex]` (the
+             * SAME verification the pure loop runs); a source without batteries (the
+             * a11y writer) installs an empty map — the tool's battery block stays dormant
+             * exactly as before.
+             */
+            batteries: Map<Int, kotlin.collections.List<navigator.app.harness.vision.VisionPrompts.VerifyCheck>> =
+                emptyMap(),
         ) {
             ladder = newLadder
+            ladderBatteries = batteries
             pointer = SubtaskPointer(newLadder)
             // Phase 10D (doc 04 §1 v1.8.0): RESUME, never restart — a re-plan re-keys the
             // pointer to the first unfinished subtask (the verified prefix is byte-frozen
@@ -1583,6 +1613,7 @@ class NavigationLoop(
                         restructured.version,
                         reKeyTo = verdict.reKeyTo,
                         runtimeStateMode = RuntimeStateMode.MAP,
+                        batteries = restructured.batteries,
                     )
                     verdict.lines.forEach { line(it) }
                     verdict.historyLine?.let { history.add("step $stepIndex: $it") }
@@ -2125,7 +2156,12 @@ class NavigationLoop(
                 if (check != WriterBudget.Check.OK) softWarnings.add("writer budget ${check.name}")
             }
             ladderGeneration = 1
-            applyLadder(restructured.ladder, restructured.version, runtimeStateMode = RuntimeStateMode.FRESH)
+            applyLadder(
+                restructured.ladder,
+                restructured.version,
+                runtimeStateMode = RuntimeStateMode.FRESH,
+                batteries = restructured.batteries,
+            )
             line(
                 "ladder: ${restructured.version} - ${restructured.ladder.subtasks.size} subtask(s), " +
                     "class ${serialNameOf(LadderTaskClass.serializer(), restructured.ladder.taskClass)}, " +
@@ -2236,6 +2272,38 @@ class NavigationLoop(
         }
 
         /**
+         * Replaces the ACTIVE subtask's done-condition, preserving pointer progress
+         * (Phase 10C): a fresh ladder + a fresh pointer advanced to the same verified
+         * position (the pointer's advance law is preserved — completed subtasks stay
+         * completed).
+         *
+         * PHASE_18 Stage 18.E fix-loop — declared HERE (before the vision-accept funnel
+         * that applies a repaired condition): Kotlin local functions are visible only
+         * after their declaration, and [acceptVisionSubtask] consumes this.
+         */
+        fun applyCondition(p: SubtaskPointer, replacement: DoneCondition, provenance: String) {
+            val current = ladder ?: return
+            val updated = current.copy(
+                subtasks = current.subtasks.mapIndexed { i, st ->
+                    if (i == p.index) st.copy(done = replacement) else st
+                },
+            )
+            val fresh = SubtaskPointer(updated)
+            repeat(p.index) { fresh.advance() }
+            ladder = updated
+            pointer = fresh
+            line(
+                "honesty: subtask ${fresh.activeOrdinal}/${fresh.total} condition replaced by " +
+                    "$provenance - '${DoneConditionChecker.render(replacement)}'",
+            )
+            history.add(
+                "step $stepIndex: condition replaced ($provenance) - " +
+                    "'${DoneConditionChecker.render(replacement)}'",
+            )
+            publishLadderSurfaces()
+        }
+
+        /**
          * The vision tool's ACCEPT: the tool evidenced the ACTIVE subtask's outcome, so
          * the host advances through the SAME verified-subtask machinery the a11y accept
          * uses ([advanceAfterSubtaskAccept] — one reset path, never two). The FINAL
@@ -2248,10 +2316,31 @@ class NavigationLoop(
          * returns to the controller with the deficiency (the existing failure/re-plan
          * path) — never a false GOAL_ACHIEVED.
          */
-        suspend fun acceptVisionSubtask(visionSteps: Int, noul: Double): RunResult? {
+        suspend fun acceptVisionSubtask(
+            visionSteps: Int,
+            noul: Double,
+            repairedCondition: navigator.core.ladder.DoneCondition? = null,
+        ): RunResult? {
             val p = pointer ?: return null
             val l = ladder ?: return null
+            // PHASE_18 Stage 18.E fix-loop — the runtime condition repair's ACCEPTED
+            // condition (the tool's battery saw the subtask's outcome while the written
+            // condition's shape did not match, the pure loop's VEXP7 law). Applied to the
+            // pointer BEFORE the advance so the kept proof, the runtime states and the
+            // final verifier read the condition that actually held (doc 04 §9.5).
+            if (repairedCondition != null) {
+                applyCondition(p, repairedCondition, "vision battery repair (condition repaired)")
+            }
             if (p.index == l.subtasks.lastIndex) {
+                // PHASE_18 Stage 18.E fix-loop — the FINAL accept extracts the answer
+                // FIRST when the ladder carries an answerExtracted (the pure loop's
+                // acceptAdvance law): the vision tool's Done evidences the OUTCOME, and
+                // the final verifier's answer check needs the extracted value. Without
+                // this, a report goal accepted through the tool could never satisfy the
+                // verifier (the live defect's second half, task-1794588040128).
+                if (l.subtasks.any { it.done is DoneCondition.AnswerExtracted } && extractedAnswer == null) {
+                    runAnswerExtraction()
+                }
                 val fresh = observer.observe()
                 if (!gateHybridCompletion(fresh)) {
                     return handleSubtaskFailureOrKill(
@@ -2296,7 +2385,9 @@ class NavigationLoop(
             line(flip)
             history.add("step $stepIndex: modality VISION - $cause")
             val outcome = try {
-                tool.runSubtask(goalText, l, p.index, isCancelled)
+                // PHASE_18 Stage 18.E fix-loop: the writer's battery for the ACTIVE
+                // subtask rides to the tool — the same verification the pure loop runs.
+                tool.runSubtask(goalText, l, p.index, ladderBatteries[p.index].orEmpty(), isCancelled)
             } catch (t: Throwable) {
                 navigator.app.harness.hybrid.SubtaskOutcome.Failed(
                     "the vision tool failed loudly (${t::class.simpleName}: ${t.message?.take(120)})",
@@ -2308,7 +2399,7 @@ class NavigationLoop(
             subtaskModality = SubtaskModality.TREE
             return when (outcome) {
                 is navigator.app.harness.hybrid.SubtaskOutcome.Done ->
-                    acceptVisionSubtask(outcome.steps, outcome.noul)
+                    acceptVisionSubtask(outcome.steps, outcome.noul, outcome.repairedCondition)
                 is navigator.app.harness.hybrid.SubtaskOutcome.Failed -> {
                     line(
                         "vision subtask ${p.activeOrdinal}/${p.total} FAILED " +
@@ -2495,34 +2586,6 @@ class NavigationLoop(
                 return null
             }
 
-
-            /**
-             * Replaces the ACTIVE subtask's done-condition, preserving pointer progress
-             * (Phase 10C): a fresh ladder + a fresh pointer advanced to the same verified
-             * position (the pointer's advance law is preserved — completed subtasks stay
-             * completed).
-             */
-            fun applyCondition(p: SubtaskPointer, replacement: DoneCondition, provenance: String) {
-                val current = ladder ?: return
-                val updated = current.copy(
-                    subtasks = current.subtasks.mapIndexed { i, st ->
-                        if (i == p.index) st.copy(done = replacement) else st
-                    },
-                )
-                val fresh = SubtaskPointer(updated)
-                repeat(p.index) { fresh.advance() }
-                ladder = updated
-                pointer = fresh
-                line(
-                    "honesty: subtask ${fresh.activeOrdinal}/${fresh.total} condition replaced by " +
-                        "$provenance - '${DoneConditionChecker.render(replacement)}'",
-                )
-                history.add(
-                    "step $stepIndex: condition replaced ($provenance) - " +
-                        "'${DoneConditionChecker.render(replacement)}'",
-                )
-                publishLadderSurfaces()
-            }
 
             /**
              * The landing-host reconciliation (Phase 10C, vision 04 §1 v1.7.0): after a
@@ -3450,6 +3513,23 @@ class NavigationLoop(
                         stuck.recordRefusedFinish(verdict.guardLevel.name)
                         stepIndex += 1
                         if (assessStuck()) {
+                            // PHASE_18 Stage 18.E fix-loop — the TREE HAS NOTHING LEFT TO
+                            // OFFER (doc 04 §8): the engine keeps claiming done while the
+                            // code cannot evidence the condition. In the HYBRID the vision
+                            // tool is the evidence seeker — ONE bounded vision round per
+                            // (subtask, unchanged page) BEFORE the L3 kill (live defect
+                            // 2026-11-13 task-1794588040128: the answerExtracted subtask
+                            // on the thin shell tree looped 16 unfounded done claims into
+                            // STUCK_KILL although the vision tool could verify it).
+                            val p = pointer
+                            if (visionTool != null && p != null &&
+                                visionEscapeClaim.add(p.index to obs.screenHash)
+                            ) {
+                                val claim = verdict.reason.take(80)
+                                tryVisionEscape(
+                                    "the tree claims done but the code cannot verify it ($claim)",
+                                )?.let { return it }
+                            }
                             return handleStuckKill("repeated unsupported done claims - L3 auto-kill")
                         }
                         return null

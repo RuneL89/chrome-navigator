@@ -1,0 +1,10 @@
+    6510  call plan 4305ms in=4253 out=620 cost=5882µ$ attempts=1 channel=HAIKU images=1
+   50400  screenshot #0 705x1567 scope=window:org.chromium.webview_shell:id=1154:bounds=0,0,1080,2400 sha256=758d9800894e40c9 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794588040128/screen-0000.jpg
+   50623  snapshot id=snap-task-1794588040128-1 parent=none observedAtMs=4791922 capturedAtMs=4792328 verdict=CONSISTENT navKey=10.0.2.2 pkg=org.chromium.webview_shell
+   51524  call verify-battery 892ms in=3559 out=38 cost=11247µ$ attempts=1 channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   53519  call battery 1994ms in=1701 out=99 cost=1756µ$ attempts=1 channel=HAIKU images=1
+   56418  call repair 2894ms in=2659 out=408 cost=3759µ$ attempts=1 channel=HAIKU images=1
+   56419  condition repair: planner source -> the page contains 'A generic fixture home page'
+   56421  vision subtask 1: CONDITION REPAIRED - 'the page contains 'Site A'' -> 'the page contains 'A generic fixture home page'' (the outcome was visible)
+   59930  call boundary 2617ms in=2146 out=344 cost=3092µ$ attempts=1 channel=HAIKU images=1
+  126633  terminal=STUCK_KILL steps=16 replans=0 modality=HYBRID calls=5 jev=1 haiku=4 images=5 battery=2 escalations=1

@@ -1,0 +1,2 @@
+    7473  call plan 4795ms in=4228 out=596 cost=5766µ$ attempts=1 channel=HAIKU images=1
+    7502  terminal=LADDER_REFUSED steps=0 replans=0 modality=HYBRID calls=1 jev=0 haiku=1 images=1 battery=0 escalations=0

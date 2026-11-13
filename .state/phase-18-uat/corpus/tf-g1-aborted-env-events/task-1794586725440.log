@@ -1,0 +1,158 @@
+   13887  call plan 5695ms in=4253 out=749 cost=6398µ$ attempts=1 channel=HAIKU images=1
+   61807  screenshot #0 705x1567 scope=display:log-excluded sha256=1766de2dd2525d94 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794586725440/screen-0000.jpg
+   63544  snapshot id=snap-task-1794586725440-1 parent=none observedAtMs=3489094 capturedAtMs=3489256 verdict=CONSISTENT navKey= pkg=com.atavi.satu
+   64585  call verify-battery 993ms in=3261 out=38 cost=10353µ$ attempts=1 channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+   66326  call battery 1731ms in=1699 out=97 cost=1747µ$ attempts=1 channel=HAIKU images=1
+   68153  call propose 1823ms in=3304 out=133 cost=3175µ$ attempts=1 channel=HAIKU images=1
+   68153  vision subtask 1: step 0 FAILED (no proposals for this page)
+   69054  screenshot #1 705x1567 scope=display:log-excluded sha256=eb4f3714cd5ecb44 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794586725440/screen-0001.jpg
+   72085  snapshot id=snap-task-1794586725440-2 parent=snap-task-1794586725440-1 observedAtMs=3495936 capturedAtMs=3496592 verdict=CONSISTENT navKey= pkg=com.atavi.satu
+   75089  call propose 2993ms in=3304 out=255 cost=3663µ$ attempts=1 channel=HAIKU images=1
+   75089  vision subtask 1: step 1 FAILED (no proposals for this page)
+   81032  call plan 4803ms in=5405 out=834 cost=7660µ$ attempts=1 channel=HAIKU images=1
+  111300  screenshot #0 705x1567 scope=window:org.chromium.webview_shell:id=842:bounds=0,0,1080,2400 sha256=f96ac62fc96a4a75 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794586725440/screen-0000.jpg
+  111320  snapshot id=snap-task-1794586725440-3 parent=snap-task-1794586725440-2 observedAtMs=3538823 capturedAtMs=3538860 verdict=CONSISTENT navKey=about pkg=org.chromium.webview_shell
+  111568  call verify-battery 242ms in=3419 out=38 cost=10827µ$ attempts=1 channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  113138  call battery 1555ms in=1696 out=153 cost=1968µ$ attempts=1 channel=HAIKU images=1
+  115568  call propose 2420ms in=3458 out=327 cost=4074µ$ attempts=1 channel=HAIKU images=1
+  115843  call ground 264ms in=6519 out=50 cost=20307µ$ attempts=1 channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  115851  jev box below PARTIAL (iou=0.01 < 0.20) — haiku-box fallback
+  115852  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.71
+  115852  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  115857  vision subtask 1: step 0 FAILED (type grounding refused - the ground node n3 is not editable and no editable field could be resolved at its centre (1003,257) (NO_FIELD_AT_POINT); refusing the doomed enterText)
+  117443  screenshot #1 705x1567 scope=display:log-excluded sha256=3015cdb050d503c7 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794586725440/screen-0001.jpg
+  119984  snapshot id=snap-task-1794586725440-4 parent=snap-task-1794586725440-3 observedAtMs=3543640 capturedAtMs=3544664 verdict=CONSISTENT navKey= pkg=com.atavi.satu
+  120411  call verify-battery 423ms in=3262 out=38 cost=10356µ$ attempts=1 channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  122513  call battery 2100ms in=1696 out=94 cost=1732µ$ attempts=1 channel=HAIKU images=1
+  126138  call propose 3602ms in=3305 out=533 cost=4776µ$ attempts=1 channel=HAIKU images=1
+  126138  dispatch-refused #1 reason=NOT_DISPATCHED_OFF_PAGE: the foreground is NOT the browser - page-coordinate actions are refused (the touch would land in another app)
+  126139  vision subtask 1: step 1 FAILED (NOT_DISPATCHED_OFF_PAGE: the foreground is NOT the browser - page-coordinate actions are refused (the touch would land in another app) - zero executor calls (the recovery decision owns the off-page state))
+  131997  call plan 5278ms in=5474 out=856 cost=7803µ$ attempts=1 channel=HAIKU images=1
+  164911  screenshot #0 705x1567 scope=window:org.chromium.webview_shell:id=842:bounds=0,0,1080,2400 sha256=f96ac62fc96a4a75 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794586725440/screen-0000.jpg
+  164942  snapshot id=snap-task-1794586725440-5 parent=snap-task-1794586725440-4 observedAtMs=3592205 capturedAtMs=3592303 verdict=CONSISTENT navKey=about pkg=org.chromium.webview_shell
+  165183  call verify-battery 238ms in=3424 out=38 cost=10842µ$ attempts=1 channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  166478  call battery 1292ms in=1701 out=99 cost=1756µ$ attempts=1 channel=HAIKU images=1
+  169300  call propose 2817ms in=3457 out=370 cost=4245µ$ attempts=1 channel=HAIKU images=1
+  169561  call ground 255ms in=6520 out=50 cost=20310µ$ attempts=1 channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  169562  jev box below PARTIAL (iou=0.01 < 0.20) — haiku-box fallback
+  169563  cross-check: haiku box conf=0.95 iou-vs-jev-rect=0.72
+  169564  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  172044  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.atavi.satu' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  172045  dispatch-refused #2 reason=NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.atavi.satu' is not an allowlisted browser
+  172046  vision subtask 1: step 0 FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.atavi.satu' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  172891  screenshot #1 705x1567 scope=display:log-excluded sha256=fa1fd79d12bf9833 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794586725440/screen-0001.jpg
+  173840  snapshot id=snap-task-1794586725440-6 parent=snap-task-1794586725440-5 observedAtMs=3599829 capturedAtMs=3600122 verdict=CONSISTENT navKey= pkg=com.atavi.satu
+  174215  call verify-battery 368ms in=3259 out=38 cost=10347µ$ attempts=1 channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  175593  call battery 1375ms in=1701 out=99 cost=1756µ$ attempts=1 channel=HAIKU images=1
+  179038  call propose 3418ms in=3304 out=419 cost=4319µ$ attempts=1 channel=HAIKU images=1
+  179041  dispatch-refused #3 reason=NOT_DISPATCHED_OFF_PAGE: the foreground is NOT the browser - page-coordinate actions are refused (the touch would land in another app)
+  179042  vision subtask 1: step 1 FAILED (NOT_DISPATCHED_OFF_PAGE: the foreground is NOT the browser - page-coordinate actions are refused (the touch would land in another app) - zero executor calls (the recovery decision owns the off-page state))
+  213589  screenshot #0 705x1567 scope=window:org.chromium.webview_shell:id=842:bounds=0,0,1080,2400 sha256=f96ac62fc96a4a75 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794586725440/screen-0000.jpg
+  213614  snapshot id=snap-task-1794586725440-7 parent=snap-task-1794586725440-6 observedAtMs=3640984 capturedAtMs=3641048 verdict=CONSISTENT navKey=about pkg=org.chromium.webview_shell
+  213848  call verify-battery 226ms in=3424 out=38 cost=10842µ$ attempts=1 channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  215297  call battery 1447ms in=1701 out=99 cost=1756µ$ attempts=1 channel=HAIKU images=1
+  217891  call propose 2589ms in=3457 out=358 cost=4197µ$ attempts=1 channel=HAIKU images=1
+  218145  call ground 245ms in=6530 out=50 cost=20340µ$ attempts=1 channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  218146  jev box below PARTIAL (iou=0.01 < 0.20) — haiku-box fallback
+  218146  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.65
+  218148  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  220241  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.atavi.satu' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  220246  dispatch-refused #4 reason=NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.atavi.satu' is not an allowlisted browser
+  220253  vision subtask 1: step 0 FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.atavi.satu' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  221761  screenshot #1 705x1567 scope=display:log-excluded sha256=ceae7bfb8ee00ef7 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794586725440/screen-0001.jpg
+  223596  screenshot #1 705x1567 scope=display:log-excluded sha256=deecf45afc38a6ff -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794586725440/screen-0001.jpg
+  225664  snapshot id=snap-task-1794586725440-8 parent=snap-task-1794586725440-7 observedAtMs=3649808 capturedAtMs=3650235 verdict=CONSISTENT_AFTER_RETRY navKey= pkg=com.atavi.satu
+  225970  call verify-battery 303ms in=3263 out=38 cost=10359µ$ attempts=1 channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  227915  call battery 1942ms in=1701 out=231 cost=2284µ$ attempts=1 channel=HAIKU images=1
+  231385  call propose 3465ms in=3304 out=514 cost=4699µ$ attempts=1 channel=HAIKU images=1
+  231385  dispatch-refused #5 reason=NOT_DISPATCHED_OFF_PAGE: the foreground is NOT the browser - page-coordinate actions are refused (the touch would land in another app)
+  231385  vision subtask 1: step 1 FAILED (NOT_DISPATCHED_OFF_PAGE: the foreground is NOT the browser - page-coordinate actions are refused (the touch would land in another app) - zero executor calls (the recovery decision owns the off-page state))
+  275716  screenshot #0 705x1567 scope=window:org.chromium.webview_shell:id=842:bounds=0,0,1080,2400 sha256=f96ac62fc96a4a75 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794586725440/screen-0000.jpg
+  275768  snapshot id=snap-task-1794586725440-9 parent=snap-task-1794586725440-8 observedAtMs=3703100 capturedAtMs=3703156 verdict=CONSISTENT navKey=about pkg=org.chromium.webview_shell
+  276012  call verify-battery 237ms in=3423 out=38 cost=10839µ$ attempts=1 channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  277580  call battery 1566ms in=1701 out=99 cost=1756µ$ attempts=1 channel=HAIKU images=1
+  280161  call propose 2579ms in=3457 out=398 cost=4357µ$ attempts=1 channel=HAIKU images=1
+  280391  call ground 227ms in=6525 out=50 cost=20325µ$ attempts=1 channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  280391  jev box below PARTIAL (iou=0.01 < 0.20) — haiku-box fallback
+  280392  cross-check: haiku box conf=0.95 iou-vs-jev-rect=0.62
+  280392  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  281115  dispatch verb=tap target=1e0ac92228d6 route=label match gate=ungated guard=ALLOW conf=0.95 iou=1.00
+  281866  screenshot #1 862x1045 scope=window:org.chromium.webview_shell:id=904:bounds=218,294,1080,1339 sha256=120d29615bbaf786 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794586725440/screen-0001.jpg
+  282396  snapshot id=snap-task-1794586725440-10 parent=snap-task-1794586725440-9 observedAtMs=3708899 capturedAtMs=3709157 verdict=CONSISTENT navKey= pkg=org.chromium.webview_shell
+  282399  DIAG receipt v=Verified(postcondition=TARGET_STATE_CHANGED) hashBefore=1219336639 hashAfter=-1306181682 verb=tap
+  282400  postcondition verified: TargetStateChanged after tap '-'
+  282400  receipt verb=tap dispatch=EXECUTED verdict=VERIFIED postcondition=TargetStateChanged hashBefore=1219336639 hashAfter=-1306181682
+  282401  context host=unknown transition=UNKNOWN
+  282729  call verify-battery 321ms in=2913 out=38 cost=9309µ$ attempts=1 channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  284611  call battery 1854ms in=1423 out=249 cost=2134µ$ attempts=1 channel=HAIKU images=1
+  286956  call propose 2343ms in=3226 out=271 cost=3664µ$ attempts=1 channel=HAIKU images=1
+  287232  call ground 273ms in=3080 out=33 cost=9735µ$ attempts=1 channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  287947  dispatch verb=back target=cbe5cfdf7c21 route=none gate=ungated guard=ALLOW conf=0.00
+  288377  screenshot #2 705x1567 scope=window:org.chromium.webview_shell:id=842:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794586725440/screen-0002.jpg
+  288409  snapshot id=snap-task-1794586725440-11 parent=snap-task-1794586725440-10 observedAtMs=3715729 capturedAtMs=3715793 verdict=CONSISTENT navKey=about pkg=org.chromium.webview_shell
+  288409  DIAG receipt v=Verified(postcondition=CHROME_UI_STATE_CHANGED) hashBefore=-1306181682 hashAfter=1219336639 verb=back
+  288410  postcondition verified: ChromeUiStateChanged after back '-'
+  288411  receipt verb=back dispatch=EXECUTED verdict=VERIFIED postcondition=ChromeUiStateChanged hashBefore=-1306181682 hashAfter=1219336639
+  288412  context host=about transition=UNKNOWN
+  288642  call verify-battery 227ms in=3422 out=38 cost=10836µ$ attempts=1 channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  289812  call battery 1167ms in=1701 out=99 cost=1756µ$ attempts=1 channel=HAIKU images=1
+  292168  call propose 2353ms in=3457 out=316 cost=4029µ$ attempts=1 channel=HAIKU images=1
+  292407  call ground 237ms in=6521 out=50 cost=20313µ$ attempts=1 channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  292407  jev box below PARTIAL (iou=0.01 < 0.20) — haiku-box fallback
+  292407  cross-check: haiku box conf=0.93 iou-vs-jev-rect=0.62
+  292408  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  293128  dispatch verb=tap target=1e0ac92228d6 route=label match gate=ungated guard=ALLOW conf=0.93 iou=1.00
+  293327  screenshot #3 862x1045 scope=window:org.chromium.webview_shell:id=905:bounds=218,294,1080,1339 sha256=120d29615bbaf786 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794586725440/screen-0003.jpg
+  293392  snapshot id=snap-task-1794586725440-12 parent=snap-task-1794586725440-11 observedAtMs=3720911 capturedAtMs=3721048 verdict=CONSISTENT navKey= pkg=org.chromium.webview_shell
+  293393  DIAG receipt v=Verified(postcondition=TARGET_STATE_CHANGED) hashBefore=1219336639 hashAfter=-1306181682 verb=tap
+  293393  postcondition verified: TargetStateChanged after tap '-'
+  293393  receipt verb=tap dispatch=EXECUTED verdict=VERIFIED postcondition=TargetStateChanged hashBefore=1219336639 hashAfter=-1306181682
+  293393  context host=unknown transition=UNKNOWN
+  293684  call verify-battery 286ms in=2914 out=38 cost=9312µ$ attempts=1 channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  295758  call battery 2073ms in=1423 out=281 cost=2262µ$ attempts=1 channel=HAIKU images=1
+  298378  call propose 2611ms in=3226 out=348 cost=3972µ$ attempts=1 channel=HAIKU images=1
+  298664  call ground 282ms in=3100 out=33 cost=9795µ$ attempts=1 channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  299385  dispatch verb=back target=cbe5cfdf7c21 route=none gate=ungated guard=ALLOW conf=0.00
+  299816  screenshot #4 705x1567 scope=window:org.chromium.webview_shell:id=842:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794586725440/screen-0004.jpg
+  299837  snapshot id=snap-task-1794586725440-13 parent=snap-task-1794586725440-12 observedAtMs=3727168 capturedAtMs=3727226 verdict=CONSISTENT navKey=about pkg=org.chromium.webview_shell
+  299838  DIAG receipt v=Verified(postcondition=CHROME_UI_STATE_CHANGED) hashBefore=-1306181682 hashAfter=1219336639 verb=back
+  299839  postcondition verified: ChromeUiStateChanged after back '-'
+  299840  receipt verb=back dispatch=EXECUTED verdict=VERIFIED postcondition=ChromeUiStateChanged hashBefore=-1306181682 hashAfter=1219336639
+  299840  context host=about transition=UNKNOWN
+  300209  call verify-battery 363ms in=3424 out=38 cost=10842µ$ attempts=1 channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  301770  call battery 1560ms in=1701 out=200 cost=2160µ$ attempts=1 channel=HAIKU images=1
+  304143  call propose 2370ms in=3457 out=363 cost=4217µ$ attempts=1 channel=HAIKU images=1
+  304404  call ground 258ms in=6538 out=50 cost=20364µ$ attempts=1 channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  304405  jev box below PARTIAL (iou=0.00 < 0.20) — haiku-box fallback
+  304405  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.86
+  304405  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  304407  vision subtask 1: step 4 FAILED (type grounding refused - the ground node n3 is not editable and no editable field could be resolved at its centre (1003,257) (NO_FIELD_AT_POINT); refusing the doomed enterText)
+  304781  screenshot #5 705x1567 scope=window:org.chromium.webview_shell:id=842:bounds=0,0,1080,2400 sha256=ca178941f08b47a5 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794586725440/screen-0005.jpg
+  304803  snapshot id=snap-task-1794586725440-14 parent=snap-task-1794586725440-13 observedAtMs=3732190 capturedAtMs=3732243 verdict=CONSISTENT navKey=about pkg=org.chromium.webview_shell
+  307159  call propose 2344ms in=3457 out=331 cost=4089µ$ attempts=1 channel=HAIKU images=1
+  307441  call ground 281ms in=6530 out=50 cost=20340µ$ attempts=1 channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  307442  jev box below PARTIAL (iou=0.01 < 0.20) — haiku-box fallback
+  307442  cross-check: haiku box conf=0.90 iou-vs-jev-rect=0.73
+  307442  haiku box below PARTIAL (iou=0.00 < 0.20) — label match
+  308195  dispatch verb=tap target=1e0ac92228d6 route=label match gate=ungated guard=ALLOW conf=0.90 iou=1.00
+  308984  screenshot #6 862x1045 scope=window:org.chromium.webview_shell:id=906:bounds=218,294,1080,1339 sha256=120d29615bbaf786 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794586725440/screen-0006.jpg
+  309619  snapshot id=snap-task-1794586725440-15 parent=snap-task-1794586725440-14 observedAtMs=3735998 capturedAtMs=3736606 verdict=CONSISTENT navKey= pkg=org.chromium.webview_shell
+  309619  DIAG receipt v=Verified(postcondition=TARGET_STATE_CHANGED) hashBefore=1219336639 hashAfter=-1306181682 verb=tap
+  309620  postcondition verified: TargetStateChanged after tap '-'
+  309620  receipt verb=tap dispatch=EXECUTED verdict=VERIFIED postcondition=TargetStateChanged hashBefore=1219336639 hashAfter=-1306181682
+  309620  context host=unknown transition=UNKNOWN
+  310353  call verify-battery 727ms in=2913 out=38 cost=9309µ$ attempts=1 channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  312121  call battery 1765ms in=1423 out=221 cost=2022µ$ attempts=1 channel=HAIKU images=1
+  314472  call propose 2347ms in=3226 out=302 cost=3788µ$ attempts=1 channel=HAIKU images=1
+  314785  call ground 307ms in=3081 out=33 cost=9738µ$ attempts=1 channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  317160  pre-dispatch refusal: NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.atavi.satu' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry)
+  317160  dispatch-refused #6 reason=NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.atavi.satu' is not an allowlisted browser
+  317161  vision subtask 1: step 6 FAILED (NOT_DISPATCHED_WRONG_WINDOW: active window package 'com.atavi.satu' is not an allowlisted browser - zero executor calls (the existing failed-step/re-plan gate owns the bounded retry))
+  317929  screenshot #7 705x1567 scope=display:log-excluded sha256=2322bc86102c50d9 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794586725440/screen-0007.jpg
+  318398  snapshot id=snap-task-1794586725440-16 parent=snap-task-1794586725440-15 observedAtMs=3744943 capturedAtMs=3745095 verdict=CONSISTENT navKey= pkg=com.atavi.satu
+  318809  call verify-battery 404ms in=3264 out=38 cost=10362µ$ attempts=1 channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+  320849  call battery 2008ms in=1701 out=197 cost=2148µ$ attempts=1 channel=HAIKU images=1
+  324661  call propose 3787ms in=3304 out=533 cost=4775µ$ attempts=1 channel=HAIKU images=1
+  324661  dispatch-refused #7 reason=NOT_DISPATCHED_OFF_PAGE: the foreground is NOT the browser - page-coordinate actions are refused (the touch would land in another app)
+  324661  vision subtask 1: step 7 FAILED (NOT_DISPATCHED_OFF_PAGE: the foreground is NOT the browser - page-coordinate actions are refused (the touch would land in another app) - zero executor calls (the recovery decision owns the off-page state))
+  355048  terminal=STUCK_KILL steps=0 replans=2 modality=HYBRID calls=57 jev=24 haiku=33 images=57 battery=28 escalations=5

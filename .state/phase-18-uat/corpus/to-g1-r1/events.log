@@ -1,0 +1,19 @@
+       1  run start goal=<open http://10.0.2.2:8099/r2-site-a-home.html and report the page headline> budget=100x writer=true schema=ev-2 engine=ALWAYS_VISION perception=snapshot-verified goalContract=gc-1
+     423  screenshot #0 705x1567 scope=window:org.chromium.webview_shell:id=75:bounds=0,0,1080,2400 sha256=758d9800894e40c9 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794580482918/screen-0000.jpg
+     602  snapshot id=snap-task-1794580482918-1 parent=none observedAtMs=109612394 capturedAtMs=109612526 verdict=CONSISTENT navKey=10.0.2.2 pkg=org.chromium.webview_shell
+    5552  call plan 4946ms in=4576 out=704 cost=6476µ$ attempts=1 channel=HAIKU images=1
+    5592  plan: Confirm the Site A page at the given URL is loaded and report its headline. (1 subtasks, READ)
+    5926  screenshot #1 705x1567 scope=window:org.chromium.webview_shell:id=75:bounds=0,0,1080,2400 sha256=758d9800894e40c9 -> /storage/emulated/0/Android/data/navigator.app/files/run-reports/vision-exp/task-1794580482918/screen-0001.jpg
+    6056  snapshot id=snap-task-1794580482918-2 parent=snap-task-1794580482918-1 observedAtMs=109617985 capturedAtMs=109618097 verdict=CONSISTENT navKey=10.0.2.2 pkg=org.chromium.webview_shell
+    6097  site entry: destination host recorded (10.0.2.2:8099)
+    7320  call extract 1219ms in=1924 out=12 cost=1587µ$ attempts=1 channel=HAIKU images=1
+    7321  report extraction ran (answer The page headline is "Site A".)
+    8488  call verify-battery 1125ms in=3548 out=38 cost=11214µ$ attempts=1 channel=JEV images=1 endpoint=https://api.typesafe.ai/v1/systemone model=jev-1.14.0
+    9782  call battery 1293ms in=1692 out=90 cost=1713µ$ attempts=1 channel=HAIKU images=1
+    9978  call verify-noul 193ms in=637 out=20 cost=2211µ$ attempts=1 channel=JEV
+   11602  call confirm 1584ms in=1997 out=153 cost=2209µ$ attempts=1 channel=HAIKU images=1
+   11606  subtask 1 done: Load http://10.0.2.2:8099/r2-site-a-home.html in the browser Opinions(noul=0.88, confirm=true, render=[AGREE(0.88) confirm=true])
+   11609  final-verifier verdict=ACCEPT
+   11610  GOAL_ACHIEVED after 0 steps
+   11612  run-summary schema=ev-2 verified=1 invalidated=0 noEffect=0 wrongContext=0 staleRefusals=0 ownerInterventions=0 rollbacks=0 recoveries=0 replans=0 calls=6 elapsedMs=11612 spendKnownMicroUsd=25410 spendUnknownCalls=0 captureDegradations=0 finalVerifier=ACCEPT
+   11612  terminal=GOAL_ACHIEVED steps=0 replans=0 modality=VISION calls=6 jev=2 haiku=4 images=5 battery=2 escalations=0 schema=ev-2 rollbacks=0 captureDegradations=0 answer=The page headline is "Site A".
