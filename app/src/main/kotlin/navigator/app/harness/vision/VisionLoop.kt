@@ -6,6 +6,7 @@ import navigator.app.loop.ActionExecutor
 import navigator.app.loop.ActionPostconditionChecker
 import navigator.app.loop.ActionReceipt
 import navigator.app.loop.BrowserRecoveryController
+import navigator.app.loop.CompletionEvidenceSupport
 import navigator.app.loop.ExpectedEffect
 import navigator.app.loop.ExecutionRequest
 import navigator.app.loop.FinalGoalVerifier
@@ -764,6 +765,15 @@ class VisionLoop(
      */
     internal var finalVerifierInvocations: Int = 0
         private set
+
+    /**
+     * PHASE_18 Stage 18.E — the shared-record probe (JVM-pinnable wiring assertion): the
+     * ONE [VisionEvidence] this loop records into. The hybrid route's law is that the
+     * tool's loop, the host's writer surfaces and the host's terminal funnel share ONE
+     * instance — the route gate asserts `parts.loop.evidenceRecord === parts.evidence`
+     * (a second instance would report a zero ledger — the truthfulness law).
+     */
+    internal val evidenceRecord: VisionEvidence get() = evidence
 
     /**
      * PHASE_18 CN-02 — the snapshot the CURRENT decision consumed (set by
@@ -4263,18 +4273,17 @@ class VisionLoop(
         answersProduced: Int,
     ): Boolean = DoneConditionChecker.satisfied(condition, checkerEvidence(obs, counters, answersProduced))
 
+    /**
+     * PHASE_18 Stage 18.E part 1 — the assembly delegates to the SHARED
+     * [CompletionEvidenceSupport] (the byte-identical extraction both perception tools
+     * consume; the hybrid host assembles the same bundle for the ONE verifier).
+     */
     private fun checkerEvidence(
         obs: StepObservation,
         counters: Map<String, Int>,
         answersProduced: Int,
-    ): DoneConditionChecker.Evidence = DoneConditionChecker.Evidence(
-        url = obs.url.takeUnless { it == "hidden" || it == "unavailable" },
-        title = obs.title,
-        pageText = obs.lines + obs.excerpt,
-        candidateLabels = CandidateEnumerator.enumerate(obs.nodes).flat.map { it.label },
-        counters = counters,
-        answersProduced = answersProduced,
-    )
+    ): DoneConditionChecker.Evidence =
+        CompletionEvidenceSupport.checkerEvidence(obs, counters, answersProduced)
 
     // -- PHASE_18 Stage 18.C CN-06/CN-07: the runtime-state + verifier assembly ----------
 
@@ -4285,26 +4294,11 @@ class VisionLoop(
      * over the given observation; page-derived data only (doc 06 §2a).
      */
     private fun provingEvidence(condition: DoneCondition, obs: StepObservation): ProvingEvidence =
-        ProvingEvidence(
-            condition = condition,
-            snapshotRef = "hash=${obs.screenHash}",
-            hostContext = readableHost(obs),
-            timestampMs = System.currentTimeMillis(),
-            evidenceType = when (condition) {
-                is DoneCondition.UrlHost, is DoneCondition.UrlContains -> ProofEvidenceType.URL_BAR
-                is DoneCondition.CountReached -> ProofEvidenceType.WORKING_MEMORY
-                is DoneCondition.AnswerExtracted -> ProofEvidenceType.EXTRACTION_RECORD
-                else -> ProofEvidenceType.SNAPSHOT_TEXT
-            },
-            evidenceText = (listOf(obs.title, obs.url) + obs.lines.take(12))
-                .joinToString(" ").take(400),
-        )
+        CompletionEvidenceSupport.provingEvidence(condition, obs)
 
     /** Whether the current working memory still carries the key a count condition reads. */
     private fun countKeyPresent(condition: DoneCondition, counters: Map<String, Int>): Boolean =
-        condition !is DoneCondition.CountReached ||
-            counters.containsKey(condition.target) ||
-            counters.containsKey(DoneConditionChecker.WORKING_MEMORY_KEY)
+        CompletionEvidenceSupport.countKeyPresent(condition, counters)
 
     /**
      * PHASE_VEXP7 WI2 — ONE bounded condition-repair turn for the CURRENT (active subtask,
@@ -4431,12 +4425,9 @@ class VisionLoop(
     }
 
     /** The current page's URL host under the checker's normalization; null = unreadable. */
-    private fun readableHost(obs: StepObservation): String? {
-        val url = obs.url.takeUnless { it == "hidden" || it == "unavailable" } ?: return null
-        val normalized = DoneConditionChecker.normalizeUrl(url) ?: return null
-        val host = normalized.substringBefore('/').substringBefore('?').substringBefore('#')
-        return host.takeIf { it.isNotBlank() && it.contains('.') }
-    }
+    /** The normalized current host (the SHARED assembly — Stage 18.E part 1). */
+    private fun readableHost(obs: StepObservation): String? =
+        CompletionEvidenceSupport.readableHost(obs)
 
 
     /**

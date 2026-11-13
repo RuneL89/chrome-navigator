@@ -62,6 +62,7 @@ import navigator.core.log.toLoggedBand
 import navigator.core.decision.NoulResult
 import navigator.core.ladder.DoneCondition
 import navigator.core.ladder.DoneConditionChecker
+import navigator.core.ladder.GoalContract
 import navigator.core.ladder.Ladder
 import navigator.core.ladder.LadderTaskClass
 import navigator.core.ladder.PrefixAudit
@@ -325,6 +326,19 @@ class NavigationLoop(
     private var failuresSinceAdvance = 0
 
     /**
+     * PHASE_18 Stage 18.E — how an [applyLadder] install rebuilds the shared
+     * runtime states (the method-size discipline: a class-level enum, not a local one).
+     */
+    private enum class RuntimeStateMode {
+        /** The generation-1 install: fresh PENDING states (no previous generation). */
+        FRESH,
+        /** A re-plan: map the previous generation's proofs by contract/content. */
+        MAP,
+        /** A rollback of the SAME ladder: the states stay (the audit invalidates). */
+        KEEP,
+    }
+
+    /**
      * PHASE_17 Stage 0.8 — the action key banned for the current subtask (the R1-PT
      * five-submit loop, NB-2). Set when the same-action binding trips (at L1 or L2); the
      * stage-2 slate excludes its candidate for the rest of the subtask, so the recovery
@@ -363,6 +377,35 @@ class NavigationLoop(
      * escalation site ([tryVisionEscape]'s flip).
      */
     private var visionEscalations = 0
+
+    /**
+     * PHASE_18 Stage 18.E — THE SHARED RUNTIME-PREFIX CONTRACT (doc 04 §9.5; the
+     * 18.C deferral closed): the host's pointer keeps its runtime states under the SAME
+     * [SubtaskRuntimeState] contract the vision loop keeps — a verified advance appends
+     * its proving evidence ([CompletionEvidenceSupport.provingEvidence]), the prefix
+     * audit's invalidations APPEND their reasons (proof history is never deleted), and
+     * re-plans map the previous generation's proofs by contract/content
+     * ([PrefixAuditor.mapNewLadder] — the writer's ordinal claim is never proof).
+     * Consumed by the ONE [FinalGoalVerifier] at every hybrid success terminal.
+     * Rebuilt per run and per plan install.
+     */
+    private val runtimeStates = mutableListOf<SubtaskRuntimeState>()
+
+    /**
+     * PHASE_18 Stage 18.E — the immutable GOAL CONTRACT (CN-05, doc 04 §9.4):
+     * built deterministically from the raw goal BEFORE any navigation and reused
+     * unchanged across re-plans; the final verifier's parameter check consumes it.
+     */
+    private var goalContract: GoalContract? = null
+
+    /**
+     * PHASE_18 Stage 18.E (18.E3) — the test counting hook (the VisionLoop precedent):
+     * every SUCCESSFUL hybrid terminal increments this EXACTLY ONCE at its single
+     * [FinalGoalVerifier] call, so the JVM gates pin the one-verifier law. TREE_ONLY /
+     * legacy runs never increment (no gate on their paths — byte-identical).
+     */
+    internal var finalVerifierInvocations: Int = 0
+        private set
 
     /**
      * THE MANDATORY TERMINAL LINE (doc 05 §2 — ART-3): the ONE write site is the run
@@ -563,6 +606,15 @@ class NavigationLoop(
         failuresSinceAdvance = 0
         bannedActionKey = null
         lastActionWasBack = false
+        // PHASE_18 Stage 18.E: the shared runtime-prefix contract + the immutable
+        // goal contract are PER-RUN facts (the same reset contract as the class fields
+        // above). The verifier hook counts this run's success-terminal verifications.
+        goalContract = GoalContract.fromGoal(goal)
+        runtimeStates.clear()
+        finalVerifierInvocations = 0
+        // The observation reference the produced answer was extracted FROM (the final
+        // verifier's check 5 — "tied to a source observation").
+        var answerSourceRef: String? = null
 
         // -- the task ladder (Phase 10, vision 04 §1 v1.4.0) ---------------------------
         // When [ladderSource] is wired, EVERY goal restructures before any navigation:
@@ -1124,6 +1176,17 @@ class NavigationLoop(
             LadderTaskClass.MULTI -> TriageClass.ACTION_MULTI
         }
 
+        /** The working-memory evidence the code-side IS-DONE checker reads (all code-read facts). */
+        fun ladderEvidence(o: StepObservation, candidates: CandidateList): DoneConditionChecker.Evidence =
+            DoneConditionChecker.Evidence(
+                url = o.url,
+                title = o.title,
+                pageText = o.lines + o.excerpt,
+                candidateLabels = candidates.flat.map { it.label },
+                counters = mapOf(DoneConditionChecker.WORKING_MEMORY_KEY to (tracker?.processedCount() ?: 0)),
+                answersProduced = reportAnswers.size,
+            )
+
         /**
          * (Re)builds the per-ladder machinery from a VALIDATED ladder (ART-4: code
          * derives everything from the whitelist shapes — the class mapping, the guards,
@@ -1132,13 +1195,89 @@ class NavigationLoop(
          * budget is untouched by re-planning (vision 04 §5 v1.4.0); the first-derived
          * profile stays the task's frame.
          */
-        fun applyLadder(newLadder: Ladder, version: String, reKeyTo: Int = 0) {
+        /** How [applyLadder] rebuilds the shared runtime states (Stage 18.E). */
+        fun applyLadder(
+            newLadder: Ladder,
+            version: String,
+            reKeyTo: Int = 0,
+            runtimeStateMode: RuntimeStateMode = RuntimeStateMode.KEEP,
+        ) {
             ladder = newLadder
             pointer = SubtaskPointer(newLadder)
             // Phase 10D (doc 04 §1 v1.8.0): RESUME, never restart — a re-plan re-keys the
             // pointer to the first unfinished subtask (the verified prefix is byte-frozen
             // by ReplanRule, so re-verifying it would be pure re-work).
             repeat(reKeyTo) { pointer!!.advance() }
+            // PHASE_18 Stage 18.E — the SHARED runtime-prefix contract (doc 04
+            // §9.5): a fresh ladder builds PENDING states; a re-plan's claimed prefix is
+            // MAPPED to the runtime evidence (instruction + done-condition content match,
+            // the proof still revalidating under its policy) — the writer's ordinal claim
+            // is never proof, so the loop resumes at the FIRST subtask without valid
+            // current or recorded evidence. A rollback (KEEP) leaves the states to the
+            // audit's invalidation walk.
+            when (runtimeStateMode) {
+                RuntimeStateMode.FRESH -> {
+                    runtimeStates.clear()
+                    runtimeStates.addAll(
+                        newLadder.subtasks.mapIndexed { index, subtask ->
+                            SubtaskRuntimeState(index, subtask.instruction, subtask.done)
+                        },
+                    )
+                }
+
+                RuntimeStateMode.MAP -> {
+                    val obs = lastPost ?: lastObserved
+                    if (obs == null) {
+                        runtimeStates.clear()
+                        runtimeStates.addAll(
+                            newLadder.subtasks.mapIndexed { index, subtask ->
+                                SubtaskRuntimeState(index, subtask.instruction, subtask.done)
+                            },
+                        )
+                    } else {
+                        val counters = mapOf(
+                            DoneConditionChecker.WORKING_MEMORY_KEY to (tracker?.processedCount() ?: 0),
+                        )
+                        val mapped = PrefixAuditor.mapNewLadder(
+                            newLadder = newLadder,
+                            previous = runtimeStates.toList(),
+                            currentSatisfied = { condition ->
+                                DoneConditionChecker.satisfied(
+                                    condition,
+                                    ladderEvidence(obs, CandidateEnumerator.enumerate(obs.nodes)),
+                                )
+                            },
+                            currentHost = CompletionEvidenceSupport.readableHost(obs),
+                            currentSnapshotRef = "hash=${obs.screenHash}",
+                            timestampMs = clock.nowMs(),
+                            snapshotRef = "hash=${obs.screenHash}",
+                            countersPresent = { index ->
+                                newLadder.subtasks.getOrNull(index)?.let {
+                                    CompletionEvidenceSupport.countKeyPresent(it.done, counters)
+                                } ?: true
+                            },
+                            answersStillProduced = reportAnswers.isNotEmpty(),
+                        )
+                        runtimeStates.clear()
+                        runtimeStates.addAll(mapped.states)
+                        val claimed = reKeyTo.coerceAtMost(newLadder.subtasks.size - 1)
+                        if (mapped.resumeIndex != claimed) {
+                            // The evidence overrides the claim (PREFIX MAP, doc 04 §9.5).
+                            val fresh = SubtaskPointer(newLadder)
+                            repeat(mapped.resumeIndex) { fresh.advance() }
+                            pointer = fresh
+                            line(
+                                "ladder: PREFIX MAP: the re-plan claimed resume at subtask " +
+                                    "${claimed + 1}; the runtime evidence supports subtask " +
+                                    "${mapped.resumeIndex + 1} (the first subtask without valid " +
+                                    "current or recorded evidence)",
+                            )
+                        }
+                    }
+                }
+
+                RuntimeStateMode.KEEP -> {}
+            }
             ladderVersion = version
             triageClass = ladderTriageClass(newLadder.taskClass)
             triageLabel = triageClass!!.serial()
@@ -1229,17 +1368,6 @@ class NavigationLoop(
             activeSubtaskLine()?.let { uiListener?.onPlan(listOf(it)) }
         }
 
-        /** The working-memory evidence the code-side IS-DONE checker reads (all code-read facts). */
-        fun ladderEvidence(o: StepObservation, candidates: CandidateList): DoneConditionChecker.Evidence =
-            DoneConditionChecker.Evidence(
-                url = o.url,
-                title = o.title,
-                pageText = o.lines + o.excerpt,
-                candidateLabels = candidates.flat.map { it.label },
-                counters = mapOf(DoneConditionChecker.WORKING_MEMORY_KEY to (tracker?.processedCount() ?: 0)),
-                answersProduced = reportAnswers.size,
-            )
-
         /**
          * The code-side IS-DONE guard level over the ACTIVE subtask's done-condition —
          * the finish branch's EXACT computation, shared with the code-triggered check
@@ -1295,6 +1423,9 @@ class NavigationLoop(
          */
         suspend fun enterSubtask() {
             val p = pointer ?: return
+            // PHASE_18 Stage 18.E: the entered subtask is the runtime prefix's
+            // ACTIVE state (the shared contract the audits and the verifier read).
+            runtimeStates.getOrNull(p.index)?.markActive()
             val entryPlan = SiteEntry.plan(goalText, p.active.instruction, p.active.done, lastObserved?.url.orEmpty())
             if (entryPlan == null) {
                 line("ladder: subtask ${p.activeOrdinal}/${p.total} - no site entry (engine navigates)")
@@ -1320,12 +1451,81 @@ class NavigationLoop(
         }
 
         /**
+         * PHASE_17 Stage 0.1 — the completed-prefix audit (the R2 lost-site fix). After
+         * [PrefixAudit.FAILURES_BEFORE_AUDIT] failures since the last verified advance,
+         * re-check the completed conditions against the CURRENT page and roll the pointer
+         * back to the earliest false. The audit never runs a writer and never spends a
+         * re-plan: it is a code invariant, not a strategy change. Returns true when a
+         * rollback happened (the caller continues the loop instead of the card/re-plan).
+         *
+         * PHASE_18 Stage 18.E — the SHARED prefix contract (doc 04 §9.5): the
+         * decision is the evidence-scoped [PrefixAuditor] over the runtime states (the
+         * kept proofs revalidate by their condition-type policy — a page-local marker
+         * stays HISTORICAL after a lawful transition, no false rollback) and the
+         * invalidation APPENDS its reason to the rolled-back state (proof history is
+         * never deleted; the rollback line names BOTH the original proof and the reason).
+         */
+        suspend fun auditPrefixOrNull(): Boolean {
+            val currentLadder = ladder ?: return false
+            val p = pointer ?: return false
+            if (p.completedCount == 0) return false
+            val obs = lastPost ?: lastObserved ?: return false
+            val candidates = CandidateEnumerator.enumerate(obs.nodes)
+            val evidence = ladderEvidence(obs, candidates)
+            val invalid = PrefixAuditor.earliestInvalid(
+                states = runtimeStates,
+                activePointer = p.index,
+                currentSatisfied = { condition -> DoneConditionChecker.satisfied(condition, evidence) },
+                currentHost = CompletionEvidenceSupport.readableHost(obs),
+                currentSnapshotRef = "hash=${obs.screenHash}",
+                countersPresent = { index ->
+                    currentLadder.subtasks.getOrNull(index)?.let {
+                        CompletionEvidenceSupport.countKeyPresent(it.done, evidence.counters)
+                    } ?: true
+                },
+                answersStillProduced = reportAnswers.isNotEmpty(),
+            )
+            if (invalid == null) return false
+            val condition = invalid.conditionRender
+            line(
+                "ladder: PREFIX ROLLBACK: subtask ${invalid.index + 1}/${p.total} - \"$condition\" " +
+                    "no longer holds on the current page - re-entering it " +
+                    "(original proof: ${invalid.proofRender}; invalidated: ${invalid.reason})",
+            )
+            history.add("step $stepIndex: prefix rollback to subtask ${invalid.index + 1} - $condition")
+            runtimeStates.getOrNull(invalid.index)?.invalidate(
+                InvalidationRecord(
+                    reason = invalid.reason,
+                    snapshotRef = "hash=${obs.screenHash}",
+                    hostContext = CompletionEvidenceSupport.readableHost(obs),
+                    timestampMs = clock.nowMs(),
+                ),
+            )
+            for (i in invalid.index until runtimeStates.size) {
+                if (runtimeStates[i].state == SubtaskRuntimePhase.VERIFIED) runtimeStates[i].markPending()
+            }
+            applyLadder(currentLadder, ladderVersion ?: "unknown", reKeyTo = invalid.index)
+            failuresSinceAdvance = 0
+            lastFailureCause = null
+            publishLadderSurfaces()
+            enterSubtask()
+            return true
+        }
+
+        /**
          * One bounded re-plan (vision 04 §1 v1.4.0): at most [MAX_REPLANS] per task,
          * metered into the SEPARATE writer budget; the owner card's Re-plan draws the
          * SAME cap. Returns false when the re-plan refused (invalid ladder — treated as
          * no capacity) so the caller proceeds down the failure path.
          */
         suspend fun replan(): Boolean {
+            // PHASE_18 Stage 18.E (doc 04 §9.5): the prefix audit runs at the
+            // re-plan gate BEFORE the writer call — an invalid prefix takes the PREFIX
+            // ROLLBACK path (restoration before planning, the VisionLoop 18.C law)
+            // instead of spending re-plan capacity on a plan that would resume inside a
+            // lost site. A rollback returns false (no re-plan was spent; the loop
+            // continues over the re-entered subtask).
+            if (auditPrefixOrNull()) return false
             rePlansUsed += 1
             val generation = ladderGeneration + 1
             // Phase 10D (doc 04 §1 v1.8.0): the re-plan is INFORMED — the failure context
@@ -1378,7 +1578,12 @@ class NavigationLoop(
 
                 is ReplanSupport.Verdict.Accepted -> {
                     ladderGeneration = generation
-                    applyLadder(restructured.ladder, restructured.version, reKeyTo = verdict.reKeyTo)
+                    applyLadder(
+                        restructured.ladder,
+                        restructured.version,
+                        reKeyTo = verdict.reKeyTo,
+                        runtimeStateMode = RuntimeStateMode.MAP,
+                    )
                     verdict.lines.forEach { line(it) }
                     verdict.historyLine?.let { history.add("step $stepIndex: $it") }
                     lastFailureCause = null
@@ -1387,49 +1592,6 @@ class NavigationLoop(
                     return true
                 }
             }
-        }
-
-        /**
-         * PHASE_17 Stage 0.1 — the completed-prefix audit (the R2 lost-site fix). After
-         * [PrefixAudit.FAILURES_BEFORE_AUDIT] failures since the last verified advance,
-         * re-check the completed conditions against the CURRENT page and roll the pointer
-         * back to the earliest false. The audit never runs a writer and never spends a
-         * re-plan: it is a code invariant, not a strategy change. Returns true when a
-         * rollback happened (the caller continues the loop instead of the card/re-plan).
-         */
-        suspend fun auditPrefixOrNull(): Boolean {
-            val currentLadder = ladder ?: return false
-            val p = pointer ?: return false
-            if (p.completedCount == 0) return false
-            val obs = lastPost ?: lastObserved ?: return false
-            val evidence = ladderEvidence(obs, CandidateEnumerator.enumerate(obs.nodes))
-            val invalid = PrefixAudit.earliestInvalid(
-                currentLadder,
-                p.completedCount,
-                evidence,
-            ) { index ->
-                val subtask = currentLadder.subtasks[index]
-                val plan = SiteEntry.plan(goalText, subtask.instruction, subtask.done, obs.url)
-                val targetHost = plan?.url?.let {
-                    DoneConditionChecker.normalizeUrl(it)?.substringBefore('/')
-                }
-                val currentHost = DoneConditionChecker.normalizeUrl(obs.url)?.substringBefore('/')
-                targetHost != null && currentHost != null &&
-                    DoneConditionChecker.sameSiteFamily(targetHost, currentHost)
-            }
-            if (invalid == null) return false
-            val condition = DoneConditionChecker.render(currentLadder.subtasks[invalid].done)
-            line(
-                "ladder: PREFIX ROLLBACK: subtask ${invalid + 1}/${p.total} - \"$condition\" " +
-                    "no longer holds on the current page - re-entering it",
-            )
-            history.add("step $stepIndex: prefix rollback to subtask ${invalid + 1} - $condition")
-            applyLadder(currentLadder, ladderVersion ?: "unknown", reKeyTo = invalid)
-            failuresSinceAdvance = 0
-            lastFailureCause = null
-            publishLadderSurfaces()
-            enterSubtask()
-            return true
         }
 
         /**
@@ -1705,10 +1867,26 @@ class NavigationLoop(
          * changed), the overlay surfaces re-publish, and the outcome-based site entry
          * runs for the NEW active subtask. The caller consumes the step.
          */
-        suspend fun advanceAfterSubtaskAccept(verdict: ExitDecision.Accept, activePointer: SubtaskPointer) {
+        suspend fun advanceAfterSubtaskAccept(
+            verdict: ExitDecision.Accept,
+            activePointer: SubtaskPointer,
+            /** The observation the VERIFIED milestone's proof is read from (null = the loop's freshest). */
+            proofObs: StepObservation? = null,
+        ) {
             val finishedOrdinal = activePointer.activeOrdinal
             val finishedSubtask = activePointer.active
+            // PHASE_18 Stage 18.E — the kept proof (CN-06, doc 04 §9.5): the
+            // verified milestone keeps its condition + proving snapshot + host context +
+            // timestamp + evidence type; the audits and the ONE final verifier revalidate
+            // it. The finished subtask's condition is the pointer's CURRENT one (the
+            // honesty repair may have replaced it — the repaired condition is what held).
+            (proofObs ?: lastPost ?: lastObserved)?.let { obs ->
+                runtimeStates.getOrNull(finishedOrdinal - 1)?.markVerified(
+                    CompletionEvidenceSupport.provingEvidence(finishedSubtask.done, obs),
+                )
+            }
             activePointer.advance()
+            runtimeStates.getOrNull(activePointer.index)?.markActive()
             exitPolicy = ExitPolicy() // fresh per-subtask exit discipline
             consecutiveSubtaskFailures = 0
             failuresSinceAdvance = 0 // a verified advance: the prefix audit starts clean
@@ -1805,6 +1983,9 @@ class NavigationLoop(
                         }
                     }
                     extractedAnswer = extracted
+                    // PHASE_18 Stage 18.E: the source observation the answer was read
+                    // from (the final verifier's check 5 — "tied to a source observation").
+                    answerSourceRef = "hash=${finalObs.screenHash}"
                     line(
                         "extract: answer phrased (${extracted.promptVersion}, " +
                             "${extracted.inputTokens}+${extracted.outputTokens} " +
@@ -1832,6 +2013,20 @@ class NavigationLoop(
             // account. The a11y engine's own final subtask DOES carry the account token
             // (GoalFidelity validated the ladder at build), so the a11y path needs no
             // extra evidence: the condition check that just passed was the account's.
+            // (Stage 18.E: for the HYBRID this re-check is SUBSUMED by the shared final
+            // verifier's class-evidence check at the caller — the account need not be
+            // visible on an unrelated final page; the VERIFIED switching subtask's kept
+            // proof is the recorded evidence.)
+            // PHASE_18 Stage 18.E (CN-06): the FINAL subtask's verified milestone
+            // keeps its proof like every other advance (the runtime prefix's end state
+            // the evidence run summary reconciles against).
+            (lastPost ?: lastObserved)?.let { obs ->
+                pointer?.let { p ->
+                    runtimeStates.getOrNull(p.index)?.markVerified(
+                        CompletionEvidenceSupport.provingEvidence(p.active.done, obs),
+                    )
+                }
+            }
             exitSummary = ExitSummary(
                 path = verdict.path.name,
                 guardLevel = verdict.guardLevel.name,
@@ -1930,7 +2125,7 @@ class NavigationLoop(
                 if (check != WriterBudget.Check.OK) softWarnings.add("writer budget ${check.name}")
             }
             ladderGeneration = 1
-            applyLadder(restructured.ladder, restructured.version)
+            applyLadder(restructured.ladder, restructured.version, runtimeStateMode = RuntimeStateMode.FRESH)
             line(
                 "ladder: ${restructured.version} - ${restructured.ladder.subtasks.size} subtask(s), " +
                     "class ${serialNameOf(LadderTaskClass.serializer(), restructured.ladder.taskClass)}, " +
@@ -1975,17 +2170,97 @@ class NavigationLoop(
 
         // -- PHASE_17 Stage 1: the hybrid escalation (the vision tool) ------------------
 
+        // -- PHASE_18 Stage 18.E: THE SHARED FINAL VERIFIER (18.E3, doc 04 §9.6) --
+        // The hybrid host's OWN completion terminals pass through the ONE verifier the
+        // vision loop uses: the §8 boundary's success (the tool's final-subtask accept)
+        // and both a11y accept entries. A deficient verification returns to the
+        // controller with the deficiency — never a false GOAL_ACHIEVED.
+
+        /**
+         * The [GoalCompletionEvidence] bundle from the host's OWN state — the SAME
+         * assembly contract the vision loop uses (the shared [CompletionEvidenceSupport]
+         * helpers over the shared runtime states + the immutable goal contract).
+         */
+        fun hybridCompletionEvidence(obs: StepObservation): GoalCompletionEvidence {
+            val l = requireNotNull(ladder) { "the final verifier runs only on ladder paths" }
+            val contract = requireNotNull(goalContract) {
+                "the goal contract is missing at a hybrid success path (CN-05)"
+            }
+            val counters = mapOf(
+                DoneConditionChecker.WORKING_MEMORY_KEY to (tracker?.processedCount() ?: 0),
+            )
+            return GoalCompletionEvidence(
+                goalText = contract.goalText,
+                ladder = l,
+                contract = contract,
+                observationTitle = obs.title,
+                observationUrl = obs.url.takeUnless { it == "hidden" || it == "unavailable" },
+                observationLines = obs.lines,
+                currentHost = CompletionEvidenceSupport.readableHost(obs),
+                currentSnapshotRef = "hash=${obs.screenHash}",
+                checkerEvidence = CompletionEvidenceSupport.checkerEvidence(obs, counters, reportAnswers.size),
+                runtimeStates = runtimeStates.toList(),
+                answer = extractedAnswer?.text,
+                answerSource = answerSourceRef,
+            )
+        }
+
+        /**
+         * THE ONE gate: runs the shared [FinalGoalVerifier] EXACTLY ONCE for a hybrid
+         * success terminal, records the verdict in the shared evidence record, and says
+         * whether the completion may stand. Null-tool runs (TREE_ONLY, the legacy path)
+         * are ungated and byte-identical. The CALLER owns the deficiency's controller
+         * routing (the tool accept feeds the failure path; the a11y accepts count the
+         * failure and keep the loop working — the VisionLoop precedent).
+         */
+        fun gateHybridCompletion(obs: StepObservation): Boolean {
+            if (visionTool == null) return true // TREE_ONLY / legacy: no gate, byte-identical
+            finalVerifierInvocations += 1
+            return when (val verdict = FinalGoalVerifier.verify(hybridCompletionEvidence(obs))) {
+                is FinalGoalVerifier.Verdict.Accept -> {
+                    runEvidence?.finalVerifierRecord(accepted = true, deficiencies = emptyList())
+                    line("exit: the final verifier ACCEPTS the completion (the one-verifier law, doc 04 §9.6)")
+                    true
+                }
+
+                is FinalGoalVerifier.Verdict.Deficient -> {
+                    runEvidence?.finalVerifierRecord(accepted = false, deficiencies = verdict.deficiencies)
+                    line("exit: ACCEPT REFUSED: " + verdict.deficiencies.joinToString("; "))
+                    history.add(
+                        "step $stepIndex: final verification deficient - the run keeps working: " +
+                            verdict.deficiencies.firstOrNull().orEmpty(),
+                    )
+                    false
+                }
+            }
+        }
+
         /**
          * The vision tool's ACCEPT: the tool evidenced the ACTIVE subtask's outcome, so
          * the host advances through the SAME verified-subtask machinery the a11y accept
          * uses ([advanceAfterSubtaskAccept] — one reset path, never two). The FINAL
          * subtask concludes the goal. The modality resets to TREE: the next subtask
          * starts on the tree (the target loop's law).
+         *
+         * PHASE_18 Stage 18.E (18.E3): the FINAL accept is a hybrid success terminal —
+         * it passes the ONE shared final verifier on a FRESH observation (the host's own
+         * reads predate the tool's actions on the live page). A deficient verification
+         * returns to the controller with the deficiency (the existing failure/re-plan
+         * path) — never a false GOAL_ACHIEVED.
          */
         suspend fun acceptVisionSubtask(visionSteps: Int, noul: Double): RunResult? {
             val p = pointer ?: return null
             val l = ladder ?: return null
             if (p.index == l.subtasks.lastIndex) {
+                val fresh = observer.observe()
+                if (!gateHybridCompletion(fresh)) {
+                    return handleSubtaskFailureOrKill(
+                        "final verification: the completion evidence is deficient (see the step log)",
+                    )
+                }
+                runtimeStates.getOrNull(p.index)?.markVerified(
+                    CompletionEvidenceSupport.provingEvidence(p.active.done, fresh),
+                )
                 return finish(
                     TerminalState.GOAL_ACHIEVED,
                     "the vision tool evidenced the final subtask " +
@@ -1993,7 +2268,11 @@ class NavigationLoop(
                     stepIndex + 1,
                 )
             }
-            advanceAfterSubtaskAccept(ExitDecision.Accept(ExitPath.HIGH, GuardLevel.STRONG, noul), p)
+            // One fresh read for the kept proof: the host's own observations predate the
+            // tool's actions, so the VERIFIED milestone must record the page the tool
+            // actually completed on (doc 04 §9.5 — the proof's proving snapshot).
+            val proofRead = observer.observe()
+            advanceAfterSubtaskAccept(ExitDecision.Accept(ExitPath.HIGH, GuardLevel.STRONG, noul), p, proofRead)
             line("modality: TREE (the vision tool's subtask is verified)")
             return null
         }
@@ -2441,7 +2720,7 @@ class NavigationLoop(
              * condition verifies (guard STRONG — never page content). A refused extraction
              * leaves the condition unsatisfied (the ordinary failure machinery applies).
              */
-            suspend fun extractReportAnswer(st: StateTextBuilder.StateText) {
+            suspend fun extractReportAnswer(st: StateTextBuilder.StateText, obs: StepObservation) {
                 val p = pointer ?: return
                 if (p.active.done !is DoneCondition.AnswerExtracted) return
                 if (reportAnswers.containsKey(p.index)) return
@@ -2467,7 +2746,12 @@ class NavigationLoop(
                         }
                     }
                     reportAnswers[p.index] = extracted
-                    if (extractedAnswer == null) extractedAnswer = extracted
+                    if (extractedAnswer == null) {
+                        extractedAnswer = extracted
+                        // PHASE_18 Stage 18.E: the answer's source observation (the final
+                        // verifier's check 5).
+                        answerSourceRef = "hash=${obs.screenHash}"
+                    }
                     line(
                         "report: the answer for subtask ${p.activeOrdinal}/${p.total} was produced " +
                             "(${extracted.promptVersion}, ${extracted.costMicroUsd} micro-USD)",
@@ -2551,7 +2835,7 @@ class NavigationLoop(
             // -- REPORT-SUBTASK extraction (Phase 10C, doc 04 §1 v1.7.0) -------------------
             // The `answerExtracted` condition's evidence is the code-owned extraction
             // record: produce it once per report subtask before the checks judge.
-            extractReportAnswer(state)
+            extractReportAnswer(state, obs)
 
             // -- CODE-TRIGGERED IS-DONE check (vision 04 §3 v1.5.0) ------------------------
             // The IS-DONE evaluation is NOT gated on the engine volunteering `finish`
@@ -2626,6 +2910,15 @@ class NavigationLoop(
                                     "${codePointer.activeOrdinal} done - goal achieved",
                             )
                             runAnswerExtraction()
+                            // PHASE_18 Stage 18.E (18.E3): the shared final verifier gates
+                            // this hybrid success terminal too (one verifier, every path).
+                            if (!gateHybridCompletion(obs)) {
+                                consecutiveSubtaskFailures += 1
+                                failuresSinceAdvance += 1
+                                lastFailureCause = "final verification: the completion evidence is deficient"
+                                stepIndex += 1
+                                continue // the run keeps working over the same subtask
+                            }
                             return concludeGoalAchieved(verdict)
                         }
                         is ExitDecision.Refuse -> {
@@ -3105,6 +3398,18 @@ class NavigationLoop(
                             return null
                         }
                         runAnswerExtraction()
+                        // PHASE_18 Stage 18.E (18.E3): the hybrid host's OWN completion
+                        // passes the ONE shared final verifier BEFORE the terminal row is
+                        // written — a deficient verification returns to the controller
+                        // (the failure is counted; the loop keeps working), never a false
+                        // GOAL_ACHIEVED.
+                        if (!gateHybridCompletion(obs)) {
+                            consecutiveSubtaskFailures += 1
+                            failuresSinceAdvance += 1
+                            lastFailureCause = "final verification: the completion evidence is deficient"
+                            stepIndex += 1
+                            return null
+                        }
                         logRow(
                             stepIndex, state, question, choice, candidates,
                             ExecutedAction(null, LoggedActionKind.FINISH, ActionDisposition.EXECUTED),

@@ -251,6 +251,13 @@ object NavigatorVisionBridge {
         val stuckSource: navigator.app.loop.AssistSource,
         val boundaryJudge: navigator.app.loop.BoundaryJudge,
         val evidence: VisionEvidence,
+        /**
+         * PHASE_18 Stage 18.E — the ONE ledger (JVM-pinnable wiring fact): the
+         * [ExpBudget] the tool's loop AND the host's writer surfaces meter into. A
+         * second budget would understate the run's spend (the same truthfulness law as
+         * the shared [evidence] record).
+         */
+        val budget: ExpBudget,
     )
 
     @Suppress("LongParameterList")
@@ -275,6 +282,13 @@ object NavigatorVisionBridge {
         // report zeros). The tool's loop receives it through [newVisionLoop]'s evidence
         // seam below.
         val evidence = VisionEvidence(evidenceDir, runId)
+        // PHASE_18 Stage 18.E — THE ONE LEDGER (the record-unification residual
+        // closed): the host's writer surfaces (plan/re-plan, the stuck event, the
+        // boundary judge) previously rode a SECOND client pair over a THROWAWAY budget
+        // recording into no record. They now share the tool loop's [ExpBudget] (their
+        // spend meters into the run's ledger) and record their call rows into the SAME
+        // [VisionEvidence].
+        val budget = ExpBudget()
         val loop = newVisionLoop(
             observer = observer,
             executor = executor,
@@ -289,6 +303,7 @@ object NavigatorVisionBridge {
             exclusionBounds = exclusionBounds,
             coveredBounds = coveredBounds,
             evidence = evidence,
+            budget = budget,
             // PHASE_18 Stage 18.D CN-16: THIS loop instance is the TREE_FIRST tool's
             // engine (the escalation arm) — the engine/perception mode of record on the
             // evidence's run header.
@@ -303,14 +318,15 @@ object NavigatorVisionBridge {
                 null
             }
         }
-        val (_, haiku) = newClients(transport, openRouterKey, typesafeKey, ExpBudget(), log)
+        val (_, haiku) = newClients(transport, openRouterKey, typesafeKey, budget, log)
         return HybridParts(
             loop = loop,
             tool = VisionLoopTool(loop),
-            ladderSource = VisionLadderSource(haiku, shot, log),
-            stuckSource = VisionStuckEvent(haiku, shot, log),
-            boundaryJudge = VisionBoundaryJudge(haiku, shot, log),
+            ladderSource = VisionLadderSource(haiku, shot, log, evidence),
+            stuckSource = VisionStuckEvent(haiku, shot, log, evidence),
+            boundaryJudge = VisionBoundaryJudge(haiku, shot, log, evidence),
             evidence = evidence,
+            budget = budget,
         )
     }
 
@@ -362,10 +378,18 @@ object NavigatorVisionBridge {
          * routes.
          */
         enginePolicy: String = "ALWAYS_VISION",
+        /**
+         * PHASE_18 Stage 18.E — the caller's ledger: when the caller already
+         * holds the run's [ExpBudget] (the hybrid's parts share ONE ledger across the
+         * tool loop and the host's writer surfaces), it rides here instead of this
+         * factory constructing its own. Null (every other caller) = own ledger,
+         * byte-identical.
+         */
+        budget: ExpBudget? = null,
     ): VisionLoop {
-        val budget = ExpBudget()
+        val spend = budget ?: ExpBudget()
         val ev = evidence ?: VisionEvidence(evidenceDir, runId)
-        val (jev, haiku) = newClients(transport, openRouterKey, typesafeKey, budget, log)
+        val (jev, haiku) = newClients(transport, openRouterKey, typesafeKey, spend, log)
         // PHASE_18 Stage 18.B CN-02/CN-03: the PRODUCT wiring — when a bound a11y
         // service exists (both product paths ride one), the loop runs the
         // consistent-snapshot sequence (doc 04 §9.1) and the fresh pre-dispatch guard
@@ -388,7 +412,7 @@ object NavigatorVisionBridge {
             capture = capture,
             haiku = haiku,
             jev = jev,
-            budget = budget,
+            budget = spend,
             evidence = ev,
             log = log,
             gatePresenter = gatePresenter,

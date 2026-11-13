@@ -33,6 +33,15 @@ class VisionLadderSource(
     private val haiku: VisionHaiku,
     private val capture: suspend () -> VisionCapture.ScreenShot?,
     private val log: (String) -> Unit = {},
+    /**
+     * PHASE_18 Stage 18.E part 1 — the SHARED run record seam: when wired (the hybrid's
+     * product wiring passes the run's ONE [VisionEvidence] — the instance the tool's
+     * loop and the host record into), every plan/repair call records its evidence row
+     * (`call <kind> … attempts=… channel=HAIKU`), so the host's own writer calls ride
+     * the run's call ledger (the record-unification law — the 18.C residual closed).
+     * Null (every other construction site) = byte-identical.
+     */
+    private val evidence: VisionEvidence? = null,
 ) : LadderSource {
 
     override suspend fun restructure(
@@ -52,17 +61,22 @@ class VisionLadderSource(
         } else {
             VisionPrompts.replanUser(goal, failure.cause, pageText)
         }
+        var rawReq = ""
+        var rawRes = ""
+        val started = System.currentTimeMillis()
         val content = try {
             haiku.chat(
                 VisionPrompts.planSystem(replan = failure != null),
                 user,
                 shot?.base64,
                 "plan",
-            )
+            ) { req, res -> rawReq = req; rawRes = res }
         } catch (e: Exception) {
+            recordCall("plan", started, rawReq, rawRes, shot != null)
             log("[vision-writer] the plan call failed (${e::class.simpleName}: ${e.message?.take(120)})")
             return null
         }
+        recordCall("plan", started, rawReq, rawRes, shot != null)
         val ladder: Ladder = try {
             val battery = VisionPrompts.parseVerifyBlocks(content, "plan-vision")
             val enterText = VisionPrompts.parseEnterTexts(content, "plan-vision")
@@ -107,6 +121,9 @@ class VisionLadderSource(
         } catch (e: Exception) {
             null
         }
+        var rawReq = ""
+        var rawRes = ""
+        val started = System.currentTimeMillis()
         val content = try {
             haiku.chat(
                 VisionPrompts.REPAIR_SYSTEM,
@@ -118,11 +135,13 @@ class VisionLadderSource(
                 ),
                 shot?.base64,
                 "repair",
-            )
+            ) { req, res -> rawReq = req; rawRes = res }
         } catch (e: Exception) {
+            recordCall("repair", started, rawReq, rawRes, shot != null)
             log("[vision-writer] the repair call failed (${e::class.simpleName})")
             return null
         }
+        recordCall("repair", started, rawReq, rawRes, shot != null)
         val repaired = try {
             VisionPrompts.parseRepairedCondition(content, "repair")
         } catch (e: Exception) {
@@ -143,5 +162,25 @@ class VisionLadderSource(
         failure.pageExcerptLines.takeIf { it.isNotEmpty() }?.let {
             append(it.joinToString("\n").take(1_500)).append('\n')
         }
+    }
+
+    /**
+     * The call's evidence row (CN-16: real attempts + real elapsed, the provider's usage
+     * or UNKNOWN). No record wired or no request bytes captured = no row (a fabricated
+     * row for an unconnected call would be a false record).
+     */
+    private fun recordCall(kind: String, started: Long, rawReq: String, rawRes: String, hadImage: Boolean) {
+        val ev = evidence ?: return
+        if (rawReq.isEmpty()) return
+        ev.call(
+            kind,
+            rawReq,
+            rawRes,
+            System.currentTimeMillis() - started,
+            haiku.lastUsage,
+            channel = VisionEvidence.Channel.HAIKU,
+            images = if (hadImage) 1 else 0,
+            attempts = haiku.lastAttempts,
+        )
     }
 }

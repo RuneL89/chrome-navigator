@@ -26,6 +26,13 @@ class VisionBoundaryJudge(
     private val haiku: VisionHaiku,
     private val capture: suspend () -> VisionCapture.ScreenShot?,
     private val log: (String) -> Unit = {},
+    /**
+     * PHASE_18 Stage 18.E part 1 — the SHARED run record seam (the record-unification
+     * law): the hybrid's product wiring passes the run's ONE [VisionEvidence]; the
+     * boundary call records its evidence row like every other model call. Null
+     * (every other construction site) = byte-identical.
+     */
+    private val evidence: VisionEvidence? = null,
 ) : BoundaryJudge {
 
     override suspend fun judge(
@@ -47,17 +54,22 @@ class VisionBoundaryJudge(
             append("TITLE: ").append(pageTitle.ifBlank { "(unknown)" }).append('\n')
             append(pageDigest)
         }
+        var rawReq = ""
+        var rawRes = ""
+        val started = System.currentTimeMillis()
         val content = try {
             haiku.chat(
                 VisionPrompts.BOUNDARY_SYSTEM,
                 VisionPrompts.boundaryUser(goal, completedInstruction, completedDone, digest),
                 shot?.base64,
                 "boundary",
-            )
+            ) { req, res -> rawReq = req; rawRes = res }
         } catch (e: Exception) {
+            recordCall(started, rawReq, rawRes, shot != null)
             log("[boundary] the call failed (${e::class.simpleName}: ${e.message?.take(120)})")
             return null
         }
+        recordCall(started, rawReq, rawRes, shot != null)
         val (holds, reason) = VisionPrompts.parseBoundaryVerdict(content) ?: run {
             log("[boundary] the verdict was refused (malformed answer)")
             return null
@@ -67,6 +79,22 @@ class VisionBoundaryJudge(
             reason = reason,
             promptVersion = VisionPrompts.VISION_PROMPT_VERSION,
             costMicroUsd = haiku.lastUsage?.costMicroUsd ?: 0L,
+        )
+    }
+
+    /** The call's evidence row (CN-16: real attempts + real elapsed). */
+    private fun recordCall(started: Long, rawReq: String, rawRes: String, hadImage: Boolean) {
+        val ev = evidence ?: return
+        if (rawReq.isEmpty()) return
+        ev.call(
+            "boundary",
+            rawReq,
+            rawRes,
+            System.currentTimeMillis() - started,
+            haiku.lastUsage,
+            channel = VisionEvidence.Channel.HAIKU,
+            images = if (hadImage) 1 else 0,
+            attempts = haiku.lastAttempts,
         )
     }
 }
@@ -80,6 +108,13 @@ class VisionStuckEvent(
     private val haiku: VisionHaiku,
     private val capture: suspend () -> VisionCapture.ScreenShot?,
     private val log: (String) -> Unit = {},
+    /**
+     * PHASE_18 Stage 18.E part 1 — the SHARED run record seam (the record-unification
+     * law): the hybrid's product wiring passes the run's ONE [VisionEvidence]; the stuck
+     * event's call records its evidence row like every other model call. Null (every
+     * other construction site) = byte-identical.
+     */
+    private val evidence: VisionEvidence? = null,
 ) : AssistSource {
 
     override suspend fun assist(
@@ -93,17 +128,22 @@ class VisionStuckEvent(
             log("[stuck] capture failed (${e::class.simpleName}) - re-describing text-only")
             null
         }
+        var rawReq = ""
+        var rawRes = ""
+        val started = System.currentTimeMillis()
         val content = try {
             haiku.chat(
                 Prompts.ASSIST_SYSTEM,
                 Prompts.assistUser(subtask, doneCondition, pageMaterial),
                 shot?.base64,
                 "stuck",
-            ).trim()
+            ) { req, res -> rawReq = req; rawRes = res }.trim()
         } catch (e: Exception) {
+            recordCall(started, rawReq, rawRes, shot != null)
             log("[stuck] the call failed (${e::class.simpleName}: ${e.message?.take(120)})")
             return null
         }
+        recordCall(started, rawReq, rawRes, shot != null)
         if (content.isEmpty() || content.contains(Prompts.ASSIST_SKIP_MARKER)) return null
         val usage = haiku.lastUsage
             ?: return null
@@ -111,6 +151,22 @@ class VisionStuckEvent(
             text = content.take(Prompts.MAX_ASSIST_CHARS),
             usage = GenUsage(usage.inputTokens, usage.outputTokens, usage.costMicroUsd),
             promptVersion = VisionPrompts.VISION_PROMPT_VERSION,
+        )
+    }
+
+    /** The call's evidence row (CN-16: real attempts + real elapsed). */
+    private fun recordCall(started: Long, rawReq: String, rawRes: String, hadImage: Boolean) {
+        val ev = evidence ?: return
+        if (rawReq.isEmpty()) return
+        ev.call(
+            "stuck",
+            rawReq,
+            rawRes,
+            System.currentTimeMillis() - started,
+            haiku.lastUsage,
+            channel = VisionEvidence.Channel.HAIKU,
+            images = if (hadImage) 1 else 0,
+            attempts = haiku.lastAttempts,
         )
     }
 }

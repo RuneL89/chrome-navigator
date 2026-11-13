@@ -1795,6 +1795,40 @@ three-way selector ships with that program.
     (18.D6); full app 879 / core 346 green (1225 total, 0 failures; the 1214
     pre-existing tests green UNMODIFIED — zero re-pins: no test pinned the 0ms
     placeholders or the silent-zero usage row).
+* **PHASE_18 Stage 18.E part 1 (the shared-contract extraction + hybrid hardening,
+  2026-11-13): BOTH perception tools on the SAME reliability contracts (doc 04
+  §8/§9.6, doc 01 §1a).**
+  * `loop/CompletionEvidenceSupport.kt` — the ONE evidence assembly
+    (`checkerEvidence`/`provingEvidence`/`readableHost`/`countKeyPresent`): VisionLoop's
+    private builders delegate to it byte-identically; the hybrid host assembles the SAME
+    bundles, so the ONE verifier reads one shape from both engines.
+  * `loop/NavigationLoop.kt` — the SHARED runtime-prefix contract (the 18.C deferral
+    closed): per-run `runtimeStates` under the SAME `SubtaskRuntimeState` contract
+    (verified advances APPEND proofs from the finished subtask's own condition; the
+    evidence-scoped `PrefixAuditor` audit runs at the re-plan gate BEFORE the writer
+    call, invalidations APPEND, and a re-plan's claimed prefix is MAPPED by
+    instruction + condition content — a `PREFIX MAP` line when the evidence overrides
+    the writer's ordinal claim; `RuntimeStateMode` FRESH/MAP/KEEP); the per-run
+    immutable `GoalContract` (CN-05, built before navigation); `hybridCompletionEvidence`
+    + `gateHybridCompletion` — the shared `FinalGoalVerifier` invoked EXACTLY ONCE at
+    every hybrid success terminal (the tool's final-subtask accept on a FRESH
+    observation; both a11y accept entries); a deficient verdict returns to the
+    controller with the deficiency, never a false success; TREE_ONLY / legacy
+    null-tool runs are UNGATED and byte-identical. The three code-owned escalation
+    signals are PRESERVED AS-IS.
+  * The RECORD-UNIFICATION residual CLOSED (the 2026-11-11 fix-loop's note): the
+     host's writer surfaces (`VisionLadderSource`, `VisionStuckEvent`,
+    `VisionBoundaryJudge`) now record their call rows into the tool loop's ONE
+    `VisionEvidence` and meter into its ONE `ExpBudget` (the bridge's `newClients`
+    budget param + the evidence seam); a second record/ledger would report zeros —
+    the truthfulness law.
+  * Gates: Phase18SharedContractRouteTest 5/5 (18.E2 — ALWAYS_VISION builds the real
+    loop over its own record; TREE_FIRST's parts share ONE record + ONE ledger; the
+    stored policy wins and the default stays ALWAYS_VISION; a missing key refuses
+    loudly) + Phase18HybridFinalVerifierTest 4/4 (18.E3 — the exactly-once law on
+    both hybrid accept paths; the R4 account-evidence refusal); full app 888 / core
+    346 green (1234 total, 0 failures). `NavigationLoop.run()` 58,987 of 65,535
+    bytes after the wiring.
 
 ## Local Contracts
 
