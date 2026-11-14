@@ -273,7 +273,18 @@ class DomLaneLoop(
                 evidence?.line("judge-refused ${verdict.reason}")
                 if (state.correctionsLeft > 0) {
                     state.correctionsLeft -= 1
-                    state.lastProposalRefusal = "the judge refused: ${verdict.reason} - propose a DIFFERENT action"
+                    // The targeted correction: when the refused action was a SEARCH on a page
+                    // that already shows interactive elements, name them - the writer keeps
+                    // proposing searches for products already on the page (the S3 fixture lesson).
+                    val correction = if (proposal.action == DomAction.SEARCH && snapshot.elements.isNotEmpty()) {
+                        val visible = snapshot.elements.take(6)
+                            .joinToString("; ") { "[${it.id}] ${it.role} \"${it.label.take(40)}\"" }
+                        "the judge refused the search: the page ALREADY shows elements you can act " +
+                            "on directly - propose a click/text on one of: $visible"
+                    } else {
+                        "the judge refused: ${verdict.reason} - propose a DIFFERENT action"
+                    }
+                    state.lastProposalRefusal = correction
                     continue // the corrected proposal rides immediately (teaching, not oscillation)
                 }
                 state.consecutiveUnverified += 1

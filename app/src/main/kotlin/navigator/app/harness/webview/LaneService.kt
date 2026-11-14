@@ -81,6 +81,7 @@ class LaneService : Service() {
         // Repeated broadcasts are idempotent: a decided machine ignores further answers.
         if (machine.state is navigator.app.cards.CardState.Pending) {
             if (approve) machine.approve() else machine.decline()
+            laneUi?.removeCard()
         }
     }
 
@@ -185,6 +186,11 @@ class LaneService : Service() {
                     stopSelf()
                     return START_NOT_STICKY
                 }
+                // The debug limit override (the S3 card-capture path; S4's settings UI
+                // replaces it). Applied BEFORE startTask — the loop reads it at build.
+                val limitExtra = intent.getLongExtra("autoPlaceLimitCents", -1L)
+                Log.i(TAG, "limit extra: " + limitExtra)
+                limitExtra.takeIf { it > 0 }?.let { controller?.autoPlaceLimitCents = it }
                 ensureWindowManager()
                 stepCount = 0
                 chipDone = false
