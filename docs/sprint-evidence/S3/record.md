@@ -130,3 +130,21 @@ top-right. The DECLINE tap refused the order honestly
 The auto-place window path remains evidenced by `s3-purchase-autoplace.logcat`.
 The limit override rides the intent extra (`--el autoPlaceLimitCents`) — a debug surface
 under CHG-01's gate (S4's settings UI replaces it).
+
+## 12. THE OWNER GATES — RATIFIED (2026-11-14)
+
+The three S3 owner gates were presented as structured questions with the live visual
+evidence; the owner answered:
+
+1. **Purchase card wording: PASS AS-IS** — "Purchase approval" / the item+total line /
+   "Timeout = no order" / APPROVE–DECLINE ratified verbatim (the live screenshot
+   `b-purchase-card.png` reviewed).
+2. **Chip + notification feel: PASS — the mechanism ratified** — the placement, caption
+   shape, done-face grace, and notification laws stand; S4's bot-styled version replaces
+   the styling.
+3. **The auto-place interpretation: RATIFIED** — below the limit the lane finishes the
+   purchase after the silent 15 s window; at/above the limit the card asks; timeout = no;
+   a declined purchase never dispatches. The plan amendment is recorded in
+   `docs/V2_PLAN.md` §3.
+
+**S3 PASSES with the owner's ratification. The loop proceeds to S4.**
