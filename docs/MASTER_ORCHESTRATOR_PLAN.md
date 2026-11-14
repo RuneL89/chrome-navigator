@@ -76,7 +76,8 @@ append-only.
 | S1 end | nothing |
 | S2 end | creates the Google Cloud OAuth client (INC-01) |
 | S3 end | reviews consequential card wording; approves chip/notification feel |
-| S4 end | accepts the look and feel (bots, cards, chip, watch) |
+| S4 mid | **prototype acceptance** — the owner reviews the design-plugin HTML prototypes remotely and ratifies the look | 
+| S4 end | **port acceptance** — the emulator matches the ratified prototype (bots, cards, chip, watch) |
 | S5 end | connects Gmail; logs in to Verkkokauppa; links WhatsApp; watches the live small purchase |
 | S6 end | nothing (unless a sweep finds a judgement item) |
 | S7 end | confirms the email arrived; final product acceptance; merge decision |

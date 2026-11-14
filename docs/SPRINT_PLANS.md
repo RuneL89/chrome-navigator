@@ -100,6 +100,13 @@ Scope: FR-41…FR-48 (trust/approvals), FR-57 (calendar), FR-70 (chip), FR-73 (n
 
 Scope: FR-68/69/71/72/75/76 (bots, watch screen, cards visual, home/history, theme).
 
+PIPELINE (owner, 2026-11-14): the mandatory design-interview FIRST, then the
+`design:design` plugin builds every S4 screen as an HTML prototype (the New Task home,
+the watch screen, the task list/history, the cards, the chip, the bot states) for the
+owner's REMOTE prototype-acceptance gate; the ratified prototype is the spec; the
+Compose port implements it and the L3 round verifies the port matches (screenshot
+comparison vs the prototype).
+
 **Technical ACs**
 - AC-S4.1 [FR-69] Pipeline events drive the bot animation; every engine event maps to a
   visible state — L1/L2.
