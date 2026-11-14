@@ -120,3 +120,13 @@ its VISUAL design belongs to S4's UI gate where the card gets its real design.
 The task window's invisibility is structural, restated: the WebView window sits fully
 off-screen at x=-1080 (width=1080) — the compositor cannot show pixels outside the
 display, so the background promise holds by geometry, independent of any screenshot.
+
+## 11. The live card capture (2026-11-14, post the visual-evidence round)
+
+The purchase card captured LIVE on device: `purchase-card-live.png` — the card at the
+screen bottom with the exact owner-ratified wording, the chip's step counter at the
+top-right. The DECLINE tap refused the order honestly
+(`purchase-refused total=2490 byTimeout=false — no order placed` → the honest terminal).
+The auto-place window path remains evidenced by `s3-purchase-autoplace.logcat`.
+The limit override rides the intent extra (`--el autoPlaceLimitCents`) — a debug surface
+under CHG-01's gate (S4's settings UI replaces it).
