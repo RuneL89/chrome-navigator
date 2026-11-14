@@ -62,6 +62,13 @@ enum class DomAction {
     CHECK,
     UNCHECK,
     SCROLL_TO,
+
+    /**
+     * Search: the writer supplies ONLY the query ([DomProposalClient] requires the
+     * value); the lane builds the engine URL itself (deterministic navigation — the
+     * writer never constructs URLs).
+     */
+    SEARCH,
     ;
 
     companion object {

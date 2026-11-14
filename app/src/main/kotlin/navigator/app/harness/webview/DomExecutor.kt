@@ -34,6 +34,7 @@ class DomExecutor(private val web: LaneWebView) {
         DomAction.CHECK -> check(resolved, proposal, requested = true)
         DomAction.UNCHECK -> check(resolved, proposal, requested = false)
         DomAction.SCROLL_TO -> scroll(resolved, proposal)
+        DomAction.SEARCH -> search(proposal)
     }
 
     /** The FR-13 escalation's second arm: the trusted touch dispatch at the element center. */
@@ -113,6 +114,18 @@ class DomExecutor(private val web: LaneWebView) {
             verified = scrollY != null,
             evidence = "scrolled to scrollY=$scrollY (the viewport change is the verdict)",
         )
+    }
+
+    /**
+     * The search action (FR-31's navigation half): the writer supplies ONLY the query;
+     * the lane builds the engine URL itself and loads it under the lane's load policy.
+     * The verdict comes from the postcondition (the results page), never from the load.
+     */
+    private suspend fun search(proposal: DomProposalClient.Proposal): Report {
+        val query = proposal.value ?: return Report(false, false, "search action without a query")
+        val url = "https://www.google.com/search?q=" + java.net.URLEncoder.encode(query.trim(), "UTF-8")
+        web.load(url)
+        return Report(dispatched = true, verified = false, evidence = "search loaded: ${url.take(80)}")
     }
 
     // -- result JSON helpers ----------------------------------------------------------------

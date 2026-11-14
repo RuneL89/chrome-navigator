@@ -1,0 +1,8 @@
+task-start goal-classes=[READ_REPORT] site=fi.wikipedia.org
+site-entry: loading https://fi.wikipedia.org
+subtask 1/3 verified: the URL host is fi.wikipedia.org
+site-entry: loading https://fi.wikipedia.org/wiki/Tove_Jansson
+subtask 2/3 verified: the address contains 'fi.wikipedia.org/wiki/Tove_Jansson'
+answer produced (len=189)
+subtask 3/3 verified: the answer has been produced
+terminal: Done(answer=The Tove Jansson article states that she was born in 1914, specifically on 9 August 1914 in Helsinki, Grand Duchy of Finland. It also gives her death as 27 June 2001 in Helsinki, at age 86.)

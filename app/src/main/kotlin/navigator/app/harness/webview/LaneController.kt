@@ -50,13 +50,8 @@ class LaneController(
             return false
         }
         val openRouterKey = LaneKeys.openRouterKey(context)
-        val typesafeKey = LaneKeys.typesafeKey(context)
         if (openRouterKey.isNullOrBlank()) {
-            Log.w("NavigatorLane", "no writer key — the lane refuses to start")
-            return false
-        }
-        if (typesafeKey.isNullOrBlank()) {
-            Log.w("NavigatorLane", "no judge key — the lane refuses to start")
+            Log.w("NavigatorLane", "no writer/judge key — the lane refuses to start")
             return false
         }
 
@@ -95,11 +90,16 @@ class LaneController(
             ),
             gate = gate,
             onUsage = { evidence.line("writer-usage ${it.costMicroUsd}microUsd") },
-        )
+        ).apply {
+            debugListener = { line -> evidence.line(line.take(1200)) }
+        }
         val judgeClient = SystemOneClient(
             transport = transport,
-            // maxRetries = 0: the LaneModelGate owns the entire retry law (3 attempts/90s)
-            primary = DomJudge.laneJudgeConfig(typesafeKey),
+            // maxRetries = 0: the LaneModelGate owns the entire retry law (3 attempts/90s).
+            // The judge endpoint is OpenRouter's decisions API — the OPENROUTER key rides
+            // it (the `typesafe/jev` slug is hosted there); the TypeSafe key stays for the
+            // direct TypeSafe surface used elsewhere.
+            primary = DomJudge.laneJudgeConfig(openRouterKey),
             maxRetries = 0,
         )
         val judge = DomJudge(judgeClient, gate, onUsage = { evidence.line("judge-usage ${it.costUsd}usd") })

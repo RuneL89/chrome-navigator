@@ -1,10 +1,15 @@
 # V2 sprint status
 
-- Current sprint: **S1 not started** (prototypes complete; Test Manager verified)
-- Branch: `v2-relaunch`
-- Tickets: BUG-01 OPEN (Red Bull contested — S1 re-measure), INC-01 **FIXED** (Gmail API
-  send proven live 2026-11-14, message id 1a1d76007f3e7fc8), INC-02 OPEN (cart login —
-  owner, S5 gate), CHG-01 OPEN (probe removal before release), CHG-02 FIXED (trust
-  negative control recorded)
-- Owner gates pending: none blocking S1
-- Next action: start S1 (fast lane core) per docs/SPRINT_PLANS.md
+- Current sprint: **S1 implemented + L3 evidenced** (record: docs/sprint-evidence/S1/record.md);
+  Test Manager round pending
+- Branch: v2-relaunch
+- Gates: L1/L2 green (core + app both variants, 57 new lane tests), debug build green;
+  L3: corpus measured (BUG-01 verdict), the three live task runs passed (flagship x2,
+  both answering 1966), invisibility screenshot filed
+- Tickets: BUG-01 **FIXED** (measured AMBER verdict under the fixed policy - shell loads,
+  content thin; content tasks route to the human lane), INC-01 **FIXED**, INC-02 OPEN
+  (cart login - owner, S5 gate), CHG-01 OPEN (probe + lane debug surfaces gated before
+  release; scope note appended), CHG-02 FIXED
+- Owner gates pending: none blocking S2
+- Next action: Test Manager round for S1 -> tickets loop -> S2 (trust foundations +
+  model correctness + the Jev-id default fix with its live smoke)

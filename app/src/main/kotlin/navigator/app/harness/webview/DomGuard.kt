@@ -53,7 +53,32 @@ object DomGuard {
         proposal: DomProposalClient.Proposal,
         proposalSnapshot: DomSnapshot,
         freshSnapshot: DomSnapshot,
+        goal: String = "",
     ): GuardVerdict {
+        // Element-less actions (the search: the lane builds the engine URL itself) have no
+        // element to re-query — but the QUERY must derive from the GOAL (the untrusted page
+        // must never steer it — the live-run lesson), and the risk gate still applies.
+        if (proposal.action == DomAction.SEARCH) {
+            val query = proposal.value.orEmpty()
+            if (!queryDerivesFromGoal(query, goal)) {
+                return GuardVerdict.Refuse(
+                    "the search query \"${query.take(60)}\" does not derive from the goal's subject — " +
+                        "the page's own topic must never steer the query; re-derive it from the GOAL",
+                )
+            }
+            val classified = RiskGate.classify(
+                toGateAction(proposal, proposal.element),
+                PageContext(url = freshSnapshot.page.url),
+            )
+            if (classified != null) {
+                return GuardVerdict.Refuse(
+                    "the risk gate classified ${classified.name} on the search — the fast lane never acts on it",
+                    classified,
+                )
+            }
+            return GuardVerdict.Pass(proposal.element)
+        }
+
         // 1. semantic re-query
         val resolved = ElementResolver.resolve(proposal.element, freshSnapshot)
             ?: return GuardVerdict.Refuse(
@@ -123,10 +148,36 @@ object DomGuard {
             DomAction.TEXT -> ActionKind.TYPE
             DomAction.SELECT, DomAction.CHECK, DomAction.UNCHECK -> ActionKind.TAP
             DomAction.SCROLL_TO -> ActionKind.SCROLL
+            DomAction.SEARCH -> ActionKind.TAP
         }
         return GateAction(target = candidate, kind = kind, textToType = proposal.value)
     }
 
     private fun shortUrl(url: String): String =
         url.substringAfter("://").let { if (it.length > 60) it.take(60) + "…" else it }
+
+    /**
+     * The query-derivation law (the live-run lesson): a search query must share real
+     * content with the GOAL — the page's own topic (an untrusted source) must never steer
+     * the query. Directive verbs are stripped from both sides, so a goal's "open" does
+     * not make a page-steered "The Open Championship" query look derived.
+     */
+    internal fun queryDerivesFromGoal(query: String, goal: String): Boolean {
+        val queryTokens = contentTokens(query)
+        val goalTokens = contentTokens(goal).toSet()
+        if (queryTokens.isEmpty()) return false
+        val shared = queryTokens.count { it in goalTokens }
+        return shared >= 2 || (queryTokens.size == 1 && queryTokens.first() in goalTokens)
+    }
+
+    private val QUERY_STOPWORDS = setOf(
+        "the", "a", "an", "and", "or", "of", "to", "in", "on", "for", "with", "is", "are",
+        "was", "were", "open", "search", "find", "report", "tell", "me", "about", "show",
+        "article", "page", "site", "website", "please", "year", "years",
+    )
+
+    private fun contentTokens(text: String): List<String> =
+        text.lowercase()
+            .split(Regex("""[^a-z0-9äöüßå]+"""))
+            .filter { it.length >= 3 && it !in QUERY_STOPWORDS }
 }

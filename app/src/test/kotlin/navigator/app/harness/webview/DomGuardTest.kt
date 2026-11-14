@@ -112,4 +112,36 @@ class DomGuardTest {
         assertEquals(navigator.core.gate.ActionKind.TYPE, typeAction.kind)
         assertEquals("a@b.c", typeAction.textToType)
     }
+
+    // -- the query-derivation law (the live-run lesson) ---
+
+    @Test
+    fun `a page-steered search query is refused - the goal is the only source`() {
+        val target = SnapshotFixtures.element(id = 0, role = "button", label = "Search", tag = "button")
+        val pageSnapshot = page(listOf(target))
+        val proposal = DomProposalClient.Proposal(
+            target, navigator.app.harness.webview.dom.DomAction.SEARCH, "The Open Championship golf tournament",
+            "results show", "{}",
+        )
+        val verdict = DomGuard.guard(
+            proposal, pageSnapshot, pageSnapshot,
+            goal = "Open the Finnish Wikipedia article on Tove Jansson and report the year of her Hans Christian Andersen Medal",
+        )
+        assertTrue(verdict is DomGuard.GuardVerdict.Refuse && verdict.reason.contains("does not derive from the goal"))
+    }
+
+    @Test
+    fun `a goal-derived search query passes the derivation law`() {
+        val target = SnapshotFixtures.element(id = 0, role = "button", label = "Search", tag = "button")
+        val pageSnapshot = page(listOf(target))
+        val proposal = DomProposalClient.Proposal(
+            target, navigator.app.harness.webview.dom.DomAction.SEARCH, "Tove Jansson Finnish Wikipedia",
+            "results show", "{}",
+        )
+        val verdict = DomGuard.guard(
+            proposal, pageSnapshot, pageSnapshot,
+            goal = "Open the Finnish Wikipedia article on Tove Jansson and report the year of her Hans Christian Andersen Medal",
+        )
+        assertTrue(verdict is DomGuard.GuardVerdict.Pass, "got $verdict")
+    }
 }

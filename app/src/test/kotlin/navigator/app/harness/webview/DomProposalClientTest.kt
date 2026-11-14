@@ -88,7 +88,7 @@ class DomProposalClientTest {
         server.start()
         server.enqueue(ok(proposalJson(id = 3, action = "click", effect = "the deals page shows")))
         val seen = mutableListOf<LaneUsage>()
-        val proposal = client(server) { seen.add(it) }.propose(snapshot, "open the deals", "the deals page shows")
+        val proposal = client(server) { seen.add(it) }.propose("the goal", snapshot, "open the deals", "the deals page shows")
         server.shutdown()
 
         assertEquals(3, proposal.element.id)
@@ -104,7 +104,7 @@ class DomProposalClientTest {
         val server = MockWebServer()
         server.start()
         server.enqueue(ok(proposalJson()))
-        client(server).propose(snapshot, "open the deals", "the deals page shows")
+        client(server).propose("the goal", snapshot, "open the deals", "the deals page shows")
         val sent = Json.parseToJsonElement(server.takeRequest().body.readUtf8()).jsonObject
         server.shutdown()
 
@@ -126,7 +126,7 @@ class DomProposalClientTest {
         server.start()
         server.enqueue(ok(proposalJson(id = 999))) // not in the 20-element snapshot
         server.enqueue(ok(proposalJson(id = 5)))
-        val proposal = client(server).propose(snapshot, "open the deals", "the deals page shows")
+        val proposal = client(server).propose("the goal", snapshot, "open the deals", "the deals page shows")
         server.shutdown()
 
         assertEquals(5, proposal.element.id, "the repair retry re-asked with the error and recovered")
@@ -143,7 +143,7 @@ class DomProposalClientTest {
         server.enqueue(ok(proposalJson(id = 999)))
         server.enqueue(ok(proposalJson(id = 999)))
         val e = assertFailsWith<DomProposalException> {
-            client(server).propose(snapshot, "open the deals", "the deals page shows")
+            client(server).propose("the goal", snapshot, "open the deals", "the deals page shows")
         }
         server.shutdown()
         assertTrue(e.message!!.contains("refusing"), "the refusal is loud: ${e.message}")
@@ -154,7 +154,7 @@ class DomProposalClientTest {
         val server = MockWebServer()
         server.start()
         server.enqueue(ok("```json\n${proposalJson(id = 1)}\n```"))
-        val proposal = client(server).propose(snapshot, "open the deals", "the deals page shows")
+        val proposal = client(server).propose("the goal", snapshot, "open the deals", "the deals page shows")
         server.shutdown()
         assertEquals(1, proposal.element.id)
     }
@@ -168,7 +168,7 @@ class DomProposalClientTest {
                 server.enqueue(ok(proposalJson(id = 0, action = "submit")))
                 server.enqueue(ok(proposalJson(id = 0, action = "submit")))
                 try {
-                    client(server).propose(snapshot, "place the order", "the order places")
+                    client(server).propose("the goal", snapshot, "place the order", "the order places")
                 } finally {
                     server.shutdown()
                 }

@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import navigator.app.harness.webview.events.PipelineEventBus
 
 /**
@@ -39,6 +40,7 @@ class LaneService : Service() {
         const val NOTIF_ID = 4811
         const val ACTION_START_TASK = "navigator.app.lane.START_TASK"
         const val ACTION_STOP = "navigator.app.lane.STOP"
+        const val ACTION_SITECHECK = "navigator.app.lane.SITECHECK"
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -89,6 +91,54 @@ class LaneService : Service() {
                 stopSelf()
             }
 
+            ACTION_SITECHECK -> {
+                // The S1 corpus re-measure path (AC-S1.11): one load through the lane's OWN
+                // LoadPolicy (commit + fixed dwell + retry-once) + one snapshot — no model
+                // calls, one honest line per site. Replaced by S4's UI like the rest of the
+                // debug scaffolding.
+                val url = intent.getStringExtra("url") ?: ""
+                if (url.isBlank()) {
+                    stopSelf()
+                    return START_NOT_STICKY
+                }
+                ensureWindowManager()
+                // WebView construction needs a Looper thread — onStartCommand runs on main,
+                // so the factory call happens HERE, before the worker coroutine takes over.
+                val events = object : LaneWebEvents {
+                    override fun onPageEvent(line: String) { Log.i(TAG, "lanesite $line") }
+                    override fun onAdoptedPopup(popup: String) { Log.i(TAG, "lanesite popup $popup") }
+                    override fun onFileChooserRefused() {}
+                    override fun onDownloadStarted(download: String) {}
+                }
+                val web = LaneWebViewFactory(this@LaneService, events).create()
+                scope.launch {
+                    try {
+                        runOnMain { attachToWindow(web.view) }
+                        val started = System.currentTimeMillis()
+                        val settled = web.load(url)
+                        val snapshot = web.snapshot()
+                        val elapsed = System.currentTimeMillis() - started
+                        Log.i(
+                            TAG,
+                            "lanesite RESULT url=$settled title=\"${snapshot.page.title.take(80)}\" " +
+                                "elements=${snapshot.elements.size} text_chars=${snapshot.text.length} " +
+                                "load_ms=$elapsed",
+                        )
+                    } catch (e: Exception) {
+                        Log.i(TAG, "lanesite FAILED url=$url error=${e.message?.take(120)}")
+                    } finally {
+                        runOnMain {
+                            try {
+                                wm?.removeView(web.view)
+                            } catch (_: Exception) {
+                            }
+                        }
+                        web.destroy()
+                        stopSelf()
+                    }
+                }
+            }
+
             else -> stopSelf()
         }
         return START_NOT_STICKY
@@ -127,6 +177,14 @@ class LaneService : Service() {
     private fun ensureWindowManager() {
         if (wm == null) {
             wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        }
+    }
+
+    private fun runOnMain(block: () -> Unit) {
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+            block()
+        } else {
+            android.os.Handler(android.os.Looper.getMainLooper()).post(block)
         }
     }
 

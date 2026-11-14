@@ -15,6 +15,7 @@ import navigator.core.ladder.Ladder
 import navigator.core.ladder.ReplanContext
 import navigator.core.ladder.ReplanRule
 import navigator.core.ladder.ReplanVerdict
+import navigator.core.ladder.Subtask
 
 /**
  * V2 S1 — the fast lane's decision loop (FR-25/26/27/29/30 planning + FR-31/33/34/35/36
@@ -80,6 +81,7 @@ class DomLaneLoop(
         var modelFailures = 0
         var consecutiveUnverified = 0
         var subtaskSteps = 0
+        var lastProposalRefusal: String? = null
         var alreadySatisfiedAtStart = false
         var answerCount = 0
         var producedAnswer: String? = null
@@ -123,6 +125,27 @@ class DomLaneLoop(
 
             val subtask = ladder.subtasks.getOrNull(pointer)
                 ?: return Terminal.Failed("the subtask pointer left the ladder — a loop bug, refusing")
+
+            // The code-owned site entry (FR-27's lane half): when the subtask binds a
+            // destination the lane has not reached, the lane loads it directly — the writer
+            // never invents URLs, the entry derives from the CONDITION and the instruction.
+            entryFor(subtask, snapshot)?.let { entry ->
+                val opens = (entryOpens[pointer] ?: 0) + 1
+                entryOpens[pointer] = opens
+                if (opens > MAX_ENTRY_OPENS_PER_SUBTASK) {
+                    return Terminal.Failed(
+                        "subtask ${pointer + 1}: the entry navigation looped after $opens opens — refusing",
+                    )
+                }
+                evidence?.line("site-entry: loading ${entry.url.take(80)}")
+                try {
+                    web.load(entry.url)
+                } catch (e: Exception) {
+                    return Terminal.Failed("the entry load failed (${e.message?.take(120)}) — the lane stops honestly")
+                }
+                state.subtaskSteps += 1 // the entry IS the subtask's work; the done-check may now fire
+                continue
+            }
 
             // The answer-production step (FR-38's S1 path): a final AnswerExtracted subtask's
             // work IS the extraction — one writer call over the page the prefix brought us
@@ -194,7 +217,7 @@ class DomLaneLoop(
             // 3-4. writer proposal + independent judge
             state.stepIndex += 1
             val proposal = try {
-                proposals.propose(snapshot, subtask.instruction, DoneConditionChecker.render(subtask.done))
+                proposals.propose(goal, snapshot, subtask.instruction, DoneConditionChecker.render(subtask.done), state.lastProposalRefusal)
             } catch (e: Exception) {
                 state.modelFailures += 1
                 evidence?.line("proposal-failed ${e.message?.take(160)}")
@@ -210,11 +233,14 @@ class DomLaneLoop(
                     proposal.element.id, proposal.element.label.take(80), proposal.expectedEffect.take(160),
                 ),
             )
-            evidence?.line("proposed ${proposal.action.name.lowercase()} on [${proposal.element.id}] step ${state.stepIndex}")
+            evidence?.line(
+                "proposed ${proposal.action.name.lowercase()} on [${proposal.element.id}] step ${state.stepIndex}" +
+                    (proposal.value?.let { " query/value=\"${it.take(60)}\"" } ?: ""),
+            )
 
             val verdict = try {
                 judge.judge(
-                    snapshot, subtask.instruction, DoneConditionChecker.render(subtask.done),
+                    goal, snapshot, subtask.instruction, DoneConditionChecker.render(subtask.done),
                     proposal.element.id, proposal.element.label, proposal.action.name.lowercase(),
                     proposal.value, proposal.expectedEffect,
                 )
@@ -242,11 +268,12 @@ class DomLaneLoop(
             } catch (e: Exception) {
                 return Terminal.Failed("the fresh snapshot failed (${e.message?.take(120)})")
             }
-            when (val guard = DomGuard.guard(proposal, snapshot, fresh)) {
+            when (val guard = DomGuard.guard(proposal, snapshot, fresh, goal)) {
                 is DomGuard.GuardVerdict.Refuse -> {
                     val stage = if (guard.riskClass != null) RefusalStage.RISK_GATE else RefusalStage.GUARD
                     bus.emit(PipelineEvent.Refused(taskId, state.stepIndex, pointer, state.elapsed(), stage, guard.reason.take(200)))
                     evidence?.line("guard-refused ${guard.reason.take(160)}")
+                    state.lastProposalRefusal = guard.reason
                     if (guard.riskClass != null) {
                         return Terminal.SwitchOffer(
                             "the risk gate classified ${guard.riskClass.name} — the fast lane hands off " +
@@ -411,6 +438,61 @@ class DomLaneLoop(
 
     private var postEvidence: String = ""
 
+    private companion object EntryLaw {
+        /** A subtask may trigger at most this many entry loads (the carried site-entry cap). */
+        const val MAX_ENTRY_OPENS_PER_SUBTASK = 2
+    }
+
+    private val entryOpens = mutableMapOf<Int, Int>()
+
+    /**
+     * The deterministic entry point for a subtask, or null when the current page already
+     * serves: an explicit URL in the instruction; else the done-condition's URL identity
+     * ([DoneCondition.UrlHost] → the host root; [DoneCondition.UrlContains] → the segment
+     * as host+path) when the lane is not already there. Content conditions bind nothing —
+     * the writer proposes the move (including `search`) on the page at hand.
+     */
+    private fun entryFor(subtask: Subtask, snapshot: DomSnapshot): EntryTarget? {
+        val instruction = subtask.instruction.lowercase()
+        // A full URL typed into the instruction binds its own destination (a simple,
+        // local URL finder — the carried GoalFidelity.URL_IN_TEXT is internal to :core).
+        Regex("""https?://[^\s"'<>]+""").find(instruction)?.let { match ->
+            val url = match.value.removeSuffix(".").removeSuffix(",")
+            if (hostOf(snapshot.page.url) != hostOf(url)) return EntryTarget(url)
+        }
+        return when (val done = subtask.done) {
+            is DoneCondition.UrlHost -> {
+                if (hostOf(snapshot.page.url) != normalizeHost(done.host)) {
+                    EntryTarget("https://" + normalizeHost(done.host))
+                } else {
+                    null
+                }
+            }
+
+            is DoneCondition.UrlContains -> {
+                val segment = done.segment.trim().trimStart('/')
+                val current = snapshot.page.url.lowercase()
+                if (segment.contains('.') && !current.contains(segment.lowercase())) {
+                    EntryTarget("https://" + segment)
+                } else {
+                    null
+                }
+            }
+
+            else -> null
+        }
+    }
+
+    private data class EntryTarget(val url: String)
+
+    private fun normalizeHost(host: String): String =
+        host.trim().lowercase().removePrefix("www.").removeSuffix("/")
+
+    private fun hostOf(url: String): String {
+        val noScheme = url.substringAfter("://", url)
+        return noScheme.substringBefore('/').removePrefix("www.").lowercase()
+    }
+
     private fun markSubtaskStart(ladder: Ladder, pointer: Int, state: RunState) {
         state.subtaskSteps = 0
         val subtask = ladder.subtasks.getOrNull(pointer)
@@ -487,6 +569,18 @@ class DomLaneLoop(
         DomAction.SCROLL_TO -> {
             postEvidence = "scroll reported by the executor"
             true
+        }
+
+        DomAction.SEARCH -> {
+            val verified = after.page.url != before.page.url &&
+                after.page.url.contains("google.com/search") &&
+                after.elements.isNotEmpty()
+            postEvidence = if (verified) {
+                "search results showing: ${after.page.url.take(80)} (${after.elements.size} elements)"
+            } else {
+                "no search results page after the search"
+            }
+            verified
         }
     }
 

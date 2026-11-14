@@ -8,6 +8,24 @@ import navigator.core.wire.SystemOneClient
 import navigator.core.wire.Usage
 
 /**
+ * The judge seam (FR-32): the loop talks to this; [DomJudge] is the live implementation,
+ * the L2 suites script it (the scripted-transport law).
+ */
+interface DomJudger {
+    suspend fun judge(
+        goal: String,
+        snapshot: DomSnapshot,
+        subtaskInstruction: String,
+        doneRender: String,
+        elementId: Int,
+        elementLabel: String,
+        action: String,
+        value: String?,
+        expectedEffect: String,
+    ): DomJudge.Verdict
+}
+
+/**
  * V2 S1 — the independent judge for the DOM lane (FR-32): the carried [SystemOneClient]
  * over the pinned systemone-family endpoint, answering ONE noul per proposal —
  * "does this proposed action advance the current step on THIS page state?".
@@ -26,23 +44,6 @@ import navigator.core.wire.Usage
  * BUILD id, not a request id; the lane builds its own config instead of the broken
  * default (S2's AC-S2.1 makes the corrected default the pinned one with a live smoke).
  */
-/**
- * The judge seam (FR-32): the loop talks to this; [DomJudge] is the live implementation,
- * the L2 suites script it (the scripted-transport law).
- */
-interface DomJudger {
-    suspend fun judge(
-        snapshot: DomSnapshot,
-        subtaskInstruction: String,
-        doneRender: String,
-        elementId: Int,
-        elementLabel: String,
-        action: String,
-        value: String?,
-        expectedEffect: String,
-    ): DomJudge.Verdict
-}
-
 class DomJudge(
     private val client: SystemOneClient,
     private val gate: LaneModelGate,
@@ -56,6 +57,7 @@ class DomJudge(
     )
 
     override suspend fun judge(
+        goal: String,
         snapshot: DomSnapshot,
         subtaskInstruction: String,
         doneRender: String,
@@ -65,22 +67,42 @@ class DomJudge(
         value: String?,
         expectedEffect: String,
     ): Verdict {
+        val isSearch = action.equals("search", ignoreCase = true)
         val state = buildString {
+            append("THE GOAL: ").append(goal.take(300)).append('\n')
             append("GOAL STEP: ").append(subtaskInstruction).append('\n')
             append("DONE CONDITION: ").append(doneRender).append('\n')
             append("URL: ").append(snapshot.page.url).append('\n')
-            append("PROPOSED ACTION: ").append(action)
-            if (!value.isNullOrBlank()) append(" value=\"").append(value.take(80)).append('"')
-            append(" on element [").append(elementId).append("] \"").append(elementLabel.take(120)).append("\"\n")
-            append("EXPECTED EFFECT: ").append(expectedEffect).append('\n')
+            if (isSearch) {
+                // A search does not act ON this page — it navigates to the engine's results.
+                // The page state is irrelevant to the judgment; the QUERY is the payload.
+                append("PROPOSED ACTION: run the search query \"").append(value.orEmpty().take(80))
+                append("\" on the default search engine\n")
+                append("EXPECTED EFFECT: ").append(expectedEffect).append('\n')
+                append(
+                    "NOTE: the current page may be blank — a search is the correct move when the " +
+                        "step needs results the current page cannot show.\n",
+                )
+            } else {
+                append("PROPOSED ACTION: ").append(action)
+                if (!value.isNullOrBlank()) append(" value=\"").append(value.take(80)).append('"')
+                append(" on element [").append(elementId).append("] \"").append(elementLabel.take(120)).append("\"\n")
+                append("EXPECTED EFFECT: ").append(expectedEffect).append('\n')
+            }
             append("PAGE TEXT (untrusted):\n").append(snapshot.text.take(1200))
+        }
+        val proposition = if (isSearch) {
+            "Running the proposed search query is the right move for the GOAL STEP and its DONE " +
+                "CONDITION, and the query is safe (no payment, no purchase, no credential, no " +
+                "irreversible change)."
+        } else {
+            "Executing the PROPOSED ACTION on this page is the right move for the GOAL STEP and its " +
+                "DONE CONDITION, and the action is safe (no payment, no purchase, no credential, no " +
+                "form submit, no irreversible change)."
         }
         val question = NoulQuestion(
             name = "advance",
-            proposition =
-                "Executing the PROPOSED ACTION on this page is the right move for the GOAL STEP and its " +
-                    "DONE CONDITION, and the action is safe (no payment, no purchase, no credential, no " +
-                    "form submit, no irreversible change).",
+            proposition = proposition,
         )
         val decision = gate.call("dom-judge") { _ ->
             client.decide(state, linkedMapOf("advance" to question))

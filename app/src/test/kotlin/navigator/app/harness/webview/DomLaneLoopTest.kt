@@ -33,9 +33,15 @@ class DomLaneLoopTest {
     ) : LaneWebView {
         val clickLog = mutableListOf<String>()
         val textLog = mutableListOf<String>()
+        val loadLog = mutableListOf<String>()
 
         override val view: android.view.View get() = error("fakes carry no view")
-        override suspend fun load(url: String): String = pages.first().page.url
+        override suspend fun load(url: String): String {
+            loadLog.add(url)
+            if (autoNavigate && pages.size > 1) pages.removeFirst()
+            return pages.first().page.url
+        }
+
         override suspend fun currentUrl(): String = pages.first().page.url
         override suspend fun snapshot(): DomSnapshot = pages.first()
 
@@ -86,7 +92,13 @@ class DomLaneLoopTest {
         private val bySnapshot: (DomSnapshot) -> DomProposalClient.Proposal,
     ) : DomProposer {
         val proposals = mutableListOf<DomProposalClient.Proposal>()
-        override suspend fun propose(snapshot: DomSnapshot, subtaskInstruction: String, doneRender: String): DomProposalClient.Proposal {
+        override suspend fun propose(
+            goal: String,
+            snapshot: DomSnapshot,
+            subtaskInstruction: String,
+            doneRender: String,
+            previousRefusal: String?,
+        ): DomProposalClient.Proposal {
             val p = bySnapshot(snapshot)
             proposals.add(p)
             return p
@@ -97,6 +109,7 @@ class DomLaneLoopTest {
         val calls = mutableListOf<String>()
 
         override suspend fun judge(
+            goal: String,
             snapshot: DomSnapshot,
             subtaskInstruction: String,
             doneRender: String,
@@ -383,5 +396,93 @@ class DomLaneLoopTest {
         val verified = events.filterIsInstance<PipelineEvent.Verified>()
         assertTrue(verified.isNotEmpty() && verified.any { !it.confirmed }, "the verified-refused face rode the stream")
         assertTrue(web.clickLog.isNotEmpty(), "the dispatch ran (the postcondition refused to call it progress)")
+    }
+
+    // -- the navigation laws ----------------------------------------------------------------------
+
+    @Test
+    fun `the code-owned site entry loads the destination the condition names (the writer never invents urls)`() = runBlocking {
+        val blank = page("about:blank", "", emptyList(), "")
+        val article = page("https://fi.wikipedia.org/wiki/Tove_Jansson", "the article body text", emptyList(), "Tove Jansson")
+        val web = FakeWebView(ArrayDeque(listOf(blank, article)), autoNavigate = true)
+        val planner = ScriptedPlanner(
+            ladders = ArrayDeque(
+                listOf(
+                    Ladder(
+                        "read",
+                        listOf(
+                            Subtask(
+                                "the Finnish Wikipedia article is showing",
+                                DoneCondition.UrlContains("fi.wikipedia.org/wiki/Tove_Jansson"),
+                            ),
+                        ),
+                        LadderTaskClass.READ,
+                    ),
+                ),
+            ),
+        )
+        val proposer = ScriptedProposer { error("no proposal needed — the entry load reaches the page") }
+        val judge = ScriptedJudge()
+
+        val (terminal, events) = run(web, planner, proposer, judge, "open the Finnish Wikipedia article on Tove Jansson")
+
+        // TEMP DEBUG: surface the terminal with the load log
+        assertTrue(
+            terminal is DomLaneLoop.Terminal.Done,
+            "got $terminal (loadLog=${web.loadLog} laddersLeft=${planner.ladders.size} restructures=${planner.restructureCalls})",
+        )
+        assertEquals(listOf("https://fi.wikipedia.org/wiki/Tove_Jansson"), web.loadLog, "the entry built the URL from the condition")
+        assertTrue(events.isEmpty(), "no proposal events — the entry is lane maintenance")
+    }
+
+    @Test
+    fun `the search action runs the writer's QUERY on the engine - the URL is code-built`() = runBlocking {
+        val blank = page("about:blank", "", emptyList(), "")
+        val results = page(
+            "https://www.google.com/search?q=tove+jansson+medal",
+            "search results for the medal",
+            listOf(SnapshotFixtures.element(id = 0, role = "link", label = "A result", tag = "a")),
+        )
+        val web = FakeWebView(ArrayDeque(listOf(blank, results)), autoNavigate = true)
+        val planner = ScriptedPlanner(
+            ladders = ArrayDeque(
+                listOf(
+                    Ladder(
+                        "search",
+                        listOf(
+                            Subtask(
+                                "search google for the medal year",
+                                DoneCondition.MarkerText("search results for the medal"),
+                            ),
+                        ),
+                        LadderTaskClass.READ,
+                    ),
+                ),
+            ),
+        )
+        val proposer = ScriptedProposer { snapshot ->
+            DomProposalClient.Proposal(
+                snapshot.elements.firstOrNull() ?: SnapshotFixtures.element(id = 0),
+                DomAction.SEARCH,
+                "tove jansson medal",
+                "the results page shows",
+                "{}",
+            )
+        }
+        val judge = ScriptedJudge(accepted = true)
+
+        val (terminal, events) = run(web, planner, proposer, judge, "Find the year Tove Jansson received the Hans Christian Andersen Medal")
+
+        assertTrue(
+            terminal is DomLaneLoop.Terminal.Done,
+            "got $terminal (loadLog=${web.loadLog} events=${events.map { it::class.simpleName }}})",
+        )
+        assertTrue(
+            web.loadLog.single().startsWith("https://www.google.com/search?q=") &&
+                web.loadLog.single().contains("tove+jansson+medal"),
+            "the engine URL was CODE-built from the query: ${web.loadLog}",
+        )
+        val verified = events.filterIsInstance<PipelineEvent.Verified>().single()
+        assertTrue(verified.confirmed, "the search verified on the results page")
     }
 }
