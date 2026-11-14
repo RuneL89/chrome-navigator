@@ -67,13 +67,23 @@ measurement becomes a standing P1 acceptance item.
   logged in to Verkkokauppa in Chrome and for the probe to add an item while logged in
   here — **owner-pending**; scheduled in Sprint 4's owner gate.
 
-## 4. Gmail API send — owner-pending
+## 4. Gmail API send — PASS (closed 2026-11-14)
 
-Blocked on a Google Cloud OAuth client (the user must create it). The API contract was
-validated by research (`users.messages.send`, `gmail.send` sensitive-only, no CASA).
-Owner steps: create a project → enable Gmail API → OAuth consent screen (External,
-Testing) → create an Android OAuth client with package `navigator.app` + the signing
-cert SHA-1 → hand over the client id. Sprint 2 includes this as an owner gate.
+The owner walked the console setup (project `navigator-mail-514623`, Gmail API enabled,
+branding + External/Testing audience, test user added, `gmail.send` scope, Web client
++ Android client created) and granted the consent in-session. The full transport then
+ran headlessly:
+
+- Token refresh (`oauth2.googleapis.com/token`, grant_type=refresh_token): **HTTP 200**
+- Gmail API `users.messages.send` to the owner's own address: **HTTP 200, message id
+  `1a1d76007f3e7fc8`** (subject "Navigator V2 - Gmail API send test")
+- Credentials live in the gitignored `.tools/keys.env` (client id/secret, refresh token,
+  sender); values never echoed to chat, logs, or commits.
+
+Consequence: FR-49/FR-50's transport (Gmail API send + the draft-card flow on top) is
+proven end to end. The app's runtime path uses the same refresh-token flow (the
+AuthorizationClient OAuth client for on-device token acquisition is the Sprint 2/5
+integration).
 
 ## 5. Off-screen rendering — PASS
 
