@@ -94,7 +94,10 @@ class DomLaneLoop(
         val taskId = "lane-${nowMs()}"
         val state = RunState(taskId)
         val contract = GoalContract.fromGoal(goal)
-        evidence?.line("task-start goal-classes=${contract.classes} site=${contract.site?.host ?: "none"}")
+        evidence?.line(
+            "task-start goal-classes=${contract.classes} site=${contract.site?.host ?: "none"} " +
+                "parameters=${contract.parameters.joinToString { it.rendered }}",
+        )
 
         var ladder = planLadder(goal, contract, state) ?: return Terminal.Failed(
             "no valid task ladder installed after the planning budget — nothing navigates",
@@ -179,7 +182,7 @@ class DomLaneLoop(
                 if (DoneConditionChecker.satisfied(subtask.done, doneEvidence(snapshot, state))) {
                     state.verified[pointer] = snapshot.page.url
                     evidence?.line("subtask ${pointer + 1}/${ladder.subtasks.size} verified: ${DoneConditionChecker.render(subtask.done)}")
-                    val invalid = earliestInvalidPrefix(ladder, state, snapshot)
+                    val invalid = earliestInvalidPrefix(ladder, state.verified, snapshot.page.url)
                     if (invalid != null) {
                         evidence?.line("prefix invalid at subtask ${invalid + 1} — rollback (the fill-only law means nothing irreversible precedes it)")
                         pointer = invalid
@@ -189,7 +192,7 @@ class DomLaneLoop(
                     pointer += 1
                     state.consecutiveUnverified = 0
                     if (pointer >= ladder.subtasks.size) {
-                        return finish(ladder, state)
+                        return finish(goal, ladder, state, snapshot)
                     }
                     markSubtaskStart(ladder, pointer, state)
                     continue
@@ -520,14 +523,14 @@ class DomLaneLoop(
     }
 
     /** FR-30: re-check the VERIFIED prefix — URL conditions always; DOM conditions are page-scoped. */
-    private fun earliestInvalidPrefix(ladder: Ladder, state: RunState, snapshot: DomSnapshot): Int? {
-        for ((index, _) in state.verified) {
+    internal fun earliestInvalidPrefix(ladder: Ladder, verified: Map<Int, String>, currentUrl: String): Int? {
+        for ((index, _) in verified) {
             val condition = ladder.subtasks.getOrNull(index)?.done ?: continue
             val isUrlCondition = condition is DoneCondition.UrlHost || condition is DoneCondition.UrlContains
             if (!isUrlCondition) continue // DOM content conditions are scoped to their own page
             val still = DoneConditionChecker.satisfied(
                 condition,
-                DoneConditionChecker.Evidence(url = snapshot.page.url),
+                DoneConditionChecker.Evidence(url = currentUrl),
             )
             if (!still) return index
         }
@@ -584,12 +587,19 @@ class DomLaneLoop(
         }
     }
 
-    private fun finish(ladder: Ladder, state: RunState): Terminal {
-        val finalCondition = ladder.subtasks.last().done
-        return if (finalCondition is DoneCondition.AnswerExtracted && state.producedAnswer != null) {
-            Terminal.Done(state.producedAnswer)
-        } else {
-            Terminal.Done(null)
+    /**
+     * FR-37 / AC-S2.5: the SINGLE final verifier gates every success path, exactly once
+     * (this is the loop's only Done return). A success the verifier cannot prove is an
+     * honest failure, never a claimed success.
+     */
+    private fun finish(goal: String, ladder: Ladder, state: RunState, snapshot: DomSnapshot): Terminal {
+        val verdict = DomFinalVerifier.verify(goal, ladder, state.verified, state.producedAnswer, snapshot)
+        evidence?.line("final-verifier: $verdict")
+        return when (verdict) {
+            is DomFinalVerifier.Verdict.Accept -> Terminal.Done(state.producedAnswer)
+            is DomFinalVerifier.Verdict.Deficient -> Terminal.Failed(
+                "the final verifier refused the success path: " + verdict.deficiencies.joinToString("; "),
+            )
         }
     }
 }

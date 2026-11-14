@@ -524,91 +524,49 @@ class GenClient(
         const val CONTENT_ATTEMPTS = 2
 
         /**
-         * The ladder response's OUTER shape (AC-S2.2): the provider is forced into this
-         * JSON. The done-condition stays a free object — its whitelist is enforced by
-         * [LadderSchema] + the core validator (the code law), which a permissive schema
-         * cannot express without weakening the whitelist.
+         * The ladder response's OUTER shape (AC-S2.2): the provider is forced into this JSON.
+         * The `done` whitelist rides as a oneOf — the code validator ([LadderSchema] + the
+         * core validator) remains the binding law; the schema just stops the drift early.
+         * Written as a JSON literal on purpose: nested builders of this depth are
+         * brace-fragile (the S2 build broke once on exactly that).
          */
         private fun ladderResponseSchema(): kotlinx.serialization.json.JsonObject =
-            kotlinx.serialization.json.buildJsonObject {
-                put("type", kotlinx.serialization.json.JsonPrimitive("object"))
-                put(
-                    "properties",
-                    kotlinx.serialization.json.buildJsonObject {
-                        put("summary", kotlinx.serialization.json.buildJsonObject { put("type", kotlinx.serialization.json.JsonPrimitive("string")) })
-                        put(
-                            "subtasks",
-                            kotlinx.serialization.json.buildJsonObject {
-                                put("type", kotlinx.serialization.json.JsonPrimitive("array"))
-                                put(
-                                    "items",
-                                    kotlinx.serialization.json.buildJsonObject {
-                                        put("type", kotlinx.serialization.json.JsonPrimitive("object"))
-                                        put(
-                                            "properties",
-                                            kotlinx.serialization.json.buildJsonObject {
-                                                put(
-                                                    "instruction",
-                                                    kotlinx.serialization.json.buildJsonObject {
-                                                        put("type", kotlinx.serialization.json.JsonPrimitive("string"))
-                                                    },
-                                                )
-                                                put(
-                                                    "enterText",
-                                                    kotlinx.serialization.json.buildJsonObject {
-                                                        put("type", kotlinx.serialization.json.JsonPrimitive("string"))
-                                                    },
-                                                )
-                                                put(
-                                                    "done",
-                                                    kotlinx.serialization.json.buildJsonObject {
-                                                        put("type", kotlinx.serialization.json.JsonPrimitive("object"))
-                                                    },
-                                                )
-                                            },
-                                        )
-                                        put(
-                                            "required",
-                                            kotlinx.serialization.json.buildJsonArray {
-                                                add(kotlinx.serialization.json.JsonPrimitive("instruction"))
-                                                add(kotlinx.serialization.json.JsonPrimitive("done"))
-                                            },
-                                        )
-                                    },
-                                )
+            kotlinx.serialization.json.Json.parseToJsonElement(
+                """
+                {
+                  "type": "object",
+                  "properties": {
+                    "summary": {"type": "string"},
+                    "subtasks": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "instruction": {"type": "string"},
+                          "enterText": {"type": "string"},
+                          "done": {
+                            "type": "object",
+                            "properties": {
+                              "urlHost": {"type": "string"},
+                              "urlContains": {"type": "string"},
+                              "markerText": {"type": "string"},
+                              "elementPresent": {"type": "string"},
+                              "count": {"type": "object", "properties": {"target": {"type": "string"}, "n": {"type": "integer"}}, "required": ["target", "n"]},
+                              "answerExtracted": {"type": "boolean"}
                             },
-                        )
-                        put(
-                            "taskClass",
-                            kotlinx.serialization.json.buildJsonObject {
-                                put("type", kotlinx.serialization.json.JsonPrimitive("string"))
-                                put(
-                                    "enum",
-                                    kotlinx.serialization.json.buildJsonArray {
-                                        add(kotlinx.serialization.json.JsonPrimitive("read"))
-                                        add(kotlinx.serialization.json.JsonPrimitive("action"))
-                                        add(kotlinx.serialization.json.JsonPrimitive("multi"))
-                                    },
-                                )
-                            },
-                        )
-                        put(
-                            "rollback",
-                            kotlinx.serialization.json.buildJsonObject {
-                                put("type", kotlinx.serialization.json.JsonPrimitive("object"))
-                            },
-                        )
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": ["instruction", "done"]
+                      }
                     },
-                )
-                put(
-                    "required",
-                    kotlinx.serialization.json.buildJsonArray {
-                        add(kotlinx.serialization.json.JsonPrimitive("summary"))
-                        add(kotlinx.serialization.json.JsonPrimitive("subtasks"))
-                        add(kotlinx.serialization.json.JsonPrimitive("taskClass"))
-                    },
-                )
-            }
+                    "taskClass": {"type": "string", "enum": ["read", "action", "multi"]},
+                    "rollback": {"type": "object"}
+                  },
+                  "required": ["summary", "subtasks", "taskClass"]
+                }
+                """.trimIndent(),
+            ).let { it as kotlinx.serialization.json.JsonObject }
 
         /**
          * The condition-repair response's shape (AC-S2.2): ONE done-condition object from

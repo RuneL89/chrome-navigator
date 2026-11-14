@@ -38,14 +38,22 @@ object LaneKeys {
         val file = File(context.filesDir, KEYS_FILE)
         if (!file.exists()) return null
         return try {
-            file.readLines()
-                .filter { it.contains('=') && !it.trimStart().startsWith('#') }
-                .associate {
-                    val idx = it.indexOf('=')
-                    it.substring(0, idx).trim() to it.substring(idx + 1).trim()
-                }
+            parseKeysEnv(file.readText())
         } catch (_: Exception) {
             null
         }
     }
+
+    /**
+     * The pure KEY=value parser (AC-S2.7's L1 half): skips blanks and `#` comments,
+     * splits on the FIRST `=`. Values are returned to the caller only — this function
+     * never logs, never embeds a value in an exception, never echoes (the secret law).
+     */
+    internal fun parseKeysEnv(text: String): Map<String, String> =
+        text.lines()
+            .filter { it.contains('=') && !it.trimStart().startsWith('#') }
+            .associate {
+                val idx = it.indexOf('=')
+                it.substring(0, idx).trim() to it.substring(idx + 1).trim()
+            }
 }
