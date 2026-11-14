@@ -1,0 +1,89 @@
+--------- beginning of main
+11-14 06:35:52.073   600   600 I NavigatorLane: lane overlay added 1080x2400 at x=-1080
+11-14 06:35:52.296   600   701 I NavigatorLane: task-start goal-classes=[READ_REPORT] site=verkkokauppa.com parameters=60 eur, verkkokauppa.com
+11-14 06:36:00.852   600   701 I NavigatorLane: site-entry: loading https://verkkokauppa.com
+11-14 06:36:03.487   600   600 I NavigatorLane: commit-visible url=https://www.verkkokauppa.com/fi/etusivu
+11-14 06:36:15.233   600   701 I NavigatorLane: subtask 1/4 verified: the URL host is verkkokauppa.com
+11-14 06:36:16.446   600   701 I NavigatorLane: request[1]: THE GOAL (the whole task - the step serves it): Find the cheapest kettle under 60 euros on verkkokauppa.com and stop at the cart, then report the cart total
+11-14 06:36:16.446   600   701 I NavigatorLane: TASK STEP: Identify the cheapest kettle priced under 60 euros on verkkokauppa.com
+11-14 06:36:16.446   600   701 I NavigatorLane: DONE CONDITION: an element matching 'a kettle product listing priced under 60 euros' is present
+11-14 06:36:16.446   600   701 I NavigatorLane: PAGE: https://www.verkkokauppa.com/fi/etusivu — "Verkkokauppa.com | Hyvä, halvempi, nopein!"
+11-14 06:36:16.446   600   701 I NavigatorLane: ELEMENTS (id | role | label | value/state | required | tag/type):
+11-14 06:36:16.446   600   701 I NavigatorLane: [0] link "Siirry sisältöön" value= (a/)
+11-14 06:36:16.446   600   701 I NavigatorLane: [1] link "Siirry alatunnisteeseen" value= (a/)
+11-14 06:36:16.446   600   701 I NavigatorLane: [2] button "Tuotealueet" value= (button/)
+11-14 06:36:16.446   600   701 I NavigatorLane: [3] link "Verkkokauppa.com on Suomen tunnetuin ja vierailluin verkkokauppa, joka pyrkii ol" value= (a/)
+11-14 06:36:16.446   600   701 I NavigatorLane: [4] combobox "Hae kaupasta" value= (input/text)
+11-14 06:36:16.446   600   701 I NavigatorLane: [5] button "Etsi" value= (button/submit)
+11-14 06:36:16.446   600   701 I NavigatorLane: [6] button "Kirjaudu sisään" value= (button/)
+11-14 06:36:16.446   600   701 I NavigatorLane: [7] button "Suosikit" value= (button/)
+11-14 06:36:16.446   600   701 I NavigatorLane: [8] button "Tarkastele ostoskoria" value= (button/)
+11-14 06:36:16.446   600   701 I NavigatorLane: [9] button "Postinumero: 00220" value= (button/)
+11-14 06:36:16.446   600   701 I NavigatorLane: [10] button "Toimipaikka: Helsingin myymälä" value= (button/)
+11-14 06:36:16.446   600   701 I NavigatorLane: [11] button "Sivuston kieli: Suomi" value= (button/)
+11-14 06:36:16.446   600   701 I NavigatorLane: [12] link "Black Friday" value= (a/)
+11-14 06:36:16.446   600   701 I NavigatorLane: [13] link "Black Friday: Televisio
+11-14 06:36:18.007   600   702 I NavigatorLane: writer-usage 3168microUsd
+11-14 06:36:18.015   600   702 I NavigatorLane: proposed search on [0] step 1 query/value="kettle under 60 euros cheapest"
+11-14 06:36:18.409   600   701 I NavigatorLane: judge-usage 3.6834E-5usd
+11-14 06:36:20.364   600   600 I NavigatorLane: commit-visible url=https://www.google.com/search?q=kettle+under+60+euros+cheapest
+11-14 06:36:27.267   600   701 I NavigatorLane: executed search verified=true search results showing: https://www.google.com/search?q=kettle+under+60+euros+cheapest (206 elements
+11-14 06:36:28.149   600   701 I NavigatorLane: subtask 2/4 verified: an element matching 'a kettle product listing priced under 60 euros' is present
+11-14 06:36:28.150   600   701 I NavigatorLane: prefix invalid at subtask 1 — rollback (the fill-only law means nothing irreversible precedes it)
+11-14 06:36:28.559   600   701 I NavigatorLane: site-entry: loading https://verkkokauppa.com
+11-14 06:36:29.532   600   600 I NavigatorLane: commit-visible url=https://www.verkkokauppa.com/fi/etusivu
+11-14 06:36:33.782   600   701 I NavigatorLane: subtask 1/4 verified: the URL host is verkkokauppa.com
+11-14 06:36:35.210   600   701 I NavigatorLane: request[1]: THE GOAL (the whole task - the step serves it): Find the cheapest kettle under 60 euros on verkkokauppa.com and stop at the cart, then report the cart total
+11-14 06:36:35.210   600   701 I NavigatorLane: TASK STEP: Identify the cheapest kettle priced under 60 euros on verkkokauppa.com
+11-14 06:36:35.210   600   701 I NavigatorLane: DONE CONDITION: an element matching 'a kettle product listing priced under 60 euros' is present
+11-14 06:36:35.210   600   701 I NavigatorLane: PAGE: https://www.verkkokauppa.com/fi/etusivu — "Verkkokauppa.com | Hyvä, halvempi, nopein!"
+11-14 06:36:35.210   600   701 I NavigatorLane: ELEMENTS (id | role | label | value/state | required | tag/type):
+11-14 06:36:35.210   600   701 I NavigatorLane: [0] link "Siirry sisältöön" value= (a/)
+11-14 06:36:35.210   600   701 I NavigatorLane: [1] link "Siirry alatunnisteeseen" value= (a/)
+11-14 06:36:35.210   600   701 I NavigatorLane: [2] button "Tuotealueet" value= (button/)
+11-14 06:36:35.210   600   701 I NavigatorLane: [3] link "Verkkokauppa.com on Suomen tunnetuin ja vierailluin verkkokauppa, joka pyrkii ol" value= (a/)
+11-14 06:36:35.210   600   701 I NavigatorLane: [4] combobox "Hae kaupasta" value= (input/text)
+11-14 06:36:35.210   600   701 I NavigatorLane: [5] button "Etsi" value= (button/submit)
+11-14 06:36:35.210   600   701 I NavigatorLane: [6] button "Kirjaudu sisään" value= (button/)
+11-14 06:36:35.210   600   701 I NavigatorLane: [7] button "Suosikit" value= (button/)
+11-14 06:36:35.210   600   701 I NavigatorLane: [8] button "Tarkastele ostoskoria" value= (button/)
+11-14 06:36:35.210   600   701 I NavigatorLane: [9] button "Postinumero: 00220" value= (button/)
+11-14 06:36:35.210   600   701 I NavigatorLane: [10] button "Toimipaikka: Helsingin myymälä" value= (button/)
+11-14 06:36:35.210   600   701 I NavigatorLane: [11] button "Sivuston kieli: Suomi" value= (button/)
+11-14 06:36:35.210   600   701 I NavigatorLane: [12] link "Black Friday" value= (a/)
+11-14 06:36:35.210   600   701 I NavigatorLane: [13] link "Black Friday: Televisio
+11-14 06:36:37.864   600   701 I NavigatorLane: writer-usage 4256microUsd
+11-14 06:36:37.865   600   701 I NavigatorLane: proposed search on [0] step 2 query/value="halvin vedenkeitin alle 60 euroa"
+11-14 06:36:38.132   600   701 I NavigatorLane: judge-usage 3.7128E-5usd
+11-14 06:36:39.063   600   701 I NavigatorLane: guard-refused the search query "halvin vedenkeitin alle 60 euroa" does not derive from the goal's subject — the page's own topic must never steer the query; re-derive it from
+11-14 06:36:39.536   600   701 I NavigatorLane: request[1]: THE GOAL (the whole task - the step serves it): Find the cheapest kettle under 60 euros on verkkokauppa.com and stop at the cart, then report the cart total
+11-14 06:36:39.536   600   701 I NavigatorLane: TASK STEP: Identify the cheapest kettle priced under 60 euros on verkkokauppa.com
+11-14 06:36:39.536   600   701 I NavigatorLane: DONE CONDITION: an element matching 'a kettle product listing priced under 60 euros' is present
+11-14 06:36:39.536   600   701 I NavigatorLane: PAGE: https://www.verkkokauppa.com/fi/etusivu — "Verkkokauppa.com | Hyvä, halvempi, nopein!"
+11-14 06:36:39.536   600   701 I NavigatorLane: ELEMENTS (id | role | label | value/state | required | tag/type):
+11-14 06:36:39.536   600   701 I NavigatorLane: [0] link "Siirry sisältöön" value= (a/)
+11-14 06:36:39.536   600   701 I NavigatorLane: [1] link "Siirry alatunnisteeseen" value= (a/)
+11-14 06:36:39.536   600   701 I NavigatorLane: [2] button "Tuotealueet" value= (button/)
+11-14 06:36:39.536   600   701 I NavigatorLane: [3] link "Verkkokauppa.com on Suomen tunnetuin ja vierailluin verkkokauppa, joka pyrkii ol" value= (a/)
+11-14 06:36:39.536   600   701 I NavigatorLane: [4] combobox "Hae kaupasta" value= (input/text)
+11-14 06:36:39.536   600   701 I NavigatorLane: [5] button "Etsi" value= (button/submit)
+11-14 06:36:39.536   600   701 I NavigatorLane: [6] button "Kirjaudu sisään" value= (button/)
+11-14 06:36:39.536   600   701 I NavigatorLane: [7] button "Suosikit" value= (button/)
+11-14 06:36:39.536   600   701 I NavigatorLane: [8] button "Tarkastele ostoskoria" value= (button/)
+11-14 06:36:39.536   600   701 I NavigatorLane: [9] button "Postinumero: 00220" value= (button/)
+11-14 06:36:39.536   600   701 I NavigatorLane: [10] button "Toimipaikka: Helsingin myymälä" value= (button/)
+11-14 06:36:39.536   600   701 I NavigatorLane: [11] button "Sivuston kieli: Suomi" value= (button/)
+11-14 06:36:39.536   600   701 I NavigatorLane: [12] link "Black Friday" value= (a/)
+11-14 06:36:39.536   600   701 I NavigatorLane: [13] link "Black Friday: Televisio
+11-14 06:36:41.041   600   701 I NavigatorLane: writer-usage 4944microUsd
+11-14 06:36:41.042   600   701 I NavigatorLane: proposed search on [0] step 3 query/value="vedenkeitin verkkokauppa.com halvin alle 60 euroa"
+11-14 06:36:41.282   600   708 I NavigatorLane: judge-usage 3.9606E-5usd
+11-14 06:36:41.635   600   600 I NavigatorLane: commit-visible url=https://www.google.com/search?q=vedenkeitin+verkkokauppa.com+halvin+alle+60+euroa
+11-14 06:36:47.508   600   708 I NavigatorLane: executed search verified=true search results showing: https://www.google.com/search?q=vedenkeitin+verkkokauppa.com+halvin+alle+60+
+11-14 06:36:48.069   600   708 I NavigatorLane: subtask 2/4 verified: an element matching 'a kettle product listing priced under 60 euros' is present
+11-14 06:36:48.077   600   708 I NavigatorLane: prefix invalid at subtask 1 — rollback (the fill-only law means nothing irreversible precedes it)
+11-14 06:36:48.214   600   708 I NavigatorLane: terminal: Failed(reason=subtask 1: the entry navigation looped after 3 opens — refusing)
+11-14 06:36:48.215   600   708 I NavigatorLane: task terminal: Failed(reason=subtask 1: the entry navigation looped after 3 opens — refusing)
+11-14 06:36:48.259   600   708 I NavigatorLane: webview-destroyed
+11-14 06:36:48.444   600   600 I NavigatorLane: lane stopped: service destroyed (ran 56432ms)
+11-14 06:36:48.446   600   600 I NavigatorLane: lane service destroyed

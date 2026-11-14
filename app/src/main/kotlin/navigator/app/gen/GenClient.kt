@@ -525,7 +525,9 @@ class GenClient(
 
         /**
          * The ladder response's OUTER shape (AC-S2.2): the provider is forced into this JSON.
-         * The `done` whitelist rides as a oneOf — the code validator ([LadderSchema] + the
+         * The `done` whitelist rides as enumerated optional keys with
+         * `additionalProperties: false` (the provider rejects oneOf — measured) — the code
+         * validator ([LadderSchema] + the
          * core validator) remains the binding law; the schema just stops the drift early.
          * Written as a JSON literal on purpose: nested builders of this depth are
          * brace-fragile (the S2 build broke once on exactly that).
