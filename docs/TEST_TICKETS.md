@@ -89,3 +89,11 @@ grep -rn -i "apikey\|api_key\|secret\|bearer\|client_secret" app/src/main/kotlin
 grep -rn "ProbeActivity\|ProbeOverlayService" app/src/main --include="*.kt" --include="*.xml"  # only manifest + own files
 adb -s emulator-5554 shell "run-as navigator.app grep -h -o -i 'cf_clearance=[^ ;]*\|__cf_bm=[^ ;]*' files/probe-*.txt"  # empty = clean
 ```
+
+
+## S3 round (2026-11-14, Test Manager HOLD → tickets loop)
+
+| ID | Title | Requirement link | Evidence | Status | Owner-decision-needed |
+|---|---|---|---|---|---|
+| CHG-03 | Sprint S3 scope FRs without AC coverage (FR-47/48/57/74) | FR-47, FR-48, FR-57, FR-74 | **PARTIALLY FIXED in the loop**: FR-47 was already covered (CaptchaDetectorTest + the loop's captcha SwitchOffer test — the matrix now cites them); FR-48 covered (CookieChoices law tests in S3LawsTest); FR-57's LAW implemented (CalendarAction: own-insert auto-confirmed + the exact 60 s undo window; invites draft) with tests — the CalendarContract wiring rides the calendar task types (S5); FR-74's storage law implemented (LaneSettings.DEFAULT_LIMIT_CENTS pinned) — the settings SCREENS carried to S4's UI redesign (the owner sees them at the S4 look-and-feel gate) | OPEN (carried: FR-57 wiring → S5; FR-74 screens → S4) | carried with visibility |
+| CHG-04 | S3 purchase/chip L3 evidence not filed as artifacts + the S3LawsTest count drift | FR-41, FR-42, FR-70, FR-73 | **FIXED in the loop**: both purchase paths re-executed WITH artifacts (s3-purchase-autoplace.logcat: approved via the silent window + the dispatch verified into the #receipt; s3-purchase-cancel.logcat: refused, no order placed, the honest terminal); the chip pixel-scan filed (chip-pixel-scan.txt, 94.7% + 587 caption px, fresh-emulator re-run); the count corrected (S3LawsTest 26) | FIXED | no |

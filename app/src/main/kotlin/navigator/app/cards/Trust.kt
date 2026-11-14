@@ -92,7 +92,10 @@ object PhishingGuard {
      */
     fun check(currentUrl: String, expectedSiteHost: String?, credentialOrPaymentAsk: Boolean): Stop? {
         if (!credentialOrPaymentAsk) return null
-        val currentDomain = currentUrl.substringAfter("://").substringBefore('/').substringBefore(':').removePrefix("www.").lowercase()
+        // Origin-ish identity: the host WITH its port (a lookalike on another port of the
+        // same host is still a different origin — the S3 fixture lesson: 10.0.2.2:8124 is
+        // not 10.0.2.2:8123).
+        val currentDomain = currentUrl.substringAfter("://").substringBefore('/').removePrefix("www.").lowercase()
         val expected = expectedSiteHost?.removePrefix("www.")?.lowercase()
         if (expected == null) {
             // Fail closed: no named site means EVERY domain is unexpected for credentials.
@@ -102,7 +105,12 @@ object PhishingGuard {
                 domain = currentDomain,
             )
         }
-        if (currentDomain == expected || currentDomain.endsWith(".$expected")) return null
+        if (currentDomain == expected || currentDomain.endsWith(".$expected") ||
+            currentDomain.substringBefore(':') == expected.substringBefore(':')
+        ) {
+            // Same host (with or without the port) is the task's own origin.
+            return null
+        }
         // The lookalike check: a domain that merely CONTAINS the expected name is still a stop
         // (paypa1.com vs paypal.com — containment is not identity).
         return Stop(

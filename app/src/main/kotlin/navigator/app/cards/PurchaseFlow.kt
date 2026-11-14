@@ -38,13 +38,16 @@ class LaneSettings(context: Context) {
 
     /** The auto-place limit in integer cents (default: the owner-ratified €30). */
     var autoPlaceLimitCents: Long
-        get() = prefs.getLong(KEY_AUTO_PLACE, AutoPlacePolicy.DEFAULT_LIMIT_EUR.toLong() * 100)
+        get() = prefs.getLong(KEY_AUTO_PLACE, DEFAULT_LIMIT_CENTS)
         set(value) {
             prefs.edit().putLong(KEY_AUTO_PLACE, value).commit()
         }
 
     companion object {
         const val KEY_AUTO_PLACE = "auto_place_limit_cents"
+
+        /** The owner-ratified default limit in cents (€30). */
+        const val DEFAULT_LIMIT_CENTS = 3_000L
     }
 }
 

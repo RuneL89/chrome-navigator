@@ -227,4 +227,53 @@ class S3LawsTest {
         assertEquals(0, policy.countFor("t1"))
         assertFalse(policy.taskEnded("t1"))
     }
+
+    // -- FR-48: the per-site cookie choices (the law the settings screen edits) --------------
+
+    @Test
+    fun `cookie choices default to essentials-only and are remembered per site`() {
+        val choices = navigator.app.cards.CookieChoices()
+        assertEquals(
+            navigator.app.cards.CookieChoices.Choice.ESSENTIALS_ONLY,
+            choices.forSite("verkkokauppa.com"),
+            "the strictest default for an unknown site",
+        )
+        choices.remember("Verkkokauppa.com", navigator.app.cards.CookieChoices.Choice.ESSENTIALS_ONLY)
+        choices.remember("example.test", navigator.app.cards.CookieChoices.Choice.ACCEPT_ALL)
+        assertEquals(navigator.app.cards.CookieChoices.Choice.ESSENTIALS_ONLY, choices.forSite("verkkokauppa.com"))
+        assertEquals(navigator.app.cards.CookieChoices.Choice.ACCEPT_ALL, choices.forSite("example.test"))
+        assertEquals(
+            navigator.app.cards.CookieChoices.Choice.ACCEPT_ALL,
+            choices.forSite("www.EXAMPLE.test"),
+            "the same site modulo www/case reads its stored choice",
+        )
+    }
+
+    // -- FR-74: the settings storage law (the auto-place number input) ------------------------
+
+    @Test
+    fun `the auto-place limit storage law rides LaneSettings' defaults`() {
+        // The storage seam: the owner-ratified default is €30 in cents; the settings screen
+        // (S4's UI) writes through the same key. Pinned as the storage contract.
+        assertEquals(30_00L, navigator.app.cards.LaneSettings.DEFAULT_LIMIT_CENTS)
+    }
+
+    // -- FR-57: the calendar law (own calendar: auto + confirm + 1 min undo) -------------------
+
+    @Test
+    fun `a calendar insert confirms immediately and the undo window is exactly one minute`() {
+        val action = navigator.app.cards.CalendarAction.insert("dentist", startsAtMs = 5_000L, nowMs = 5_000L)
+        assertEquals(navigator.app.cards.CalendarAction.State.CONFIRMED, action.state, "own-calendar inserts are auto-confirmed")
+        assertTrue(action.undoPlaces(atMs = 5_000L + 59_999), "59.9 s is still inside the undo window")
+        assertFalse(action.undoPlaces(atMs = 5_000L + 60_001), "past 60 s the undo window is closed")
+        assertTrue(action.undoPlaces(atMs = 5_000L + 60_000), "exactly 60 s is the boundary")
+        val undone = action.undo(atMs = 5_000L + 30_000)
+        assertEquals(navigator.app.cards.CalendarAction.State.UNDONE, undone.state)
+    }
+
+    @Test
+    fun `a calendar INVITE is never auto-confirmed - it drafts like email`() {
+        val action = navigator.app.cards.CalendarAction.invite("team sync")
+        assertEquals(navigator.app.cards.CalendarAction.State.DRAFT, action.state, "invites ride the draft-card law")
+    }
 }

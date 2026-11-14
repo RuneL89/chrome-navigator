@@ -26,11 +26,17 @@ object LaneKeys {
         resolve(context, TYPESAFE_ENV_KEY) { OpenRouterKeyStore.loadTypesafeKey(context) }
 
     private inline fun resolve(context: Context, envKeyName: String, stored: () -> String?): String? {
-        stored()?.takeIf { it.isNotBlank() }?.let { return it }
-        keysFile(context)?.let { map ->
-            map[envKeyName]?.takeIf { it.isNotBlank() }?.let { return it }
+        stored()?.takeIf { it.isNotBlank() }?.let {
+            android.util.Log.i("NavigatorLane", "lane key resolved from the STORE (length=" + it.length + ")")
+            return it
         }
-        Log.w("NavigatorLane", "lane key missing: $envKeyName — the lane refuses to start half-configured")
+        keysFile(context)?.let { map ->
+            map[envKeyName]?.takeIf { it.isNotBlank() }?.let {
+                android.util.Log.i("NavigatorLane", "lane key resolved from the FILE (length=" + it.length + ")")
+                return it
+            }
+        }
+        Log.w("NavigatorLane", "lane key missing: " + envKeyName)
         return null
     }
 

@@ -1,0 +1,9 @@
+    mAttrs={(21,210)(wrapxwrap) gr=TOP END CENTER sim={adjust=pan} ty=APPLICATION_OVERLAY fmt=TRANSLUCENT
+      fl=NOT_FOCUSABLE HARDWARE_ACCELERATED
+      pfl=INSET_PARENT_FRAME_BY_IME
+
+--- Window #5 (navigator.app chip, gr=TOP END) ---
+    mOwnerUid=10169 showForAllUsers=false package=navigator.app appop=SYSTEM_ALERT_WINDOW
+    mAttrs={(21,210)(wrapxwrap) gr=TOP END CENTER sim={adjust=pan} ty=APPLICATION_OVERLAY fmt=TRANSLUCENT
+    mViewVisibility=0x0 mHaveFrame=true mObscured=false
+--- logcat: chip: requesting addView / chip: addView OK ---

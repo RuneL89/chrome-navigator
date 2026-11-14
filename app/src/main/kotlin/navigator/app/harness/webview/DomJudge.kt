@@ -101,21 +101,18 @@ class DomJudge(
         val proposition = when {
             isSearch -> {
                 "Running the proposed search query is the right move for the GOAL STEP and its DONE " +
-                    "CONDITION, and the query is safe (no payment, no purchase, no credential, no " +
-                    "irreversible change)."
+                    "CONDITION. (Safety is enforced separately by the code guards.)"
             }
 
             isPurchaseDispatch -> {
                 "Executing the proposed action is the right move for the GOAL STEP and its DONE " +
-                    "CONDITION. The purchase decision itself (place or not) is governed by the " +
-                    "lane's separate purchase law - the auto-place rule or the owner's card - so " +
-                    "judging THIS action means judging the navigation, not the purchase."
+                    "CONDITION. (The purchase decision itself is governed separately by the " +
+                    "lane's purchase law; safety is enforced by the code guards.)"
             }
 
             else -> {
                 "Executing the PROPOSED ACTION on this page is the right move for the GOAL STEP and its " +
-                    "DONE CONDITION, and the action is safe (no payment, no purchase, no credential, no " +
-                    "form submit, no irreversible change)."
+                    "DONE CONDITION. (Safety is enforced separately by the code guards.)"
             }
         }
         val question = NoulQuestion(

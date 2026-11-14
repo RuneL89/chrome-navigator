@@ -1,0 +1,5 @@
+chip pixel-scan (AC-S3.6, re-run 2026-11-14):
+region [797,338][1059,437] (the WM frame of the chip window):
+  dark chip-background pixels: 24575 / 25938 (94.7%)
+  white caption-text pixels: 587
+conclusion: the corner chip renders with its caption during a live task.

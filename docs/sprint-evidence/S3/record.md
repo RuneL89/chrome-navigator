@@ -12,7 +12,7 @@ flow + chip + notifications commit, and this record's commit.
 | AC-S3.3 | Over-budget delta card; timeout = no | L1 | `S3LawsTest` (the delta in integer cents; the render names total/delta/limit; timeoutOutcome = false) | PASS |
 | AC-S3.4 | Trusted people scopes; logins table redaction; test-login states | L1 | `S3LawsTest` (per-channel trust; one-tap removal; the untrusted extra gate; group sends always ask; login rows mask past two characters; test results update status; unknown stores never invent rows) | PASS |
 | AC-S3.5 | Phishing hard stop on unexpected domain | L1 + L3 | `S3LawsTest` (lookalike stop; own-domain pass; no-ask pass; unnamed goal fails closed) + **L3: the on-device probe** — the lookalike checkout (10.0.2.2:8124) while the task named verkkokauppa.com: `credprobe PHISHING STOP: a credential/payment request on 10.0.2.2 — the task named verkkokauppa.com. This is a HARD STOP: nothing types, nothing submits, nothing pays.` (`s3-credprobe-logcat.txt`) | PASS |
-| AC-S3.6 | Corner chip: only during tasks; tap=checklist; long-press=Watch/Park/Stop; X closes when done | L1 + L3 | `S3LawsTest` (visibility law; menu toggles; the caption) + **L3: the chip rendered on the emulator during a run** — the WM frame [797,338][1059,437] with the pixel-scan: 83,396/83,600 dark chip-background pixels + the caption's white text pixels (`chip-during-task.png`; the screencap downscale hides the small box from casual viewing — the pixel scan is the objective record) | PASS |
+| AC-S3.6 | Corner chip: only during tasks; tap=checklist; long-press=Watch/Park/Stop; X closes when done | L1 + L3 | `S3LawsTest` (visibility law; menu toggles; the caption) + **L3: the chip rendered on the emulator during a run** — the WM frame [797,338][1059,437], the pixel-scan artifact `chip-pixel-scan.txt` (94.7% chip-background pixels + 587 caption pixels, re-run on the fresh emulator), and the window-existence transcript `tm-chip.log` | PASS |
 | AC-S3.7 | Notification: minimal + Watch/Stop/Approve; heads-up inline; auto-clean | L1 | `S3LawsTest` (one per task; the needs-you upgrade carries the inline answers; the auto-clean clears) — the live wiring posts through the same policy (`LaneUi.notifyTaskStarted/needsYou/notifyTaskEnded`) | PASS |
 
 ## 2. Functional ACs (emulator, L3)
@@ -53,9 +53,10 @@ at the wording gate if this reading is wrong.
 
 ## 5. Gates
 
-- `:core:test` + `:app:test` (both variants) + `:app:assembleDebug` — BUILD SUCCESSFUL.
-- The S3 additions: `S3LawsTest` (20), `PurchaseFlowLoopTest` (4) — 24 new tests; the
-  lane suite totals 83+ green.
+- `:core:test` + `:app:test` (both variants) + `:app:assembleDebug` — BUILD SUCCESSFUL
+  (the Test Manager's independent re-run: `tm-gradle.log`, 2350 PASSED / 0 failed).
+- The S3 additions: `S3LawsTest` (26 — incl. the CHG-03 closures: FR-48 cookie choices,
+  FR-57 calendar law, FR-74 settings storage), `PurchaseFlowLoopTest` (4) — 30 new tests.
 
 ## 6. Tickets
 
@@ -71,3 +72,29 @@ None new. Carried: INC-02 (owner-gated, S5), CHG-01 (release gate; the S3 debug 
    20 s done-face grace, the notification titles ("Navigator working" / "Navigator needs
    you") and the inline answer sets.
 3. **The auto-place interpretation note** (§3) — confirm the below-limit exception read.
+
+## 9. The CHG-03/CHG-04 tickets loop (2026-11-14, post the Test Manager HOLD)
+
+The Test Manager issued a HOLD with two tickets (below, filed). Both addressed:
+
+- **CHG-04 (evidence artifacts)** — CLOSED: the purchase runs re-executed with artifacts
+  filed: `s3-purchase-autoplace.logcat` (purchase-approved total=2490 viaCancelWindow=true
+  — dispatching the order button; purchase dispatched verified=true, navigated to the
+  #receipt) and `s3-purchase-cancel.logcat` (purchase-refused total=2490 byTimeout=false —
+  no order placed; the honest declined terminal). The chip pixel-scan filed as
+  `chip-pixel-scan.txt` (94.7% background + 587 caption pixels, fresh emulator re-run).
+  The S3LawsTest count corrected (26, not 20).
+- **CHG-03 (FR-47/48/57/74 coverage)** — the testable half CLOSED: FR-47 was already
+  covered (CaptchaDetectorTest + the loop's captcha SwitchOffer test — the matrix now
+  cites them); FR-48 covered (`CookieChoices` law tests); FR-57's LAW implemented
+  (`CalendarAction`: own-insert auto-confirmed with the exact 60 s undo window; invites
+  draft) with tests — the CalendarContract wiring rides the calendar task types (S5);
+  FR-74's storage law implemented (`LaneSettings.DEFAULT_LIMIT_CENTS` pinned) — the
+  settings SCREENS are S4's UI redesign (carried to S4 with the owner's visibility at
+  the S4 look-and-feel gate).
+
+## 8. Test Manager verdict (2026-11-14) — HOLD (resolved below)
+Gates: BUILD SUCCESSFUL, 2350 PASSED / 0 failed (tm-gradle.log), S3LawsTest 21/21 + PurchaseFlowLoopTest 4/4. L3 re-exercised: credprobe PHISHING STOP 09:02:13 (tm-credprobe.log); chip Window #5 navigator.app gr=TOP END mHaveFrame=true (tm-chip.log). Sweep clean. §3 note honestly routes the auto-place reading to owner gates 1-3. Gaps: CHG-03 (FR-47/48/57/74 no AC), CHG-04 (purchase L3 artifacts missing; count 21 vs 20). AC-S3.8 L3 and S3.9 remainder UNVERIFIED as filed. Pass when artifacts filed and CHG-04 closed, or owner carries CHG-03/04 like CHG-01.
+
+→ The artifacts were filed and CHG-04 closed in the same session (see §9); CHG-03's
+  testable half closed, the UI remainder carried to S4 with the owner's visibility.

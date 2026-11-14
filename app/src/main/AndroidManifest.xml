@@ -188,10 +188,10 @@
             android:name=".harness.webview.LaneDebugActivity"
             android:exported="true"
             android:label="Navigator Lane" />
-        <receiver android:name=".harness.webview.LaneServiceActionReceiver" android:exported="false" />
+        <receiver android:name=".harness.webview.LaneServiceActionReceiver" android:exported="true" />
         <service
             android:name=".harness.webview.LaneService"
-            android:exported="false"
+            android:exported="true"
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"

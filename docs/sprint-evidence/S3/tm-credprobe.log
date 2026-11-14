@@ -1,0 +1,8 @@
+--------- beginning of main
+11-14 09:02:06.905  6461  6461 I NavigatorLane: lane overlay added 1080x2400 at x=-1080
+11-14 09:02:10.439  6461  6461 I NavigatorLane: credprobe commit-visible url=http://10.0.2.2:8124/checkout-login.html
+11-14 09:02:13.239  6461  6518 I NavigatorLane: credprobe GUARD Pass
+11-14 09:02:13.239  6461  6518 I NavigatorLane: credprobe PHISHING STOP: a credential/payment request on 10.0.2.2 — the task named verkkokauppa.com. This is a HARD STOP: nothing types, nothing submits, nothing pays.
+11-14 09:02:13.392  6461  6518 I NavigatorLane: credprobe webview-destroyed
+11-14 09:02:13.570  6461  6461 I NavigatorLane: lane stopped: service destroyed (ran 1794639733570ms)
+11-14 09:02:13.577  6461  6461 I NavigatorLane: lane service destroyed
