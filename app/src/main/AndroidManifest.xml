@@ -181,6 +181,21 @@
                 android:value="v2 feasibility probe (off-screen WebView rendering test)" />
         </service>
 
+        <!-- V2 S1 - the background lane (the two-bot UI replaces LaneDebugActivity in S4;
+             the release build strips this debug surface - CHG-01 gate scope). -->
+        <activity
+            android:name=".harness.webview.LaneDebugActivity"
+            android:exported="true"
+            android:label="Navigator Lane" />
+        <service
+            android:name=".harness.webview.LaneService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="v2 background web lane (off-screen WebView task execution)" />
+        </service>
+
     </application>
 
 </manifest>
