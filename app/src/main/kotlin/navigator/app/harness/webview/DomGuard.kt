@@ -157,6 +157,24 @@ object DomGuard {
         url.substringAfter("://").let { if (it.length > 60) it.take(60) + "…" else it }
 
     /**
+     * The FR-46 signal: does this action ASK for credentials or payment? A text action
+     * on a password field or a card/credential-shaped field, or a click on a
+     * payment-shaped control. The DOMAIN check is [PhishingGuard]'s (the loop wires it).
+     */
+    internal fun isCredentialOrPaymentAsk(element: DomElement, action: DomAction): Boolean {
+        val label = ElementResolver.normalizeLabel(element.label)
+        val credentialWords = listOf("password", "passphrase", "card number", "cvv", "cvc", "security code", "salasana", "kortinnumero")
+        val paymentWords = listOf("pay now", "place order", "complete purchase", "maksa", "tilaa")
+        return when (action) {
+            DomAction.TEXT ->
+                element.type.equals("password", ignoreCase = true) || credentialWords.any { label.contains(it) }
+            DomAction.CLICK ->
+                element.type.equals("submit", ignoreCase = true) || paymentWords.any { label.contains(it) }
+            else -> false
+        }
+    }
+
+    /**
      * The query-derivation law (the live-run lesson): a search query must share real
      * content with the GOAL — the page's own topic (an untrusted source) must never steer
      * the query. Directive verbs are stripped from both sides, so a goal's "open" does

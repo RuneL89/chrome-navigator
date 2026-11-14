@@ -1,5 +1,6 @@
 package navigator.app.harness.webview
 
+import navigator.app.cards.PhishingGuard
 import navigator.app.harness.webview.dom.CaptchaDetector
 import navigator.app.harness.webview.dom.ConsentHandler
 import navigator.app.harness.webview.dom.DomAction
@@ -288,6 +289,15 @@ class DomLaneLoop(
                 }
 
                 is DomGuard.GuardVerdict.Pass -> {
+                    // FR-46: the phishing guard — a credential/payment ask on a domain the
+                    // task did not name is a HARD STOP (never a card, never a switch).
+                    if (DomGuard.isCredentialOrPaymentAsk(guard.resolved, proposal.action)) {
+                        PhishingGuard.check(fresh.page.url, contract.site?.host, credentialOrPaymentAsk = true)
+                            ?.let { stop ->
+                                evidence?.line("phishing-stop ${stop.reason.take(160)}")
+                                return Terminal.Failed("PHISHING STOP: ${stop.reason}")
+                            }
+                    }
                     // 6. execute + postcondition — dispatch is never a success claim
                     state.subtaskSteps += 1
                     val report = executor.execute(guard.resolved, proposal)
