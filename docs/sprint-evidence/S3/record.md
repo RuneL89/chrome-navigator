@@ -98,3 +98,25 @@ Gates: BUILD SUCCESSFUL, 2350 PASSED / 0 failed (tm-gradle.log), S3LawsTest 21/2
 
 → The artifacts were filed and CHG-04 closed in the same session (see §9); CHG-03's
   testable half closed, the UI remainder carried to S4 with the owner's visibility.
+
+## 10. The visual evidence (the plugin compositor, 2026-11-14)
+
+The raw `adb exec-out screencap` does NOT composite `TYPE_APPLICATION_OVERLAY` windows
+on this emulator (the S1 "invisibility" captures were blind to overlays by construction).
+The plugin screenshot DOES composite them:
+
+- `chip-plugin-live.png` — the corner chip visible during a live run ("task - starting").
+- `chip-clean.png` — the chip's DONE face ("task done") after the terminal, during the
+  20 s grace window before the X-only close.
+- `purchase-card-live.png` — the chip's LIVE step counter ("task 3 - step 2") updating in
+  real time while a purchase task ran.
+
+The purchase CARD visual was not captured live: the model variance on the stressed
+emulator (a persistent System UI ANR dialog after the fresh boot — recorded as an
+observation to watch in S4) kept the runs from reaching the order button, and the card
+is S3's minimal scaffolding. The card's WORDING is pinned by code + tests (gate 1) and
+its VISUAL design belongs to S4's UI gate where the card gets its real design.
+
+The task window's invisibility is structural, restated: the WebView window sits fully
+off-screen at x=-1080 (width=1080) — the compositor cannot show pixels outside the
+display, so the background promise holds by geometry, independent of any screenshot.
