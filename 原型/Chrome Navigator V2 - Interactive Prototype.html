@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en" data-zcode-design>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chrome Navigator V2 — Interactive Prototype</title>
+<style>
+  :root {
+    --void: #0a0a0c;
+    --surface: #16161a;
+    --surface-2: #1c1c22;
+    --line: rgba(255,255,255,0.09);
+    --line-haiku: rgba(255,169,77,0.4);
+    --line-jev: rgba(53,208,197,0.4);
+    --haiku: #FFA94D;
+    --jev: #35D0C5;
+    --text: #F2F2F5;
+    --muted: #9a9aa8;
+    --faint: #6d6d7a;
+    --ok: #16A34A;
+    --warn: #D97706;
+    --danger: #DC2626;
+    --font-display: 'Avenir Next', 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
+    --font-body: Inter, 'Segoe UI', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', Consolas, ui-monospace, monospace;
+    --radius-screen: 20px;
+    --radius-card: 14px;
+    --radius-btn: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #050507; color: var(--text); font-family: var(--font-body); }
+  body { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 28px 16px 64px; }
+
+  .proto-head { width: min(920px, 100%); margin-bottom: 22px; }
+  .proto-head h1 { font-family: var(--font-display); font-size: 26px; font-weight: 700; letter-spacing: 0.2px; }
+  .proto-head p { color: var(--muted); font-size: 14px; margin-top: 6px; line-height: 1.5; }
+  .proto-head .hint { color: var(--faint); font-size: 12px; margin-top: 10px; }
+
+  .screen-wrap { position: relative; width: min(390px, 100%); height: min(844px, calc(100vh - 220px)); min-height: 640px; border-radius: var(--radius-screen); background: var(--void); border: 1px solid var(--line); overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,0.55); }
+  .screen { position: absolute; inset: 0; display: none; flex-direction: column; background: var(--void); color: var(--text); }
+  .screen.active { display: flex; }
+
+  .topbar { padding: 20px 18px 0; display: flex; align-items: center; justify-content: space-between; }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); display: inline-block; margin-right: 6px; }
+  .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+  .chip { position: absolute; top: 14px; right: 14px; background: rgba(28,28,34,0.92); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; font-size: 12px; color: var(--text); display: flex; align-items: center; gap: 8px; z-index: 30; }
+  .chip .dot-h { width: 8px; height: 8px; border-radius: 50%; background: var(--haiku); }
+  .chip .dot-j { width: 8px; height: 8px; border-radius: 50%; background: var(--jev); }
+
+  .bot-svg { display: block; }
+  .bot-stage { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px; position: relative; }
+  .bot-label { font-size: 11px; margin-top: 6px; text-align: center; }
+  .bot-label.h { color: var(--haiku); }
+  .bot-label.j { color: var(--jev); }
+  .handoff-arrow { flex: 1; text-align: center; color: var(--faint); font-size: 18px; transition: color 0.4s, opacity 0.4s; }
+  .handoff-arrow.active { color: var(--jev); }
+  .bot.thinking .eye-h { animation: blink-h 1.6s infinite; transform-origin: 17px 21px; }
+  .bot.idle .body-h { animation: breathe 3.2s ease-in-out infinite; transform-origin: center; }
+  @keyframes blink-h { 0%, 60%, 100% { opacity: 1; } 30% { opacity: 0.25; } }
+  @keyframes breathe { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+  @media (prefers-reduced-motion: reduce) {
+    .bot.thinking .eye-h, .bot.idle .body-h { animation: none; }
+    .fade-swap { transition: none !important; }
+  }
+
+  .log { background: #101014; border: 1px solid var(--line); border-radius: 14px; padding: 12px; font-family: var(--font-mono); font-size: 11px; color: var(--muted); line-height: 1.7; }
+  .log .who-h { color: var(--haiku); }
+  .log .who-j { color: var(--jev); }
+
+  .card-overlay { position: absolute; inset: 0; background: rgba(4,4,6,0.72); display: flex; align-items: flex-end; z-index: 20; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+  .card-overlay.active { opacity: 1; pointer-events: auto; }
+  .purchase-card { width: 100%; background: var(--surface); border-top: 1px solid var(--line-haiku); border-radius: var(--radius-screen) var(--radius-screen) 0 0; padding: 22px 20px; transform: translateY(100%); transition: transform 0.35s ease-out; }
+  .card-overlay.active .purchase-card { transform: translateY(0); }
+  .pc-title { font-family: var(--font-display); font-size: 18px; font-weight: 700; }
+  .pc-item { margin-top: 10px; font-size: 15px; color: #c8c8d2; }
+  .pc-honesty { margin-top: 6px; font-size: 12px; color: var(--muted); }
+  .pc-buttons { margin-top: 16px; display: flex; gap: 10px; }
+  .btn { flex: 1; border-radius: var(--radius-btn); padding: 13px; text-align: center; font-weight: 700; font-size: 14px; font-family: var(--font-body); cursor: pointer; border: none; min-height: 44px; }
+  .btn:active { transform: translateY(1px); }
+  .btn-approve { background: var(--haiku); color: var(--void); }
+  .btn-decline { background: var(--surface-2); border: 1px solid var(--line); color: #c8c8d2; }
+  .btn:focus-visible { outline: 2px solid var(--jev); outline-offset: 2px; }
+
+  .greet { font-family: var(--font-display); font-size: 26px; font-weight: 700; }
+  .input-box { margin-top: 22px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px; font-size: 15px; color: #c8c8d2; line-height: 1.5; }
+  .example-chips { margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .example-chips span { border-radius: 999px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
+  .ec-h { border: 1px solid var(--line-haiku); color: var(--haiku); }
+  .ec-j { border: 1px solid var(--line-jev); color: var(--jev); }
+  .ec-n { border: 1px solid rgba(255,255,255,0.15); color: var(--muted); }
+  .section-label { font-size: 12px; color: var(--faint); margin-top: 28px; }
+  .task-row { margin-top: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-card); padding: 14px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+  .task-row:hover { border-color: rgba(255,255,255,0.2); }
+  .primary-btn { background: var(--haiku); color: var(--void); border-radius: var(--radius-card); padding: 14px; text-align: center; font-weight: 700; font-size: 15px; cursor: pointer; border: none; min-height: 44px; }
+  .primary-btn:hover { filter: brightness(1.06); }
+
+  .screen-nav { position: absolute; bottom: 0; left: 0; right: 0; display: flex; gap: 8px; padding: 14px 18px 18px; z-index: 15; background: linear-gradient(to top, var(--void) 55%, transparent); }
+  .nav-btn { flex: 1; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-btn); padding: 12px; text-align: center; font-size: 13px; color: #c8c8d2; cursor: pointer; font-family: var(--font-body); min-height: 44px; }
+  .nav-btn:hover { border-color: rgba(255,255,255,0.25); }
+  .nav-btn.danger { border-color: rgba(220,38,38,0.4); color: var(--danger); }
+
+  .verdict { margin-top: 20px; background: var(--surface); border: 1px solid var(--line-jev); border-radius: var(--radius-card); padding: 14px; text-align: left; font-size: 13px; color: #c8c8d2; }
+  .verdict .who { font-size: 11px; color: var(--jev); }
+
+  .proto-foot { width: min(920px, 100%); margin-top: 20px; color: var(--faint); font-size: 12px; line-height: 1.6; }
+</style>
+</head>
+<body>
+  <div class="proto-head">
+    <h1>Chrome Navigator V2 — the duet prototype</h1>
+    <p>Haiku proposes, Jev judges. Click through the flow: start a task on Home, watch the handoff on Watch, decide on the purchase card, read the receipt, browse History. The chip rides every state.</p>
+    <p class="hint">Ratified wording is verbatim. Reduced motion is respected. The chip composites over everything — like it will on the phone.</p>
+  </div>
+
+  <div class="screen-wrap">
+    <div class="chip" id="chip"><span class="dot-h"></span><span class="dot-j"></span><span id="chip-caption">task — starting</span></div>
+
+    <!-- ═══ HOME ═══ -->
+    <div class="screen active" id="scr-home">
+      <div style="padding:28px 22px; flex:1; overflow:auto;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <svg class="bot-svg bot idle" width="46" height="42" viewBox="0 0 44 40"><rect class="body-h" x="4" y="8" width="26" height="26" rx="12" fill="#FFA94D"/><circle class="eye-h" cx="17" cy="21" r="6" fill="#0a0a0c"/><circle cx="17" cy="21" r="3" fill="#FFA94D"/></svg>
+          <svg class="bot-svg" width="46" height="42" viewBox="0 0 44 40"><path d="M8 8 L34 8 L30 34 L12 34 Z" fill="#35D0C5"/><rect x="16" y="16" width="12" height="5" rx="2.5" fill="#0a0a0c"/></svg>
+        </div>
+        <div class="greet">Good evening.</div>
+        <div style="font-size:14px; color:var(--muted); margin-top:6px;">What should we handle tonight?</div>
+        <div class="input-box">Find the cheapest kettle under €50, add it to the cart, stop at checkout, and email me the price<span style="color:var(--haiku);">|</span></div>
+        <div class="example-chips">
+          <span class="ec-h" onclick="fillGoal('Buy a case of sugar free Red Bull and deliver it')">Buy something</span>
+          <span class="ec-j" onclick="fillGoal('Book the dentist for Thursday morning')">Book a slot</span>
+          <span class="ec-n" onclick="fillGoal('Report the headlines this morning')">Report the news</span>
+        </div>
+        <div class="section-label">RECENT</div>
+        <div class="task-row" onclick="go('scr-watch')">
+          <div><div style="font-size:14px;">Kettle under €50</div><div style="font-size:12px; color:var(--jev); margin-top:2px;">done · the price emailed</div></div>
+          <div class="mono" style="font-size:12px; color:var(--faint);">12 steps</div>
+        </div>
+        <div class="task-row" onclick="go('scr-watch')">
+          <div><div style="font-size:14px;">Dentist appointment</div><div style="font-size:12px; color:var(--haiku); margin-top:2px;">waiting for your approval</div></div>
+          <div style="font-size:12px; color:var(--faint);">card up</div>
+        </div>
+        <div style="height:70px;"></div>
+      </div>
+      <div class="screen-nav">
+        <div class="primary-btn" style="flex:2;" onclick="go('scr-watch')">Start the task</div>
+        <div class="nav-btn" style="flex:1;" onclick="go('scr-history')">History</div>
+      </div>
+    </div>
+
+    <!-- ═══ WATCH ═══ -->
+    <div class="screen" id="scr-watch">
+      <div class="topbar">
+        <div style="font-size:14px; font-weight:700;">Kettle under €50</div>
+        <div style="font-size:11px; color:var(--ok);"><span class="live-dot"></span>running</div>
+      </div>
+      <div style="padding:14px 18px; flex:1; overflow:auto;">
+        <div class="bot-stage">
+          <div style="font-size:11px; color:var(--faint);">THE STAGE</div>
+          <div style="display:flex; align-items:center; margin-top:12px;">
+            <div style="text-align:center;">
+              <svg class="bot-svg bot thinking" id="bot-haiku" width="58" height="52" viewBox="0 0 44 40"><rect class="body-h" x="4" y="8" width="26" height="26" rx="12" fill="#FFA94D"/><circle class="eye-h" cx="17" cy="21" r="6" fill="#0a0a0c"/><circle cx="17" cy="21" r="3" fill="#FFA94D"/></svg>
+              <div class="bot-label h" id="bot-haiku-label">Haiku · thinking</div>
+            </div>
+            <div class="handoff-arrow" id="handoff">→</div>
+            <div style="text-align:center; opacity:0.45;" id="jev-slot">
+              <svg class="bot-svg" width="58" height="52" viewBox="0 0 44 40"><path d="M8 8 L34 8 L30 34 L12 34 Z" fill="#35D0C5"/><rect x="16" y="16" width="12" height="5" rx="2.5" fill="#0a0a0c"/></svg>
+              <div class="bot-label j" id="bot-jev-label">Jev · waiting</div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:12px; border:1px solid var(--line); border-radius:16px; overflow:hidden;">
+          <div style="background:var(--surface-2); padding:10px 14px; font-size:12px; color:var(--muted); display:flex; justify-content:space-between;">
+            <span>verkkokauppa.com/fi/…</span><span style="color:var(--jev);">live</span>
+          </div>
+          <div style="padding:14px; font-size:12px; color:#c8c8d2; background:#101014;" id="page-mirror">the product list the lane is reading — the real page, mirrored read-only</div>
+        </div>
+        <div class="log" id="log">
+          <div><span class="who-h">haiku</span> · propose: click [7] "Add to cart"</div>
+          <div><span class="who-j">jev</span> &nbsp;· advance p=0.91 — accepted</div>
+          <div><span style="color:var(--text);">step 4</span> · click verified — the cart holds 1 item</div>
+        </div>
+        <div style="height:70px;"></div>
+      </div>
+      <div class="screen-nav">
+        <div class="nav-btn" onclick="logLine()">Pause</div>
+        <div class="nav-btn danger" onclick="stopTask()">Stop</div>
+        <div class="nav-btn" onclick="reachOrder()">Skip to the order →</div>
+      </div>
+    </div>
+
+    <!-- ═══ CARD ═══ -->
+    <div class="screen" id="scr-card">
+      <div class="topbar">
+        <div style="font-size:14px; font-weight:700;">Kettle under €50</div>
+        <div style="font-size:11px; color:var(--warn);"><span class="live-dot" style="background:var(--warn);"></span>waiting for you</div>
+      </div>
+      <div style="padding:14px 18px; flex:1;">
+        <div class="bot-stage" style="border-color:var(--line-haiku);">
+          <div style="font-size:11px; color:var(--faint);">THE STAGE</div>
+          <div style="display:flex; align-items:center; margin-top:12px;">
+            <div style="text-align:center;">
+              <svg class="bot-svg" width="58" height="52" viewBox="0 0 44 40"><rect x="4" y="8" width="26" height="26" rx="12" fill="#FFA94D"/><circle cx="17" cy="21" r="6" fill="#0a0a0c"/><circle cx="17" cy="21" r="3" fill="#FFA94D"/></svg>
+              <div class="bot-label h">Haiku · proposing the order</div>
+            </div>
+            <div class="handoff-arrow">→</div>
+            <div style="text-align:center;">
+              <svg class="bot-svg" width="58" height="52" viewBox="0 0 44 40"><path d="M8 8 L34 8 L30 34 L12 34 Z" fill="#35D0C5"/><rect x="16" y="16" width="12" height="5" rx="2.5" fill="#0a0a0c"/></svg>
+              <div class="bot-label j">Jev · the law decides</div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:12px; font-size:13px; color:var(--muted); line-height:1.6;">The total is at or above your limit — the card asks. Timeout = no order; a declined purchase never dispatches.</div>
+        <div style="height:80px;"></div>
+      </div>
+      <div class="card-overlay active" id="card-overlay">
+        <div class="purchase-card">
+          <div class="pc-title">Purchase approval</div>
+          <div class="pc-item">KitchenPro kettle ×1 — 24.90 EUR</div>
+          <div class="pc-honesty">Timeout = no order</div>
+          <div class="pc-buttons">
+            <button class="btn btn-approve" onclick="cardAnswer(true)">Approve</button>
+            <button class="btn btn-decline" onclick="cardAnswer(false)">Decline</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ DONE ═══ -->
+    <div class="screen" id="scr-done">
+      <div style="padding:28px 22px; flex:1; text-align:center;">
+        <svg class="bot-svg" width="64" height="58" viewBox="0 0 44 40" style="margin:0 auto;"><rect x="4" y="8" width="26" height="26" rx="12" fill="#FFA94D"/><circle cx="17" cy="21" r="6" fill="#0a0a0c"/><circle cx="17" cy="21" r="3" fill="#FFA94D"/><path d="M8 8 L34 8 L30 34 L12 34 Z" fill="#35D0C5" opacity="0.85"/><rect x="16" y="16" width="12" height="5" rx="2.5" fill="#0a0a0c"/></svg>
+        <div class="greet" style="margin-top:16px;">Done.</div>
+        <div style="margin-top:8px; font-size:14px; color:var(--muted);">KitchenPro kettle — 24.90 EUR, in the cart at checkout.</div>
+        <div class="verdict">
+          <div class="who">JEV'S VERDICT</div>
+          <div style="margin-top:6px;">verified — the order confirmation is on the page; the price matches the goal</div>
+        </div>
+        <div class="primary-btn" style="margin-top:22px;" onclick="go('scr-history')">Copy the result</div>
+        <div style="margin-top:10px; font-size:12px; color:var(--faint);">the recorded log stays in history</div>
+      </div>
+      <div class="screen-nav">
+        <div class="nav-btn" onclick="go('scr-home')">Home</div>
+        <div class="nav-btn" onclick="go('scr-history')">History</div>
+      </div>
+    </div>
+
+    <!-- ═══ DECLINED ═══ -->
+    <div class="screen" id="scr-declined">
+      <div style="padding:28px 22px; flex:1; text-align:center;">
+        <div style="font-size:40px; color:var(--faint); font-family:var(--font-display); font-weight:300;">—</div>
+        <div class="greet" style="margin-top:12px;">Not placed.</div>
+        <div style="margin-top:8px; font-size:14px; color:var(--muted); line-height:1.6;">the purchase was not approved (the owner declined) —<br>no order was placed</div>
+        <div style="margin-top:22px; font-size:12px; color:var(--faint);">the store page was left untouched — verified</div>
+        <div class="primary-btn" style="margin-top:30px; background:var(--surface-2); color:#c8c8d2; border:1px solid var(--line);" onclick="go('scr-home')">Back home</div>
+      </div>
+      <div class="screen-nav">
+        <div class="nav-btn" onclick="go('scr-home')">Home</div>
+        <div class="nav-btn" onclick="go('scr-history')">History</div>
+      </div>
+    </div>
+
+    <!-- ═══ HISTORY ═══ -->
+    <div class="screen" id="scr-history">
+      <div style="padding:24px 20px; flex:1; overflow:auto;">
+        <div class="greet" style="font-size:22px;">History</div>
+        <div class="task-row" style="margin-top:16px; flex-direction:column; align-items:stretch;">
+          <div style="font-size:14px;">Kettle under €50</div>
+          <div style="font-size:12px; color:var(--jev); margin-top:3px;">done · 12 steps · the price emailed</div>
+          <div class="mono" style="margin-top:8px; font-size:11px; color:var(--faint); line-height:1.6;">haiku propose → jev 0.91 → click verified → …<br>the full recorded log, replayable</div>
+        </div>
+        <div class="task-row" style="flex-direction:column; align-items:stretch;">
+          <div style="font-size:14px;">Dentist appointment</div>
+          <div style="font-size:12px; color:var(--warn); margin-top:3px;">declined · no booking made</div>
+        </div>
+        <div class="task-row" style="flex-direction:column; align-items:stretch; border-color:rgba(220,38,38,0.3);">
+          <div style="font-size:14px;">Unknown store login</div>
+          <div style="font-size:12px; color:var(--danger); margin-top:3px;">hard stop — the domain was not yours</div>
+        </div>
+        <div style="height:60px;"></div>
+      </div>
+      <div class="screen-nav">
+        <div class="nav-btn" onclick="go('scr-home')">Home</div>
+        <div class="nav-btn" onclick="go('scr-watch')">Watch again</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="proto-foot">
+    The flow: Home → Start → Watch (the handoff animates; the log writes itself) → Skip to the order → the card (ratified wording) → Approve → Done, or Decline → Not placed. The chip rides every state. Reduced motion: the bots hold static poses and the transitions cut.
+  </div>
+
+<script>
+  function go(id) {
+    document.querySelectorAll('.screen').forEach(function (s) { s.classList.remove('active'); });
+    document.getElementById(id).classList.add('active');
+    if (id === 'scr-watch') { resetWatch(); }
+    if (id === 'scr-home') { document.getElementById('chip-caption').textContent = 'task — starting'; }
+  }
+  function fillGoal(text) {
+    document.querySelector('.input-box').innerHTML = text + '<span style="color:var(--haiku);">|</span>';
+  }
+  /* The handoff: Haiku thinks, passes to Jev, the log writes itself, then the card. */
+  function resetWatch() {
+    document.getElementById('bot-haiku-label').textContent = 'Haiku · thinking';
+    document.getElementById('bot-jev-label').textContent = 'Jev · waiting';
+    document.getElementById('bot-jev-slot').style.opacity = '0.45';
+    document.getElementById('handoff').classList.remove('active');
+    document.getElementById('chip-caption').textContent = 'task 2 — step 1';
+    var log = document.getElementById('log');
+    log.innerHTML = '<div><span class="who-h">haiku</span> · propose: click [7] "Add to cart"</div>';
+    setTimeout(function () {
+      var arrow = document.getElementById('handoff');
+      arrow.classList.add('active');
+      document.getElementById('bot-haiku-label').textContent = 'Haiku · handed off';
+      document.getElementById('bot-jev-label').textContent = 'Jev · judging';
+      document.getElementById('bot-jev-slot').style.opacity = '1';
+      document.getElementById('chip-caption').textContent = 'task 2 — step 2';
+      var l2 = document.createElement('div');
+      l2.innerHTML = '<span class="who-j">jev</span> &nbsp;· advance p=0.91 — accepted';
+      log.appendChild(l2);
+    }, 1800);
+    setTimeout(function () {
+      var l3 = document.createElement('div');
+      l3.innerHTML = '<span style="color:var(--text);">step 4</span> · click verified — the cart holds 1 item';
+      log.appendChild(l3);
+    }, 3200);
+  }
+  var logLines = [
+    '<div><span class="who-h">haiku</span> · propose: scroll to the order button</div>',
+    '<div><span class="who-j">jev</span> &nbsp;· advance p=0.88 — accepted</div>',
+    '<div><span style="color:var(--text);">step 5</span> · the total reads 24.90 EUR — at or above your limit?</div>',
+    '<div><span class="who-h">haiku</span> · propose: click [9] "Place order"</div>'
+  ];
+  var logIdx = 0;
+  function logLine() {
+    var log = document.getElementById('log');
+    if (logIdx < logLines.length) { log.appendChild(htmlNode(logLines[logIdx++])); }
+  }
+  function htmlNode(html) { var d = document.createElement('div'); d.innerHTML = html; return d.firstChild || d; }
+  function reachOrder() { go('scr-card'); }
+  function stopTask() {
+    document.getElementById('chip-caption').textContent = 'task stopped';
+    go('scr-home');
+  }
+  function cardAnswer(approved) {
+    if (approved) { go('scr-done'); }
+    else { go('scr-declined'); }
+  }
+</script>
+</body>
+</html>
