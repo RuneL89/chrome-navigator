@@ -33,8 +33,16 @@ object Prompts {
      * (2026-10-17, the run-3 repair): the family gains a THIRD variant — the
      * mechanism-cause informed re-plan ([CauseClass.INPUT_MECHANISM]'s Guidance line;
      * fixture `golden-restructure-v4-mechanism.json`, additive, the v4 goldens untouched).
+     *
+     * v7 (V2 S1, 2026-11-14, FR-28 / AC-S1.5 — the search-oscillation fix): the writer is
+     * taught the INTERMEDIATE-CONDITION law — a non-final SEARCH step may not carry a URL
+     * condition; the SITE-FIRST rule now demands a CONTENT condition on the first search
+     * step (the old `google.com/search?q=…` instruction WAS the defect's root cause).
+     * Code backstop: `core` `SearchStepLaw` in `LadderValidator`. Fixture:
+     * `golden-restructure-v7.json` (+ `-v7-mechanism`), additive — the v6 goldens stay
+     * byte-identical.
      */
-    const val PROMPT_VERSION = "restructure-v6"
+    const val PROMPT_VERSION = "restructure-v7"
 
     /** The answer-extraction prompt version (doc 06 §4: "report data, not actions"). */
     const val EXTRACTION_PROMPT_VERSION = "extract-v1"
@@ -117,13 +125,21 @@ object Prompts {
           (number and currency), the quantity, and any named account/channel. A goal that
           switches the active account/channel must name that account in a subtask. A goal
           that asks to play/watch a video must end on playback evidence.
+        - SEARCH STEPS (checked in CODE — a violation is refused): a subtask whose outcome
+          is SEARCHING — on a search engine (Google/Bing/…) or inside a site — that is NOT
+          the final subtask may NOT carry {"urlHost"} or {"urlContains"}. The very next
+          lawful click opens a result and navigates away, which would re-invalidate the
+          step and oscillate the run. Pin the CONTENT the search must produce instead:
+          {"elementPresent": "<a result link/list the found page must show>"} or
+          {"markerText": "<a literal from a result>"}.
         - SITE-FIRST (checked in CODE — a violation is refused): if the goal names NO
           website (no domain, no URL), the FIRST subtask MUST be a web search for the
-          goal's product/entity — instruction "Search Google for <product>" with a
-          {"urlContains": "google.com/search?q=<product>"} condition. The store/site is
-          chosen from the search RESULTS in a later subtask; never open a store directly.
-          A goal that names a site (e.g. "open verkkokauppa.com …") keeps a direct first
-          subtask.
+          goal's product/entity — instruction "Search Google for <product>" with a CONTENT
+          condition ({"elementPresent": "a search result linking to <product>'s site"} —
+          NEVER a "google.com/search…" URL condition; the validator refuses URL conditions
+          on non-final search steps). The store/site is chosen from the search RESULTS in
+          a later subtask; never open a store directly. A goal that names a site (e.g.
+          "open verkkokauppa.com …") keeps a direct first subtask.
 
         RE-PLAN generations (when the input carries a <failure> block) add these rules:
         - "Already verified" subtasks listed in the <failure> block are DONE. Keep them

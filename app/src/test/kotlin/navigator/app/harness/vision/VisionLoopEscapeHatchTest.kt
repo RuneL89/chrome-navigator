@@ -155,7 +155,7 @@ class VisionLoopEscapeHatchTest {
     private val run11Plan = """
         {"summary":"open verkkokauppa and buy celsius","taskClass":"action","subtasks":[
           {"instruction":"open verkkokauppa.com","done":{"markerText":"VERKKOKAUPPA"}},
-          {"instruction":"search for celsius lemon lime","done":{"urlHost":"verkkokauppa.com"}},
+          {"instruction":"search for celsius lemon lime","done":{"elementPresent":"the search box on the store page"}},
           {"instruction":"open the celsius product page","done":{"markerText":"CELSIUS"}},
           {"instruction":"add two cases to the shopping cart","done":{"markerText":"OSTOSKORI"}}]}
     """.trimIndent()

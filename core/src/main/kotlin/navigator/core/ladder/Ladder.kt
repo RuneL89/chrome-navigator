@@ -264,6 +264,11 @@ object LadderValidator {
                         "${LadderLimits.MAX_CONDITION_TEXT_CHARS} chars",
                 )
             }
+            // V2 S1 FR-28 (AC-S1.5) — the search-oscillation law: a non-final SEARCH step
+            // may not pin a URL condition. Runs for INITIAL plans and re-plans alike —
+            // this validator is the one choke point both generations pass through.
+            SearchStepLaw.urlConditionViolation(subtask, index == ladder.subtasks.size - 1)
+                ?.let { violations.add("subtask ${index + 1}: $it") }
         }
         if (violations.isNotEmpty()) {
             throw LadderValidationException(

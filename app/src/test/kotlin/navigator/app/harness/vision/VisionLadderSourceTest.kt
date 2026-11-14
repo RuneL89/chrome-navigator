@@ -53,7 +53,7 @@ class VisionLadderSourceTest {
     private val plan = """
         {"summary":"search then open the page","taskClass":"read","subtasks":[
           {"instruction":"Search Google for celsius drink","enterText":"celsius drink",
-           "done":{"urlContains":"google.com/search?q=celsius"}},
+           "done":{"elementPresent":"a search result linking to a page about the celsius drink"}},
           {"instruction":"open the celsius page on shop.test","done":{"urlHost":"shop.test"}}]}
     """.trimIndent()
 

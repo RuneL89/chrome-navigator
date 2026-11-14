@@ -246,7 +246,7 @@ class Phase18ChromeRecoveryTest {
     private val redoPlan = """
         {"summary":"search and buy the product","taskClass":"action","subtasks":[
           {"instruction":"Search Google for SoundMagic E11C and open its product page",
-           "done":{"urlContains":"google.com/search?q=soundmagic"}},
+           "done":{"elementPresent":"a search result linking to the SoundMagic E11C product page"}},
           {"instruction":"add the product to the cart and complete the purchase to koivuviita 7 B 5 for 60 euros",
            "done":{"markerText":"order placed"}}]}
     """.trimIndent()

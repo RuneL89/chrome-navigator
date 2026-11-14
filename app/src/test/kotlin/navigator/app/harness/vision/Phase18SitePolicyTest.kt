@@ -199,7 +199,7 @@ class Phase18SitePolicyTest {
             val searchThenBuy = """
                 {"summary":"search then buy the kettle","taskClass":"action","subtasks":[
                   {"instruction":"Search Google for a kettle for 30 euros and open the results",
-                   "done":{"urlContains":"google.com/search?q=kettle"}},
+                   "done":{"elementPresent":"a search result linking to a kettle store"}},
                   {"instruction":"buy the kettle from the results for 30 euros",
                    "done":{"markerText":"order placed"}}]}
             """.trimIndent()
@@ -279,8 +279,8 @@ class Phase18SitePolicyTest {
             assertEquals(GoalSitePolicy.Resolution.NAMED_SITE, GoalSitePolicy.resolution(contract))
             val detourPlan = """
                 {"summary":"search then buy the product","taskClass":"action","subtasks":[
-                  {"instruction":"Search Google for SoundMagic E11C for 60 euros and open the results",
-                   "done":{"urlContains":"google.com/search?q=soundmagic"}},
+                  {"instruction":"Search google.com for SoundMagic E11C for 60 euros and open the results",
+                   "done":{"elementPresent":"a search result linking to a store selling SoundMagic E11C"}},
                   {"instruction":"buy the product on shop.example to koivuviita 7 B 5 for 60 euros",
                    "done":{"markerText":"order placed"}}]}
             """.trimIndent()
