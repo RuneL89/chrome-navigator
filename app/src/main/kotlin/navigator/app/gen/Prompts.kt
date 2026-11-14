@@ -41,8 +41,14 @@ object Prompts {
      * Code backstop: `core` `SearchStepLaw` in `LadderValidator`. Fixture:
      * `golden-restructure-v7.json` (+ `-v7-mechanism`), additive — the v6 goldens stay
      * byte-identical.
+     *
+     * v8 (V2 S2, 2026-11-14, AC-S2.2): the WIRE CONTRACT gains `response_format`
+     * json_schema on the writer's JSON calls (restructure + condition repair; strict=false
+     * — the done-condition whitelist is the code law). The prompt TEXT is unchanged; the
+     * envelope is the versioned surface. Fixture: `golden-restructure-v8.json`
+     * (+ `-v8-mechanism`), additive — the v7 goldens stay byte-identical.
      */
-    const val PROMPT_VERSION = "restructure-v7"
+    const val PROMPT_VERSION = "restructure-v8"
 
     /** The answer-extraction prompt version (doc 06 §4: "report data, not actions"). */
     const val EXTRACTION_PROMPT_VERSION = "extract-v1"

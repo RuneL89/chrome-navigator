@@ -181,7 +181,7 @@ class GenClient(
         val user = failure
             ?.let { Prompts.replanUser(goal, maxSubtasks, it) }
             ?: Prompts.restructureUser(goal, maxSubtasks)
-        val body = chatBody(Prompts.RESTRUCTURE_SYSTEM, user)
+        val body = chatBody(Prompts.RESTRUCTURE_SYSTEM, user, ladderResponseSchema())
         var lastError: String? = null
         for (attempt in 1..CONTENT_ATTEMPTS) {
             // PHASE_16: the retry is ERROR-FED — a goal-fidelity or schema refusal tells the
@@ -192,7 +192,7 @@ class GenClient(
                 user + "\n\n<correction>Your previous ladder was refused: " +
                     "${lastError?.take(400)} — fix exactly that and return the STRICT JSON again.</correction>"
             }
-            val attemptBody = if (attempt == 1) body else chatBody(Prompts.RESTRUCTURE_SYSTEM, attemptUser)
+            val attemptBody = if (attempt == 1) body else chatBody(Prompts.RESTRUCTURE_SYSTEM, attemptUser, ladderResponseSchema())
             val (content, usage) = post(attemptBody, "restructure")
             try {
                 val ladder = LadderSchema.parse(content, maxSubtasks)
@@ -247,6 +247,8 @@ class GenClient(
         val body = chatBody(
             Prompts.CONDITION_REPAIR_SYSTEM,
             Prompts.conditionRepairUser(subtaskInstruction, conditionRendered, pageUrl, pageTitle),
+            doneConditionResponseSchema(),
+            "done_condition_repair",
         )
         val (content, usage) = post(body, "condition-repair")
         val done = try {
@@ -464,9 +466,36 @@ class GenClient(
     private fun longOf(usage: kotlinx.serialization.json.JsonObject?, key: String): Long =
         (usage?.get(key) as? kotlinx.serialization.json.JsonPrimitive)?.content?.toLongOrNull() ?: 0L
 
-    private fun chatBody(system: String, user: String): String =
+    private fun chatBody(
+        system: String,
+        user: String,
+        responseSchema: kotlinx.serialization.json.JsonObject? = null,
+        schemaName: String = "ladder_plan",
+    ): String =
         kotlinx.serialization.json.buildJsonObject {
             put("model", kotlinx.serialization.json.JsonPrimitive(config.model))
+            // AC-S2.2 (V2 S2): the writer's JSON calls ride the structured-output path.
+            // The schema pins the OUTER shape only (strict=false: the done-condition
+            // whitelist is polymorphic and the CODE validator is the law) — the provider
+            // is still forced into JSON, and malformed or fenced output still fails the
+            // local validation loudly (never passes by leniency). Prose calls
+            // (extraction/assist/phrase) ride NO response_format — they are not JSON.
+            responseSchema?.let { schema ->
+                put(
+                    "response_format",
+                    kotlinx.serialization.json.buildJsonObject {
+                        put("type", kotlinx.serialization.json.JsonPrimitive("json_schema"))
+                        put(
+                            "json_schema",
+                            kotlinx.serialization.json.buildJsonObject {
+                                put("name", kotlinx.serialization.json.JsonPrimitive(schemaName))
+                                put("strict", kotlinx.serialization.json.JsonPrimitive(false))
+                                put("schema", schema)
+                            },
+                        )
+                    },
+                )
+            }
             put(
                 "messages",
                 kotlinx.serialization.json.buildJsonArray {
@@ -493,6 +522,102 @@ class GenClient(
 
         /** The bounded content-retry budget for restructure: exactly ONE fresh attempt. */
         const val CONTENT_ATTEMPTS = 2
+
+        /**
+         * The ladder response's OUTER shape (AC-S2.2): the provider is forced into this
+         * JSON. The done-condition stays a free object — its whitelist is enforced by
+         * [LadderSchema] + the core validator (the code law), which a permissive schema
+         * cannot express without weakening the whitelist.
+         */
+        private fun ladderResponseSchema(): kotlinx.serialization.json.JsonObject =
+            kotlinx.serialization.json.buildJsonObject {
+                put("type", kotlinx.serialization.json.JsonPrimitive("object"))
+                put(
+                    "properties",
+                    kotlinx.serialization.json.buildJsonObject {
+                        put("summary", kotlinx.serialization.json.buildJsonObject { put("type", kotlinx.serialization.json.JsonPrimitive("string")) })
+                        put(
+                            "subtasks",
+                            kotlinx.serialization.json.buildJsonObject {
+                                put("type", kotlinx.serialization.json.JsonPrimitive("array"))
+                                put(
+                                    "items",
+                                    kotlinx.serialization.json.buildJsonObject {
+                                        put("type", kotlinx.serialization.json.JsonPrimitive("object"))
+                                        put(
+                                            "properties",
+                                            kotlinx.serialization.json.buildJsonObject {
+                                                put(
+                                                    "instruction",
+                                                    kotlinx.serialization.json.buildJsonObject {
+                                                        put("type", kotlinx.serialization.json.JsonPrimitive("string"))
+                                                    },
+                                                )
+                                                put(
+                                                    "enterText",
+                                                    kotlinx.serialization.json.buildJsonObject {
+                                                        put("type", kotlinx.serialization.json.JsonPrimitive("string"))
+                                                    },
+                                                )
+                                                put(
+                                                    "done",
+                                                    kotlinx.serialization.json.buildJsonObject {
+                                                        put("type", kotlinx.serialization.json.JsonPrimitive("object"))
+                                                    },
+                                                )
+                                            },
+                                        )
+                                        put(
+                                            "required",
+                                            kotlinx.serialization.json.buildJsonArray {
+                                                add(kotlinx.serialization.json.JsonPrimitive("instruction"))
+                                                add(kotlinx.serialization.json.JsonPrimitive("done"))
+                                            },
+                                        )
+                                    },
+                                )
+                            },
+                        )
+                        put(
+                            "taskClass",
+                            kotlinx.serialization.json.buildJsonObject {
+                                put("type", kotlinx.serialization.json.JsonPrimitive("string"))
+                                put(
+                                    "enum",
+                                    kotlinx.serialization.json.buildJsonArray {
+                                        add(kotlinx.serialization.json.JsonPrimitive("read"))
+                                        add(kotlinx.serialization.json.JsonPrimitive("action"))
+                                        add(kotlinx.serialization.json.JsonPrimitive("multi"))
+                                    },
+                                )
+                            },
+                        )
+                        put(
+                            "rollback",
+                            kotlinx.serialization.json.buildJsonObject {
+                                put("type", kotlinx.serialization.json.JsonPrimitive("object"))
+                            },
+                        )
+                    },
+                )
+                put(
+                    "required",
+                    kotlinx.serialization.json.buildJsonArray {
+                        add(kotlinx.serialization.json.JsonPrimitive("summary"))
+                        add(kotlinx.serialization.json.JsonPrimitive("subtasks"))
+                        add(kotlinx.serialization.json.JsonPrimitive("taskClass"))
+                    },
+                )
+            }
+
+        /**
+         * The condition-repair response's shape (AC-S2.2): ONE done-condition object from
+         * the whitelist — the whitelist itself is the code law ([LadderSchema]).
+         */
+        private fun doneConditionResponseSchema(): kotlinx.serialization.json.JsonObject =
+            kotlinx.serialization.json.buildJsonObject {
+                put("type", kotlinx.serialization.json.JsonPrimitive("object"))
+            }
 
         /**
          * The directive blocklist (Gate 10B.1's adversarial rows): word-boundary

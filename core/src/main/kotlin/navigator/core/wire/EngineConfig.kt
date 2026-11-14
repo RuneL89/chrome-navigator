@@ -52,7 +52,18 @@ object DefaultEngineConfigs {
 
     // ---- Pinned per vision 02 §2 (config table) ----
     const val OPENROUTER_BASE_URL = "https://openrouter.ai/api/alpha/decisions"
-    const val OPENROUTER_MODEL = "typesafe/jev-1.13-20260917"
+
+    /**
+     * The pinned Jev REQUEST id (V2 S2, AC-S2.1 — `docs/V2_PLAN.md` §6 P0): the carried
+     * value `typesafe/jev-1.13-20260917` was a RESPONSE BUILD id, not a request id —
+     * requests with it still answered (the provider resolved it loosely) but the id was
+     * never the pinned model. The S1 lane ran this corrected id live against the
+     * decisions endpoint (every judge call answered, usage metered). The floating alias
+     * rides [OPENROUTER_MODEL_ALIAS] as the documented alternative; the PINNED id is the
+     * law for requests (the pinning law: eval-gated bumps, never floating aliases).
+     */
+    const val OPENROUTER_MODEL = "typesafe/jev-1.14"
+    const val OPENROUTER_MODEL_ALIAS = "~typesafe/jev-latest"
     const val RUNWARE_BASE_URL = "https://api.runware.ai/v1/decisions"
     const val RUNWARE_MODEL = "typesafe:jev@1"
 

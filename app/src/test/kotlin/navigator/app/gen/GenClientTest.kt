@@ -24,7 +24,7 @@ import kotlin.test.assertTrue
 /**
  * Gate 10.1 (isolation): the restructure schema + hardening, $0 — NO live provider call.
  * Pinned here:
- * - the GOLDEN request/response per prompt version (`/gen/golden-restructure-v7.json` —
+ * - the GOLDEN request/response per prompt version (`/gen/golden-restructure-v8.json` —
  *   the prompt text is fixture law; a PROMPT_VERSION/wording change adds a version and
  *   retires the old one, never mutates it). Phase 10D: ONE version covers BOTH request
  *   variants — the initial restructure and the INFORMED re-plan (`replanRequest`, the
@@ -45,7 +45,7 @@ import kotlin.test.assertTrue
 class GenClientTest {
 
     private val fixtureJson: String by lazy {
-        javaClass.getResourceAsStream("/gen/golden-restructure-v7.json")!!
+        javaClass.getResourceAsStream("/gen/golden-restructure-v8.json")!!
             .readBytes().decodeToString()
     }
 
@@ -121,8 +121,13 @@ class GenClientTest {
             sentMessages[1].jsonObject["content"]!!.jsonPrimitive.content,
             "the user message carries the goal verbatim",
         )
-        assertEquals("restructure-v7", result.promptVersion, "the prompt version rides the result")
-        assertEquals("restructure-v7", Prompts.PROMPT_VERSION, "the fixture pins the CURRENT version")
+        // AC-S2.2: the structured-output envelope rides the JSON calls (retire-and-add, v8).
+        assertTrue(
+            sent.toString().contains("json_schema") && sent.toString().contains("ladder_plan"),
+            "the restructure request carries response_format json_schema",
+        )
+        assertEquals("restructure-v8", result.promptVersion, "the prompt version rides the result")
+        assertEquals("restructure-v8", Prompts.PROMPT_VERSION, "the fixture pins the CURRENT version")
         assertEquals(LadderTaskClass.READ, result.ladder.taskClass)
         assertEquals(2, result.ladder.subtasks.size)
         assertTrue(result.ladder.subtasks[0].done is DoneCondition.UrlHost)
@@ -193,7 +198,7 @@ class GenClientTest {
             sent["messages"]!!.jsonArray[1].jsonObject["content"]!!.jsonPrimitive.content,
             "the informed user message (goal + <failure> block) is fixture law — byte-identical",
         )
-        assertEquals("restructure-v7/gen2", result.ladder.versionTag(result.promptVersion, result.generation))
+        assertEquals("restructure-v8/gen2", result.ladder.versionTag(result.promptVersion, result.generation))
         val rollback = result.ladder.rollback
         assertTrue(rollback != null, "the informed re-plan's declared rollback parses")
         assertEquals(1, rollback.steps)
@@ -208,7 +213,7 @@ class GenClientTest {
         // must change the ROUTE, not the wording. Additive fixture: the v4 goldens above
         // stay byte-identical (retire-and-add, doc 07 §2).
         val mechanismFixtureJson: String by lazy {
-            javaClass.getResourceAsStream("/gen/golden-restructure-v7-mechanism.json")!!
+            javaClass.getResourceAsStream("/gen/golden-restructure-v8-mechanism.json")!!
                 .readBytes().decodeToString()
         }
         val mechanismFixture by lazy { Json.parseToJsonElement(mechanismFixtureJson).jsonObject }
@@ -248,7 +253,7 @@ class GenClientTest {
             "change the ROUTE, not the wording" in sentUser && "Guidance: Typing into the failing" in sentUser,
             "the strategy-change hint must ride the sent bytes",
         )
-        assertEquals("restructure-v7/gen2", result.ladder.versionTag(result.promptVersion, result.generation))
+        assertEquals("restructure-v8/gen2", result.ladder.versionTag(result.promptVersion, result.generation))
         assertEquals(null, result.ladder.rollback, "a strategy change needs no rollback")
         assertEquals(3, result.ladder.subtasks.size, "the re-plan splits the failing step (growth is lawful)")
         assertTrue(result.ladder.subtasks.last().done is DoneCondition.AnswerExtracted)
@@ -391,7 +396,7 @@ class GenClientTest {
         val transport = CountingTransport { ok(if (calls <= 1) opinion else validLadderJson()) }
         val result = runBlocking { client(transport).restructure("open en.wikipedia.org and open the world war 2 page", generation = 1) }
         assertEquals(2, transport.calls)
-        assertEquals("restructure-v7/gen1", result.ladder.versionTag(result.promptVersion, result.generation))
+        assertEquals("restructure-v8/gen1", result.ladder.versionTag(result.promptVersion, result.generation))
     }
 
     // -- adversarial rows (hostile goal texts) ---------------------------------------------

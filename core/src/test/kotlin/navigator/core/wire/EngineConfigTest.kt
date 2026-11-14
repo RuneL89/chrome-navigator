@@ -39,7 +39,9 @@ class EngineConfigTest {
     @Test
     fun `default configs are pinned to the vision 02 section 2 table`() {
         assertEquals("https://openrouter.ai/api/alpha/decisions", DefaultEngineConfigs.OPENROUTER_BASE_URL)
-        assertEquals("typesafe/jev-1.13-20260917", DefaultEngineConfigs.OPENROUTER_MODEL)
+        // AC-S2.1 (V2 S2): the pinned REQUEST id — the carried value was a response build id.
+        assertEquals("typesafe/jev-1.14", DefaultEngineConfigs.OPENROUTER_MODEL)
+        assertEquals("~typesafe/jev-latest", DefaultEngineConfigs.OPENROUTER_MODEL_ALIAS)
         assertEquals("https://api.runware.ai/v1/decisions", DefaultEngineConfigs.RUNWARE_BASE_URL)
         assertEquals("typesafe:jev@1", DefaultEngineConfigs.RUNWARE_MODEL)
 
