@@ -229,6 +229,17 @@ class DomProposalClient(
         ) {
             throw DomProposalException("action $action requires a non-blank value")
         }
+        // The scroll-honesty law at the FASTEST teaching point (pre-judge): scrolling to an
+        // element already in view adds nothing — the repair retry re-asks with the reason.
+        if (action == DomAction.SCROLL_TO && snapshot.viewportHeight > 0) {
+            val b = element.bounds
+            if (b.y >= 0 && b.y + b.h <= snapshot.viewportHeight) {
+                throw DomProposalException(
+                    "the element '" + element.label.take(50) + "' is already in view — scrolling adds " +
+                        "nothing; act on it directly (click/text/select)",
+                )
+            }
+        }
         return Proposal(element, action, value, expectedEffect, content)
     }
 
@@ -281,12 +292,20 @@ class DomProposalClient(
               the full subject the GOAL needs (people, products, questions — several words),
               derived ONLY from THE GOAL's subject — NEVER from the page's topic and never a
               URL. The lane runs the search on the default engine.
-            - There is NO submit action: you never press a form's submit/send button — the
-              owner does that. If the step seems to need submit, propose the best fill or
-              scroll action instead and say so in expectedEffect.
+            - There is NO form-submit action: you never press a form's submit/send button —
+              the owner does that. If the step seems to need a form submit, propose the best
+              fill or scroll action instead and say so in expectedEffect.
+            - THE EXCEPTION: an explicit ORDER button ("Place order", "Buy now", "Checkout")
+              is NOT a form submit — clicking it is the lawful purchase action, and the
+              lane's purchase law (auto-place or the owner's card) decides whether it goes
+              through. When the step is to place the order, PROPOSE THE CLICK on the order
+              button.
             - expectedEffect must be CONCRETE and checkable from the page (a navigation
               target, a field holding a value, an element appearing) — never "it works".
             - Prefer the smallest action that advances the task step.
+            - scroll_to is ONLY for bringing an out-of-view element into view. If the element
+              you need is already in the ELEMENTS list, act on it directly (click/text/…);
+              never scroll twice in a row and never scroll to "look around".
         """.trimIndent()
     }
 }

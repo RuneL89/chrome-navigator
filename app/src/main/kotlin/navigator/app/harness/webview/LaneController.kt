@@ -31,6 +31,8 @@ class LaneController(
     private val bus: PipelineEventBus,
     private val evidenceDir: File?,
     private val windowHost: LaneWindowHost,
+    private val purchaseFlow: PurchaseFlowHandle? = null,
+    var autoPlaceLimitCents: Long = 3_000L,
 ) {
     private var web: LaneWebView? = null
     private var job: kotlinx.coroutines.Job? = null
@@ -113,6 +115,8 @@ class LaneController(
             bus = bus,
             evidence = evidence,
             consentMemory = ConsentHandler.Memory(),
+            purchaseFlow = purchaseFlow,
+            autoPlaceLimitCents = autoPlaceLimitCents,
         )
 
         job = scope.launch {

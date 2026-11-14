@@ -68,6 +68,13 @@ class DomJudge(
         expectedEffect: String,
     ): Verdict {
         val isSearch = action.equals("search", ignoreCase = true)
+        // The purchase dispatch rides the lane's purchase law (auto-place or the owner's
+        // card) — the judge judges NAVIGATION, and the old "no purchase" clause made it
+        // refuse the lawful order click forever (the S3 fixture run's lesson).
+        val isPurchaseDispatch = action.equals("click", ignoreCase = true) &&
+            listOf("place order", "place your order", "complete order", "confirm order",
+                "complete purchase", "buy now", "tilaa", "maksa tilaus")
+                .any { elementLabel.lowercase().contains(it) }
         val state = buildString {
             append("THE GOAL: ").append(goal.take(300)).append('\n')
             append("GOAL STEP: ").append(subtaskInstruction).append('\n')
@@ -91,19 +98,48 @@ class DomJudge(
             }
             append("PAGE TEXT (untrusted):\n").append(snapshot.text.take(1200))
         }
-        val proposition = if (isSearch) {
-            "Running the proposed search query is the right move for the GOAL STEP and its DONE " +
-                "CONDITION, and the query is safe (no payment, no purchase, no credential, no " +
-                "irreversible change)."
-        } else {
-            "Executing the PROPOSED ACTION on this page is the right move for the GOAL STEP and its " +
-                "DONE CONDITION, and the action is safe (no payment, no purchase, no credential, no " +
-                "form submit, no irreversible change)."
+        val proposition = when {
+            isSearch -> {
+                "Running the proposed search query is the right move for the GOAL STEP and its DONE " +
+                    "CONDITION, and the query is safe (no payment, no purchase, no credential, no " +
+                    "irreversible change)."
+            }
+
+            isPurchaseDispatch -> {
+                "Executing the proposed action is the right move for the GOAL STEP and its DONE " +
+                    "CONDITION. The purchase decision itself (place or not) is governed by the " +
+                    "lane's separate purchase law - the auto-place rule or the owner's card - so " +
+                    "judging THIS action means judging the navigation, not the purchase."
+            }
+
+            else -> {
+                "Executing the PROPOSED ACTION on this page is the right move for the GOAL STEP and its " +
+                    "DONE CONDITION, and the action is safe (no payment, no purchase, no credential, no " +
+                    "form submit, no irreversible change)."
+            }
         }
         val question = NoulQuestion(
             name = "advance",
             proposition = proposition,
         )
+        val first = callOnce(state, question, onUsage)
+        if (first.accepted) return first
+        // The two-witness law (V2 S3): noul noise measurably swings p across identical
+        // states (0.15 vs 0.95 for the same click between runs). A refusal stands only
+        // when TWO independent nouls agree; a split goes with the affirmative — and a
+        // split refusal is recorded as what it was: noise, not a lawful refusal.
+        val second = callOnce(state, question, onUsage)
+        if (second.accepted) {
+            return Verdict(true, second.pTrue, "the second witness accepted (first p=${first.pTrue} was a noise split)")
+        }
+        return Verdict(false, minOf(first.pTrue, second.pTrue), first.reason + " | " + second.reason)
+    }
+
+    private suspend fun callOnce(
+        state: String,
+        question: NoulQuestion,
+        onUsage: (Usage) -> Unit,
+    ): Verdict {
         val decision = gate.call("dom-judge") { _ ->
             client.decide(state, linkedMapOf("advance" to question))
         }

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KitchenPro Store</title>
+<style>
+  body { font-family: sans-serif; background: #f4f5f7; margin: 0; padding: 24px; }
+  .screen { display: none; max-width: 480px; margin: 0 auto; background: #fff; padding: 24px; border-radius: 12px; }
+  .screen.active { display: block; }
+  h1 { font-size: 22px; } button { font-size: 16px; padding: 12px 20px; margin-top: 12px; }
+  .price { font-size: 20px; color: #0a7d32; font-weight: bold; }
+  #confirm { color: #0a7d32; font-weight: bold; font-size: 18px; }
+</style>
+</head>
+<body>
+  <div id="product" class="screen active">
+    <h1>KitchenPro kettle</h1>
+    <p>1.7 L electric kettle, stainless steel.</p>
+    <p class="price">24.90 EUR</p>
+    <p><a id="add-to-cart" href="http://10.0.2.2:8124/checkout-login.html">Add to cart and check out</a></p>
+  </div>
+  <div id="cart" class="screen">
+    <h1>Your cart</h1>
+    <p>KitchenPro kettle ×1</p>
+    <p class="price">Total: 24.90 EUR (shipping included)</p>
+    <p><a id="place-order" href="#receipt" onclick="window.__orderPlaced = true">Place order</a></p>
+  </div>
+  <div id="receipt" class="screen">
+    <h1 id="confirm">ORDER CONFIRMED — order number 51515</h1>
+    <p>Thank you for your order. KitchenPro kettle ×1 — 24.90 EUR.</p>
+  </div>
+  <script>
+    function show(id) {
+      document.querySelectorAll('.screen').forEach(function (s) { s.classList.remove('active'); });
+      document.getElementById(id).classList.add('active');
+      // A real SPA routes: the hash changes the URL (the lane's URL conditions verify).
+      if (location.hash !== '#' + id) location.hash = id;
+    }
+    window.addEventListener('hashchange', function () {
+      var id = (location.hash || '#product').substring(1);
+      var target = document.getElementById(id);
+      if (target && target.classList.contains('screen')) {
+        document.querySelectorAll('.screen').forEach(function (s) { s.classList.remove('active'); });
+        target.classList.add('active');
+      }
+    });
+  </script>
+</body>
+</html>

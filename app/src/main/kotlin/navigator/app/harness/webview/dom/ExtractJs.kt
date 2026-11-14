@@ -53,7 +53,8 @@ object ExtractJs {
           snapshotVersion: '$SNAPSHOT_VERSION',
           page: { url: location.href, title: document.title || '' },
           elements: out,
-          text: text
+          text: text,
+          viewportHeight: Math.round(window.innerHeight || 0)
         };
       } catch (e) {
         return { snapshotVersion: '$SNAPSHOT_VERSION', error: String(e && e.message || e), page: { url: location.href, title: '' }, elements: [], text: '' };

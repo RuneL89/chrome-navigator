@@ -46,6 +46,8 @@ data class DomSnapshot(
     val page: PageMeta,
     val elements: List<DomElement>,
     val text: String,
+    /** The WebView viewport height at extraction (CSS px) — the scroll-honesty signal. */
+    val viewportHeight: Int = 0,
 ) {
     companion object {
         const val TEXT_CAP = 4000

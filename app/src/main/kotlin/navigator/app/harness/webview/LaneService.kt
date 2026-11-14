@@ -18,6 +18,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import navigator.app.cards.PurchaseDecisionClient
+import navigator.app.harness.webview.dom.DomSnapshot
 import navigator.app.harness.webview.events.PipelineEventBus
 
 /**
@@ -32,15 +34,23 @@ import navigator.app.harness.webview.events.PipelineEventBus
  * Started from visible UI ([LaneDebugActivity] in S1; the V2 home in Sprint S4).
  * Requires `SYSTEM_ALERT_WINDOW` (the consent popup is the S3 settings flow).
  */
+/** The receiver's route to the live service (the actions are the machines' to lawfully apply). */
+object LaneServiceHolder {
+    @Volatile
+    var instance: LaneService? = null
+}
+
 class LaneService : Service() {
 
-    private companion object {
+    companion object {
         const val TAG = "NavigatorLane"
         const val CHANNEL = "navigator-lane"
         const val NOTIF_ID = 4811
         const val ACTION_START_TASK = "navigator.app.lane.START_TASK"
         const val ACTION_STOP = "navigator.app.lane.STOP"
         const val ACTION_SITECHECK = "navigator.app.lane.SITECHECK"
+        const val ACTION_CREDPROBE = "navigator.app.lane.CREDPROBE"
+        const val ACTION_CARD_ANSWER = "navigator.app.lane.CARD_ANSWER"
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -48,10 +58,46 @@ class LaneService : Service() {
     private var controller: LaneController? = null
     private var wm: WindowManager? = null
     private var windowView: android.view.View? = null
+    private var laneUi: LaneUi? = null
+    private var activePurchaseMachine: navigator.app.cards.CardMachine? = null
+    private var activeCancelWindow: navigator.app.cards.CancelWindow? = null
+    private var stepCount = 0
+    private var chipDone = false
+
+    /** The notification/card actions route here (the receiver is a thin router). */
+    fun onStopAction() {
+        startService(Intent(this, LaneService::class.java).setAction(ACTION_STOP))
+    }
+
+    fun onCardAnswer(approve: Boolean) {
+        val machine = activePurchaseMachine
+        if (machine == null) {
+            Log.w(TAG, "a card answer arrived with no live card - ignored")
+            return
+        }
+        // The decision is the MACHINE's law: approve/decline once, and the answer is final.
+        // A decline during the cancel window cancels the WINDOW (silence-is-yes lives there).
+        if (!approve) activeCancelWindow?.cancel()
+        // Repeated broadcasts are idempotent: a decided machine ignores further answers.
+        if (machine.state is navigator.app.cards.CardState.Pending) {
+            if (approve) machine.approve() else machine.decline()
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
+        LaneServiceHolder.instance = this
         startForegroundCompat()
+        laneUi = LaneUi(this, navigator.app.cards.NotificationPolicy { System.currentTimeMillis() }, busTap = {
+            busTapLines()
+        }).apply { ensureChannel() }
+        // FR-70: the chip rides the pipeline events (the step count is the caption).
+        bus.subscribe { event ->
+            if (event is navigator.app.harness.webview.events.PipelineEvent.Executed) {
+                stepCount = event.stepIndex
+                laneUi?.updateChip("task " + (event.subtaskIndex + 1) + " - step " + event.stepIndex, chipDone)
+            }
+        }
         controller = LaneController(
             context = this,
             scope = scope,
@@ -66,7 +112,68 @@ class LaneService : Service() {
                     }
                 }
             },
+            purchaseFlow = purchaseFlowHandle(),
         )
+    }
+
+    private fun busTapLines(): List<String> {
+        val dir = java.io.File(filesDir, "lane-evidence")
+        val latest = dir.listFiles()?.maxByOrNull { it.lastModified() } ?: return emptyList()
+        return try { latest.readLines().takeLast(6) } catch (_: Exception) { emptyList() }
+    }
+
+    /**
+     * The live purchase flow (FR-42/43): the writer extracts the decision, the auto-place
+     * law decides, the owner answers through the notification's inline actions (below the
+     * limit: the 15 s cancel window) or the card overlay (at or above the limit).
+     */
+    private fun purchaseFlowHandle(): PurchaseFlowHandle {
+        val gate = LaneModelGate()
+        val decisions = PurchaseDecisionClient(
+            transport = navigator.core.wire.OkHttpWireTransport(),
+            config = LaneWriterConfig(
+                navigator.app.gen.GenEngineConfigs.OPENROUTER_CHAT_URL,
+                LaneKeys.openRouterKey(this) ?: "",
+                navigator.app.gen.GenEngineConfigs.GENERATIVE_MODEL,
+            ),
+            gate = gate,
+        )
+        val limit = navigator.app.cards.LaneSettings(this).autoPlaceLimitCents
+        return object : PurchaseFlowHandle {
+            override suspend fun decide(goal: String, snapshot: DomSnapshot) = decisions.decide(goal, snapshot)
+
+            override fun surface(
+                decision: navigator.app.cards.PurchaseDecisionClient.Decision,
+                belowLimit: Boolean,
+                taskId: String,
+            ): AnswerAwaiter {
+                val machine = navigator.app.cards.CardMachine(navigator.app.cards.CardClass.PURCHASE) { System.currentTimeMillis() }
+                activePurchaseMachine = machine
+                if (belowLimit) {
+                    // The 15 s cancel window rides the notification (inline Cancel); silence
+                    // past the window PLACES (the owner-ratified auto-place law).
+                    val window = navigator.app.cards.CancelWindow()
+                    activeCancelWindow = window
+                    laneUi?.notifyNeedsYou(taskId, listOf("Cancel"), machine)
+                    return AnswerAwaiter {
+                        while (!window.places() && machine.state is navigator.app.cards.CardState.Pending) {
+                            kotlinx.coroutines.delay(250)
+                        }
+                        if (machine.state is navigator.app.cards.CardState.Pending) {
+                            if (window.cancelled) machine.decline() else machine.approve()
+                        }
+                        machine.state
+                    }
+                } else {
+                    laneUi?.showPurchaseCard(machine, decision)
+                    laneUi?.notifyNeedsYou(taskId, listOf("Approve", "Not now"), machine)
+                    return AnswerAwaiter { navigator.app.cards.ApprovalGate().await(machine) }
+                }
+            }
+        }.also {
+            // The limit rides to the loop (the handle's consumer).
+            controller?.autoPlaceLimitCents = limit
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -79,9 +186,21 @@ class LaneService : Service() {
                     return START_NOT_STICKY
                 }
                 ensureWindowManager()
+                stepCount = 0
+                chipDone = false
+                laneUi?.showChip("task - starting", onStop = { onStopAction() })
+                laneUi?.notifyTaskStarted("task")
                 val started = controller?.startTask(goal) { terminal ->
                     Log.i(TAG, "task terminal: $terminal")
-                    stopSelf() // the WebView died with the task; the FGS stops when idle
+                    chipDone = true
+                    laneUi?.updateChip("task done", true)
+                    laneUi?.notifyTaskEnded("task")
+                    // FR-70: the chip stays on its DONE face (an X to close) for a grace
+                    // period before the lane goes idle — the owner sees the outcome.
+                    scope.launch {
+                        kotlinx.coroutines.delay(20_000)
+                        stopSelf()
+                    }
                 } ?: false
                 if (!started) stopSelf()
             }
@@ -132,6 +251,64 @@ class LaneService : Service() {
                                 wm?.removeView(web.view)
                             } catch (_: Exception) {
                             }
+                        }
+                        web.destroy()
+                        stopSelf()
+                    }
+                }
+            }
+
+            ACTION_CREDPROBE -> {
+                // The S3 phishing probe (AC-S3.10): load the lookalike page, then run the
+                // REAL guard chain (DomGuard + PhishingGuard — the loop's own code) over a
+                // credential ask. Deterministic on-device evidence; S4 replaces the debug
+                // actions like the rest of the harness.
+                val url = intent.getStringExtra("url") ?: ""
+                val expectedSite = intent.getStringExtra("site") ?: ""
+                if (url.isBlank()) {
+                    stopSelf()
+                    return START_NOT_STICKY
+                }
+                ensureWindowManager()
+                val web = LaneWebViewFactory(this@LaneService, object : LaneWebEvents {
+                    override fun onPageEvent(line: String) { Log.i(TAG, "credprobe " + line) }
+                    override fun onAdoptedPopup(popup: String) {}
+                    override fun onFileChooserRefused() {}
+                    override fun onDownloadStarted(download: String) {}
+                }).create()
+                scope.launch {
+                    try {
+                        runOnMain { attachToWindow(web.view) }
+                        web.load(url)
+                        val snapshot = web.snapshot()
+                        val password = snapshot.elements.firstOrNull {
+                            it.type.equals("password", ignoreCase = true)
+                        }
+                        if (password == null) {
+                            Log.i(TAG, "credprobe RESULT no credential field on " + snapshot.page.url.take(80))
+                        } else {
+                            val proposal = DomProposalClient.Proposal(
+                                password, navigator.app.harness.webview.dom.DomAction.TEXT,
+                                "test1234", "the password fills", "{}",
+                            )
+                            val guard = navigator.app.harness.webview.DomGuard.guard(
+                                proposal, snapshot, snapshot, "buy the kettle on " + expectedSite,
+                            )
+                            Log.i(TAG, "credprobe GUARD " + guard::class.simpleName)
+                            val stop = navigator.app.cards.PhishingGuard.check(
+                                snapshot.page.url, expectedSite.ifBlank { null }, credentialOrPaymentAsk = true,
+                            )
+                            if (stop != null) {
+                                Log.i(TAG, "credprobe PHISHING STOP: " + stop.reason.take(160))
+                            } else {
+                                Log.i(TAG, "credprobe RESULT no phishing stop (the domain is the task's own)")
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.i(TAG, "credprobe FAILED " + (e.message?.take(120) ?: ""))
+                    } finally {
+                        runOnMain {
+                            try { wm?.removeView(web.view) } catch (_: Exception) {}
                         }
                         web.destroy()
                         stopSelf()
@@ -210,6 +387,7 @@ class LaneService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        LaneServiceHolder.instance = null
         controller?.stop("service destroyed")
         controller = null
         scope.cancel()

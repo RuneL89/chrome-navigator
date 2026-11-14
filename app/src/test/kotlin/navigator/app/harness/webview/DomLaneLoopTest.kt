@@ -18,56 +18,18 @@ import kotlin.test.assertTrue
 
 /**
  * V2 S1 (AC-S1.8, AC-S1.10's loop half) — the decision loop over scripted models and a
- * scripted WebView: the honest walk (propose → judge → guard → execute → verify), the
+ * scripted WebView: the honest walk (propose -> judge -> guard -> execute -> verify), the
  * loud refusals, the no-progress re-plan, and the honest terminals. Scripted transports
- * only — no live calls (the secrets law).
+ * only - no live calls (the secrets law).
  */
 class DomLaneLoopTest {
 
-    // -- fakes ------------------------------------------------------------------------------
-
-    /** A scripted WebView: a deque of pages; a successful click pops the deque when enabled. */
-    private class FakeWebView(
-        private val pages: ArrayDeque<DomSnapshot>,
-        var autoNavigate: Boolean = false,
-    ) : LaneWebView {
-        val clickLog = mutableListOf<String>()
-        val textLog = mutableListOf<String>()
-        val loadLog = mutableListOf<String>()
-
-        override val view: android.view.View get() = error("fakes carry no view")
-        override suspend fun load(url: String): String {
-            loadLog.add(url)
-            if (autoNavigate && pages.size > 1) pages.removeFirst()
-            return pages.first().page.url
-        }
-
-        override suspend fun currentUrl(): String = pages.first().page.url
-        override suspend fun snapshot(): DomSnapshot = pages.first()
-
-        override suspend fun evaluate(js: String): String = when {
-            js.contains("el.click()") -> {
-                clickLog.add(js)
-                if (autoNavigate && pages.size > 1) pages.removeFirst()
-                """{"ok":true,"clicked":true,"hasDownHandler":false}"""
-            }
-
-            js.contains("value: el.value") -> {
-                textLog.add("text")
-                """{"ok":true,"requested":"typed","value":"typed"}"""
-            }
-
-            js.contains("el.checked") -> """{"ok":true,"requested":true,"checked":true}"""
-            else -> """{"ok":true}"""
-        }
-
-        override suspend fun dispatchTrustedTouch(cssX: Int, cssY: Int) {
-            clickLog.add("trusted-touch")
-        }
-
-        override suspend fun goBack() {}
-        override fun destroy() {}
+    private companion object {
+        fun page(url: String, text: String, elements: List<DomElement>, title: String = "Shop") =
+            DomSnapshot(PageMeta(url, title), elements, text)
     }
+
+
 
     private class ScriptedPlanner(
         var ladders: ArrayDeque<Ladder>,
@@ -124,14 +86,9 @@ class DomLaneLoopTest {
         }
     }
 
-    private companion object {
-        fun page(url: String, text: String, elements: List<DomElement>, title: String = "Shop") =
-            DomSnapshot(PageMeta(url, title), elements, text)
-    }
-
     /** Runs the loop and returns the terminal plus the event stream it emitted. */
     private suspend fun run(
-        web: FakeWebView,
+        web: SnapshotFixtures.FakeWebView,
         planner: ScriptedPlanner,
         proposer: DomProposer,
         judge: DomJudger,
@@ -164,7 +121,7 @@ class DomLaneLoopTest {
             listOf(SnapshotFixtures.element(id = 0, role = "link", label = "Catalog", tag = "a")),
         )
         val catalog = page("https://shop.test/catalog", "welcome to the catalog page — today's deal is the kettle", emptyList())
-        val web = FakeWebView(ArrayDeque(listOf(start, catalog)), autoNavigate = true)
+        val web = SnapshotFixtures.FakeWebView(ArrayDeque(listOf(start, catalog)), autoNavigate = true)
         val planner = ScriptedPlanner(
             ladders = ArrayDeque(
                 listOf(
@@ -207,7 +164,7 @@ class DomLaneLoopTest {
             "deal of the day: the kettle for 19 euro",
             listOf(SnapshotFixtures.element(id = 0, role = "button", label = "Open deals", tag = "button")),
         )
-        val web = FakeWebView(ArrayDeque(listOf(deals)))
+        val web = SnapshotFixtures.FakeWebView(ArrayDeque(listOf(deals)))
         val planner = ScriptedPlanner(
             ladders = ArrayDeque(
                 listOf(
@@ -239,7 +196,7 @@ class DomLaneLoopTest {
             "welcome to the catalog page",
             listOf(SnapshotFixtures.element(id = 0, role = "button", label = "Open deals", tag = "button")),
         )
-        val web = FakeWebView(ArrayDeque(listOf(page)))
+        val web = SnapshotFixtures.FakeWebView(ArrayDeque(listOf(page)))
         val oneStep = {
             Ladder(
                 "one step",
@@ -274,7 +231,7 @@ class DomLaneLoopTest {
     fun `a submit-shaped proposal is refused by the guard with zero dispatch (the fill-only law)`() = runBlocking {
         val submit = SnapshotFixtures.element(id = 0, role = "button", label = "Place order", tag = "button", type = "submit")
         val page = page("https://shop.test/checkout", "checkout", listOf(submit))
-        val web = FakeWebView(ArrayDeque(listOf(page)))
+        val web = SnapshotFixtures.FakeWebView(ArrayDeque(listOf(page)))
         val oneStep = {
             Ladder(
                 "one step",
@@ -310,7 +267,7 @@ class DomLaneLoopTest {
             emptyList(),
             "Checking",
         )
-        val web = FakeWebView(ArrayDeque(listOf(challenge)))
+        val web = SnapshotFixtures.FakeWebView(ArrayDeque(listOf(challenge)))
         val planner = ScriptedPlanner(
             ladders = ArrayDeque(
                 listOf(
@@ -340,7 +297,7 @@ class DomLaneLoopTest {
             "Before you continue",
         )
         val catalog = page("https://www.google.test/catalog", "the catalog page content", emptyList())
-        val web = FakeWebView(ArrayDeque(listOf(wall, catalog)), autoNavigate = true)
+        val web = SnapshotFixtures.FakeWebView(ArrayDeque(listOf(wall, catalog)), autoNavigate = true)
         val planner = ScriptedPlanner(
             ladders = ArrayDeque(
                 listOf(
@@ -373,7 +330,7 @@ class DomLaneLoopTest {
             listOf(SnapshotFixtures.element(id = 0, role = "button", label = "Open deals", tag = "button")),
         )
         // The click NEVER navigates — the same page every snapshot.
-        val web = FakeWebView(ArrayDeque(listOf(page)), autoNavigate = false)
+        val web = SnapshotFixtures.FakeWebView(ArrayDeque(listOf(page)), autoNavigate = false)
         val oneStep = {
             Ladder(
                 "one step",
@@ -404,7 +361,7 @@ class DomLaneLoopTest {
     fun `the code-owned site entry loads the destination the condition names (the writer never invents urls)`() = runBlocking {
         val blank = page("about:blank", "", emptyList(), "")
         val article = page("https://fi.wikipedia.org/wiki/Tove_Jansson", "the article body text", emptyList(), "Tove Jansson")
-        val web = FakeWebView(ArrayDeque(listOf(blank, article)), autoNavigate = true)
+        val web = SnapshotFixtures.FakeWebView(ArrayDeque(listOf(blank, article)), autoNavigate = true)
         val planner = ScriptedPlanner(
             ladders = ArrayDeque(
                 listOf(
@@ -443,7 +400,7 @@ class DomLaneLoopTest {
             "search results for the medal",
             listOf(SnapshotFixtures.element(id = 0, role = "link", label = "A result", tag = "a")),
         )
-        val web = FakeWebView(ArrayDeque(listOf(blank, results)), autoNavigate = true)
+        val web = SnapshotFixtures.FakeWebView(ArrayDeque(listOf(blank, results)), autoNavigate = true)
         val planner = ScriptedPlanner(
             ladders = ArrayDeque(
                 listOf(

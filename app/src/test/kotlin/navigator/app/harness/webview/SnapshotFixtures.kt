@@ -55,4 +55,48 @@ object SnapshotFixtures {
         }
         return snapshot(url = "https://shop.test/catalog", elements = elements, text = "catalog page ".repeat(300))
     }
+
+    /** A scripted WebView (shared: the loop + purchase-flow suites): the FIRST page is current. */
+    class FakeWebView(
+        private val pages: ArrayDeque<DomSnapshot>,
+        var autoNavigate: Boolean = false,
+    ) : LaneWebView {
+        val clickLog = mutableListOf<String>()
+        val textLog = mutableListOf<String>()
+        val loadLog = mutableListOf<String>()
+
+        override val view: android.view.View get() = error("fakes carry no view")
+
+        override suspend fun load(url: String): String {
+            loadLog.add(url)
+            if (autoNavigate && pages.size > 1) pages.removeFirst()
+            return pages.first().page.url
+        }
+
+        override suspend fun currentUrl(): String = pages.first().page.url
+        override suspend fun snapshot(): DomSnapshot = pages.first()
+
+        override suspend fun evaluate(js: String): String = when {
+            js.contains("el.click()") -> {
+                clickLog.add(js)
+                if (autoNavigate && pages.size > 1) pages.removeFirst()
+                "{\"ok\":true,\"clicked\":true,\"hasDownHandler\":false}"
+            }
+
+            js.contains("value: el.value") -> {
+                textLog.add("text")
+                "{\"ok\":true,\"requested\":\"typed\",\"value\":\"typed\"}"
+            }
+
+            js.contains("el.checked") -> "{\"ok\":true,\"requested\":true,\"checked\":true}"
+            else -> "{\"ok\":true}"
+        }
+
+        override suspend fun dispatchTrustedTouch(cssX: Int, cssY: Int) {
+            clickLog.add("trusted-touch")
+        }
+
+        override suspend fun goBack() {}
+        override fun destroy() {}
+    }
 }

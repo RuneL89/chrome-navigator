@@ -18,6 +18,9 @@ import navigator.app.harness.webview.dom.DomSnapshot
  */
 class DomExecutor(private val web: LaneWebView) {
 
+    /** The last scroll position this executor produced (the scroll honesty check). */
+    private var lastScrollY: Int? = null
+
     data class Report(
         val dispatched: Boolean,
         /** The read-back verdict (FR-35): only a verified effect counts as progress. */
@@ -109,10 +112,14 @@ class DomExecutor(private val web: LaneWebView) {
         val result = parse(web.evaluate(js)) ?: return Report(false, false, "scroll script returned no JSON")
         if (isMismatch(result)) return Report(false, false, "identity mismatch — the DOM moved under the proposal", mismatch = true)
         val scrollY = intOrNull(result, "scrollY")
+        // FR-17's law, enforced: the viewport must actually MOVE — scrolling to where the
+        // page already is is NOT progress (the S3 fixture run's treadmill lesson).
+        val moved = scrollY != null && scrollY != lastScrollY
+        lastScrollY = scrollY ?: lastScrollY
         return Report(
             dispatched = true,
-            verified = scrollY != null,
-            evidence = "scrolled to scrollY=$scrollY (the viewport change is the verdict)",
+            verified = moved,
+            evidence = if (moved) "the viewport moved to scrollY=$scrollY" else "no viewport change (scrollY=$scrollY) — not progress",
         )
     }
 

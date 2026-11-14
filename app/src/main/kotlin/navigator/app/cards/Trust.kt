@@ -92,7 +92,7 @@ object PhishingGuard {
      */
     fun check(currentUrl: String, expectedSiteHost: String?, credentialOrPaymentAsk: Boolean): Stop? {
         if (!credentialOrPaymentAsk) return null
-        val currentDomain = currentUrl.substringAfter("://").substringBefore('/').removePrefix("www.").lowercase()
+        val currentDomain = currentUrl.substringAfter("://").substringBefore('/').substringBefore(':').removePrefix("www.").lowercase()
         val expected = expectedSiteHost?.removePrefix("www.")?.lowercase()
         if (expected == null) {
             // Fail closed: no named site means EVERY domain is unexpected for credentials.

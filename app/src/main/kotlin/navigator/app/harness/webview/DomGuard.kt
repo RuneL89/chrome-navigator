@@ -46,6 +46,14 @@ object DomGuard {
         /** Dispatch may proceed on the re-resolved element. */
         data class Pass(val resolved: DomElement) : GuardVerdict
 
+        /**
+         * A PURCHASE dispatch (the order button): the risk gate's refusal is deferred to
+         * the purchase flow's law (auto-place below the limit / the owner's card). The
+         * loop routes it there when the flow is available; without the flow it is a
+         * refusal — the fast lane never purchases outside the law.
+         */
+        data class PurchaseDispatch(val resolved: DomElement) : GuardVerdict
+
         data class Refuse(val reason: String, val riskClass: HClass? = null) : GuardVerdict
     }
 
@@ -54,6 +62,7 @@ object DomGuard {
         proposalSnapshot: DomSnapshot,
         freshSnapshot: DomSnapshot,
         goal: String = "",
+        purchaseFlowAvailable: Boolean = false,
     ): GuardVerdict {
         // Element-less actions (the search: the lane builds the engine URL itself) have no
         // element to re-query — but the QUERY must derive from the GOAL (the untrusted page
@@ -96,7 +105,38 @@ object DomGuard {
             )
         }
 
-        // 3. action policy — the fill-only law (FR-16)
+        // The scroll-honesty law: scrolling to an element that is ALREADY in view adds
+        // nothing — refuse so the writer acts on it directly (the S3 treadmill lesson).
+        if (proposal.action == DomAction.SCROLL_TO && freshSnapshot.viewportHeight > 0) {
+            val bounds = proposal.element.bounds
+            if (bounds.y >= 0 && bounds.y + bounds.h <= freshSnapshot.viewportHeight) {
+                return GuardVerdict.Refuse(
+                    "the element '${proposal.element.label.take(50)}' is already in view — " +
+                        "scrolling adds nothing; act on it directly (click/text/select)",
+                )
+            }
+        }
+
+        // 3. action policy — the fill-only law (FR-16). The ONE exception: a purchase
+        // dispatch WITH the flow available — the law then routes it through the
+        // auto-place/card decision (the owner-ratified exception); without the flow the
+        // fill-only refusal stands (the fast lane never purchases outside the law).
+        if (proposal.action == DomAction.CLICK && isPurchaseDispatch(proposal.element, DomAction.CLICK)) {
+            val resolved0 = ElementResolver.resolve(proposal.element, freshSnapshot)
+                ?: return GuardVerdict.Refuse(
+                    "the proposed element '${proposal.element.label.take(60)}' no longer matches its identity " +
+                        "on the fresh snapshot — the DOM moved under the proposal",
+                )
+            val proposedUrl0 = ElementResolver.normalizeLabel(proposalSnapshot.page.url)
+            val currentUrl0 = ElementResolver.normalizeLabel(freshSnapshot.page.url)
+            if (proposedUrl0 != currentUrl0) {
+                return GuardVerdict.Refuse(
+                    "the page navigated under the proposal (${shortUrl(proposalSnapshot.page.url)} → " +
+                        "${shortUrl(freshSnapshot.page.url)}) — the proposal is stale",
+                )
+            }
+            if (purchaseFlowAvailable) return GuardVerdict.PurchaseDispatch(resolved0)
+        }
         if (proposal.action == DomAction.CLICK) {
             val label = ElementResolver.normalizeLabel(proposal.element.label)
             val type = proposal.element.type.lowercase()
@@ -155,6 +195,20 @@ object DomGuard {
 
     private fun shortUrl(url: String): String =
         url.substringAfter("://").let { if (it.length > 60) it.take(60) + "…" else it }
+
+    /**
+     * The FR-42 signal: is this dispatch a PURCHASE action (the order button)? The
+     * purchase flow (auto-place / card) applies only to these.
+     */
+    internal fun isPurchaseDispatch(element: DomElement, action: DomAction): Boolean {
+        if (action != DomAction.CLICK) return false
+        val label = ElementResolver.normalizeLabel(element.label)
+        val orderWords = listOf(
+            "place order", "place your order", "complete order", "confirm order",
+            "complete purchase", "buy now", "tilaa", "maksa tilaus",
+        )
+        return orderWords.any { label.contains(it) }
+    }
 
     /**
      * The FR-46 signal: does this action ASK for credentials or payment? A text action

@@ -53,6 +53,8 @@ class DomLaneLoop(
     private val bus: PipelineEventBus,
     private val evidence: LaneEvidence? = null,
     private val consentMemory: ConsentHandler.Memory = ConsentHandler.Memory(),
+    private val purchaseFlow: PurchaseFlowHandle? = null,
+    private val autoPlaceLimitCents: Long = 3_000L,
     private val nowMs: () -> Long = System::currentTimeMillis,
     private val config: Config = Config(),
 ) {
@@ -84,6 +86,7 @@ class DomLaneLoop(
         var subtaskSteps = 0
         var lastProposalRefusal: String? = null
         var alreadySatisfiedAtStart = false
+        var correctionsLeft = 2
         var answerCount = 0
         var producedAnswer: String? = null
         val verified = LinkedHashMap<Int, String>() // subtask index → verification URL
@@ -133,7 +136,7 @@ class DomLaneLoop(
             // The code-owned site entry (FR-27's lane half): when the subtask binds a
             // destination the lane has not reached, the lane loads it directly — the writer
             // never invents URLs, the entry derives from the CONDITION and the instruction.
-            entryFor(subtask, snapshot)?.let { entry ->
+            entryFor(subtask, snapshot, goal)?.let { entry ->
                 val opens = (entryOpens[pointer] ?: 0) + 1
                 entryOpens[pointer] = opens
                 if (opens > MAX_ENTRY_OPENS_PER_SUBTASK) {
@@ -242,7 +245,13 @@ class DomLaneLoop(
                     (proposal.value?.let { " query/value=\"${it.take(60)}\"" } ?: ""),
             )
 
-            val verdict = try {
+            // FR-42's boundary: the purchase decision is the LAW's (auto-place or the
+            // owner's card), not a noul's. The purchase dispatch skips the judge - the
+            // owner's own answer IS the independent judgment.
+            val purchaseDispatch = DomGuard.isPurchaseDispatch(proposal.element, proposal.action) && purchaseFlow != null
+            val verdict = if (purchaseDispatch) {
+                DomJudge.Verdict(true, 1.0, "the purchase law replaces the noul - the owner's answer is the judgment")
+            } else try {
                 judge.judge(
                     goal, snapshot, subtask.instruction, DoneConditionChecker.render(subtask.done),
                     proposal.element.id, proposal.element.label, proposal.action.name.lowercase(),
@@ -262,6 +271,11 @@ class DomLaneLoop(
             )
             if (!verdict.accepted) {
                 evidence?.line("judge-refused ${verdict.reason}")
+                if (state.correctionsLeft > 0) {
+                    state.correctionsLeft -= 1
+                    state.lastProposalRefusal = "the judge refused: ${verdict.reason} - propose a DIFFERENT action"
+                    continue // the corrected proposal rides immediately (teaching, not oscillation)
+                }
                 state.consecutiveUnverified += 1
                 continue // loud refusal — never a fallback pick (FR-32)
             }
@@ -272,7 +286,7 @@ class DomLaneLoop(
             } catch (e: Exception) {
                 return Terminal.Failed("the fresh snapshot failed (${e.message?.take(120)})")
             }
-            when (val guard = DomGuard.guard(proposal, snapshot, fresh, goal)) {
+            when (val guard = DomGuard.guard(proposal, snapshot, fresh, goal, purchaseFlowAvailable = purchaseFlow != null)) {
                 is DomGuard.GuardVerdict.Refuse -> {
                     val stage = if (guard.riskClass != null) RefusalStage.RISK_GATE else RefusalStage.GUARD
                     bus.emit(PipelineEvent.Refused(taskId, state.stepIndex, pointer, state.elapsed(), stage, guard.reason.take(200)))
@@ -284,7 +298,65 @@ class DomLaneLoop(
                                 "before anything dispatches",
                         )
                     }
+                    if (state.correctionsLeft > 0) {
+                        state.correctionsLeft -= 1
+                        continue // the corrected proposal rides immediately (teaching, not oscillation)
+                    }
                     state.consecutiveUnverified += 1
+                    continue
+                }
+
+                is DomGuard.GuardVerdict.PurchaseDispatch -> {
+                    // FR-42/43: the order button dispatches ONLY through the purchase law.
+                    if (purchaseFlow == null) {
+                        bus.emit(PipelineEvent.Refused(taskId, state.stepIndex, pointer, state.elapsed(), RefusalStage.RISK_GATE, "no purchase flow - the fast lane never purchases outside the law"))
+                        evidence?.line("purchase-dispatch with no flow - refused (the fill-only law stands)")
+                        return Terminal.SwitchOffer("a purchase needs the human lane (no purchase flow available)")
+                    }
+                    // The phishing guard first: a payment click on an unexpected domain hard-stops.
+                    PhishingGuard.check(fresh.page.url, contract.site?.host, credentialOrPaymentAsk = true)?.let { stop ->
+                        evidence?.line("phishing-stop " + stop.reason.take(160))
+                        return Terminal.Failed("PHISHING STOP: " + stop.reason)
+                    }
+                    when (val outcome = PurchaseFlowLaw.run(goal, fresh, autoPlaceLimitCents, purchaseFlow, taskId)) {
+                        is PurchaseFlowLaw.Outcome.Refused -> {
+                            evidence?.line(
+                                "purchase-refused total=" + outcome.decision.totalCents +
+                                    " byTimeout=" + outcome.byTimeout + " - no order placed",
+                            )
+                            return Terminal.Failed(
+                                "the purchase was not approved" +
+                                    (if (outcome.byTimeout) " (the card timed out - timeout is no)" else " (the owner declined)") +
+                                    " - no order was placed",
+                            )
+                        }
+
+                        is PurchaseFlowLaw.Outcome.Place -> {
+                            evidence?.line(
+                                "purchase-approved total=" + outcome.decision.totalCents +
+                                    " viaCancelWindow=" + outcome.viaCancelWindow + " - dispatching the order button",
+                            )
+                        }
+                    }
+                    state.subtaskSteps += 1
+                    val report = executor.execute(guard.resolved, proposal)
+                    if (report.mismatch) {
+                        state.consecutiveUnverified += 1
+                        continue
+                    }
+                    val after = web.snapshot()
+                    val post = postcondition(proposal, guard.resolved, fresh, after, state)
+                    bus.emit(
+                        PipelineEvent.Executed(
+                            taskId, state.stepIndex, pointer, state.elapsed(),
+                            "purchase_dispatch", guard.resolved.label.take(80), report.dispatched,
+                        ),
+                    )
+                    bus.emit(
+                        PipelineEvent.Verified(taskId, state.stepIndex, pointer, state.elapsed(), post, postEvidence.take(160)),
+                    )
+                    evidence?.line("purchase dispatched verified=" + post + " " + postEvidence.take(100))
+                    state.consecutiveUnverified = if (post) 0 else state.consecutiveUnverified + 1
                     continue
                 }
 
@@ -298,6 +370,31 @@ class DomLaneLoop(
                                 return Terminal.Failed("PHISHING STOP: ${stop.reason}")
                             }
                     }
+                    // FR-42/43: the purchase flow — the order button dispatches ONLY through
+                    // the auto-place law (below the limit, after the silent 15 s window) or
+                    // the owner's card approval. A refusal places nothing, ever.
+                    if (DomGuard.isPurchaseDispatch(guard.resolved, proposal.action) && purchaseFlow != null) {
+                        when (val outcome = PurchaseFlowLaw.run(goal, fresh, autoPlaceLimitCents, purchaseFlow, taskId)) {
+                            is PurchaseFlowLaw.Outcome.Refused -> {
+                                evidence?.line(
+                                    "purchase-refused total=${outcome.decision.totalCents} " +
+                                        "byTimeout=${outcome.byTimeout} — no order placed",
+                                )
+                                return Terminal.Failed(
+                                    "the purchase was not approved" +
+                                        (if (outcome.byTimeout) " (the card timed out — timeout is no)" else " (the owner declined)") +
+                                        " — no order was placed",
+                                )
+                            }
+
+                            is PurchaseFlowLaw.Outcome.Place -> {
+                                evidence?.line(
+                                    "purchase-approved total=${outcome.decision.totalCents} " +
+                                        "viaCancelWindow=${outcome.viaCancelWindow} — dispatching the order button",
+                                )
+                            }
+                        }
+                    }
                     // 6. execute + postcondition — dispatch is never a success claim
                     state.subtaskSteps += 1
                     val report = executor.execute(guard.resolved, proposal)
@@ -305,7 +402,7 @@ class DomLaneLoop(
                         state.consecutiveUnverified += 1
                         continue
                     }
-                    var post = postcondition(proposal, guard.resolved, fresh, afterAction(report, fresh) ?: fresh, state)
+                    var post = postcondition(proposal, guard.resolved, fresh, afterAction(report, fresh) ?: fresh, state, report.verified)
                     var executedAction = proposal.action.name.lowercase()
                     if (report.dispatched && !post && report.hasDownHandler) {
                         // FR-13 escalation: the trusted touch path ONLY for down-driven controls
@@ -328,6 +425,7 @@ class DomLaneLoop(
                     )
                     evidence?.line("executed $executedAction verified=$post ${postEvidence.take(100)}")
                     state.consecutiveUnverified = if (post) 0 else state.consecutiveUnverified + 1
+                    if (post) state.correctionsLeft = 2
                 }
             }
         }
@@ -465,13 +563,25 @@ class DomLaneLoop(
      * as host+path) when the lane is not already there. Content conditions bind nothing —
      * the writer proposes the move (including `search`) on the page at hand.
      */
-    private fun entryFor(subtask: Subtask, snapshot: DomSnapshot): EntryTarget? {
+    private fun entryFor(subtask: Subtask, snapshot: DomSnapshot, goal: String): EntryTarget? {
         val instruction = subtask.instruction.lowercase()
         // A full URL typed into the instruction binds its own destination (a simple,
         // local URL finder — the carried GoalFidelity.URL_IN_TEXT is internal to :core).
         Regex("""https?://[^\s"'<>]+""").find(instruction)?.let { match ->
             val url = match.value.removeSuffix(".").removeSuffix(",")
             if (hostOf(snapshot.page.url) != hostOf(url)) return EntryTarget(url)
+        }
+        // The GOAL's own exact URL (scheme included) wins when the subtask's URL condition
+        // binds the same host - the owner typed the scheme; the entry never upgrades it.
+        val goalUrl = Regex("""(https?|file)://[^s"'<>]+""").find(goal.lowercase())?.value?.removeSuffix(".")?.removeSuffix(",")
+        if (goalUrl != null && hostOf(snapshot.page.url) != hostOf(goalUrl)) {
+            val done = subtask.done
+            val conditionHost = when (done) {
+                is DoneCondition.UrlHost -> normalizeHost(done.host)
+                is DoneCondition.UrlContains -> hostOf(done.segment)
+                else -> null
+            }
+            if (conditionHost != null && hostOf(goalUrl) == conditionHost) return EntryTarget(goalUrl)
         }
         return when (val done = subtask.done) {
             is DoneCondition.UrlHost -> {
@@ -503,7 +613,7 @@ class DomLaneLoop(
 
     private fun hostOf(url: String): String {
         val noScheme = url.substringAfter("://", url)
-        return noScheme.substringBefore('/').removePrefix("www.").lowercase()
+        return noScheme.substringBefore('/').substringBefore(':').removePrefix("www.").lowercase()
     }
 
     private fun markSubtaskStart(ladder: Ladder, pointer: Int, state: RunState) {
@@ -556,6 +666,7 @@ class DomLaneLoop(
         before: DomSnapshot,
         after: DomSnapshot,
         state: RunState,
+        executorVerified: Boolean = true,
     ): Boolean = when (proposal.action) {
         DomAction.CLICK -> {
             val elementBefore = before.elements.firstOrNull { it.id == resolved.id }
@@ -580,8 +691,10 @@ class DomLaneLoop(
         }
 
         DomAction.SCROLL_TO -> {
-            postEvidence = "scroll reported by the executor"
-            true
+            // FR-17's law: the executor's viewport-change verdict governs (a scroll that
+            // moves the page nowhere is not progress — the S3 treadmill lesson).
+            postEvidence = if (executorVerified) "the viewport moved (executor verdict)" else "no viewport change - not progress"
+            executorVerified
         }
 
         DomAction.SEARCH -> {

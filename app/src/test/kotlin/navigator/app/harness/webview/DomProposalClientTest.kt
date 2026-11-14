@@ -113,7 +113,7 @@ class DomProposalClientTest {
         assertEquals(2, messages.size, "system + user, exactly")
         val system = messages[0].toString()
         assertTrue(system.contains("UNTRUSTED DATA"), "the untrusted-page law rides the system prompt")
-        assertTrue(system.contains("NO submit action"), "the fill-only law rides the system prompt")
+        assertTrue(system.contains("NO form-submit action"), "the fill-only law rides the system prompt")
         val user = messages[1].toString()
         assertTrue(user.contains("ELEMENTS"), "the element list rides")
         assertTrue(user.contains("[3]"), "the snapshot-local ids ride verbatim")
